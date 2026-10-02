@@ -1,4 +1,4 @@
--- PotterMetin MMO - PostgreSQL Database Schema
+-- HPMMO - PostgreSQL Database Schema
 -- Dedicated Game Server Persistence Layer
 
 -- 1. Accounts Table

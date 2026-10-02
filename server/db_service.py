@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-PotterMetin MMO - Server Database Service
+HPMMO - Server Database Service
 Handles Account Authentication, Character Persistence, and ACID Transactions.
 Supports PostgreSQL with automatic SQLite local fallback.
 Listens on 127.0.0.1:8081 (Internal Server API).
@@ -17,21 +17,33 @@ from urllib.parse import urlparse
 PORT = int(os.environ.get("DB_PORT", 8081))
 DB_TYPE = "sqlite" # 'postgresql' or 'sqlite'
 PG_CONN = None
-SQLITE_PATH = os.path.join(os.path.dirname(__file__), "pottermetin_server.db")
+SQLITE_PATH = os.path.join(os.path.dirname(__file__), "hpmmo_server.db")
+# Fallback to legacy db file if new one doesn't exist yet
+if not os.path.exists(SQLITE_PATH) and os.path.exists(os.path.join(os.path.dirname(__file__), "pottermetin_server.db")):
+    SQLITE_PATH = os.path.join(os.path.dirname(__file__), "pottermetin_server.db")
 
 # Optional PostgreSQL driver support
 try:
     import psycopg2
     from psycopg2.extras import RealDictCursor
-    PG_URL = os.environ.get("DATABASE_URL", "postgresql://pottermetin:REDACTED_SECRET@localhost:5432/pottermetin_db")
+    default_pg = "postgresql://hpmmo:REDACTED_SECRET@localhost:5432/hpmmo_db"
+    legacy_pg = "postgresql://pottermetin:REDACTED_SECRET@localhost:5432/pottermetin_db"
+    PG_URL = os.environ.get("DATABASE_URL", default_pg)
     try:
         PG_CONN = psycopg2.connect(PG_URL)
         PG_CONN.autocommit = True
         DB_TYPE = "postgresql"
         print(f"[DB Service] Connected to PostgreSQL at {PG_URL.split('@')[-1]}")
     except Exception as e:
-        print(f"[DB Service] PostgreSQL connection notice: {e}. Falling back to SQLite.")
-        DB_TYPE = "sqlite"
+        try:
+            # Try legacy connection string
+            PG_CONN = psycopg2.connect(legacy_pg)
+            PG_CONN.autocommit = True
+            DB_TYPE = "postgresql"
+            print(f"[DB Service] Connected to legacy PostgreSQL at {legacy_pg.split('@')[-1]}")
+        except Exception:
+            print(f"[DB Service] PostgreSQL connection notice: {e}. Falling back to SQLite ({SQLITE_PATH}).")
+            DB_TYPE = "sqlite"
 except ImportError:
     DB_TYPE = "sqlite"
 
@@ -140,7 +152,9 @@ class DBRequestHandler(BaseHTTPRequestHandler):
             self._send_json(400, {"error": "Invalid JSON payload"})
             return
 
-        if parsed.path == "/api/register":
+        if parsed.path == "/api/health":
+            self._send_json(200, {"status": "ok", "db": DB_TYPE})
+        elif parsed.path == "/api/register":
             self.handle_register(req_data)
         elif parsed.path == "/api/login":
             self.handle_login(req_data)
@@ -215,7 +229,7 @@ class DBRequestHandler(BaseHTTPRequestHandler):
         acc_id = req.get("account_id")
         conn = get_sqlite()
         cur = conn.cursor()
-        cur.execute("SELECT id, name, house, level, wand_tier, pos_x, pos_y, pos_z, galleons FROM characters WHERE account_id = ?", (acc_id,))
+        cur.execute("SELECT id, name, house, level, wand_tier, pos_x, pos_y, pos_z, galleons, current_hp, max_hp, current_mana, max_mana FROM characters WHERE account_id = ?", (acc_id,))
         chars = [dict(c) for c in cur.fetchall()]
         conn.close()
         self._send_json(200, {"success": True, "characters": chars})
@@ -228,6 +242,17 @@ class DBRequestHandler(BaseHTTPRequestHandler):
             self._send_json(400, {"success": False, "message": "Character name must be at least 2 characters."})
             return
 
+        conn = get_sqlite()
+        cur = conn.cursor()
+        
+        # Enforce maximum 2 characters per account (Issue #2 & Section 3.2)
+        cur.execute("SELECT COUNT(*) as char_count FROM characters WHERE account_id = ?", (acc_id,))
+        count_row = cur.fetchone()
+        if count_row and count_row["char_count"] >= 2:
+            conn.close()
+            self._send_json(400, {"success": False, "message": "Maksimum 2 karakter sinirina ulasildi! (Max 2 characters allowed per account)"})
+            return
+
         starter_inventory = [
             {"id": "wand_hawthorn", "amount": 1, "tier": 0},
             {"id": "robe_apprentice", "amount": 1, "tier": 0},
@@ -238,8 +263,6 @@ class DBRequestHandler(BaseHTTPRequestHandler):
             {"id": "potion_mana", "amount": 5, "tier": 0}
         ]
 
-        conn = get_sqlite()
-        cur = conn.cursor()
         try:
             cur.execute("""
                 INSERT INTO characters (account_id, name, house, inventory)
@@ -374,11 +397,12 @@ class DBRequestHandler(BaseHTTPRequestHandler):
         sys.stdout.write(f"[DB API] {args[0]} - {args[1]}\n")
 
 if __name__ == "__main__":
-    server_address = ("127.0.0.1", PORT)
+    # Fix Issue #1 & Section 2.2: Bind to 0.0.0.0 to accept external requests on VPS
+    server_address = ("0.0.0.0", PORT)
     httpd = HTTPServer(server_address, DBRequestHandler)
     print("=========================================================")
-    print(f"[PotterMetin DB Service] Running on http://127.0.0.1:{PORT}")
-    print(f"[PotterMetin DB Service] Backend: {DB_TYPE.upper()}")
+    print(f"[HPMMO DB Service] Listening on http://0.0.0.0:{PORT} (Port {PORT})")
+    print(f"[HPMMO DB Service] Backend: {DB_TYPE.upper()}")
     print("=========================================================")
     try:
         httpd.serve_forever()

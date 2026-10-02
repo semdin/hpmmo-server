@@ -1,7 +1,7 @@
 {
   "version": "1.1.0",
   "min_client_version": "1.0.0",
-  "game_title": "PotterMetin MMO",
+  "game_title": "HPMMO",
   "server_ip": "213.250.145.75",
   "server_port": 7777,
   "patch_url": "http://213.250.145.75:8081/patch/latest.zip",
