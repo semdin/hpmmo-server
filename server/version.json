@@ -1,0 +1,16 @@
+{
+  "version": "1.1.0",
+  "min_client_version": "1.0.0",
+  "game_title": "PotterMetin MMO",
+  "server_ip": "213.250.145.75",
+  "server_port": 7777,
+  "patch_url": "http://213.250.145.75:8081/patch/latest.zip",
+  "changelog": [
+    "v1.1.0: Full PostgreSQL + RAM server persistence deployed",
+    "v1.1.0: Account registration & multi-character selection system",
+    "v1.1.0: Saved location, inventory, gold, and wand level restoration",
+    "v1.1.0: Upgraded spell VFX (Stupefy stun shockwave, Incendio flame plume, Bombarda crater)",
+    "v1.1.0: Remote player smooth interpolation & broom mount sync",
+    "v1.1.0: Standalone launcher with auto-updater support"
+  ]
+}

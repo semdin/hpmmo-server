@@ -7,9 +7,10 @@ echo "=========================================================="
 
 GAME_DIR="$HOME/pottermetin/game"
 
-# 1. Stop systemd service
-echo "[1/3] Stopping pottermetin service..."
+# 1. Stop systemd services
+echo "[1/3] Stopping pottermetin services..."
 sudo systemctl stop pottermetin || true
+sudo systemctl stop pottermetin-db || true
 
 # 2. Update files
 echo "[2/3] Updating server files..."
@@ -27,12 +28,20 @@ else
     echo "No tar.gz or git repo found. Ensure updated files are in $GAME_DIR."
 fi
 
-# 3. Restart systemd service
-echo "[3/3] Restarting pottermetin service..."
+# Run any schema migrations if present
+if command -v psql &> /dev/null && [ -f "$GAME_DIR/server/schema.sql" ]; then
+    echo "Applying schema updates (if any)..."
+    PGPASSWORD=REDACTED_SECRET psql -h localhost -U pottermetin -d pottermetin_db -f "$GAME_DIR/server/schema.sql" 2>/dev/null || true
+fi
+
+# 3. Restart systemd services
+echo "[3/3] Restarting pottermetin services..."
 sudo systemctl daemon-reload
+sudo systemctl restart pottermetin-db
 sudo systemctl restart pottermetin
 
 echo "=========================================================="
-echo ">>> UPDATE COMPLETE! SERVER IS LIVE! <<<"
+echo ">>> UPDATE COMPLETE! SERVER & DB SERVICES ARE LIVE! <<<"
 echo "=========================================================="
+sudo systemctl status pottermetin-db --no-pager
 sudo systemctl status pottermetin --no-pager

@@ -4,7 +4,7 @@ echo ========================================================
 echo Packaging PotterMetin dedicated server files...
 echo ========================================================
 
-tar -czf pottermetin_server.tar.gz --exclude=".git" --exclude=".godot" --exclude="*.bat" *
+tar -czf pottermetin_server.tar.gz --exclude=".git" --exclude=".godot/editor" --exclude="*.bat" *
 
 echo.
 echo [SUCCESS] Archive created: pottermetin_server.tar.gz
