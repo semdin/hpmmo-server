@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """
 HPMMO - Server Database Service
-Handles Account Authentication, Character Persistence, and ACID Transactions.
-Supports PostgreSQL with automatic SQLite local fallback.
-Listens on 127.0.0.1:8081 (Internal Server API).
+Handles account authentication and character persistence (SQLite; the
+PostgreSQL connection setup is unused until the Phase 4 rewrite).
+Listens on 0.0.0.0:8081 - this API has no authentication yet and must not be
+exposed to the public internet (plan.md defect B3).
+The trade route is disabled (503) until the Phase 4 rewrite.
 """
 
 import sys
@@ -167,7 +169,11 @@ class DBRequestHandler(BaseHTTPRequestHandler):
         elif parsed.path == "/api/characters/save":
             self.handle_character_save(req_data)
         elif parsed.path == "/api/trade":
-            self.handle_trade(req_data)
+            # Disabled for Phase 1 (plan.md): handle_trade appends offered items
+            # to recipients without debiting senders, so it mints items and
+            # galleons. Phase 4 replaces it with validated, transactional
+            # transfers and re-enables the route.
+            self._send_json(503, {"success": False, "message": "Trade is temporarily disabled."})
         else:
             self._send_json(404, {"error": "Endpoint not found"})
 
