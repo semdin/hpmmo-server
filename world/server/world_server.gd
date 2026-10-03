@@ -41,9 +41,11 @@ func _ready() -> void:
 		print("[WorldServer] persistence: %s" % api_url)
 	else:
 		# Loud on purpose: a server without persistence looks healthy and loses
-		# every character on restart.
-		push_warning("[WorldServer] running WITHOUT persistence (HPMMO_API_URL / HPMMO_SERVICE_TOKEN unset)")
-		print("[WorldServer] WARNING: persistence disabled - characters are session-only")
+		# every character on restart. Printed on stdout (not push_warning) so it
+		# lands in the server log rather than on stderr, which Windows shells
+		# treat as a command failure.
+		print("[WorldServer] WARNING: persistence disabled (HPMMO_API_URL / HPMMO_SERVICE_TOKEN unset)")
+		print("[WorldServer] WARNING: characters are session-only until it is configured")
 
 	var error := SimNet.host(port)
 	if error != OK:
