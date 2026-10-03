@@ -264,10 +264,17 @@ OpBegin begin_op(db::Conn& conn, const std::string& op_id, const std::string& ki
     }
     if (ins.affected == 0) {
         // Replay: the op already ran; return its recorded result unchanged.
-        db::Result prev = conn.exec("SELECT result::text FROM operations WHERE op_id = $1", {op_id});
+        // An op_id reused for a DIFFERENT kind is a caller bug - refuse loudly
+        // rather than replaying the wrong operation's result.
+        db::Result prev = conn.exec("SELECT result::text, kind FROM operations WHERE op_id = $1", {op_id});
         if (!prev.ok || prev.rows.empty()) {
             out.error = "operation ledger lookup failed";
             out.kind = prev.kind;
+            return out;
+        }
+        if (prev.rows[0][1].second.value_or("") != kind) {
+            out.error = "op_id was used for a different operation kind";
+            out.kind = ErrorKind::Constraint;
             return out;
         }
         out.ok = true;
