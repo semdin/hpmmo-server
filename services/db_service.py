@@ -19,33 +19,38 @@ from urllib.parse import urlparse
 PORT = int(os.environ.get("DB_PORT", 8081))
 DB_TYPE = "sqlite" # 'postgresql' or 'sqlite'
 PG_CONN = None
-SQLITE_PATH = os.path.join(os.path.dirname(__file__), "hpmmo_server.db")
-# Fallback to legacy db file if new one doesn't exist yet
-if not os.path.exists(SQLITE_PATH) and os.path.exists(os.path.join(os.path.dirname(__file__), "pottermetin_server.db")):
-    SQLITE_PATH = os.path.join(os.path.dirname(__file__), "pottermetin_server.db")
+SQLITE_PATH = os.environ.get(
+    "HPMMO_SQLITE_PATH", os.path.join(os.path.dirname(__file__), "hpmmo_server.db")
+)
+# Fallback to the legacy db file name if the new one doesn't exist yet
+if os.environ.get("HPMMO_SQLITE_PATH") is None and not os.path.exists(SQLITE_PATH):
+    _legacy = os.path.join(os.path.dirname(__file__), "pottermetin_server.db")
+    if os.path.exists(_legacy):
+        SQLITE_PATH = _legacy
 
-# Optional PostgreSQL driver support
+# Optional PostgreSQL driver support. Credentials come ONLY from the
+# environment (deploy/hpmmo.env.example) - never hardcoded, never committed.
 try:
     import psycopg2
     from psycopg2.extras import RealDictCursor
-    default_pg = "postgresql://hpmmo:REDACTED_SECRET@localhost:5432/hpmmo_db"
-    legacy_pg = "postgresql://pottermetin:REDACTED_SECRET@localhost:5432/pottermetin_db"
-    PG_URL = os.environ.get("DATABASE_URL", default_pg)
-    try:
-        PG_CONN = psycopg2.connect(PG_URL)
-        PG_CONN.autocommit = True
-        DB_TYPE = "postgresql"
-        print(f"[DB Service] Connected to PostgreSQL at {PG_URL.split('@')[-1]}")
-    except Exception as e:
-        try:
-            # Try legacy connection string
-            PG_CONN = psycopg2.connect(legacy_pg)
-            PG_CONN.autocommit = True
-            DB_TYPE = "postgresql"
-            print(f"[DB Service] Connected to legacy PostgreSQL at {legacy_pg.split('@')[-1]}")
-        except Exception:
-            print(f"[DB Service] PostgreSQL connection notice: {e}. Falling back to SQLite ({SQLITE_PATH}).")
-            DB_TYPE = "sqlite"
+    PG_URL = os.environ.get("DATABASE_URL", "")
+    LEGACY_URL = os.environ.get("DATABASE_URL_LEGACY", "")
+    if PG_URL or LEGACY_URL:
+        for _label, _url in (("primary", PG_URL), ("legacy", LEGACY_URL)):
+            if not _url:
+                continue
+            try:
+                PG_CONN = psycopg2.connect(_url)
+                PG_CONN.autocommit = True
+                DB_TYPE = "postgresql"
+                print(f"[DB Service] Connected to {_label} PostgreSQL at {_url.split('@')[-1]}")
+                break
+            except Exception as e:
+                print(f"[DB Service] PostgreSQL ({_label}) connection notice: {e}")
+        if DB_TYPE != "postgresql":
+            print(f"[DB Service] Falling back to SQLite ({SQLITE_PATH}). Set DATABASE_URL to use PostgreSQL.")
+    else:
+        print(f"[DB Service] DATABASE_URL not set; using SQLite ({SQLITE_PATH}).")
 except ImportError:
     DB_TYPE = "sqlite"
 

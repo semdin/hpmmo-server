@@ -1,0 +1,10 @@
+# Runtime data - never commit databases or logs
+*.db
+*.db-journal
+*.log
+dist/
+__pycache__/
+*.pyc
+# Godot caches inside world/
+.godot/
+*.translation
