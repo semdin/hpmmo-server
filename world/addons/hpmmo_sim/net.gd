@@ -124,7 +124,7 @@ func _local_intent() -> Dictionary:
 	return player.sim_input_intent()
 
 func leave() -> void:
-	if multiplayer.multiplayer_peer != null:
+	if is_inside_tree() and multiplayer and multiplayer.multiplayer_peer != null:
 		multiplayer.multiplayer_peer.close()
 		multiplayer.multiplayer_peer = null
 	is_client = false

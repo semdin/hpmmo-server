@@ -45,11 +45,12 @@ func _notification(what: int) -> void:
 func _ready() -> void:
 	# Transport and lifecycle live in SimNet now; this node keeps the public
 	# surface the rest of the game (and the test harness) already calls.
-	SimNet.disconnected.connect(func(_reason: String):
-		is_connected_to_game = false
-		emit_signal("server_disconnected_signal"))
-	SimNet.joined.connect(func(ok: bool, _reason: String, _character: Dictionary):
-		is_connected_to_game = ok)
+	if is_instance_valid(SimNet):
+		SimNet.disconnected.connect(func(_reason: String):
+			is_connected_to_game = false
+			emit_signal("server_disconnected_signal"))
+		SimNet.joined.connect(func(ok: bool, _reason: String, _character: Dictionary):
+			is_connected_to_game = ok)
 
 ## Disconnect active peer and reset state cleanly
 func disconnect_game() -> void:

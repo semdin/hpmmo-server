@@ -14,6 +14,7 @@ extends Node
 ##   HPMMO_NET_PROFILE     latency/loss profile (local|broadband|mobile|awful)
 
 const WORLD_SCENE = preload("res://scenes/world/game_world.tscn")
+const HPProtocol = preload("res://addons/hpmmo_sim/protocol.gd")
 
 var world: Node3D = null
 

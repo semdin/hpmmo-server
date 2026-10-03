@@ -60,6 +60,12 @@ else
     echo "Notice: place a package built by deploy/package_server.ps1 at $HOME/hpmmo_server.tar.gz."
 fi
 
+# Run Godot headless editor import pass to build class caches and imports
+if [ -f "$BIN_DIR/godot_server" ] && [ -d "$GAME_DIR/world" ]; then
+    echo "Running Godot import pass on world..."
+    "$BIN_DIR/godot_server" --headless --path "$GAME_DIR/world" --editor --import --quit 2>&1 || true
+fi
+
 # Configure PostgreSQL (hpmmo_db and hpmmo user) using the env password
 if command -v psql &> /dev/null; then
     echo "Configuring PostgreSQL user and database (hpmmo_db)..."
