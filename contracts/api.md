@@ -20,7 +20,7 @@ revision), 410 consumed/expired ticket, 503 database unavailable (no fallback ba
 | `GET /api/ready` | - | readiness: verifies DB reachability + required migration level. 200 `{status:"ready", db:"postgresql", schema:N}` or 503 `{status:"unavailable", ...}` |
 | `GET /api/version` | - | service `version.json` (game_title, min_client_version, ...) |
 | `POST /api/register` | - | `{username, password}` -> `{success, account_id}`; policy: 3-24 chars `[A-Za-z0-9_-]`, password >=8 with letters and digits |
-| `POST /api/login` | - | `{username, password}` -> `{success, account_id, username, token, expires_in_seconds}`; argon2id verification; sessions expire (HPMMO_SESSION_TTL_HOURS, default 24h) and are capped per account (HPMMO_MAX_SESSIONS, default 5, oldest revoked) |
+| `POST /api/login` | - | `{username, password}` -> `{success, account_id, username, token, expires_in_seconds}`; argon2id verification; sessions expire (HPMMO_SESSION_TTL_HOURS, default 24h) and are capped per account (HPMMO_MAX_SESSIONS, default 5, oldest revoked; the cap is advisory under exactly-concurrent logins) |
 | `POST /api/logout` | session | revokes the presented session |
 | `POST /api/ticket/redeem` | - | `{ticket}` -> `{token, account_id, character_id?, expires_in_seconds}`; single-use, TTL HPMMO_TICKET_TTL_SECONDS (default 60) |
 
@@ -32,7 +32,7 @@ revision), 410 consumed/expired ticket, 503 database unavailable (no fallback ba
 | `POST /api/characters/create` | `{name, house}` -> `{character:{id,name,house}}`; max 2 per account; starter items seeded as ownership rows |
 | `POST /api/characters/list` | `{}` -> `{characters:[snapshot]}` scoped to the session account |
 | `POST /api/characters/load` | `{character_id}` -> `{character: snapshot + inventory[]}`; 404 for foreign ids |
-| `POST /api/characters/save` | `{character_id, base_revision?, level?, exp?, max_hp?, current_hp?, max_mana?, current_mana?, galleons?, wand_tier?, pos?[3], rot_y?, map_id?, quests?, inventory?}` -> `{revision}`; **absent fields keep their stored values**; `inventory` present = validated full replacement of the ownership rows; `base_revision` mismatch -> 409 with the current revision |
+| `POST /api/characters/save` | `{character_id, base_revision?, level?, exp?, max_hp?, current_hp?, max_mana?, current_mana?, galleons?, wand_tier?, pos?[3], rot_y?, map_id?, quests?, inventory?}` -> `{revision}`; **absent fields keep their stored values**; `inventory` present = validated full replacement of the ownership rows (capacity-limited to 40 item kinds, stacks <= 9999); `base_revision` mismatch -> 409 with the current revision. **Phase 4 gate:** progression fields accepted here are client-authoritative until Phase 5 moves authority to the world server - do not expose this endpoint to untrusted clients before then |
 
 ## Service-token endpoints (world server authority)
 

@@ -41,7 +41,11 @@ llvm-dlltool -m i386:x86-64 -D libpq.dll -d libpq.def -l <pg>/lib/libpq.a
 Point `DATABASE_URL` at any PostgreSQL; `hpmmo_service migrate` applies `db/migrations/`. A
 self-contained local cluster (no installer) works: extract the EDB binaries, `initdb -D pgdata
 -U hpmmo --pwfile=...`, `pg_ctl -D pgdata -o "-p 55432" start`, `createdb hpmmo_dev`.
-`tests/integration_api.py` manages its own cluster lifecycle and throwaway database.
+
+`tests/integration_api.py` manages its own cluster lifecycle and throwaway database. Outside
+the standard workspace layout it needs two environment variables, or it SKIPs (exit 2) with
+instructions: `HPMMO_PG_ROOT` (a PostgreSQL 17 binaries tree; default: the workspace sibling
+`_tools/pgsql`) and `HPMMO_PG_PASSWORD` (default: `tests/.pg-dev.pw`, which is untracked).
 
 ## Quick start
 
