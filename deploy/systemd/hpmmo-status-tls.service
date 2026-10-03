@@ -1,0 +1,42 @@
+# HPMMO client release/status listener over TLS (plan.md Phase 7).
+#
+# This is the PUBLIC listener the launcher talks to:
+#   GET /status, /health, /tls/spki       the deployment state document
+#   GET /releases/<file>                  the read-only client release root
+#
+# It is deliberately a second unit, not a change to hpmmo-status.service:
+#   * hpmmo-status.service stays on 127.0.0.1:8083 for the deployment
+#     controller's own check (deploy/hpmmo_deploy.sh GETs http://127.0.0.1:8083/status
+#     in plain HTTP) - moving it to TLS/8443 would silently break that check;
+#   * 8443 is the only new public port, and hpmmo_status.py refuses this bind
+#     unless a certificate AND HPMMO_STATUS_ALLOW_NONLOOPBACK=1 are both
+#     present, so the unit cannot come up half-configured.
+#
+# Prerequisites (see server/docs/phase7-release-contract.md 4.1):
+#   /etc/hpmmo/tls/release-cert.pem, release-key.pem  (deploy/tls/make_cert.sh)
+#   /srv/hpmmo/client-releases/                       (the release root)
+#   ufw allow 8443/tcp
+#
+# Installed with @PLACEHOLDERS@ substituted, like the other units.
+[Unit]
+Description=HPMMO TLS Client Release & Status Listener
+After=network.target
+
+[Service]
+Type=simple
+User=@RUN_USER@
+EnvironmentFile=-@ENV_FILE@
+Environment=HPMMO_STATE_DIR=@STATE_DIR@
+Environment=HPMMO_RELEASES_DIR=@RELEASES_DIR@
+Environment=HPMMO_STATUS_HOST=0.0.0.0
+Environment=HPMMO_STATUS_PORT=8443
+Environment=HPMMO_STATUS_ALLOW_NONLOOPBACK=1
+Environment=HPMMO_STATUS_RELEASES_ROOT=/srv/hpmmo/client-releases
+Environment=HPMMO_STATUS_TLS_CERT=/etc/hpmmo/tls/release-cert.pem
+Environment=HPMMO_STATUS_TLS_KEY=/etc/hpmmo/tls/release-key.pem
+ExecStart=@PYTHON@ @STATUS_SCRIPT@
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

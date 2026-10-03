@@ -211,8 +211,51 @@ Rules:
 
 ### 4.1 The exact change needed to expose this on the live box
 
-**Not applied in this task** — the service is implemented and rehearsed on loopback only. To expose it
-(volumes assume the layout `/opt/hpmmo/bin/hpmmo_status.py`, `deploy/install_layout.sh`):
+**Applied on 2026-10-04, with one external step still open.** The listener, the
+certificate, the release root and the firewall rule are live; the cloud security
+group still refuses inbound 8443, so nothing outside the box can reach it yet
+(only 22/tcp, 8081/tcp and 7777/udp are admitted from the internet). Open
+`8443/tcp` for the box in the Huawei Cloud console security group before
+expecting a launcher outside the host to fetch the channel.
+
+What was run, in order (see the inventory in `docs/vps-inventory.md`):
+
+```sh
+# 1. release signing key, on the box, never copied off it (see keys/README.md)
+install -d -m 700 /root/hpmmo-keys
+umask 077; openssl genpkey -algorithm ed25519 -out /root/hpmmo-keys/release.key
+
+# 2. certificate + release root
+bash deploy/tls/make_cert.sh --host 213.250.145.75 --out /etc/hpmmo/tls
+install -d -m 755 /srv/hpmmo/client-releases/channels/{dev,beta,release}
+
+# 3. the Phase 7 status/release script replaces the Phase 6 one at the
+#    controller's stable path (same CLI, same env; the old copy is kept at
+#    /root/hpmmo-keys/hpmmo_status.py.phase6.bak)
+install -m 0755 deploy/hpmmo_status.py /opt/hpmmo/bin/hpmmo_status.py
+
+# 4. the public TLS listener is a SECOND unit, not a rewrite of the loopback
+#    one: deploy/systemd/hpmmo-status-tls.service (0.0.0.0:8443, TLS, the
+#    release root). hpmmo_deploy.sh checks http://127.0.0.1:8083/status in
+#    plain HTTP, so moving that listener to 8443/TLS would silently break the
+#    controller's own health check.
+systemctl enable --now hpmmo-status-tls.service
+
+# 5. firewall
+ufw allow 8443/tcp
+
+# 6. publish: package_client.py -> gen_manifest.py --key /root/hpmmo-keys/release.key
+#    -> /srv/hpmmo/client-releases/{hpmmo-client-<v>-<platform>.zip,channels/<channel>/...}
+```
+
+Verified on the box: `GET /health` reports `tls:true`, `/tls/spki` reports
+`703a2267c7b37414632dc23d628eca31df70029581b5d19603f5589902a78fae` (the pin
+`make_cert.sh` printed), the served `manifest.json`/`.sig` are byte-identical to
+the signed files, and a cleartext `/releases/` request from a non-loopback peer
+is refused with 403.
+
+The original change text (kept for reference; volumes assume the layout
+`/opt/hpmmo/bin/hpmmo_status.py`, `deploy/install_layout.sh`):
 
 ```sh
 # 1. certificate (as root, on the box; the key stays on the box, mode 600)
@@ -224,7 +267,9 @@ chmod 600 /etc/hpmmo/tls/release-key.pem && chown <status-user>: /etc/hpmmo/tls/
 # 2. release root the ssh publish user can write and the service can only read
 install -d -m 755 /srv/hpmmo/client-releases/channels/{dev,beta,release}
 
-# 3. unit: deploy/systemd/hpmmo-status.service gains
+# 3. unit: these environment lines are carried by the new
+#    deploy/systemd/hpmmo-status-tls.service, while hpmmo-status.service
+#    keeps 127.0.0.1:8083 for the deployment controller
 Environment=HPMMO_STATUS_HOST=0.0.0.0
 Environment=HPMMO_STATUS_PORT=8443
 Environment=HPMMO_STATUS_ALLOW_NONLOOPBACK=1
@@ -244,7 +289,9 @@ python3 /opt/hpmmo/bin/hpmmo_status.py --print-pin --tls-cert /etc/hpmmo/tls/rel
 The deployment state stays loopback-only on 8083 for the controller's own use; 8443 is the only new public
 port, it serves nothing but `/status`, `/health`, `/tls/spki` and read-only files, and it must not be added
 before the certificate exists (the service refuses the bind otherwise). Closing the Phase 6 item
-(the API exposed on 8081) remains a separate, prerequisite change.
+(the API exposed on 8081) remains a separate change, and it is blocked on more than this certificate:
+the game client must trust the pin through Godot's `TLSOptions`, the launcher's WinHTTP calls must pin it
+too, and a client build carrying both must be installed before 8081 can close. See `docs/vps-inventory.md`.
 
 ---
 
