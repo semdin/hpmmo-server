@@ -42,6 +42,7 @@ signal player_left(uid: int, character_id: int)
 
 enum Role { OFFLINE, HOST, DEDICATED, CLIENT }
 
+const HPProtocol = preload("res://addons/hpmmo_sim/protocol.gd")
 const MOB_GROUPS := ["mobs"]
 
 var role: int = Role.OFFLINE

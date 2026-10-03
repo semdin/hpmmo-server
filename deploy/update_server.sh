@@ -13,6 +13,7 @@ set -e
 # checked, and swapped in with game.old kept for rollback.
 
 BASE_DIR="$HOME/hpmmo"
+BIN_DIR="$BASE_DIR/bin"
 GAME_DIR="$BASE_DIR/game"
 STAGE_DIR="$BASE_DIR/game.new"
 OLD_DIR="$BASE_DIR/game.old"
@@ -56,6 +57,12 @@ if [ -d "$GAME_DIR" ]; then
     mv "$GAME_DIR" "$OLD_DIR"
 fi
 mv "$STAGE_DIR" "$GAME_DIR"
+ 
+# Run Godot headless editor import pass to build class caches and imports
+if [ -f "$BIN_DIR/godot_server" ] && [ -d "$GAME_DIR/world" ]; then
+    echo "Running Godot import pass on world..."
+    "$BIN_DIR/godot_server" --headless --path "$GAME_DIR/world" --editor --import --quit 2>&1 || true
+fi
 
 echo "[5/6] Applying schema migrations (idempotent)..."
 "$GAME_DIR/deploy/apply_migrations.sh" || {

@@ -412,7 +412,7 @@ func _handle_cmdline_args() -> void:
 		_begin_launcher_session()
 
 func _begin_launcher_session() -> void:
-	_show_panel("none")
+	_show_panel("auth")
 	auth_status_label.text = "Launcher oturumu doğrulanıyor..."
 	login_btn.disabled = true
 	register_btn.disabled = true
@@ -452,15 +452,25 @@ func _enter_world_with_session() -> void:
 		ip = "127.0.0.1"
 	var port = int(port_input.text) if not port_input.text.is_empty() else 7777
 
+	_show_panel("auth")
 	auth_status_label.text = "Sunucuya bağlanılıyor (%s:%d)..." % [ip, port]
+	login_btn.disabled = true
+	register_btn.disabled = true
+
 	var err = NetworkManager.join_game(ip, port)
 	if err != OK:
-		auth_status_label.text = "Sunucuya bağlanılamadı! IP adresini ve güvenlik duvarını kontrol edin."
+		auth_status_label.text = "Sunucuya bağlanılamadı (hata %d)! IP ve güvenlik duvarını kontrol edin." % err
+		login_btn.disabled = false
+		register_btn.disabled = false
+		_show_panel("auth")
 		return
 
 	var connected: bool = await _await_game_connection(8.0)
 	if not connected:
-		auth_status_label.text = "Sunucu bağlantısı kurulamadı. Lütfen oyunu yeniden başlatın."
+		auth_status_label.text = "Sunucu bağlantısı kurulamadı (UDP :%d zaman aşımı). Sunucu servislerini kontrol edin." % port
+		login_btn.disabled = false
+		register_btn.disabled = false
+		_show_panel("auth")
 		return
 
 	if ResourceLoader.exists("res://scenes/main/character_select.tscn"):

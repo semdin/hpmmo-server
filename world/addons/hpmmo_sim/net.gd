@@ -19,6 +19,8 @@ signal disconnected(reason: String)
 signal server_ready(port: int)
 signal client_spawned(peer_id: int, character_id: int, name: String)
 
+const HPProtocol = preload("res://addons/hpmmo_sim/protocol.gd")
+
 const DEFAULT_PORT := 7777
 const MAX_PLAYERS := 64
 const CLIENT_VERSION := "phase5"
