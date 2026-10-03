@@ -14,3 +14,6 @@ world/**/*.import
 world/**/*.uid
 world/assets/models/**/*_texture.png
 world/assets/models/**/*.png
+tests/.pg-dev.pw
+tests/.pg-dev.env
+services/cpp/build/
