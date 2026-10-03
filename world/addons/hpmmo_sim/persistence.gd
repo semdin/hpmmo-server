@@ -14,6 +14,9 @@ extends Node
 const REQUEST_TIMEOUT_SEC := 5.0
 
 var base_url: String = "http://127.0.0.1:8081"
+var host: String = "127.0.0.1"
+var port: int = 8081
+var use_tls: bool = false
 var service_token: String = ""
 var revisions: Dictionary = {}      # character_id -> revision
 var last_error: String = ""
@@ -21,6 +24,27 @@ var last_error: String = ""
 func configure(url: String, token: String) -> void:
 	base_url = url.rstrip("/")
 	service_token = token
+
+	var clean := base_url
+	if clean.begins_with("https://"):
+		use_tls = true
+		port = 443
+		clean = clean.substr(8)
+	elif clean.begins_with("http://"):
+		use_tls = false
+		port = 80
+		clean = clean.substr(7)
+
+	var colon := clean.find(":")
+	if colon != -1:
+		port = int(clean.substr(colon + 1))
+		host = clean.substr(0, colon)
+	else:
+		var slash := clean.find("/")
+		if slash != -1:
+			host = clean.substr(0, slash)
+		else:
+			host = clean
 
 func _headers() -> PackedStringArray:
 	return PackedStringArray([
@@ -32,7 +56,7 @@ func _headers() -> PackedStringArray:
 ## (join). Only used at join/disconnect, never per tick.
 func _post_sync(path: String, body: Dictionary) -> Dictionary:
 	var client := HTTPClient.new()
-	var err := client.connect_to_host(base_url)
+	var err := client.connect_to_host(host, port)
 	if err != OK:
 		last_error = "connect:%d" % err
 		return {}
