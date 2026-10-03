@@ -78,6 +78,7 @@ fi
 # Compile C++ persistence microservice (Phase 4)
 if [ -d "$GAME_DIR/services/cpp" ]; then
     echo "Building C++ persistence service (hpmmo_service)..."
+    rm -rf "$GAME_DIR/services/cpp/build"
     cmake -S "$GAME_DIR/services/cpp" -B "$GAME_DIR/services/cpp/build" -G Ninja -DCMAKE_BUILD_TYPE=Release
     ninja -C "$GAME_DIR/services/cpp/build"
 fi

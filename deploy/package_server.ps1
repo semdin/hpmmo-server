@@ -30,7 +30,7 @@ try {
 
     # Prune anything that must never ship.
     Get-ChildItem -Recurse -Force $stage -Directory |
-        Where-Object { $_.Name -in @('.godot', '__pycache__', '.git') } |
+        Where-Object { $_.Name -in @('.godot', '__pycache__', '.git', 'build') } |
         Remove-Item -Recurse -Force
     Get-ChildItem -Recurse -Force $stage -File |
         Where-Object { $_.Extension -in @('.db', '.pyc', '.log') } |

@@ -42,6 +42,7 @@ if find "$STAGE_DIR" -name '*.db' | grep -q .; then
 fi
 
 echo "Compiling C++ persistence service in staging..."
+rm -rf "$STAGE_DIR/services/cpp/build"
 cmake -S "$STAGE_DIR/services/cpp" -B "$STAGE_DIR/services/cpp/build" -G Ninja -DCMAKE_BUILD_TYPE=Release
 ninja -C "$STAGE_DIR/services/cpp/build"
 
