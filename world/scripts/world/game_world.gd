@@ -134,7 +134,7 @@ func _notification(what: int) -> void:
 		_save_offline_state()
 
 func _save_offline_state() -> void:
-	if not is_instance_valid(local_player):
+	if not is_instance_valid(local_player) or not local_player.is_inside_tree():
 		return
 	if NetworkManager.is_server and not NetworkManager.is_dedicated_server:
 		var save_data := {
