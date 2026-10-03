@@ -26,9 +26,24 @@ Rehearsed exit cases (plan.md Phase 6 "Exit checks" + the task list):
   8. no live files change before the disconnect barrier (inode/mtime/size
      snapshots of the running release taken at every world state)
   9. maintenance interface absent -> fail safe, journal + abort, nothing changes
+ 10. the stub admin interface is as strict as the real one: a request without
+     the service token (or with a wrong one) is refused with 403, so a
+     controller that fails to send the header can never pass this rehearsal
+     again (the VPS found exactly that hole - see `curl -K -` in
+     hpmmo_deploy.sh and admin.gd's _authorized())
+ 11. rollback races a booting world server: the stub admin port refuses
+     connections for `boot_delay` seconds after a world (re)start. A controller
+     that writes MAINTENANCE without waiting for the interface to answer cannot
+     pass: the status document must match what the world actually enforces
+     (the VPS defect - after a failed release the rollback wrote MAINTENANCE
+     while the restored world came up ONLINE and accepting logins)
 
 Usage:
   python server/tests/deploy_rehearsal.py [--case NAME] [--keep] [--verbose]
+
+Set HPMMO_REHEARSAL_CONTROLLER=<path> to drive a different copy of the
+controller (used to prove that a regression gate actually bites when the fix
+is removed from a scratch copy).
 
 Prints one PASS/FAIL line per check and finishes with
     DEPLOY RESULT: N checks, M failures
@@ -60,7 +75,9 @@ import urllib.request
 HERE = os.path.dirname(os.path.abspath(__file__))
 SERVER = os.path.dirname(HERE)
 DEPLOY = os.path.join(SERVER, "deploy")
-CONTROLLER = os.path.join(DEPLOY, "hpmmo_deploy.sh")
+# Overridable so a scratch copy of the controller (for example with a fix
+# removed) can be driven through the same rehearsal - the bite proof.
+CONTROLLER = os.environ.get("HPMMO_REHEARSAL_CONTROLLER") or os.path.join(DEPLOY, "hpmmo_deploy.sh")
 STATUS_SERVICE = os.path.join(DEPLOY, "hpmmo_status.py")
 PACKAGER = os.path.join(DEPLOY, "package_server.sh")
 
@@ -134,12 +151,15 @@ def free_port() -> int:
         return sock.getsockname()[1]
 
 
-def http_json(url: str, method: str = "GET", body=None, timeout: float = 10.0):
+def http_json(url: str, method: str = "GET", body=None, timeout: float = 10.0,
+              token: str | None = None):
     data = None
     headers = {}
     if body is not None:
         data = json.dumps(body).encode("utf-8")
         headers["Content-Type"] = "application/json"
+    if token is not None:
+        headers["X-Service-Token"] = token
     request = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
@@ -158,10 +178,48 @@ def http_json(url: str, method: str = "GET", body=None, timeout: float = 10.0):
         return 0, str(exc)
 
 
+def http_json_retry(url: str, **kwargs):
+    """http_json with one retry when the connection itself failed (code 0).
+
+    A loopback reset is a transport flake, not an answer: without the retry a
+    refusal check could fail for the wrong reason and make the rehearsal flaky.
+    """
+    code, payload = http_json(url, **kwargs)
+    if code == 0:
+        code, payload = http_json(url, **kwargs)
+    return code, payload
+
+
 # --------------------------------------------------------------------------
 # fake world-server admin interface
 # --------------------------------------------------------------------------
 DRAIN_SEQUENCE = ["ANNOUNCING", "DRAINING", "SAVING", "DISCONNECTING", "MAINTENANCE"]
+
+
+class _JsonHandler(http.server.BaseHTTPRequestHandler):
+    """HTTP/1.1 with small JSON helpers, shared by the two stub servers below
+    (the world's admin port and the rehearsal's control port)."""
+
+    protocol_version = "HTTP/1.1"
+
+    def log_message(self, *_args):
+        pass
+
+    def _json(self, code, payload):
+        body = json.dumps(payload).encode("utf-8")
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _read_body(self):
+        length = int(self.headers.get("Content-Length") or 0)
+        raw = self.rfile.read(length) if length else b""
+        try:
+            return json.loads(raw.decode("utf-8")) if raw else {}
+        except ValueError:
+            return {}
 
 
 class FakeAdmin:
@@ -172,11 +230,25 @@ class FakeAdmin:
         GET  /admin/state
         POST /admin/save -> {"failed": N}
         GET  /admin/status -> {"state": ...}
+
+    Like admin.gd, every one of these requires `X-Service-Token` and answers
+    403 before a route is even considered when it is missing or wrong.
+
+    The admin interface has its own port, which behaves like the real one: it
+    can be down (nothing listening -> connection refused) while the world
+    process boots. The `/__ctl/...` controls live on a second, always
+    listening port - the stub systemctl uses it to announce that the world
+    process started or stopped, which must keep working while the admin port
+    is "booting".
     """
 
     def __init__(self, snapshot_fn=None):
         self.state = "ONLINE"
         self.world_up = True
+        # Seconds the admin port refuses connections after a world (re)start:
+        # the real admin listener opens only once the world process is up.
+        # 0 keeps the port always listening (pre-boot-delay behaviour).
+        self.boot_delay = 0.0
         self.scripted = None
         self.hold = False
         self.mode = "normal"          # normal | absent
@@ -187,47 +259,41 @@ class FakeAdmin:
         self.begin_conflict_state = ""   # begin() answers 409 with this state
         self.drain_failed = False        # the drain ends in FAILED
         self.reason = ""
+        self.denied = 0                  # requests refused for a bad/absent token
         self.requests: list[tuple[str, str, float]] = []
         self.begins: list[dict] = []
         self.snapshots: list[tuple[str, str, dict]] = []
         self.snapshot_fn = snapshot_fn
         self.snapshot_enabled = False
         self._lock = threading.Lock()
+        self._server_lock = threading.RLock()
+        self._boot_gen = 0
+        self._boot_timer: threading.Timer | None = None
         self.port = free_port()
+        self.ctl_port = free_port()
+        while self.ctl_port == self.port:
+            self.ctl_port = free_port()
         self.server = self._make_server()
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
+        self.ctl_server = self._make_ctl_server()
+        self.ctl_thread = threading.Thread(target=self.ctl_server.serve_forever, daemon=True)
+        self.ctl_thread.start()
 
-    # -- helpers -----------------------------------------------------------
+    # -- server lifecycle --------------------------------------------------
     def _make_server(self):
+        """The world's admin port: closed (connections refused) while the
+        world process is still booting."""
         admin = self
 
-        class Handler(http.server.BaseHTTPRequestHandler):
-            protocol_version = "HTTP/1.1"
-
-            def log_message(self, *_args):
-                pass
-
-            def _json(self, code, payload):
-                body = json.dumps(payload).encode("utf-8")
-                self.send_response(code)
-                self.send_header("Content-Type", "application/json")
-                self.send_header("Content-Length", str(len(body)))
-                self.end_headers()
-                self.wfile.write(body)
-
-            def _read_body(self):
-                length = int(self.headers.get("Content-Length") or 0)
-                raw = self.rfile.read(length) if length else b""
-                try:
-                    return json.loads(raw.decode("utf-8")) if raw else {}
-                except ValueError:
-                    return {}
-
+        class Handler(_JsonHandler):
             def do_GET(self):  # noqa: N802
                 path = self.path.split("?", 1)[0]
                 if admin.mode == "absent":
                     self._json(404, {"error": "not found"})
+                    return
+                if not admin.authorized(self.headers):
+                    self._json(403, {"ok": False, "error": "forbidden"})
                     return
                 if path in ("/admin/state", "/admin/status"):
                     admin._record(path)
@@ -242,14 +308,16 @@ class FakeAdmin:
 
             def do_POST(self):  # noqa: N802
                 path = self.path.split("?", 1)[0]
-                if path.startswith("/__ctl/"):
-                    admin.control(path, self._read_body())
-                    self._json(200, {"ok": True})
-                    return
+                # Read the body before answering: the real server parses the
+                # whole request before it checks the token, and consuming it
+                # keeps the connection consistent when the request is refused.
+                body = self._read_body()
                 if admin.mode == "absent":
                     self._json(404, {"error": "not found"})
                     return
-                body = self._read_body()
+                if not admin.authorized(self.headers):
+                    self._json(403, {"ok": False, "error": "forbidden"})
+                    return
                 if path == "/admin/maintenance/begin":
                     admin._record(path)
                     if admin.begin_conflict_state:
@@ -286,19 +354,93 @@ class FakeAdmin:
         httpd.daemon_threads = True
         return httpd
 
+    def _make_ctl_server(self):
+        """The rehearsal's own controls (stub systemctl -> world lifecycle).
+        Always listening and unauthenticated: it is not part of the contract
+        under test."""
+        admin = self
+
+        class Handler(_JsonHandler):
+            def do_POST(self):  # noqa: N802
+                path = self.path.split("?", 1)[0]
+                if path.startswith("/__ctl/"):
+                    admin.control(path, self._read_body())
+                    self._json(200, {"ok": True})
+                    return
+                self._json(404, {"error": "not found"})
+
+        httpd = http.server.ThreadingHTTPServer(("127.0.0.1", self.ctl_port), Handler)
+        httpd.daemon_threads = True
+        return httpd
+
+    def _start_admin_server(self, generation: int = -1) -> None:
+        with self._server_lock:
+            if generation != self._boot_gen:
+                return          # a newer world start superseded this boot
+            if self.server is not None:
+                return
+            server = self._make_server()
+            self.server = server
+            self.thread = threading.Thread(target=server.serve_forever, daemon=True)
+            self.thread.start()
+
+    def _stop_admin_server(self) -> None:
+        with self._server_lock:
+            server, thread = self.server, self.thread
+            self.server, self.thread = None, None
+        if server is not None:
+            server.shutdown()
+            server.server_close()
+        if thread is not None:
+            thread.join(timeout=30)
+
+    def boot(self, immediate: bool = False) -> None:
+        """A world (re)start: the admin port stays closed for `boot_delay`
+        seconds (nothing listens, so connections are refused) and then opens.
+        `immediate` (the /__ctl/reset control) skips the delay."""
+        with self._server_lock:
+            self._boot_gen += 1
+            generation = self._boot_gen
+            if self._boot_timer is not None:
+                self._boot_timer.cancel()
+                self._boot_timer = None
+        delay = 0.0 if immediate else self.boot_delay
+        if delay <= 0:
+            self._start_admin_server(generation)
+            return
+        self._stop_admin_server()
+        timer = threading.Timer(delay, self._start_admin_server, args=(generation,))
+        timer.daemon = True
+        with self._server_lock:
+            self._boot_timer = timer
+        timer.start()
+
     def _record(self, path: str, state_note: str = "") -> None:
         with self._lock:
             self.requests.append((path, state_note, time.time()))
             if self.snapshot_enabled and self.snapshot_fn:
                 self.snapshots.append((state_note or self.state, path, self.snapshot_fn()))
 
+    def authorized(self, headers) -> bool:
+        """The real admin.gd refuses every route before the token is checked;
+        the stub must be just as strict or the rehearsal cannot notice a
+        controller that never sends X-Service-Token."""
+        supplied = headers.get("X-Service-Token", "") or ""
+        if supplied == "" or not secrets.compare_digest(supplied, TOKEN):
+            with self._lock:
+                self.denied += 1
+            return False
+        return True
+
     def control(self, path: str, _body: dict) -> None:
+        boot_immediate = None
         with self._lock:
             if path == "/__ctl/world_up":
                 self.world_up = True
                 self.scripted = None
                 self.hold = False
                 self.state = "ONLINE"
+                boot_immediate = False
             elif path == "/__ctl/world_down":
                 self.world_up = False
             elif path == "/__ctl/world_stuck":
@@ -313,6 +455,11 @@ class FakeAdmin:
                 self.hold = False
                 self.state = "ONLINE"
                 self.snapshots.clear()
+                boot_immediate = True
+        if boot_immediate is not None:
+            # A world (re)start closes the admin port for boot_delay seconds;
+            # reset() is the harness control and comes up immediately.
+            self.boot(immediate=boot_immediate)
 
     def current_state(self) -> str:
         with self._lock:
@@ -338,12 +485,22 @@ class FakeAdmin:
     def url(self) -> str:
         return "http://127.0.0.1:%d" % self.port
 
+    @property
+    def ctl_url(self) -> str:
+        return "http://127.0.0.1:%d" % self.ctl_port
+
     def stop(self):
-        self.server.shutdown()
-        self.server.server_close()
+        with self._server_lock:
+            if self._boot_timer is not None:
+                self._boot_timer.cancel()
+                self._boot_timer = None
+        self._stop_admin_server()
+        self.ctl_server.shutdown()
+        self.ctl_server.server_close()
 
     def reset(self):
         self.control("/__ctl/reset", {})
+        self.denied = 0
         self.requests.clear()
         self.begins.clear()
         self.snapshots.clear()
@@ -430,7 +587,9 @@ exit 0
 SYSTEMCTL_STUB = r"""#!/bin/bash
 # stub systemctl (rehearsal only): records the call, the active release at the
 # time of the call, tracks whether the world service is running, and tells the
-# fake world server what happened.
+# fake world server what happened. The controls live on the always-listening
+# control port: the world's admin port itself may refuse connections while the
+# world "boots" (HPMMO_REHEARSAL_ADMIN_BOOT_DELAY via FakeAdmin.boot_delay).
 log="$HPMMO_REHEARSAL_LOG.systemctl"
 world_state_file="$HPMMO_REHEARSAL_LOG.world"
 action="${1:-}"; shift || true
@@ -450,13 +609,13 @@ printf '%s %s current=%s\n' "$action" "$*" "${current:-none}" >> "$log"
 for unit in "$@"; do
     case "$action $unit" in
         "stop hpmmo.service")      printf 'inactive\n' > "$world_state_file"
-                                   curl -sS -X POST "$HPMMO_REHEARSAL_ADMIN/__ctl/world_down" >/dev/null 2>&1 || true ;;
+                                   curl -sS -X POST "$HPMMO_REHEARSAL_ADMIN_CTL/__ctl/world_down" >/dev/null 2>&1 || true ;;
         "restart hpmmo.service"|"start hpmmo.service")
             printf 'active\n' > "$world_state_file"
             if [ "${HPMMO_REHEARSAL_WORLD_STUCK:-0}" = "1" ]; then
-                curl -sS -X POST "$HPMMO_REHEARSAL_ADMIN/__ctl/world_stuck" >/dev/null 2>&1 || true
+                curl -sS -X POST "$HPMMO_REHEARSAL_ADMIN_CTL/__ctl/world_stuck" >/dev/null 2>&1 || true
             else
-                curl -sS -X POST "$HPMMO_REHEARSAL_ADMIN/__ctl/world_up" >/dev/null 2>&1 || true
+                curl -sS -X POST "$HPMMO_REHEARSAL_ADMIN_CTL/__ctl/world_up" >/dev/null 2>&1 || true
             fi ;;
     esac
 done
@@ -686,10 +845,12 @@ class Rehearsal:
             "HPMMO_VERIFY_TIMEOUT": "8",
             "HPMMO_SAVE_TIMEOUT": "30",
             "HPMMO_HOLD_TIMEOUT": "8",
+            "HPMMO_ADMIN_READY_TIMEOUT": "10",
+            "HPMMO_ADMIN_READY_POLL": "0.2",
             "HPMMO_POLL_INTERVAL": "0.05",
             "HPMMO_LOCK_WAIT": "60",
             "HPMMO_REHEARSAL_LOG": posix(self.log),
-            "HPMMO_REHEARSAL_ADMIN": self.admin.url,
+            "HPMMO_REHEARSAL_ADMIN_CTL": self.admin.ctl_url,
             "HPMMO_REHEARSAL_SMOKE_FLAG": posix(self.smoke_flag),
             "HPMMO_REHEARSAL_SMOKE_SLOW": posix(self.smoke_slow),
             "PATH": posix(self.bin) + os.pathsep + env.get("PATH", ""),
@@ -1118,6 +1279,94 @@ def case_unhealthy_release(keep: bool) -> None:
         env.cleanup(keep)
 
 
+def case_rollback_boot_delay(keep: bool) -> None:
+    """The VPS defect: the rollback races the world server's restart.
+
+    After a failed release the controller rolls back and re-holds maintenance
+    by POSTing begin to the restored world. The world's admin port only opens
+    once its process has booted; on the VPS the POST hit a closed port, the
+    hold was never delivered, and the controller wrote MAINTENANCE anyway while
+    the restored world came up ONLINE and accepting logins.
+
+    The stub admin port now refuses connections for `boot_delay` seconds after
+    a world start, so a controller that does not wait for the interface before
+    committing to a state cannot pass:
+
+      A. rollback with the port down for a moment: the controller must wait,
+         deliver the hold, and status.json must match the world's state.
+      B. rollback with the port down past the controller's budget: the hold is
+         never delivered, so the controller must FAIL loudly and must NOT write
+         MAINTENANCE - and when the world does come up ONLINE, the status
+         document must still not claim maintenance.
+    """
+    env = Rehearsal("bootdelay")
+    try:
+        bootstrap_online(env, "rel-base")
+        stage_ok(env, "rel-sick")
+
+        # -- A: the rollback's world restart is still booting ----------------
+        env.admin.boot_delay = 3.0
+        with open(env.smoke_flag, "w", encoding="utf-8") as handle:
+            handle.write("1\n")
+        result = env.run(["--release", "rel-sick"])
+        os.remove(env.smoke_flag)
+        check(result.returncode != 0,
+              "[bootdelay] the unhealthy release still fails the deployment (exit %s)" % result.returncode)
+        check(env.current() == "rel-base", "[bootdelay] the rollback restored the previous release")
+
+        # Read what the restored world actually enforces once it has finished
+        # booting: the check trusts the world, not the status document.
+        code, payload = 0, {}
+        deadline = time.time() + 30
+        while time.time() < deadline:
+            code, payload = http_json_retry(env.admin.url + "/admin/state", token=TOKEN)
+            if code == 200 and isinstance(payload, dict):
+                break
+            time.sleep(0.05)
+        world_state = payload.get("state") if isinstance(payload, dict) else ""
+        status_state = env.status().get("state")
+        check(code == 200,
+              "[bootdelay] the restored world's admin interface answered after boot (code %s)" % code)
+        check(world_state == "MAINTENANCE",
+              "[bootdelay] the hold reached the booting world: it enforces MAINTENANCE (world=%r)" % world_state)
+        check(status_state == world_state,
+              "[bootdelay] status.json matches the world's enforced state (status=%r world=%r)"
+              % (status_state, world_state))
+        holds = [b for b in env.admin.begins if int(b.get("countdown_seconds", 1)) == 0]
+        check(bool(holds), "[bootdelay] the hold was delivered after the interface came up: %s" % env.admin.begins)
+        check(not any("NOT delivered" in r.get("message", "") for r in env.journal()),
+              "[bootdelay] nothing claims a hold that was never delivered")
+
+        # -- B: the interface never answers inside the controller's budget ---
+        env.admin.reset()
+        env.admin.boot_delay = 60.0
+        stage_ok(env, "rel-slow", migrate_fails=True)
+        result = env.run(["--release", "rel-slow"],
+                         env_extra={"HPMMO_ADMIN_READY_TIMEOUT": "2", "HPMMO_ADMIN_READY_POLL": "0.1"})
+        check(result.returncode == 7,
+              "[bootdelay] an undeliverable hold fails the run (exit %s)" % result.returncode)
+        check(env.current() == "rel-base", "[bootdelay] the release was still rolled back")
+        check(any(r.get("outcome") == "FAILED" and "NOT delivered" in r.get("message", "")
+                  for r in env.journal()),
+              "[bootdelay] the journal FAILS loudly when the hold cannot be delivered")
+        check(env.status().get("state") != "MAINTENANCE",
+              "[bootdelay] an undelivered hold is never written as MAINTENANCE (state=%r)"
+              % env.status().get("state"))
+
+        # The world eventually boots: ONLINE and accepting logins. The status
+        # document must not be telling players "maintenance" now.
+        env.admin.boot_delay = 0.0
+        env.admin.reset()      # cancels the pending boot and comes up ONLINE
+        code, payload = http_json_retry(env.admin.url + "/admin/state", token=TOKEN)
+        check(code == 200 and isinstance(payload, dict) and payload.get("state") == "ONLINE",
+              "[bootdelay] the world is ONLINE once it has booted (code %s, payload %r)" % (code, payload))
+        check(env.status().get("state") != "MAINTENANCE",
+              "[bootdelay] no MAINTENANCE in the status document while the world accepts logins")
+        env.assert_no_secret(result.stdout + result.stderr, "the controller output")
+    finally:
+        env.cleanup(keep)
+
+
 def case_queued_releases(keep: bool) -> None:
     env = Rehearsal("queue")
     try:
@@ -1438,12 +1687,59 @@ def case_scripts(keep: bool) -> None:
           "[scripts] the rollback runbook exists")
 
 
+def case_admin_auth(keep: bool) -> None:
+    """The stub admin interface must be as strict as the real one.
+
+    The VPS defect this guards against: the controller piped its curl config
+    into a curl that never read it, so every authenticated call was a 403 -
+    and this rehearsal still passed 207 checks because the stub answered
+    without looking at the header. A request with no token (or a wrong one)
+    must be refused before anything else can happen.
+    """
+    env = Rehearsal("auth")
+    try:
+        code, _ = http_json_retry(env.admin.url + "/admin/state")
+        check(code == 403, "[auth] GET /admin/state without a token is refused (code %s)" % code)
+
+        code, _ = http_json_retry(env.admin.url + "/admin/state", token="wrong-" + TOKEN)
+        check(code == 403, "[auth] GET /admin/state with a wrong token is refused (code %s)" % code)
+
+        code, _ = http_json_retry(env.admin.url + "/admin/save", method="POST", body={})
+        check(code == 403, "[auth] POST /admin/save without a token is refused (code %s)" % code)
+
+        code, _ = http_json_retry(env.admin.url + "/admin/maintenance/begin", method="POST",
+                                  body={"reason": "auth probe", "countdown_seconds": 0})
+        check(code == 403,
+              "[auth] POST /admin/maintenance/begin without a token is refused (code %s)" % code)
+
+        check(env.admin.denied == 4, "[auth] the stub recorded all four refusals (denied=%d)" % env.admin.denied)
+        check(env.admin.state == "ONLINE" and not env.admin.begins and env.admin.save_failed == 0,
+              "[auth] the refused requests changed nothing in the world server")
+
+        code, payload = http_json_retry(env.admin.url + "/admin/state", token=TOKEN)
+        check(code == 200 and isinstance(payload, dict) and payload.get("state") == "ONLINE",
+              "[auth] the same request with the service token succeeds (code %s)" % code)
+
+        # The controller really sends the header: if `curl -K -` is ever removed
+        # again, stage_ok still passes (staging is local) but every deployment
+        # dies at /admin/maintenance/begin with the 403 the stub now returns.
+        stage_ok(env, "rel-auth")
+        result = env.run(["--release", "rel-auth"])
+        check(result.returncode == 0, "[auth] a deployment through the stub succeeds (exit %s)" % result.returncode)
+        if result.returncode != 0:
+            note(result.stdout[-2000:] + result.stderr[-2000:])
+        check(env.current() == "rel-auth", "[auth] the deployment activated the release")
+    finally:
+        env.cleanup(keep)
+
+
 CASES = {
     "happy": case_happy_path,
     "checksum": case_failed_checksum,
     "save": case_failed_save,
     "migration": case_failed_migration,
     "unhealthy": case_unhealthy_release,
+    "bootdelay": case_rollback_boot_delay,
     "queue": case_queued_releases,
     "restart": case_controller_restart,
     "absent": case_maintenance_absent,
@@ -1452,10 +1748,12 @@ CASES = {
     "rollback": case_operator_rollback,
     "status": case_status_service,
     "scripts": case_scripts,
+    "auth": case_admin_auth,
 }
 
-ORDER = ["scripts", "happy", "checksum", "save", "migration", "unhealthy",
-         "queue", "restart", "absent", "contract", "cold", "rollback", "status"]
+ORDER = ["scripts", "auth", "happy", "checksum", "save", "migration", "unhealthy",
+         "bootdelay", "queue", "restart", "absent", "contract", "cold", "rollback",
+         "status"]
 
 
 def main() -> int:

@@ -80,6 +80,12 @@ PROG="$(basename "$0")"
 # persistence flush has actually been acknowledged, so it gets its own budget.
 : "${HPMMO_SAVE_TIMEOUT:=120}"
 : "${HPMMO_HOLD_TIMEOUT:=120}"
+# A (re)started world server takes seconds before its admin interface accepts
+# connections; a request sent in that window is refused by the OS and proves
+# nothing about the state the world will come up in. The maintenance hold
+# waits for the interface under this budget before it commits to a state.
+: "${HPMMO_ADMIN_READY_TIMEOUT:=60}"
+: "${HPMMO_ADMIN_READY_POLL:=1}"
 : "${HPMMO_POLL_INTERVAL:=2}"
 : "${HPMMO_LOCK_WAIT:=900}"
 : "${HPMMO_STAGE_BUILD:=auto}"
@@ -93,6 +99,7 @@ HPMMO_WORLD_UNIT HPMMO_DB_UNIT HPMMO_STATUS_UNIT HPMMO_SYSTEMCTL HPMMO_GODOT
 HPMMO_STATUS_SCRIPT HPMMO_STATUS_HOST HPMMO_STATUS_PORT HPMMO_ADMIN_PORT
 HPMMO_ADMIN_URL HPMMO_API_URL HPMMO_MAINTENANCE_COUNTDOWN HPMMO_DRAIN_TIMEOUT
 HPMMO_VERIFY_TIMEOUT HPMMO_HTTP_TIMEOUT HPMMO_SAVE_TIMEOUT HPMMO_HOLD_TIMEOUT
+HPMMO_ADMIN_READY_TIMEOUT HPMMO_ADMIN_READY_POLL
 HPMMO_POLL_INTERVAL HPMMO_LOCK_WAIT HPMMO_STAGE_BUILD HPMMO_STAGE_IMPORT
 HPMMO_STATUS_LINES"
 
@@ -527,16 +534,68 @@ wait_world_state() {  # state timeout -> 0/1 ; journals observed transitions
     return 1
 }
 
+# Waits until the world server's admin interface answers at all: any HTTP
+# response counts, 000 (connection refused / nothing listening) does not.
+# This waits for the PORT, not for a state - a request to a world server that
+# is still booting is refused by the OS and says nothing about what the world
+# will do once it is up. The caller passes an absolute deadline (epoch
+# seconds) so the whole hold shares one budget.
+wait_admin_interface() {  # deadline -> 0/1
+    local deadline="$1" out code
+    out="${HPMMO_STATE_DIR%/}/logs/.admin-ready.json"
+    while :; do
+        admin_request GET "${HPMMO_ADMIN_URL%/}/admin/state" "" "$out"
+        code="$HTTP_CODE"
+        if [ "$code" != "000" ]; then
+            rm -f "$out"
+            return 0
+        fi
+        [ "$(now_epoch)" -ge "$deadline" ] && break
+        sleep "$HPMMO_ADMIN_READY_POLL"
+    done
+    rm -f "$out"
+    return 1
+}
+
 # Asks a (possibly freshly restarted) world server to close and stay closed,
 # then waits until it is actually in MAINTENANCE: a restarted world comes up
-# ONLINE and drains for a few seconds, and "maintenance ACTIVE" must mean the
-# state, not just the request.
+# ONLINE (accepting logins) and only stops when the hold is delivered, so
+# "maintenance ACTIVE" must mean the observed state, not just the request.
+#
+# INVARIANT this enforces, in both directions:
+#   the status document and :8083/status must match what the world server is
+#   actually enforcing - never MAINTENANCE while logins are accepted, never
+#   ONLINE while the world is down or drained.
+# The VPS defect this fixes: after a rollback the hold was a single POST sent
+# while Godot was still booting; the POST hit a closed port, was never
+# delivered, and the controller wrote MAINTENANCE anyway while the restored
+# world came up ONLINE and accepting logins. So: the interface must answer
+# first, begin() is retried inside the same budget, and if the hold still
+# cannot be delivered or confirmed this FAILS loudly (journal FAILED) - the
+# caller must never write MAINTENANCE on the strength of it.
 hold_maintenance() {  # reason -> 0/1
-    local reason="$1" out code body state
+    local reason="$1" out code body state deadline
     out="${HPMMO_STATE_DIR%/}/logs/.hold-maintenance.json"
     body="$(printf '{"reason":"%s","countdown_seconds":0}' "$(printf '%s' "$reason" | tr -d '"\\')")"
-    admin_request POST "${HPMMO_ADMIN_URL%/}/admin/maintenance/begin" "$body" "$out"
-    code="$HTTP_CODE"
+    deadline=$(( "$(now_epoch)" + HPMMO_ADMIN_READY_TIMEOUT ))
+
+    say "holding maintenance (waiting up to ${HPMMO_ADMIN_READY_TIMEOUT}s for the admin interface)"
+    if ! wait_admin_interface "$deadline"; then
+        journal FAILED FAILED "maintenance hold NOT delivered: the admin interface never answered within ${HPMMO_ADMIN_READY_TIMEOUT}s"
+        warn "the admin interface (${HPMMO_ADMIN_URL%/}/admin) never answered - maintenance was NOT delivered"
+        return 1
+    fi
+    while :; do
+        admin_request POST "${HPMMO_ADMIN_URL%/}/admin/maintenance/begin" "$body" "$out"
+        code="$HTTP_CODE"
+        [ "$code" != "000" ] && break
+        if [ "$(now_epoch)" -ge "$deadline" ]; then
+            rm -f "$out"
+            journal FAILED FAILED "maintenance hold NOT delivered: begin() could not be sent within ${HPMMO_ADMIN_READY_TIMEOUT}s"
+            return 1
+        fi
+        sleep "$HPMMO_ADMIN_READY_POLL"
+    done
     state="$(json_str "$out" state || true)"
     rm -f "$out"
     case "$code" in
@@ -549,16 +608,20 @@ hold_maintenance() {  # reason -> 0/1
                 MAINTENANCE|DRAINING|SAVING|DISCONNECTING|ANNOUNCING)
                     journal ROLLBACK OK "world server is already in maintenance (state $state)";;
                 *)
+                    journal FAILED FAILED "maintenance hold NOT delivered: the world server refused begin() from state ${state:-unknown} (HTTP 409)"
                     warn "world server refused maintenance (HTTP 409, state ${state:-unknown})"
                     return 1 ;;
             esac
             ;;
-        *) return 1 ;;
+        *)
+            journal FAILED FAILED "maintenance hold NOT delivered: begin() answered HTTP $code (state ${state:-unknown})"
+            return 1 ;;
     esac
-    wait_world_state MAINTENANCE "$HPMMO_HOLD_TIMEOUT" || {
+    if ! wait_world_state MAINTENANCE "$HPMMO_HOLD_TIMEOUT"; then
+        journal FAILED FAILED "maintenance hold NOT confirmed: the world server reported ${LAST_WORLD_STATE:-unknown} instead of MAINTENANCE (${WAIT_REASON:-timeout})"
         warn "the restored release did not reach MAINTENANCE: ${WAIT_REASON:-timeout}"
         return 1
-    }
+    fi
     return 0
 }
 
@@ -641,12 +704,21 @@ rollback_to_previous() {  # reason [previous-dir]
         journal ROLLBACK ROLLBACK "maintenance held on the restored release"
         set_state MAINTENANCE "rolled back to $(basename "$prev"): $reason"
     else
+        # The hold was never delivered or confirmed, so the world may be
+        # accepting logins: writing MAINTENANCE here would be a lie the
+        # launcher repeats to players (the VPS defect). Report only what the
+        # world actually enforces; UNKNOWN when it cannot even be reached.
+        ROLLBACK_RESULT="failed"
         warn "the restored world server did not accept maintenance; it may accept logins again"
-        journal ROLLBACK ROLLBACK "maintenance interface unavailable after rollback"
-        set_state MAINTENANCE "rolled back to $(basename "$prev") (maintenance interface unavailable): $reason"
+        restore_observed_state "UNKNOWN" "rolled back to $(basename "$prev") but maintenance could NOT be confirmed; check the world server ($reason)"
     fi
     if [ "$health_failed" = "1" ]; then ROLLBACK_RESULT="failed"; fi
-    say "rollback complete; maintenance is ACTIVE (state and journal in ${HPMMO_STATE_DIR%/})"
+    if [ "$ROLLBACK_RESULT" = "ok" ]; then
+        say "rollback complete; maintenance is ACTIVE (state and journal in ${HPMMO_STATE_DIR%/})"
+    else
+        warn "rollback did NOT restore a healthy maintenance hold - verify the world server before letting players in"
+        say "rollback finished with errors; nothing is advertised online (state and journal in ${HPMMO_STATE_DIR%/})"
+    fi
     return 0
 }
 
@@ -1165,6 +1237,7 @@ Environment (production defaults):
   HPMMO_SYSTEMCTL=$HPMMO_SYSTEMCTL   HPMMO_UNIT_DIR=$HPMMO_UNIT_DIR
   HPMMO_SMOKE_CMD=<release>/deploy/smoke_client.sh
   HPMMO_MAINTENANCE_COUNTDOWN=$HPMMO_MAINTENANCE_COUNTDOWN   HPMMO_DRAIN_TIMEOUT=$HPMMO_DRAIN_TIMEOUT
+  HPMMO_HOLD_TIMEOUT=$HPMMO_HOLD_TIMEOUT   HPMMO_ADMIN_READY_TIMEOUT=$HPMMO_ADMIN_READY_TIMEOUT
 See server/docs/runbook-rollback.md.
 EOF
 }
