@@ -1,0 +1,22 @@
+# HPMMO Godot headless world server.
+# Installed (with @PLACEHOLDERS@ substituted) by deploy/install_layout.sh.
+# WorkingDirectory and ExecStart resolve through @RELEASES_DIR@/current, which is
+# the only thing a deployment switches - so a release swap needs no unit edit.
+[Unit]
+Description=HPMMO Dedicated Godot Game World Server
+After=network.target hpmmo-db.service
+Wants=hpmmo-db.service
+
+[Service]
+Type=simple
+User=@RUN_USER@
+WorkingDirectory=@RELEASES_DIR@/current/world
+EnvironmentFile=-@ENV_FILE@
+# Written by hpmmo_deploy.sh at switch time: HPMMO_RELEASE_ID / HPMMO_PREVIOUS_RELEASE
+EnvironmentFile=-@STATE_DIR@/release.env
+ExecStart=@GODOT@ --headless
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

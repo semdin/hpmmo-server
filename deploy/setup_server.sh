@@ -96,55 +96,31 @@ sudo ufw allow 7777/udp || true
 sudo ufw allow 8081/tcp || true
 sudo ufw --force enable || true
 
-# 5. Systemd services (hpmmo-db & hpmmo) in the Phase 4/5 layout
-echo "[5/5] Creating systemd background services..."
-sudo tee /etc/systemd/system/hpmmo-db.service > /dev/null <<EOF
-[Unit]
-Description=HPMMO C++ Database & Persistence Microservice
-After=network.target postgresql.service
-Requires=postgresql.service
-
-[Service]
-Type=simple
-User=$USER
-WorkingDirectory=$GAME_DIR/services/cpp
-EnvironmentFile=$ENV_FILE
-ExecStart=$GAME_DIR/services/cpp/build/hpmmo_service serve
-Restart=always
-RestartSec=3
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-sudo tee /etc/systemd/system/hpmmo.service > /dev/null <<EOF
-[Unit]
-Description=HPMMO Dedicated Godot Game World Server
-After=network.target hpmmo-db.service
-Wants=hpmmo-db.service
-
-[Service]
-Type=simple
-User=$USER
-WorkingDirectory=$GAME_DIR/world
-EnvironmentFile=$ENV_FILE
-ExecStart=$BIN_DIR/godot_server --headless
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-sudo systemctl daemon-reload
-sudo systemctl enable hpmmo-db hpmmo
-sudo systemctl restart hpmmo-db hpmmo
+# 5. Release layout + systemd units (Phase 6)
+#    The world/db units run through $RELEASES_DIR/current so a release swap is
+#    an atomic symlink rename, not a rewrite of live files. The status endpoint
+#    (loopback only) answers /status while the world server is stopped.
+echo "[5/5] Installing the staged release layout and systemd services..."
+RELEASES_DIR="${HPMMO_RELEASES_DIR:-/opt/hpmmo/releases}"
+LAYOUT="$0"
+if [ -d "$GAME_DIR" ]; then
+    # Adopt the tree this script just unpacked as the first release, so the
+    # first controller deployment has a known-good release to roll back to.
+    sudo bash "$(dirname "$LAYOUT")/install_layout.sh" \
+        --releases-dir "$RELEASES_DIR" --run-user "$USER" \
+        --godot "$BIN_DIR/godot_server" --adopt "$GAME_DIR"
+else
+    sudo bash "$(dirname "$LAYOUT")/install_layout.sh" \
+        --releases-dir "$RELEASES_DIR" --run-user "$USER" --godot "$BIN_DIR/godot_server"
+fi
 
 echo "=========================================================="
-echo ">>> HPMMO SERVER SETUP COMPLETE & SERVICES ARE LIVE! <<<"
+echo ">>> HPMMO SERVER SETUP COMPLETE <<<"
 echo "=========================================================="
 echo "Start:  sudo systemctl start hpmmo-db hpmmo     Stop: sudo systemctl stop hpmmo hpmmo-db"
 echo "Logs:   journalctl -u hpmmo-db -f   /   journalctl -u hpmmo -f"
+echo "Status: curl -s http://127.0.0.1:8083/status"
+echo "Deploy: sudo bash $(dirname "$0")/hpmmo_deploy.sh --deploy <artifact.tar.gz>"
 echo "=========================================================="
 sudo systemctl status hpmmo-db --no-pager || true
 sudo systemctl status hpmmo --no-pager || true

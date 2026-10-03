@@ -1,0 +1,23 @@
+# HPMMO deployment status endpoint (plan.md Phase 6).
+# Answers GET /status on 127.0.0.1 so the launcher can tell "maintenance" from
+# "unreachable" while the world server is stopped. Loopback only: this unit
+# must never open a public port (no ufw rule, and hpmmo_status.py refuses a
+# non-loopback bind).
+[Unit]
+Description=HPMMO Deployment Status Endpoint
+After=network.target
+
+[Service]
+Type=simple
+User=@RUN_USER@
+EnvironmentFile=-@ENV_FILE@
+Environment=HPMMO_STATE_DIR=@STATE_DIR@
+Environment=HPMMO_RELEASES_DIR=@RELEASES_DIR@
+Environment=HPMMO_STATUS_HOST=127.0.0.1
+Environment=HPMMO_STATUS_PORT=@STATUS_PORT@
+ExecStart=@PYTHON@ @STATUS_SCRIPT@
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

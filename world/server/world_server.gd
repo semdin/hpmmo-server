@@ -10,13 +10,18 @@ extends Node
 ##   HPMMO_WORLD_PORT      UDP port (default 7777)
 ##   HPMMO_WORLD_SEED      RNG seed; logged and pinned so encounters replay
 ##   HPMMO_API_URL         C++ persistence service base URL (default 127.0.0.1:8081)
-##   HPMMO_SERVICE_TOKEN   service token for that API (enables persistence)
+##   HPMMO_SERVICE_TOKEN   service token for that API (enables persistence) and
+##                         for the maintenance API (never logged)
 ##   HPMMO_NET_PROFILE     latency/loss profile (local|broadband|mobile|awful)
+##   HPMMO_ADMIN_PORT      maintenance API TCP port, 127.0.0.1 only (default 8082)
+##   HPMMO_RELEASE         release identifier published on GET /admin/status
 
 const WORLD_SCENE = preload("res://scenes/world/game_world.tscn")
 const HPProtocol = preload("res://addons/hpmmo_sim/protocol.gd")
+const AdminApi = preload("res://addons/hpmmo_sim/admin.gd")
 
 var world: Node3D = null
+var admin: Node = null
 
 func _ready() -> void:
 	print("=========================================================")
@@ -55,6 +60,15 @@ func _ready() -> void:
 		return
 	SimNet.bridge_authority()
 
+	# Maintenance controller (plan.md Phase 6). It owns the drain/save/disconnect
+	# state machine and the authenticated admin HTTP API, and it is the gate the
+	# authority consults while the world is frozen. Without HPMMO_SERVICE_TOKEN it
+	# refuses to start and logs why - the API is never open.
+	admin = AdminApi.new()
+	admin.name = "AdminApi"
+	add_child(admin)
+	SimAuthority.maintenance = admin
+
 	world = WORLD_SCENE.instantiate()
 	add_child(world)
 	print("[WorldServer] world ready: seed=%d tick=%dHz protocol=%d" % [
@@ -85,6 +99,7 @@ func _process(delta: float) -> void:
 				(node as Node3D).global_position.x, (node as Node3D).global_position.y,
 				(node as Node3D).global_position.z, int(record.get("hp", 0)),
 				int(record.get("exp", 0))])
-	print("[WorldServer] tick=%d entities=%d players=%d inputs=%d casts=%d | %s" % [
-		SimAuthority.sim_tick, SimAuthority.entities.size(), SimAuthority.players_by_peer.size(),
-		SimNet.inputs_received, SimNet.cast_requests_received, " ; ".join(players)])
+	print("[WorldServer] tick=%d state=%s entities=%d players=%d inputs=%d casts=%d | %s" % [
+		SimAuthority.sim_tick, SimAuthority.maintenance_state(), SimAuthority.entities.size(),
+		SimAuthority.players_by_peer.size(), SimNet.inputs_received, SimNet.cast_requests_received,
+		" ; ".join(players)])

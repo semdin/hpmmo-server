@@ -11,7 +11,7 @@ class_name HPProtocol
 ## Bumped whenever a message shape, semantics, or rule constant changes in a way
 ## that makes older clients disagree. Clients whose version differs are refused
 ## at join instead of silently desyncing.
-const PROTOCOL_VERSION := 3
+const PROTOCOL_VERSION := 4
 
 ## Simulation / replication rates.
 const SIM_HZ := 20

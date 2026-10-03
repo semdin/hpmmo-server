@@ -39,6 +39,11 @@ signal reward_granted(uid: int, character_id: int, exp: int, galleons: int, item
 signal level_changed(uid: int, level: int)
 signal player_joined(uid: int, character_id: int, peer_id: int)
 signal player_left(uid: int, character_id: int)
+## Maintenance lifecycle (plan.md Phase 6). The dedicated server's admin
+## controller emits this locally; clients receive it from the network layer
+## (SimNet.sim_maintenance_event) and re-emit it here, so game code has one
+## signal to listen to in every role.
+signal maintenance_event(state: String, reason: String, seconds_remaining: int)
 
 enum Role { OFFLINE, HOST, DEDICATED, CLIENT }
 
@@ -74,6 +79,57 @@ const PERSISTENCE_PENDING := "pending"
 ## Optional persistence bridge (server/host roles only). Assigned by the server
 ## entry point; the engine degrades to in-memory play when it is absent.
 var persistence: Node = null
+
+## Maintenance gate (plan.md Phase 6). The dedicated world server's admin
+## controller (addons/hpmmo_sim/admin.gd) assigns itself here. Every other role
+## - clients, offline play, a LAN host - leaves it null, which makes each check
+## below inert and costs one null comparison per call.
+var maintenance: Node = null
+
+func maintenance_state() -> String:
+	if maintenance == null or not is_instance_valid(maintenance):
+		return ""
+	return String(maintenance.call("state_name"))
+
+## True from SAVING until the world is ONLINE again: no input, no cast, no
+## mount, no pickup, and no damage/reward resolution.
+func mutations_frozen() -> bool:
+	if maintenance == null or not is_instance_valid(maintenance):
+		return false
+	return bool(maintenance.call("is_frozen"))
+
+## True in MAINTENANCE: the simulation clock does no work at all.
+func simulation_paused() -> bool:
+	if maintenance == null or not is_instance_valid(maintenance):
+		return false
+	return bool(maintenance.call("is_paused"))
+
+## False from ANNOUNCING until the world is ONLINE again.
+func joins_allowed() -> bool:
+	if maintenance == null or not is_instance_valid(maintenance):
+		return true
+	return bool(maintenance.call("accepts_joins"))
+
+## Client-side (and test) entry point for a maintenance notification.
+func on_maintenance_event(state: String, reason: String, seconds_remaining: int) -> void:
+	emit_signal("maintenance_event", state, reason, seconds_remaining)
+
+## Called when the save barrier starts: bodies stop moving on their last intent
+## instead of gliding on it, because no further input frames will be accepted.
+func halt_player_motion() -> void:
+	if not is_authority():
+		return
+	for peer_id in players_by_peer.keys():
+		var record := player_record(int(peer_id))
+		if record.is_empty():
+			continue
+		var intent: Dictionary = record.get("input", {})
+		if intent.is_empty():
+			continue
+		intent["move"] = Vector2.ZERO
+		intent["jump"] = false
+		intent["descend"] = false
+		touch(record)
 
 
 # --------------------------------------------------------------- role & boot
@@ -295,6 +351,8 @@ func player_record(peer_id: int) -> Dictionary:
 func submit_input(peer_id: int, seq: int, move: Vector2, yaw: float, jump: bool, descend: bool) -> void:
 	if not is_authority():
 		return
+	if mutations_frozen():
+		return   # the save barrier owns the world from here on
 	var record := player_record(peer_id)
 	if record.is_empty() or bool(record.get("dead", false)):
 		return
@@ -315,12 +373,17 @@ func submit_input(peer_id: int, seq: int, move: Vector2, yaw: float, jump: bool,
 func request_cast(peer_id: int, spell_id: String, aim: Vector3, cast_seq: int) -> Dictionary:
 	if not is_authority():
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	if mutations_frozen():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
 	var record := player_record(peer_id)
 	if record.is_empty():
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
 	return cast_for_record(record, spell_id, aim, cast_seq)
 
 func cast_for_record(record: Dictionary, spell_id: String, aim: Vector3, cast_seq: int) -> Dictionary:
+	if mutations_frozen():
+		# Frozen: no new cast may start, no mana may be spent, no cooldown set.
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
 	if bool(record.get("dead", false)):
 		return _reject_cast(record, cast_seq, HPProtocol.REJECT_DEAD)
 	var data := HPRules.spell(spell_id)
@@ -419,6 +482,8 @@ func _begin_cast(record: Dictionary, spell_id: String, aim: Vector3, combo_mult:
 func submit_mount(peer_id: int, mounted: bool) -> Dictionary:
 	if not is_authority():
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	if mutations_frozen():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
 	var record := player_record(peer_id)
 	if record.is_empty():
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
@@ -443,6 +508,8 @@ func submit_mount(peer_id: int, mounted: bool) -> Dictionary:
 func submit_respawn(peer_id: int) -> Dictionary:
 	if not is_authority():
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	if mutations_frozen():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
 	var record := player_record(peer_id)
 	if record.is_empty() or not bool(record.get("dead", false)):
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
@@ -454,6 +521,8 @@ func submit_respawn(peer_id: int) -> Dictionary:
 func _physics_process(delta: float) -> void:
 	if not is_authority():
 		return
+	if simulation_paused():
+		return   # MAINTENANCE: the world is idle until the process is replaced
 	_accumulator += delta
 	var steps := 0
 	while _accumulator >= HPProtocol.SIM_DT and steps < 5:
@@ -463,6 +532,12 @@ func _physics_process(delta: float) -> void:
 
 func _step() -> void:
 	sim_tick += 1
+	if mutations_frozen():
+		# Frozen (SAVING/DISCONNECTING/MAINTENANCE/FAILED): the clock keeps its
+		# own time, but no damage, reward, cast, burn, respawn or movement work
+		# is advanced. The admin controller's own timers run on wall time, so the
+		# save barrier still completes while this returns early.
+		return
 	_advance_casts()
 	_advance_projectiles()
 	_advance_effects()
@@ -844,6 +919,8 @@ func _damageable_targets(caster_uid: int) -> Array:
 	return out
 
 func _apply_damage(target: Dictionary, raw: int, spell_id: String, attacker: Dictionary) -> int:
+	if mutations_frozen():
+		return 0   # the save barrier freezes damage, and therefore rewards
 	if raw <= 0 or target.is_empty() or bool(target.get("dead", false)):
 		return 0
 	var target_node: Node = target.get("node")
@@ -1132,6 +1209,8 @@ const LOOT_LIFETIME_MS := 90000
 ## authority so the item cannot be duplicated by replaying the request.
 func request_pickup(peer_id: int, loot_uid: int) -> Dictionary:
 	if not is_authority():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	if mutations_frozen():
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
 	var player := player_record(peer_id)
 	if player.is_empty():

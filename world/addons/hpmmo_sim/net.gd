@@ -200,6 +200,11 @@ func sim_join(token: String, protocol_version: int, client_version: String) -> v
 		# previous one, and re-run the (synchronous) auth round trip.
 		sim_join_result.rpc_id(peer_id, false, "already_joined", 0, {}, SimAuthority.sim_tick, 0)
 		return
+	if not SimAuthority.joins_allowed():
+		# Maintenance (plan.md Phase 6): logins close at ANNOUNCING and stay
+		# closed until the world is ONLINE again.
+		sim_join_result.rpc_id(peer_id, false, "maintenance", 0, {}, SimAuthority.sim_tick, 0)
+		return
 	if protocol_version != HPProtocol.PROTOCOL_VERSION:
 		sim_join_result.rpc_id(peer_id, false, "protocol_mismatch:%d" % HPProtocol.PROTOCOL_VERSION, 0, {}, SimAuthority.sim_tick, 0)
 		return
@@ -397,6 +402,12 @@ func sim_chat_event(text: String) -> void:
 func sim_notice(kind: String, detail: String) -> void:
 	SimAuthority.emit_signal("notice", kind + ":" + detail, Color(1.0, 0.8, 0.4))
 
+## Maintenance lifecycle (plan.md Phase 6). Signal emission only: the client's
+## countdown/HUD presentation listens to SimAuthority.maintenance_event.
+@rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
+func sim_maintenance_event(state: String, reason: String, seconds_remaining: int) -> void:
+	SimAuthority.on_maintenance_event(state, reason, seconds_remaining)
+
 @rpc("authority", "call_remote", "unreliable", HPProtocol.CH_SNAPSHOT)
 func sim_snapshot(tick: int, chunk: int, chunks: int, data: PackedByteArray) -> void:
 	if not is_client:
@@ -517,6 +528,7 @@ func bridge_authority() -> void:
 	SimAuthority.stats_changed.connect(broadcast_stats)
 	SimAuthority.loot_spawned.connect(broadcast_loot)
 	SimAuthority.loot_taken.connect(broadcast_loot_taken)
+	SimAuthority.maintenance_event.connect(broadcast_maintenance)
 	SimAuthority.reward_granted.connect(func(uid: int, character_id: int, exp: int, galleons: int, items: Array, op_id: String):
 		broadcast_reward(uid, character_id, exp, galleons, items, op_id))
 	print("[SimNet] authority events bridged to %d peer(s)" % multiplayer.get_peers().size())
@@ -640,6 +652,14 @@ func broadcast_chat(text: String) -> void:
 	if not has_peers():
 		return
 	sim_chat_event.rpc(text)
+
+## Maintenance notification fan-out (plan.md Phase 6). Reliable, to every
+## connected client: the countdown has to arrive even for a client that is not
+## (or no longer) a spawned player.
+func broadcast_maintenance(state: String, reason: String, seconds_remaining: int) -> void:
+	if not has_peers():
+		return
+	sim_maintenance_event.rpc(state, reason, seconds_remaining)
 
 func _peer_can_see(peer_id: int, uid: int) -> bool:
 	var known: Dictionary = _known_by_peer.get(peer_id, {})

@@ -1,0 +1,253 @@
+# HPMMO server release (plan.md Phase 6).
+#
+#   push to the release branch  -> build + test + package an immutable artifact
+#   manual dispatch             -> optionally deploy that artifact (gated)
+#
+# Rules encoded here (plan.md Phase 6):
+#   * a merge to the designated release branch builds/tests automatically, and
+#     only a successfully built artifact is ever deployed;
+#   * a merge/deploy to production is a SEPARATE, explicitly-gated job that
+#     pins the exact commit + artifact identifier;
+#   * feature branches never touch a live server (they only build/test);
+#   * "new build jobs may replace obsolete build jobs" -> the build job's
+#     concurrency group cancels in progress;
+#   * "active deployment mutation must recover safely" -> the deploy job's
+#     concurrency group never cancels, so two deploys queue instead of
+#     interleaving (the controller's own flock is the second line of defence).
+#
+# The client release pipeline belongs to Phase 7 and is deliberately NOT here.
+name: server-release
+
+on:
+  push:
+    branches: [main]          # the designated server release branch
+    paths-ignore:
+      - '**.md'
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: 'Deploy the built artifact to production (needs the production environment approval)'
+        type: boolean
+        default: false
+      release_id:
+        description: 'Release id to deploy - must equal the artifact identifier (default: this commit)'
+        type: string
+        required: false
+      run_id:
+        description: 'Run id whose artifact to deploy (default: this run)'
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+env:
+  GODOT_VERSION: '4.7.2'
+
+jobs:
+  # -------------------------------------------------------------------------
+  # Build, test and package the Linux server artifact.
+  # -------------------------------------------------------------------------
+  package:
+    name: build + package (linux)
+    runs-on: ubuntu-22.04
+    concurrency:
+      # Per job, so the two build-ish jobs of one run never cancel each other;
+      # a newer run on the same ref replaces an obsolete one.
+      group: server-build-package-${{ github.ref }}
+      cancel-in-progress: true
+    outputs:
+      release_id: ${{ steps.id.outputs.release_id }}
+      artifact: ${{ steps.id.outputs.artifact }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pin the artifact identifier
+        id: id
+        run: |
+          sha="$(git rev-parse HEAD)"
+          echo "release_id=$sha" >> "$GITHUB_OUTPUT"
+          # artifact/identifier naming: hpmmo-server-<release id>
+          echo "artifact=hpmmo-server-$sha" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.release_id }}" ]; then
+            [ "${{ github.event.inputs.release_id }}" = "$sha" ] || {
+              echo "requested release id ${{ github.event.inputs.release_id }} is not this commit ($sha)" >&2
+              exit 1
+            }
+          fi
+
+      - name: Install the documented toolchain (cmake + ninja + clang)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq cmake ninja-build clang libpq-dev python3
+
+      - name: Build the C++ service
+        run: |
+          cmake -S services/cpp -B services/cpp/build -G Ninja \
+            -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release
+          ninja -C services/cpp/build
+          ./services/cpp/build/hpmmo_service version
+
+      - name: Fetch the pinned Godot engine (for the world import cache)
+        id: godot
+        run: |
+          url="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          if curl -fsSL -o /tmp/godot.zip "$url"; then
+            unzip -q -o /tmp/godot.zip -d /tmp/godot
+            chmod +x "/tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64"
+            echo "path=/tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Godot ${GODOT_VERSION} could not be downloaded; the artifact ships without an import cache"
+          fi
+
+      - name: Rehearse the deployment controller (temp dir, stub services)
+        # Phase 6 exit cases: happy path, failed checksum/build, failed save,
+        # failed migration, unhealthy release, queued releases, controller
+        # restart, absent admin interface, operator rollback, status endpoint.
+        run: python3 tests/deploy_rehearsal.py
+
+      - name: Package the immutable release artifact (with SHA256SUMS)
+        run: |
+          HPMMO_GODOT="${{ steps.godot.outputs.path }}" \
+            bash deploy/package_server.sh --out dist --id "${{ steps.id.outputs.release_id }}"
+
+      - name: Verify the artifact manifest before publishing it
+        run: |
+          tar -xzf "dist/hpmmo-server-${{ steps.id.outputs.release_id }}.tar.gz" -C /tmp/verify
+          cd /tmp/verify && sha256sum -c --strict --quiet SHA256SUMS
+          test -x services/cpp/build/hpmmo_service
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.id.outputs.artifact }}
+          path: |
+            dist/hpmmo-server-${{ steps.id.outputs.release_id }}.tar.gz
+            dist/hpmmo-server-${{ steps.id.outputs.release_id }}.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 90
+
+  # -------------------------------------------------------------------------
+  # The integration suite (tests/integration_api.py) manages a Windows
+  # PostgreSQL cluster through pg_ctl.exe and needs the Windows toolchain
+  # documented in server/README.md, so it runs on windows-latest. When no
+  # PostgreSQL binaries are present it SKIPs (exit 2) and this job reports a
+  # warning rather than failing the pipeline.
+  # -------------------------------------------------------------------------
+  integration:
+    name: integration suite (windows)
+    runs-on: windows-latest
+    concurrency:
+      group: server-build-integration-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Locate a PostgreSQL binaries tree
+        shell: pwsh
+        run: |
+          $root = Get-ChildItem 'C:\Program Files\PostgreSQL' -Directory -ErrorAction SilentlyContinue |
+                  Sort-Object Name -Descending | Select-Object -First 1
+          if (-not $root) { choco install -y postgresql16 --no-progress | Out-Null; Start-Sleep 5
+            $root = Get-ChildItem 'C:\Program Files\PostgreSQL' -Directory -ErrorAction SilentlyContinue |
+                    Sort-Object Name -Descending | Select-Object -First 1 }
+          if ($root) {
+            "HPMMO_PG_ROOT=$($root.FullName)"      | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+            "HPMMO_PG_DATA=$($env:RUNNER_TEMP)\pgdata" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+            "HPMMO_PG_PASSWORD=ci-postgres-password"   | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+            Write-Host "using $($root.FullName)"
+          } else {
+            Write-Host "::warning::no PostgreSQL binaries found; the integration suite will SKIP"
+          }
+
+      - name: Build the service (cmake + ninja + clang++, as documented)
+        shell: pwsh
+        run: |
+          $compiler = if (Get-Command clang++ -ErrorAction SilentlyContinue) { 'clang++' } else { 'g++' }
+          cmake -S services/cpp -B services/cpp/build -G Ninja -DCMAKE_CXX_COMPILER=$compiler `
+                -DCMAKE_BUILD_TYPE=Release -DPG_ROOT="$env:HPMMO_PG_ROOT"
+          ninja -C services/cpp/build
+
+      - name: Run the integration suite
+        shell: pwsh
+        run: |
+          python tests/integration_api.py
+          if ($LASTEXITCODE -eq 2) {
+            Write-Host "::warning::integration suite SKIPped (no PostgreSQL); see tests/integration_api.py"
+            exit 0
+          }
+          exit $LASTEXITCODE
+
+  # -------------------------------------------------------------------------
+  # Production deployment: a separate, explicitly-gated job that consumes the
+  # artifact built above and pins its exact identifier. It never rebuilds.
+  # -------------------------------------------------------------------------
+  deploy:
+    name: deploy to production
+    needs: [package, integration]
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy
+    runs-on: ubuntu-22.04
+    environment:
+      name: production            # add required reviewers in the repo settings
+      url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    concurrency:
+      group: server-deploy-production
+      cancel-in-progress: false   # a deployment mutation must never be cancelled
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve the pinned artifact identifier
+        id: id
+        run: |
+          id="${{ inputs.release_id }}"
+          [ -n "$id" ] || id="$(git rev-parse HEAD)"
+          echo "release_id=$id" >> "$GITHUB_OUTPUT"
+
+      - name: Download the artifact that was built (never rebuild here)
+        uses: actions/download-artifact@v4
+        with:
+          name: hpmmo-server-${{ steps.id.outputs.release_id }}
+          path: dist
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ inputs.run_id || github.run_id }}
+
+      - name: Verify the artifact before it leaves CI
+        # Nothing is rebuilt here: the exact bytes published by the package job
+        # (identified by hpmmo-server-<id>) are what reaches the server, and the
+        # controller re-verifies the same SHA256SUMS before it will stage them.
+        run: |
+          archive="dist/hpmmo-server-${{ steps.id.outputs.release_id }}.tar.gz"
+          test -f "$archive" || { echo "artifact $archive is missing" >&2; exit 1; }
+          mkdir -p /tmp/verify && tar -xzf "$archive" -C /tmp/verify
+          ( cd /tmp/verify && sha256sum -c --strict --quiet SHA256SUMS )
+          test -x /tmp/verify/services/cpp/build/hpmmo_service
+
+      - name: Install the deploy key
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.HPMMO_DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "${{ secrets.HPMMO_DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+
+      - name: Copy the artifact to the server
+        run: |
+          scp -i ~/.ssh/id_ed25519 \
+            "dist/hpmmo-server-${{ steps.id.outputs.release_id }}.tar.gz" \
+            "${{ secrets.HPMMO_DEPLOY_USER }}@${{ secrets.HPMMO_DEPLOY_HOST }}:/tmp/hpmmo-server-${{ steps.id.outputs.release_id }}.tar.gz"
+
+      - name: Deploy through the release controller
+        # The controller verifies the artifact checksums, announces maintenance,
+        # drains, saves, migrates, switches atomically, verifies (health, ready,
+        # version, ONLINE, synthetic login) and rolls back on any failure.
+        run: |
+          ssh -i ~/.ssh/id_ed25519 "${{ secrets.HPMMO_DEPLOY_USER }}@${{ secrets.HPMMO_DEPLOY_HOST }}" \
+            "sudo /opt/hpmmo/bin/hpmmo_deploy.sh --deploy /tmp/hpmmo-server-${{ steps.id.outputs.release_id }}.tar.gz \
+               --id ${{ steps.id.outputs.release_id }} --reason 'ci:${{ github.run_id }}'"
+
+      - name: Publish the deployment record
+        if: always()
+        run: |
+          echo "### Server release" >> "$GITHUB_STEP_SUMMARY"
+          echo "- release id: \`${{ steps.id.outputs.release_id }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- artifact: \`hpmmo-server-${{ steps.id.outputs.release_id }}.tar.gz\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- deploy job: \`${{ job.status }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- rollback: see server/docs/runbook-rollback.md" >> "$GITHUB_STEP_SUMMARY"

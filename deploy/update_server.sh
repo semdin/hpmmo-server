@@ -1,93 +1,39 @@
-#!/usr/bin/env bash
-set -e
-# HPMMO server updater (Phase 3): installs a release package built by
-# deploy/package_server.ps1 with a staged swap and rollback.
+#!/bin/bash
+# =============================================================================
+# HPMMO server updater - compatibility wrapper (plan.md Phase 6)
+# =============================================================================
 #
-# Managed upgrade flow on the VPS:
-#   1. copy the packaged hpmmo-server-*.tar.gz to $HOME/hpmmo_server.tar.gz
-#   2. run: bash deploy/update_server.sh
+# The Phase 3 updater stopped the services, extracted a tarball over the live
+# tree and compiled on the box. Phase 6 replaces that with the staged,
+# journalled controller in deploy/hpmmo_deploy.sh:
 #
-# Players are disconnected by the service stop; the countdown/drain/save
-# barriers arrive with the Phase 6 maintenance controller. Live files are
-# NEVER modified in place: the new release extracts to game.new, is sanity
-# checked, and swapped in with game.old kept for rollback.
+#   verify checksums -> lock -> announce maintenance -> drain -> final save
+#   -> stop world -> migrate with the new binary -> atomic switch -> restart
+#   -> verify (health/ready/version/online/synthetic login) -> ONLINE
+#   ... or ROLLBACK with maintenance left ACTIVE
+#
+# This wrapper keeps the old invocation working:
+#
+#   bash deploy/update_server.sh [artifact.tar.gz]
+#
+# is equivalent to
+#
+#   bash deploy/hpmmo_deploy.sh --deploy artifact.tar.gz
+#
+# Nothing is written into the live tree at any point; see
+# server/docs/runbook-rollback.md for the operational details and the rollback
+# procedure.
+# =============================================================================
+set -euo pipefail
 
-BASE_DIR="$HOME/hpmmo"
-BIN_DIR="$BASE_DIR/bin"
-GAME_DIR="$BASE_DIR/game"
-STAGE_DIR="$BASE_DIR/game.new"
-OLD_DIR="$BASE_DIR/game.old"
+HERE="$(cd "$(dirname "$0")" && pwd)"
 ARCHIVE="${1:-$HOME/hpmmo_server.tar.gz}"
 
-echo ">>> HPMMO SERVER UPDATE <<<"
+printf '[update_server] deprecated wrapper: run deploy/hpmmo_deploy.sh --deploy instead\n' >&2
+
 if [ ! -f "$ARCHIVE" ]; then
-    echo "ERROR: package not found at $ARCHIVE" >&2
+    printf '[update_server] ERROR: package not found at %s\n' "$ARCHIVE" >&2
     exit 1
 fi
 
-echo "[1/6] Extracting $ARCHIVE to staging..."
-rm -rf "$STAGE_DIR"
-mkdir -p "$STAGE_DIR"
-tar -xzf "$ARCHIVE" -C "$STAGE_DIR"
-
-echo "[2/6] Sanity checks on the staged release..."
-for f in world/project.godot services/cpp/src/main.cpp contracts/protocol.md; do
-    if [ ! -e "$STAGE_DIR/$f" ]; then
-        echo "ERROR: staged release is missing $f" >&2
-        exit 1
-    fi
-done
-if find "$STAGE_DIR" -name '*.db' | grep -q .; then
-    echo "ERROR: staged release contains an account database file" >&2
-    exit 1
-fi
-
-echo "Compiling C++ persistence service in staging..."
-rm -rf "$STAGE_DIR/services/cpp/build"
-cmake -S "$STAGE_DIR/services/cpp" -B "$STAGE_DIR/services/cpp/build" -G Ninja -DCMAKE_BUILD_TYPE=Release
-ninja -C "$STAGE_DIR/services/cpp/build"
-
-echo "[3/6] Stopping services..."
-sudo systemctl stop hpmmo || true
-sudo systemctl stop hpmmo-db || true
-
-echo "[4/6] Swapping releases (rollback copy at $OLD_DIR)..."
-rm -rf "$OLD_DIR"
-if [ -d "$GAME_DIR" ]; then
-    mv "$GAME_DIR" "$OLD_DIR"
-fi
-mv "$STAGE_DIR" "$GAME_DIR"
- 
-# Run Godot headless editor import pass to build class caches and imports
-if [ -f "$BIN_DIR/godot_server" ] && [ -d "$GAME_DIR/world" ]; then
-    echo "Running Godot import pass on world..."
-    "$BIN_DIR/godot_server" --headless --path "$GAME_DIR/world" --editor --import --quit 2>&1 || true
-fi
-
-echo "[5/6] Applying schema migrations (idempotent)..."
-"$GAME_DIR/deploy/apply_migrations.sh" || {
-    echo "Migration failed - rolling back." >&2
-    rm -rf "$GAME_DIR"
-    mv "$OLD_DIR" "$GAME_DIR"
-    sudo systemctl start hpmmo-db hpmmo || true
-    exit 1
-}
-
-echo "[6/6] Starting services and verifying readiness..."
-sudo systemctl daemon-reload
-sudo systemctl start hpmmo-db hpmmo
-for _ in $(seq 1 15); do
-    if curl -fsS "http://localhost:8081/api/health" > /dev/null 2>&1; then
-        echo ">>> UPDATE COMPLETE - db service reports healthy."
-        echo "    Previous release kept at $OLD_DIR (delete when satisfied)."
-        exit 0
-    fi
-    sleep 1
-done
-
-echo "Readiness check failed - rolling back." >&2
-sudo systemctl stop hpmmo hpmmo-db || true
-rm -rf "$GAME_DIR"
-mv "$OLD_DIR" "$GAME_DIR"
-sudo systemctl start hpmmo-db hpmmo || true
-exit 1
+exec bash "$HERE/hpmmo_deploy.sh" --deploy "$ARCHIVE"

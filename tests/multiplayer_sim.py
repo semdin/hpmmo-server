@@ -347,10 +347,11 @@ def test_protection(out_dir):
     burn_out = result.get("burn_outside_zone", {})
     check(bool(burn.get("burn_started")),
           "the incendio hit really started a burn (the check below is not vacuous)")
-    check(burn and burn.get("after") == burn.get("before"),
-          "burn ticks deal nothing inside a safe zone")
-    check(burn_out and burn_out.get("after", 1) < burn_out.get("before", 0),
-          "the same burn does tick outside the zone (positive control)")
+    check(burn and burn.get("after") == burn.get("before") and int(burn.get("events", -1)) == 0,
+          "burn ticks deal nothing inside a safe zone (0 damage events reached it)")
+    check(burn_out and int(burn_out.get("events", 0)) >= 1,
+          "the same burn does tick outside the zone (positive control, %s damage events)"
+          % burn_out.get("events"))
     check(aoe_in and aoe_in.get("hits") == 0 and aoe_in.get("after") == aoe_in.get("before"),
           "a boss AoE overlapping a safe zone does not damage the players inside it")
     check(aoe_out and aoe_out.get("hits") == 1 and aoe_out.get("after", 1) < aoe_out.get("before", 0),
