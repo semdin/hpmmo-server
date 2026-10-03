@@ -54,9 +54,11 @@ try {
     }
 
     $tar = Join-Path $OutDir "$stageName.tar.gz"
-    Push-Location $stage
-    tar -czf $tar *
-    Pop-Location
+    # Pin to Windows' bsdtar: a Git-Bash GNU tar on PATH rejects "C:\..." paths.
+    $tarExe = Join-Path $env:SystemRoot 'System32\tar.exe'
+    if (-not (Test-Path $tarExe)) { $tarExe = 'tar.exe' }
+    & $tarExe -czf $tar -C $stage .
+    if ($LASTEXITCODE -ne 0) { throw "tar failed with exit $LASTEXITCODE" }
 }
 finally {
     Remove-Item -Recurse -Force $stage -ErrorAction SilentlyContinue
@@ -65,5 +67,7 @@ finally {
 $size = (Get-Item $tar).Length
 Write-Output "wrote $tar ($([math]::Round($size / 1MB, 1)) MB)"
 Write-Output 'contents:'
-tar -tzf $tar | ForEach-Object { $_ } | Group-Object { ($_ -split '/')[0] } |
+& $tarExe -tzf $tar |
+    ForEach-Object { $_ -replace '^\./', '' } |
+    Group-Object { ($_ -split '/')[0] } |
     ForEach-Object { "  {0}/  ({1} entries)" -f $_.Name, $_.Count }
