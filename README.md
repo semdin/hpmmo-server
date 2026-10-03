@@ -58,6 +58,31 @@ From the workspace root:
 .\dev.ps1 verify-contracts
 ```
 
+## World server (Phase 5)
+
+`world/server/world_server.tscn` is the headless authoritative server. It boots the
+exported world, owns every gameplay decision, and is the only process that talks to
+the account service.
+
+```powershell
+godot --headless --path world res://server/world_server.tscn
+```
+
+| Variable | Purpose |
+| --- | --- |
+| `HPMMO_WORLD_PORT` | UDP port (default 7777) |
+| `HPMMO_WORLD_SEED` | RNG seed for encounters (logged at boot; same seed = same spawns) |
+| `HPMMO_API_URL` / `HPMMO_SERVICE_TOKEN` | account service; **without them the server runs unauthenticated and session-only**, and refuses joins unless the dev opt-in below is set |
+| `HPMMO_NET_PROFILE` | latency/loss test profile (`local`, `broadband`, `mobile`, `awful`) |
+
+### Development-only switches (never set these in production)
+
+| Variable | Effect |
+| --- | --- |
+| `HPMMO_ALLOW_DEV_JOIN=1` | accepts joins with no auth backend; the join token is used as a display name |
+| `HPMMO_DEV_SPAWN="x,y,z"` | places dev joins at a fixed point (used by the multiplayer tests) |
+| `HPMMO_DEV_FAST_RESPAWN=<ms>` | compresses respawn timers so tests can observe respawns |
+
 ## Security posture (Phase 4)
 
 - The **C++ service** enforces argon2id passwords, expiring sessions, per-account ownership on
@@ -69,5 +94,9 @@ From the workspace root:
   reach a client (launcher/game build) or a log; a holder can read and write every character.
 - The **legacy Python service** (`services/db_service.py`) still exists for reference and has
   **none of these protections** - it must not be deployed alongside the new service.
+- The **world server** (Phase 5) is the only holder of the service token; the game client only
+  redeems a one-time ticket and never sees a database credential. Clients send intents that the
+  server validates (`docs/phase5-authority.md`); clients cannot address each other
+  (`server_relay` is off) and cannot mint server-authority messages.
 - Database credentials and the service token come from the environment
   (`deploy/hpmmo.env.example`); no secrets live in this repository or its history.
