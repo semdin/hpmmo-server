@@ -45,7 +45,8 @@ public:
     // Reconnect if the connection died (used by the pool between checkouts).
     bool ensure_ok();
 
-    Result exec(const std::string& sql, const std::vector<std::string>& params = {});
+    // nullopt parameters bind as SQL NULL (an empty string is NOT NULL).
+    Result exec(const std::string& sql, const std::vector<std::optional<std::string>>& params = {});
     // Multi-statement, no parameters (extended protocol forbids multi-statement
     // SQL, so migration files go through the simple protocol here).
     Result exec_simple(const std::string& sql);
@@ -78,7 +79,7 @@ public:
         Lease(Lease&& other) noexcept : conn_(other.conn_), mutex_(other.mutex_) { other.mutex_ = nullptr; }
 
         Conn* conn() const { return conn_; }
-        Result exec(const std::string& sql, const std::vector<std::string>& params = {}) {
+        Result exec(const std::string& sql, const std::vector<std::optional<std::string>>& params = {}) {
             return conn_->exec(sql, params);
         }
         Result exec_tx(const std::vector<std::string>& statements) { return conn_->exec_tx(statements); }

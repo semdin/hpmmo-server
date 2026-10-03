@@ -10,6 +10,7 @@
 #include <fstream>
 #include <limits>
 #include <optional>
+#include <set>
 #include <sstream>
 #include <unordered_map>
 
@@ -56,6 +57,10 @@ void send_error(httplib::Response& res, int status, const std::string& message) 
 void send_db_error(httplib::Response& res, const db::Result& r, const std::string& what) {
     if (r.kind == ErrorKind::Connection) {
         send_error(res, 503, "Service unavailable: database unreachable.");
+    } else if (r.kind == ErrorKind::Constraint) {
+        // Never echo raw constraint text (schema details) to callers; log it.
+        send_error(res, 409, what + " failed: a data constraint was violated.");
+        std::printf("[error] %s: %s\n", what.c_str(), r.error.c_str());
     } else {
         send_error(res, status_for(r.kind), what + " failed.");
         std::printf("[error] %s: %s\n", what.c_str(), r.error.c_str());
@@ -180,6 +185,21 @@ int distinct_item_kinds(db::Conn& conn, long long character_id) {
 bool grant_items(db::Conn& conn, long long character_id, const std::vector<ItemLine>& items,
                  std::string& error) {
     for (const auto& line : items) {
+        // Clean stack-limit check first: exceeding the row cap fails the whole
+        // operation with a readable reason instead of a raw CHECK violation.
+        db::Result have = conn.exec(
+            "SELECT COALESCE(SUM(amount),0)::text FROM character_items "
+            "WHERE character_id=$1 AND item_id=$2 AND tier=$3",
+            {std::to_string(character_id), line.item_id, std::to_string(line.tier)});
+        if (!have.ok) {
+            error = have.error;
+            return false;
+        }
+        const long long held = std::stoll(have.rows[0][0].second.value_or("0"));
+        if (held + line.amount > kMaxItemAmount) {
+            error = "stack limit reached for " + line.item_id;
+            return false;
+        }
         db::Result up = conn.exec(
             "INSERT INTO character_items (character_id, item_id, amount, tier) VALUES ($1,$2,$3,$4) "
             "ON CONFLICT (character_id, item_id, tier) DO UPDATE SET amount = character_items.amount + EXCLUDED.amount",
@@ -277,19 +297,26 @@ OpBegin begin_op(db::Conn& conn, const std::string& op_id, const std::string& ki
             out.kind = ErrorKind::Constraint;
             return out;
         }
+        if (!prev.rows[0][0].second.has_value()) {
+            // A ledger row without a result means the original op never
+            // finished; do NOT replay an empty result as success.
+            out.error = "operation ledger entry has no recorded result";
+            out.kind = ErrorKind::Other;
+            return out;
+        }
         out.ok = true;
         out.replay = true;
-        out.stored_result = json::parse(prev.rows[0][0].second.value_or("{}"));
+        out.stored_result = json::parse(*prev.rows[0][0].second);
         return out;
     }
     out.ok = true;
     return out;
 }
 
-void finish_op(db::Conn& conn, const std::string& op_id, const json& result) {
+bool finish_op(db::Conn& conn, const std::string& op_id, const json& result) {
     db::Result r = conn.exec("UPDATE operations SET result = $2::jsonb WHERE op_id = $1",
                              {op_id, result.dump()});
-    (void)r;
+    return r.ok;
 }
 
 // --- handlers ----------------------------------------------------------------
@@ -375,13 +402,16 @@ void handle_game_ticket(const httplib::Request& req, httplib::Response& res, con
     auto body = parse_body(req, res);
     if (!body) return;
     std::optional<long long> character_id;
-    if (body->contains("character_id") && (*body)["character_id"].is_number_integer()) {
+    if (body->contains("character_id")) {
+        if (!(*body)["character_id"].is_number_integer()) {
+            return send_error(res, 400, "Invalid character_id.");
+        }
         character_id = (*body)["character_id"].get<long long>();
     }
     auto lease = pool.acquire();
     if (character_id) {
         auto owns = owns_character(*lease.conn(), session->account_id, *character_id);
-        if (!owns) return send_error(res, 403, "Not your character.");
+        if (!owns) return send_error(res, 503, "Service unavailable: database unreachable.");
         if (!*owns) return send_error(res, 404, "Character not found.");
     }
     const std::string ticket = db::gen_hex(32);
@@ -389,14 +419,8 @@ void handle_game_ticket(const httplib::Request& req, httplib::Response& res, con
         "INSERT INTO game_tickets (ticket_hash, account_id, character_id, expires_at) VALUES "
         "($1,$2,$3, now() + interval '" + std::to_string(cfg.ticket_ttl_seconds) + " seconds')",
         {db::sha256_hex(ticket), std::to_string(session->account_id),
-         character_id ? std::to_string(*character_id) : std::string()});
-    if (!r.ok) {
-        if (r.kind == ErrorKind::Constraint) {
-            // NULL character_id cannot happen here; keep the branch for safety.
-            return send_error(res, 409, "Ticket conflict.");
-        }
-        return send_db_error(res, r, "ticket issue");
-    }
+         character_id ? std::optional<std::string>(std::to_string(*character_id)) : std::nullopt});
+    if (!r.ok) return send_db_error(res, r, "ticket issue");
     send_json(res, 200, {{"success", true}, {"ticket", ticket},
                          {"expires_in_seconds", cfg.ticket_ttl_seconds}});
 }
@@ -408,12 +432,21 @@ void handle_ticket_redeem(const httplib::Request& req, httplib::Response& res, c
     const std::string ticket = body->value("ticket", "");
     if (ticket.empty()) return send_error(res, 400, "Missing ticket.");
     auto lease = pool.acquire();
+    // Claim + session issue are one transaction: a failure after the claim
+    // must not burn the one-time ticket.
+    if (!lease.begin()) return send_error(res, 503, "Service unavailable: database unreachable.");
     db::Result claim = lease.exec(
         "UPDATE game_tickets SET used_at = now() WHERE ticket_hash = $1 AND used_at IS NULL "
         "AND expires_at > now() RETURNING account_id::text, COALESCE(character_id, 0)::text",
         {db::sha256_hex(ticket)});
-    if (!claim.ok) return send_db_error(res, claim, "ticket redeem");
-    if (claim.rows.empty()) return send_error(res, 410, "Ticket invalid, expired, or already used.");
+    if (!claim.ok) {
+        lease.rollback();
+        return send_db_error(res, claim, "ticket redeem");
+    }
+    if (claim.rows.empty()) {
+        lease.rollback();
+        return send_error(res, 410, "Ticket invalid, expired, or already used.");
+    }
     const long long account_id = std::stoll(claim.rows[0][0].second.value_or("0"));
     const long long character_id = std::stoll(claim.rows[0][1].second.value_or("0"));
     const std::string token = db::gen_hex(24);
@@ -421,7 +454,14 @@ void handle_ticket_redeem(const httplib::Request& req, httplib::Response& res, c
         "INSERT INTO sessions (account_id, token_hash, expires_at) VALUES ($1,$2, now() + interval '" +
             std::to_string(cfg.session_ttl_hours) + " hours')",
         {std::to_string(account_id), db::sha256_hex(token)});
-    if (!ins.ok) return send_db_error(res, ins, "ticket session");
+    if (!ins.ok) {
+        lease.rollback();
+        return send_db_error(res, ins, "ticket session");
+    }
+    db::Result commit;
+    if (!lease.commit_checked(commit)) {
+        return send_error(res, 503, "Service unavailable: database unreachable (ticket not consumed).");
+    }
     send_json(res, 200, {{"success", true}, {"token", token}, {"account_id", account_id},
                          {"character_id", character_id},
                          {"expires_in_seconds", cfg.session_ttl_hours * 3600}});
@@ -606,6 +646,13 @@ void handle_character_save(const httplib::Request& req, httplib::Response& res, 
         if (inventory.empty() && !(*body)["inventory"].empty()) {
             return send_error(res, 400, "Invalid inventory entries.");
         }
+        // Enforce the same 40-kind capacity the trade path enforces: otherwise
+        // a full-state save could bypass it entirely.
+        std::set<std::string> kinds;
+        for (const auto& line : inventory) kinds.insert(line.item_id);
+        if (static_cast<int>(kinds.size()) > kMaxInventoryKinds) {
+            return send_error(res, 400, "Inventory exceeds the item-kind capacity.");
+        }
         replace_inventory = true;
     }
     json quests = json::object();
@@ -707,7 +754,7 @@ void handle_reward(const httplib::Request& req, httplib::Response& res, const Co
     auto body = parse_body(req, res);
     if (!body) return;
     const std::string op_id = body->value("op_id", "");
-    if (op_id.empty() || op_id.size() > 64) return send_error(res, 400, "Missing op_id.");
+    if (op_id.empty() || op_id.size() > 64) return send_error(res, 400, "Invalid op_id.");
     if (!body->contains("character_id") || !(*body)["character_id"].is_number_integer()) {
         return send_error(res, 400, "Missing character_id.");
     }
@@ -765,7 +812,10 @@ void handle_reward(const httplib::Request& req, httplib::Response& res, const Co
     }
     const json result = {{"character_id", char_id}, {"exp", exp_grant}, {"galleons", gold_grant},
                          {"items", items.size()}};
-    finish_op(*lease.conn(), op_id, result);
+    if (!finish_op(*lease.conn(), op_id, result)) {
+        lease.rollback();
+        return send_error(res, 500, "Reward ledger write failed.");
+    }
     db::Result commit;
     if (!lease.commit_checked(commit)) {
         if (commit.kind == ErrorKind::Connection) {
@@ -785,7 +835,7 @@ void handle_trade(const httplib::Request& req, httplib::Response& res, const Con
     auto body = parse_body(req, res);
     if (!body) return;
     const std::string op_id = body->value("op_id", "");
-    if (op_id.empty() || op_id.size() > 64) return send_error(res, 400, "Missing op_id.");
+    if (op_id.empty() || op_id.size() > 64) return send_error(res, 400, "Invalid op_id.");
     if (!body->contains("from_id") || !body->contains("to_id") ||
         !(*body)["from_id"].is_number_integer() || !(*body)["to_id"].is_number_integer()) {
         return send_error(res, 400, "Missing from_id/to_id.");
@@ -898,7 +948,10 @@ void handle_trade(const httplib::Request& req, httplib::Response& res, const Con
     }
     const json result = {{"from_id", from_id}, {"to_id", to_id}, {"offer_galleons", offer_gold},
                          {"request_galleons", request_gold}, {"items_moved", offer_items.size() + request_items.size()}};
-    finish_op(*lease.conn(), op_id, result);
+    if (!finish_op(*lease.conn(), op_id, result)) {
+        lease.rollback();
+        return send_error(res, 500, "Trade ledger write failed.");
+    }
     db::Result commit;
     if (!lease.commit_checked(commit)) {
         if (commit.kind == ErrorKind::Connection) {
@@ -958,6 +1011,13 @@ void handle_ready(const httplib::Request&, httplib::Response& res, const Config&
 int serve(const Config& cfg, db::Pool& pool) {
     httplib::Server svr;
     svr.set_payload_max_length(1024 * 1024);
+    svr.set_error_handler([](const httplib::Request&, httplib::Response& res) {
+        if (res.body.empty()) {
+            res.set_content(json{{"success", false},
+                                 {"message", "HTTP " + std::to_string(res.status)}}.dump(),
+                            "application/json");
+        }
+    });
     svr.set_read_timeout(10, 0);
     svr.set_write_timeout(10, 0);
 

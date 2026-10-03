@@ -74,8 +74,14 @@ def run(cmd, **kw):
 
 
 def pg_ready():
-    r = subprocess.run([os.path.join(PG_BIN, "pg_isready.exe"), "-h", "127.0.0.1", "-p", str(PG_PORT), "-q"])
-    return r.returncode == 0
+    exe = os.path.join(PG_BIN, "pg_isready.exe")
+    if not os.path.exists(exe):
+        return False
+    try:
+        r = subprocess.run([exe, "-h", "127.0.0.1", "-p", str(PG_PORT), "-q"], timeout=20)
+        return r.returncode == 0
+    except OSError:
+        return False
 
 
 def pg_start():
@@ -177,6 +183,11 @@ def main():
         return 2
     if not os.path.exists(SERVICE):
         print("SKIP: service binary not built at " + SERVICE)
+        return 2
+    if not os.path.exists(os.path.join(PG_BIN, "pg_isready.exe")):
+        print("SKIP: PostgreSQL binaries not found under " + PG_ROOT)
+        print("      set HPMMO_PG_ROOT to a PostgreSQL 17 binaries tree")
+        print("      (EDB 'binaries only' zip extracted; see server README 'Database (development)')")
         return 2
 
     db_name = "hpmmo_ci_" + secrets.token_hex(4)
@@ -311,6 +322,16 @@ def main():
         status, body = http(port, "POST", "/api/trade", neg, service_token=SERVICE_TOKEN)
         check(status == 400, "negative galleon offer rejected")
 
+        # --- inventory capacity is enforced on the save path too --------------------
+        many = [{"id": f"ci_kind_{i}", "amount": 1, "tier": 0} for i in range(41)]
+        status, body = http(port, "POST", "/api/characters/save",
+                            {"character_id": bob_char, "inventory": many}, token=bob_tok)
+        check(status == 400, "save rejecting a 41-kind inventory (capacity enforced on save, not just trade)")
+        forty = many[:40]
+        status, body = http(port, "POST", "/api/characters/save",
+                            {"character_id": bob_char, "inventory": forty}, token=bob_tok)
+        check(status == 200, "save accepts a 40-kind inventory at the cap")
+
         # --- tickets: one-time handoff --------------------------------------------
         status, body = http(port, "POST", "/api/game-ticket", {"character_id": alice_char}, token=alice_tok)
         check(status == 200 and body.get("ticket"), "game ticket issued to the launcher session")
@@ -321,6 +342,15 @@ def main():
         game_tok = body.get("token")
         status, body = http(port, "POST", "/api/ticket/redeem", {"ticket": ticket})
         check(status == 410, "ticket cannot be redeemed twice")
+        # Regression pin (verification blocker): the launcher may issue the
+        # ticket BEFORE character selection; character_id must be optional.
+        status, body = http(port, "POST", "/api/game-ticket", {}, token=alice_tok)
+        check(status == 200 and body.get("ticket"), "ticket without character_id succeeds (NULL binding)")
+        unbound = body.get("ticket")
+        status, body = http(port, "POST", "/api/ticket/redeem", {"ticket": unbound})
+        check(status == 200 and body.get("character_id", -1) == 0, "unbound ticket redeems without a character")
+        status, body = http(port, "POST", "/api/game-ticket", {"character_id": "1"}, token=alice_tok)
+        check(status == 400, "non-integer character_id is rejected")
         status, body = http(port, "POST", "/api/characters/load", {"character_id": alice_char}, token=game_tok)
         check(status == 200, "game session can load its character")
 

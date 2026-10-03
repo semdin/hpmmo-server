@@ -62,7 +62,7 @@ bool Conn::ensure_ok() {
     return valid();
 }
 
-Result Conn::exec(const std::string& sql, const std::vector<std::string>& params) {
+Result Conn::exec(const std::string& sql, const std::vector<std::optional<std::string>>& params) {
     Result out;
     if (!ensure_ok()) {
         out.kind = ErrorKind::Connection;
@@ -71,7 +71,7 @@ Result Conn::exec(const std::string& sql, const std::vector<std::string>& params
     }
     std::vector<const char*> values;
     values.reserve(params.size());
-    for (const auto& p : params) values.push_back(p.c_str());
+    for (const auto& p : params) values.push_back(p ? p->c_str() : nullptr);
     PGresult* res = PQexecParams(conn_, sql.c_str(), static_cast<int>(params.size()), nullptr,
                                  values.data(), nullptr, nullptr, 0);
     if (!res) {
@@ -156,7 +156,8 @@ Result Conn::exec_tx(const std::vector<std::string>& statements) {
 }
 
 bool Conn::begin() {
-    Result r = exec("BEGIN");
+    // Pin the isolation level the ledger concurrency reasoning depends on.
+    Result r = exec("BEGIN ISOLATION LEVEL READ COMMITTED");
     return r.ok;
 }
 
@@ -174,8 +175,17 @@ bool Conn::commit_checked(Result& out) {
     }
     const ExecStatusType st = PQresultStatus(res);
     if (st == PGRES_COMMAND_OK) {
+        // COMMIT on an aborted transaction succeeds with the tag "ROLLBACK";
+        // that is a rolled-back transaction, not a commit.
+        const char* tag = PQcmdStatus(res);
+        if (tag && std::strcmp(tag, "COMMIT") == 0) {
+            PQclear(res);
+            return true;
+        }
+        out.kind = ErrorKind::Other;
+        out.error = "transaction was rolled back instead of committed";
         PQclear(res);
-        return true;
+        return false;
     }
     if (st == PGRES_FATAL_ERROR && PQstatus(conn_) != CONNECTION_OK) {
         // Server went away while processing COMMIT: outcome unknown.
