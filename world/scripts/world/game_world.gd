@@ -363,6 +363,10 @@ func _on_entity_despawned(uid: int) -> void:
 		view.queue_free()
 
 func _on_entity_moved(uid: int, pos: Vector3, rot_y: float, flags: int) -> void:
+	if uid == SimAuthority.local_uid and is_instance_valid(local_player):
+		# The local body is predicted, not puppeted: it reconciles instead.
+		local_player.apply_authoritative_position(pos, rot_y)
+		return
 	if not _views.has(uid):
 		return
 	var view = _views[uid]

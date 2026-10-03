@@ -456,6 +456,11 @@ static func monolith_loot(rng: RandomNumberGenerator) -> Array:
 
 static func respawn_delay_ms(is_boss: bool, rng: RandomNumberGenerator, pack: bool = false) -> int:
 	ensure_loaded()
+	# Test affordance (never set in production): compresses respawn timers so the
+	# respawn path is observable inside a test run.
+	var fast := OS.get_environment("HPMMO_DEV_FAST_RESPAWN")
+	if fast != "":
+		return maxi(250, int(fast))
 	var table: Dictionary = _loot.get("respawn_ms", {})
 	var prefix := "pack_" if pack else "mob_"
 	var kind := "boss" if is_boss else "normal"

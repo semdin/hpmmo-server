@@ -49,6 +49,10 @@ var _snapshot_accumulator: float = 0.0
 var _input_accumulator: float = 0.0
 var _last_sent_input_seq: int = -1
 var _input_seq: int = 0
+## Diagnostics for the multiplayer tests.
+var input_frames_sent: int = 0
+var inputs_received: int = 0
+var cast_requests_received: int = 0
 
 
 func _ready() -> void:
@@ -62,10 +66,12 @@ func _ready() -> void:
 		set_profile(profile)
 
 func set_profile(name: String) -> void:
+	var wanted := name.strip_edges().to_lower()
 	for key in PROFILES.keys():
-		if key == name:
-			net_profile = NetProfile[key]
-			print("[SimNet] network profile: %s %s" % [name, PROFILES[key]])
+		if key == wanted:
+			# Enum values are the uppercase of the profile names.
+			net_profile = NetProfile[key.to_upper()]
+			print("[SimNet] network profile: %s %s" % [wanted, PROFILES[key]])
 			return
 	push_warning("[SimNet] unknown network profile '%s'; keeping LOCAL" % name)
 
@@ -103,6 +109,18 @@ func join(address: String, port: int = DEFAULT_PORT, token: String = "") -> Erro
 
 var join_token: String = ""
 
+## Test/probe hook. When set, this intent is sent (and predicted locally) instead
+## of reading the keyboard - a headless client has no input device.
+var forced_intent: Dictionary = {}
+
+func _local_intent() -> Dictionary:
+	if not forced_intent.is_empty():
+		return forced_intent
+	var player = SimAuthority.local_player_node()
+	if player == null or not is_instance_valid(player):
+		return {"move": Vector2.ZERO, "yaw": 0.0, "jump": false, "descend": false}
+	return player.sim_input_intent()
+
 func leave() -> void:
 	if multiplayer.multiplayer_peer != null:
 		multiplayer.multiplayer_peer.close()
@@ -115,6 +133,35 @@ func _on_connected_to_server() -> void:
 	local_peer_id = multiplayer.get_unique_id()
 	sim_join.rpc_id(1, join_token, HPProtocol.PROTOCOL_VERSION, CLIENT_VERSION)
 	print("[SimNet] connected as peer %d; join sent" % local_peer_id)
+
+## Two bodies spawned at the same point interpenetrate, and the physics engine
+## resolves that by launching them apart - which looks exactly like a teleport
+## hack to everyone else. Nudge a new arrival to the nearest clear spot instead.
+func _avoid_spawn_overlap(node: Node3D) -> void:
+	const CLEARANCE := 1.4
+	var occupied: Array = []
+	for uid in SimAuthority.entities.keys():
+		var record: Dictionary = SimAuthority.entities[uid]
+		if int(record.get("kind", 0)) != HPProtocol.Kind.PLAYER:
+			continue
+		var other = record.get("node")
+		if other != null and is_instance_valid(other) and other != node:
+			occupied.append((other as Node3D).global_position)
+	if occupied.is_empty():
+		return
+	var origin := node.global_position
+	for ring in range(1, 5):
+		for step in range(8):
+			var angle := TAU * float(step) / 8.0
+			var candidate := origin + Vector3(cos(angle), 0.0, sin(angle)) * (CLEARANCE * float(ring))
+			var clear := true
+			for position in occupied:
+				if (position as Vector3).distance_to(candidate) < CLEARANCE:
+					clear = false
+					break
+			if clear:
+				node.global_position = candidate
+				return
 
 func _on_peer_connected(peer_id: int) -> void:
 	print("[SimNet] peer %d connected" % peer_id)
@@ -146,13 +193,31 @@ func sim_join(token: String, protocol_version: int, client_version: String) -> v
 	if protocol_version != HPProtocol.PROTOCOL_VERSION:
 		sim_join_result.rpc_id(peer_id, false, "protocol_mismatch:%d" % HPProtocol.PROTOCOL_VERSION, 0, {}, SimAuthority.sim_tick, 0)
 		return
-	var identity := {"account_id": 0, "character_id": 0, "name": "Wizard", "house": "Gryffindor"}
+	var identity := {}
 	if SimAuthority.persistence != null:
 		var resolved: Dictionary = SimAuthority.persistence.resolve_session(token)
 		if not bool(resolved.get("ok", false)):
 			sim_join_result.rpc_id(peer_id, false, String(resolved.get("reason", "auth_failed")), 0, {}, SimAuthority.sim_tick, 0)
 			return
 		identity = resolved
+	elif OS.get_environment("HPMMO_ALLOW_DEV_JOIN") == "1":
+		# Development/testing only: with no auth backend configured the join token
+		# is taken as a display name. Refused outright when the opt-in is absent.
+		var dev_name := token.strip_edges()
+		if dev_name.is_empty():
+			dev_name = "Dev%d" % peer_id
+		identity = {"account_id": 0, "character_id": 0, "name": dev_name, "house": "Gryffindor"}
+		# Optional dev spawn point ("x,y,z"): lets a test place clients next to the
+		# content under test instead of walking there. Dev joins only.
+		var spawn := OS.get_environment("HPMMO_DEV_SPAWN")
+		if spawn != "":
+			var parts := spawn.split(",")
+			if parts.size() == 3:
+				identity["spawn"] = [float(parts[0]), float(parts[1]), float(parts[2])]
+		print("[SimNet] DEV JOIN (no auth backend): peer %d as '%s'" % [peer_id, dev_name])
+	else:
+		sim_join_result.rpc_id(peer_id, false, "no_auth_backend", 0, {}, SimAuthority.sim_tick, 0)
+		return
 	sim_spawn_player(peer_id, identity)
 
 func sim_spawn_player(peer_id: int, identity: Dictionary) -> void:
@@ -179,9 +244,16 @@ func sim_spawn_player(peer_id: int, identity: Dictionary) -> void:
 		if character.has("pos") and (character["pos"] as Array).size() == 3:
 			var pos: Array = character["pos"]
 			node.global_position = Vector3(float(pos[0]), float(pos[1]), float(pos[2]))
+	elif identity.has("spawn"):
+		var spawn: Array = identity["spawn"]
+		node.global_position = Vector3(float(spawn[0]), float(spawn[1]), float(spawn[2]))
+	_avoid_spawn_overlap(node)
 	var uid := SimAuthority.register_player(node, int(identity.get("character_id", 0)), peer_id)
 	_known_by_peer[peer_id] = {}
 	sim_join_result.rpc_id(peer_id, true, "", uid, character, SimAuthority.sim_tick, SimAuthority.seed_value)
+	# The client needs its own numbers immediately: without this it would show
+	# defaults until the first time something changed them.
+	sim_stats_event.rpc_id(peer_id, uid, SimAuthority.build_stats(SimAuthority.entities[uid]))
 	sim_chat_event.rpc("[Server] %s joined the realm." % node.player_name)
 	emit_signal("client_spawned", peer_id, int(identity.get("character_id", 0)), String(node.player_name))
 
@@ -189,6 +261,7 @@ func sim_spawn_player(peer_id: int, identity: Dictionary) -> void:
 func sim_input(seq: int, move: Vector2, yaw: float, jump: bool, descend: bool) -> void:
 	if is_client:
 		return
+	inputs_received += 1
 	SimAuthority.submit_input(multiplayer.get_remote_sender_id(), seq, move, yaw, jump, descend)
 
 @rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
@@ -196,6 +269,7 @@ func sim_cast_request(spell_id: String, aim: Vector3, cast_seq: int) -> void:
 	if is_client:
 		return
 	var peer_id := multiplayer.get_remote_sender_id()
+	cast_requests_received += 1
 	var result := SimAuthority.request_cast(peer_id, spell_id, aim, cast_seq)
 	sim_cast_result.rpc_id(peer_id, cast_seq, int(result.get("cast_id", 0)),
 		bool(result.get("ok", false)), String(result.get("reason", "")))
@@ -245,7 +319,9 @@ func sim_join_result(ok: bool, reason: String, uid: int, character: Dictionary, 
 		SimAuthority.seed_value = world_seed
 		local_uid = uid
 		pending_character = character
-		if not character.is_empty() and SimAuthority.local_player_node() != null:
+		# Bind even when the server sent no character sheet (a dev join with no
+		# persistence): the uid is what makes this body addressable.
+		if SimAuthority.local_player_node() != null:
 			SimAuthority.register_local_player(uid, character)
 	emit_signal("joined", ok, reason, character)
 
@@ -291,7 +367,7 @@ func sim_loot_despawn(uid: int) -> void:
 
 @rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
 func sim_reward_event(character_id: int, exp: int, galleons: int, items: Array, op_id: String) -> void:
-	SimAuthority.emit_signal("reward_granted", character_id, exp, galleons, items, op_id)
+	SimAuthority.emit_signal("reward_granted", SimAuthority.local_uid, character_id, exp, galleons, items, op_id)
 
 @rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
 func sim_chat_event(text: String) -> void:
@@ -305,6 +381,11 @@ func sim_notice(kind: String, detail: String) -> void:
 func sim_snapshot(tick: int, chunk: int, chunks: int, data: PackedByteArray) -> void:
 	if not is_client:
 		return
+	# The snapshot carries the server's clock: mirroring it here is what lets a
+	# client reason about "the same tick" as everyone else (timings, and every
+	# test that compares when something happened).
+	if tick > SimAuthority.sim_tick:
+		SimAuthority.sim_tick = tick
 	HPSnapshots.apply(data, SimAuthority)
 
 @rpc("authority", "call_remote", "reliable", HPProtocol.CH_SNAPSHOT)
@@ -333,7 +414,8 @@ func _send_local_input() -> void:
 	if player == null or not is_instance_valid(player):
 		return
 	_input_seq += 1
-	var intent: Dictionary = player.sim_input_intent()
+	var intent: Dictionary = _local_intent()
+	input_frames_sent += 1
 	var values := profile_values()
 	var args := [_input_seq, intent["move"], intent["yaw"], intent["jump"], intent["descend"]]
 	if float(values["loss"]) > 0.0 and randf() < float(values["loss"]):
@@ -413,8 +495,8 @@ func bridge_authority() -> void:
 	SimAuthority.stats_changed.connect(broadcast_stats)
 	SimAuthority.loot_spawned.connect(broadcast_loot)
 	SimAuthority.loot_taken.connect(broadcast_loot_taken)
-	SimAuthority.reward_granted.connect(func(character_id, exp, galleons, items, op_id):
-		broadcast_reward(character_id, exp, galleons, items, op_id))
+	SimAuthority.reward_granted.connect(func(uid: int, character_id: int, exp: int, galleons: int, items: Array, op_id: String):
+		broadcast_reward(uid, character_id, exp, galleons, items, op_id))
 	print("[SimNet] authority events bridged to %d peer(s)" % multiplayer.get_peers().size())
 
 func _broadcast_snapshots() -> void:
@@ -520,12 +602,14 @@ func broadcast_loot_taken(uid: int, character_id: int, _item_id: String, _amount
 			sim_reward_event.rpc_id(peer_id, character_id, 0, 0, [], "loot")
 		sim_loot_despawn.rpc_id(peer_id, uid)
 
-func broadcast_reward(character_id: int, exp: int, galleons: int, items: Array, op_id: String) -> void:
+func broadcast_reward(uid: int, character_id: int, exp: int, galleons: int, items: Array, op_id: String) -> void:
 	if not has_peers():
 		return
+	# Addressed by entity uid: the reward belongs to one session, and two
+	# sessions may legitimately have no character bound yet.
 	for peer_id in multiplayer.get_peers():
 		var record := SimAuthority.player_record(peer_id)
-		if not record.is_empty() and int(record.get("character_id", 0)) == character_id:
+		if not record.is_empty() and int(record.get("uid", 0)) == uid:
 			sim_reward_event.rpc_id(peer_id, character_id, exp, galleons, items, op_id)
 
 func broadcast_chat(text: String) -> void:

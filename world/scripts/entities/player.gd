@@ -260,8 +260,10 @@ func _process(delta: float) -> void:
 		set_target(null)
 
 func _physics_process(delta: float) -> void:
-	# World Boundaries & Safeguards: Infinite Fall Kill-Plane (Section 7.2 of plan.md)
-	if is_local_player and global_position.y < -10.0:
+	# World Boundaries & Safeguards: Infinite Fall Kill-Plane (Section 7.2 of plan.md).
+	# Only the authority rescues a body: a client that rescued itself would be
+	# teleporting somewhere the server never agreed to.
+	if is_local_player and SimAuthority.is_authority() and global_position.y < -10.0:
 		global_position = Vector3(0, 1.0, 5.0) # Courtyard Fountain
 		velocity = Vector3.ZERO
 		current_hp = max_hp
@@ -276,9 +278,10 @@ func _physics_process(delta: float) -> void:
 			spring_arm.rotation_degrees.x = camera_rot_x
 	
 	if not is_local_player:
-		# Another player's body. On the authority this is the real simulated body
-		# (its input comes from the network); on a client it is a view that follows
-		# the replicated state.
+		# Another player's body. On a client it is a view that follows the
+		# replicated state; on the authority it is the REAL body, simulated here
+		# from the input that player sent, so it falls through to the movement
+		# code below like any other body.
 		if sim_puppet:
 			var prev_pos := global_position
 			global_position = global_position.lerp(sim_target_pos, minf(1.0, 12.0 * delta))
@@ -297,7 +300,7 @@ func _physics_process(delta: float) -> void:
 					var remote_idle := "Sit_Chair_Idle" if is_mounted else "Idle"
 					if anim_player.current_animation != remote_idle:
 						anim_player.play(remote_idle, 0.35)
-		return
+			return
 	
 	if is_dead:
 		velocity = Vector3.ZERO
@@ -369,6 +372,9 @@ func _physics_process(delta: float) -> void:
 func _intent_move() -> Vector2:
 	if sim_server_controlled:
 		return HPRules.sanitize_input_vector(sim_input.get("move", Vector2.ZERO))
+	if SimNet.is_client and not SimNet.forced_intent.is_empty():
+		# Headless probe: the intent it sends is the intent it predicts with.
+		return HPRules.sanitize_input_vector(SimNet.forced_intent.get("move", Vector2.ZERO))
 	if input_blocked():
 		return Vector2.ZERO
 	var input_dir := Vector2.ZERO
@@ -385,6 +391,8 @@ func _intent_move() -> Vector2:
 func _intent_yaw() -> float:
 	if sim_server_controlled:
 		return float(sim_input.get("yaw", 0.0))
+	if SimNet.is_client and not SimNet.forced_intent.is_empty():
+		return float(SimNet.forced_intent.get("yaw", camera_rot_y))
 	return camera_rot_y
 
 func _intent_jump() -> bool:
@@ -703,6 +711,20 @@ func on_authoritative_damage(spell_type: String, attacker: Node3D, _stun_ms: int
 		anim_player.play("Hit_A", 0.1)
 		_hit_recovery = 0.22
 	emit_stats()
+
+## Reconciliation. The client predicts its own movement; when the server's
+## answer disagrees by more than a hair, the authoritative position wins (and the
+## body is snapped, not blended, so a tampered client cannot slide around a
+## correction). Small disagreements are absorbed smoothly.
+func apply_authoritative_position(pos: Vector3, rot_y: float) -> void:
+	var error := global_position.distance_to(pos)
+	if error > 1.0:
+		global_position = pos
+		velocity = Vector3.ZERO
+	elif error > 0.05:
+		global_position = global_position.lerp(pos, 0.35)
+	if visuals:
+		visuals.rotation.y = rot_y
 
 ## Authority death notification: presentation only - the engine schedules the
 ## respawn and calls `on_authoritative_respawn` when it fires.

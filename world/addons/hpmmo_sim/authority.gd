@@ -35,7 +35,7 @@ signal entity_died(uid: int, killer_uid: int)
 signal entity_respawned(uid: int)
 signal loot_spawned(uid: int, item_id: String, amount: int, pos: Vector3)
 signal loot_taken(uid: int, character_id: int, item_id: String, amount: int)
-signal reward_granted(character_id: int, exp: int, galleons: int, items: Array, op_id: String)
+signal reward_granted(uid: int, character_id: int, exp: int, galleons: int, items: Array, op_id: String)
 signal level_changed(uid: int, level: int)
 signal player_joined(uid: int, character_id: int, peer_id: int)
 signal player_left(uid: int, character_id: int)
@@ -193,6 +193,12 @@ func register_player(node: Node3D, character_id: int, peer_id: int) -> int:
 	players_by_peer[peer_id] = uid
 	if character_id > 0:
 		players_by_character[character_id] = uid
+	# A player body the authority simulates is driven by that player's network
+	# intent; the local body in offline/host play keeps reading its own keyboard.
+	if node.get("is_local_player") != true:
+		var player_record: Dictionary = entities[uid]
+		node.set("sim_server_controlled", true)
+		node.set("sim_input", player_record["input"])
 	emit_signal("player_joined", uid, character_id, peer_id)
 	return uid
 
@@ -249,7 +255,7 @@ func reset_dummy(node: Node3D) -> void:
 	record["hp"] = int(record.get("max_hp", 0))
 	node.set("current_hp", int(record.get("max_hp", 0)))
 	touch(record)
-	emit_signal("entity_health", int(record["uid"]), int(record["hp"]), int(record["max_hp"]), _flags_for(record))
+	emit_signal("entity_health", int(record["uid"]), int(record["hp"]), int(record["max_hp"]), flags_for(record))
 
 func register_loot(node: Node3D, item_id: String, amount: int) -> int:
 	var uid := register(HPProtocol.Kind.LOOT, node, {"item_id": item_id, "amount": amount})
@@ -284,15 +290,16 @@ func submit_input(peer_id: int, seq: int, move: Vector2, yaw: float, jump: bool,
 	var record := player_record(peer_id)
 	if record.is_empty() or bool(record.get("dead", false)):
 		return
-	if seq < int(record["input"].get("seq", -1)):
+	var intent: Dictionary = record["input"]
+	if seq < int(intent.get("seq", -1)):
 		return
-	record["input"] = {
-		"move": HPRules.sanitize_input_vector(move),
-		"yaw": yaw if is_finite(yaw) else 0.0,
-		"jump": jump,
-		"descend": descend,
-		"seq": seq,
-	}
+	# Mutated in place: the node being simulated holds this exact dictionary, so
+	# replacing it would silently detach the body from its input.
+	intent["move"] = HPRules.sanitize_input_vector(move)
+	intent["yaw"] = yaw if is_finite(yaw) else 0.0
+	intent["jump"] = jump
+	intent["descend"] = descend
+	intent["seq"] = seq
 	touch(record)
 
 ## Cast request. Returns {ok, reason, cast_id}. Rejections are explicit so the
@@ -443,6 +450,7 @@ func _step() -> void:
 	_advance_projectiles()
 	_advance_effects()
 	_check_respawns()
+	_check_fall_protection()
 	_regen_accumulator_ms += TICK_MS
 	if _regen_accumulator_ms >= REGEN_INTERVAL_MS:
 		_regen_accumulator_ms = 0
@@ -846,7 +854,7 @@ func _apply_damage(target: Dictionary, raw: int, spell_id: String, attacker: Dic
 	_apply_status_on_hit(target, spell_id, attacker)
 	_notify_damage(target, spell_id, attacker)
 	emit_signal("entity_damaged", int(target["uid"]), amount, int(target["hp"]), spell_id, int(attacker.get("uid", 0)))
-	emit_signal("entity_health", int(target["uid"]), int(target["hp"]), int(target.get("max_hp", 0)), _flags_for(target))
+	emit_signal("entity_health", int(target["uid"]), int(target["hp"]), int(target.get("max_hp", 0)), flags_for(target))
 	if int(target["hp"]) <= 0:
 		_kill(target, attacker)
 	# Knockback is a spell-data rule applied here (once) rather than by whichever
@@ -963,6 +971,12 @@ func _kill(target: Dictionary, killer: Dictionary) -> void:
 		return
 	_grant_kill_rewards(target)
 
+func killer_uid_of(target: Dictionary) -> int:
+	var last := 0
+	for entry in target.get("damage_log", []):
+		last = int(entry.get("attacker_uid", last))
+	return last
+
 func _grant_kill_rewards(target: Dictionary) -> void:
 	var window := int(ceil(float(HPProtocol.KILL_CREDIT_MS) / TICK_MS))
 	var eligible: Array = []
@@ -978,20 +992,24 @@ func _grant_kill_rewards(target: Dictionary) -> void:
 		eligible.append(uid)
 	var death_seq := _next_death_seq
 	_next_death_seq += 1
+	print("[Authority] kill uid=%d by %d -> eligible %s (log %d entries, tick %d)" % [
+		int(target["uid"]), int(killer_uid_of(target)), str(eligible), (target.get("damage_log", []) as Array).size(), sim_tick])
 	var exp_reward := int(target.get("exp_reward", 0))
 	for uid in eligible:
 		var player: Dictionary = entities.get(uid, {})
 		if player.is_empty():
 			continue
 		var character_id := int(player.get("character_id", 0))
-		var op_id := "kill:%d:%d:%d" % [int(target["uid"]), death_seq, character_id]
+		# Keyed by the player ENTITY, not the character: a session whose character
+		# is unbound (dev join) still gets exactly one credit per death.
+		var op_id := "kill:%d:%d:%d" % [int(target["uid"]), death_seq, int(uid)]
 		# Each eligible player is credited exactly once per death: the death
 		# sequence is part of the op id, so a re-run of this function for the
 		# same death cannot pay twice even if it were called again.
 		if _reward_already_granted(op_id):
 			continue
 		_grant_exp(player, exp_reward)
-		emit_signal("reward_granted", character_id, exp_reward, 0, [], op_id)
+		emit_signal("reward_granted", int(uid), character_id, exp_reward, 0, [], op_id)
 	# Loot is dropped once, server-side, for everyone to race for.
 	_drop_loot(target)
 
@@ -1175,6 +1193,27 @@ func _check_respawns() -> void:
 		if respawn_tick > 0 and sim_tick >= respawn_tick and bool(record.get("dead", false)):
 			_respawn_player(record)
 
+## The kill-plane rule belongs to the authority: a body that falls out of the
+## world is returned to the respawn point by the same process that owns every
+## other position, so it can never be a client-side rescue that other players
+## never see.
+func _check_fall_protection() -> void:
+	for uid in entities.keys():
+		var record: Dictionary = entities[uid]
+		if int(record.get("kind", 0)) != HPProtocol.Kind.PLAYER:
+			continue
+		var node = record.get("node")
+		if node == null or not is_instance_valid(node):
+			continue
+		if (node as Node3D).global_position.y >= -10.0:
+			continue
+		(node as Node3D).global_position = HPRules.respawn_position()
+		node.set("velocity", Vector3.ZERO)
+		record["hp"] = int(record.get("max_hp", 1))
+		touch(record)
+		_push_stats(record)
+		print("[Authority] player %d fell out of the world; returned to spawn" % uid)
+
 ## Public EXP grant (kills, quests, monoliths). Level-up rules live here so the
 ## client cannot level itself.
 func grant_exp(node: Node, amount: int) -> void:
@@ -1216,7 +1255,7 @@ func build_stats(record: Dictionary) -> Dictionary:
 		"mounted": bool(record.get("mounted", false)),
 	}
 
-func _flags_for(record: Dictionary) -> int:
+func flags_for(record: Dictionary) -> int:
 	var flags := 0
 	if bool(record.get("dead", false)):
 		flags |= HPProtocol.FLAG_DEAD
@@ -1316,7 +1355,7 @@ func local_player_node() -> Node3D:
 
 ## Client-side replica update from a snapshot. Creates the record on first
 ## sight (presentation is asked to build a view) and refreshes it afterwards.
-func upsert_replica(uid: int, kind: int, pos: Vector3, rot_y: float, hp: int, max_hp: int, flags: int, state: int, variant: int = 0) -> void:
+func upsert_replica(uid: int, kind: int, pos: Vector3, rot_y: float, hp: int, max_hp: int, flags: int, state: int, variant: int = 0, pack_id: int = 0) -> void:
 	var record: Dictionary = entities.get(uid, {})
 	var is_new := record.is_empty()
 	if is_new:
@@ -1327,14 +1366,15 @@ func upsert_replica(uid: int, kind: int, pos: Vector3, rot_y: float, hp: int, ma
 			"replica": true,
 			"map_id": HPProtocol.DEFAULT_MAP,
 			"zone_id": HPRules.zone_id_for(pos),
-			"pack_id": 0,
 			"revision": 0,
 			"variant": variant,
+			"pack_id": pack_id,
 			"dead": (flags & HPProtocol.FLAG_DEAD) != 0,
 		}
 		entities[uid] = record
 	var previous_hp := int(record.get("hp", hp))
 	var previous_flags := int(record.get("flags", 0))
+	var previous_record_dead := bool(record.get("dead", false))
 	record["pos"] = pos
 	record["rot_y"] = rot_y
 	record["hp"] = hp
@@ -1342,16 +1382,24 @@ func upsert_replica(uid: int, kind: int, pos: Vector3, rot_y: float, hp: int, ma
 	record["flags"] = flags
 	record["state"] = state
 	record["variant"] = variant
+	record["pack_id"] = pack_id
 	record["dead"] = (flags & HPProtocol.FLAG_DEAD) != 0
 	record["mounted"] = (flags & HPProtocol.FLAG_MOUNTED) != 0
 	record["casting"] = (flags & HPProtocol.FLAG_CASTING) != 0
 	record["warded"] = (flags & HPProtocol.FLAG_WARDED) != 0
+	var was_dead := bool(previous_record_dead)
 	if is_new:
 		emit_signal("entity_replicating", record)
 	else:
 		emit_signal("entity_moved", uid, pos, rot_y, flags)
 	if hp != previous_hp or flags != previous_flags:
 		emit_signal("entity_health", uid, hp, max_hp, flags)
+	# Death and respawn are read off the replicated flag, so a client that
+	# joined late still sees them (it has no event history to replay).
+	if record["dead"] and not was_dead:
+		emit_signal("entity_died", uid, 0)
+	elif was_dead and not record["dead"]:
+		emit_signal("entity_respawned", uid)
 
 func attach_view_node(uid: int, node: Node3D) -> void:
 	var record: Dictionary = entities.get(uid, {})
@@ -1372,7 +1420,7 @@ func on_damage_event(uid: int, amount: int, hp: int, spell_id: String, attacker_
 	record["hp"] = hp
 	_sync_node_health(record)
 	emit_signal("entity_damaged", uid, amount, hp, spell_id, attacker_uid)
-	emit_signal("entity_health", uid, hp, max_hp, _flags_for(record))
+	emit_signal("entity_health", uid, hp, max_hp, flags_for(record))
 
 func on_death_event(uid: int, killer_uid: int) -> void:
 	var record: Dictionary = entities.get(uid, {})

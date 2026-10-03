@@ -21,6 +21,11 @@ func _ready() -> void:
 	print("=========================================================")
 	print(">>> [HPMMO WORLD SERVER] booting %s <<<" % HPProtocol.version_string())
 	print("=========================================================")
+	# Marks this process as a server before the world scene builds: without it the
+	# world would spawn a local player body nobody is driving.
+	NetworkManager.is_dedicated_server = true
+	NetworkManager.is_server = true
+	NetworkManager.is_connected_to_game = true
 	var port := int(_env("HPMMO_WORLD_PORT", str(SimNet.DEFAULT_PORT)))
 	var world_seed := int(_env("HPMMO_WORLD_SEED", "0"))
 	SimAuthority.configure(SimAuthority.Role.DEDICATED, world_seed)
@@ -58,5 +63,25 @@ func _env(name: String, fallback: String) -> String:
 	var value := OS.get_environment(name)
 	return value if value != "" else fallback
 
-func _process(_delta: float) -> void:
-	pass
+var _status_accumulator: float = 0.0
+
+## Periodic status line: enough to tell "nobody is connected" from "somebody is
+## connected but their input is not arriving".
+func _process(delta: float) -> void:
+	_status_accumulator += delta
+	if _status_accumulator < 5.0:
+		return
+	_status_accumulator = 0.0
+	var players := []
+	for peer_id in SimAuthority.players_by_peer.keys():
+		var record := SimAuthority.player_record(int(peer_id))
+		var node = record.get("node")
+		if node != null and is_instance_valid(node):
+			players.append("peer %d uid %d at (%.1f, %.1f, %.1f) hp %d exp %d" % [
+				int(peer_id), int(record.get("uid", 0)),
+				(node as Node3D).global_position.x, (node as Node3D).global_position.y,
+				(node as Node3D).global_position.z, int(record.get("hp", 0)),
+				int(record.get("exp", 0))])
+	print("[WorldServer] tick=%d entities=%d players=%d inputs=%d casts=%d | %s" % [
+		SimAuthority.sim_tick, SimAuthority.entities.size(), SimAuthority.players_by_peer.size(),
+		SimNet.inputs_received, SimNet.cast_requests_received, " ; ".join(players)])

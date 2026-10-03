@@ -108,7 +108,9 @@ func host_game(port: int = DEFAULT_PORT) -> Error:
 func join_game(address: String = "213.250.145.75", port: int = DEFAULT_PORT) -> Error:
 	disconnect_game()
 	SimAuthority.configure(SimAuthority.Role.CLIENT)
-	var error := SimNet.join(address, port, DatabaseManager.session_token if DatabaseManager.has_method("session_token") else "")
+	# The world server resolves this token through the account service; without it
+	# the join is refused.
+	var error := SimNet.join(address, port, DatabaseManager.session_token)
 	if error != OK:
 		emit_signal("connection_status_changed", "Failed to connect to %s:%d" % [address, port])
 		emit_signal("connection_failed")

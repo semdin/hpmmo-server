@@ -3,16 +3,16 @@ class_name HPSnapshots
 
 ## Compact entity snapshots (channel 0, unreliable).
 ##
-## 28 bytes per entity so a full interest set fits in one datagram and never
+## 30 bytes per entity so a full interest set fits in one datagram and never
 ## fragments (an unreliable packet larger than the MTU is simply lost):
-##   u32 uid | u8 kind | u8 variant | u8 flags | u8 state |
+##   u32 uid | u8 kind | u8 variant | u8 flags | u8 state | u16 pack_id |
 ##   3 x f32 position | f32 rot_y | u16 hp | u16 max_hp
 ##
 ## Loot is not carried here: it does not move, so it is replicated as reliable
 ## spawn/despawn events instead. NPCs are client-side scenery and are never
 ## replicated.
 
-const ENTITY_BYTES := 28
+const ENTITY_BYTES := 30
 
 
 static func _encode_entity(buffer: StreamPeerBuffer, record: Dictionary, node: Node3D, authority) -> void:
@@ -21,6 +21,7 @@ static func _encode_entity(buffer: StreamPeerBuffer, record: Dictionary, node: N
 	buffer.put_u8(int(record.get("variant", 0)) & 0xff)
 	buffer.put_u8(authority.flags_for(record) & 0xff)
 	buffer.put_u8(int(record.get("state", 0)) & 0xff)
+	buffer.put_u16(clampi(int(record.get("pack_id", 0)), 0, 65535))
 	var pos := node.global_position
 	buffer.put_float(pos.x)
 	buffer.put_float(pos.y)
@@ -108,8 +109,9 @@ static func apply(bytes: PackedByteArray, authority) -> void:
 		var variant := buffer.get_u8()
 		var flags := buffer.get_u8()
 		var state := buffer.get_u8()
+		var pack_id := buffer.get_u16()
 		var pos := Vector3(buffer.get_float(), buffer.get_float(), buffer.get_float())
 		var rot_y := buffer.get_float()
 		var hp := buffer.get_u16()
 		var max_hp := buffer.get_u16()
-		authority.upsert_replica(uid, kind, pos, rot_y, hp, max_hp, flags, state, variant)
+		authority.upsert_replica(uid, kind, pos, rot_y, hp, max_hp, flags, state, variant, pack_id)

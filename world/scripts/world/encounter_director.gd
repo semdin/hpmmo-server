@@ -117,6 +117,9 @@ func _spawn_pack(index: int) -> void:
 			mob.spawn_point = anchor + offset
 			mob.pack_anchor = anchor
 			mob._respawn()
+	if members.size() > 0:
+		print("[Encounters] pack %d respawned at (%.1f, %.1f, %.1f)" % [
+			index + 1, anchor.x, anchor.y, anchor.z])
 	pack.timer = -1.0
 
 func _apply_boss(mob: Node3D, pack: Dictionary) -> void:
@@ -150,6 +153,7 @@ func _on_member_died(_mob: Node3D, index: int) -> void:
 			return
 	var is_boss: bool = bool(pack.get("boss", false))
 	pack.timer = float(HPRules.respawn_delay_ms(is_boss, rng, true)) / 1000.0
+	print("[Encounters] pack %d wiped; respawn in %.1fs" % [index + 1, pack.timer])
 
 func _process(delta: float) -> void:
 	# Client-only processes never own encounters; the server tells them what
