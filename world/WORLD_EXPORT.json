@@ -1,7 +1,7 @@
 {
  "generated": "2026-10-03",
  "source_repository": "hpmmo-client",
- "source_revision": "ce5a7b36c8459a0e41a6b0cb8a64e16f80fed6a7",
+ "source_revision": "6adf9991705b027035149c03c99a9e8496b19ac3",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/models/characters/wizard.glb": "cf898585da33fab50c724d31605fb931eb2912e6d2280092141e98ca81ad507d",
