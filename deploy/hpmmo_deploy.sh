@@ -257,7 +257,11 @@ http_request() {  # method url body outfile token [timeout]
     [ -n "$body" ] && args+=(-H 'Content-Type: application/json' --data "$body")
     HTTP_CODE=""
     if [ -n "$cfg" ]; then
-        HTTP_CODE="$(printf '%s\n' "$cfg" | curl "${args[@]}" "$url" 2>/dev/null || true)"
+        # -K - is load-bearing: without it curl ignores stdin entirely and the
+        # token header is never sent, so every authenticated admin call is a 403
+        # and no deployment can proceed. Found on the real box; the rehearsal's
+        # stub did not check the header, which is why 207 checks missed it.
+        HTTP_CODE="$(printf '%s\n' "$cfg" | curl -K - "${args[@]}" "$url" 2>/dev/null || true)"
     else
         HTTP_CODE="$(curl "${args[@]}" "$url" 2>/dev/null || true)"
     fi
