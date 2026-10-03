@@ -40,7 +40,9 @@ SERVER = os.path.dirname(HERE)
 WORKSPACE = os.path.dirname(SERVER)
 PG_ROOT = os.environ.get("HPMMO_PG_ROOT", os.path.join(WORKSPACE, "_tools", "pgsql"))
 PG_BIN = os.path.join(PG_ROOT, "bin")
-PG_DATA = os.path.join(WORKSPACE, "_tools", "pgdata")
+PG_DATA = os.environ.get("HPMMO_PG_DATA",
+                         os.path.join(os.path.dirname(PG_ROOT.rstrip("/\\")), "pgdata"))
+PG_LOG_DIR = os.path.dirname(PG_DATA)
 PG_PORT = 55432
 MIGRATIONS = os.path.join(SERVER, "db", "migrations")
 SERVICE = os.environ.get("HPMMO_SERVICE_EXE", os.path.join(SERVER, "services", "cpp", "build", "hpmmo_service.exe"))
@@ -87,10 +89,11 @@ def pg_ready():
 def pg_start():
     if pg_ready():
         return True
-    log = open(os.path.join(WORKSPACE, "_tools", "pg-ci.log"), "ab")
+    os.makedirs(PG_LOG_DIR, exist_ok=True)
+    log = open(os.path.join(PG_LOG_DIR, "pg-ci.log"), "ab")
     subprocess.Popen(
         [os.path.join(PG_BIN, "pg_ctl.exe"), "-D", PG_DATA, "-l",
-         os.path.join(WORKSPACE, "_tools", "pg.log"), "-o",
+         os.path.join(PG_LOG_DIR, "pg.log"), "-o",
          f"-p {PG_PORT} -c listen_addresses=127.0.0.1", "-w", "start"],
         stdout=log, stderr=log)
     for _ in range(40):
@@ -101,7 +104,7 @@ def pg_start():
 
 
 def pg_stop():
-    log = open(os.path.join(WORKSPACE, "_tools", "pg-ci.log"), "ab")
+    log = open(os.path.join(PG_LOG_DIR, "pg-ci.log"), "ab")
     subprocess.Popen([os.path.join(PG_BIN, "pg_ctl.exe"), "-D", PG_DATA, "-m", "fast", "-w", "stop"],
                      stdout=log, stderr=log)
     for _ in range(40):
