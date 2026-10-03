@@ -13,3 +13,4 @@ __pycache__/
 world/**/*.import
 world/**/*.uid
 world/assets/models/**/*_texture.png
+world/assets/models/**/*.png
