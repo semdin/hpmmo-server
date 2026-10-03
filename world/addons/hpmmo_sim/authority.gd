@@ -177,6 +177,7 @@ func register_player(node: Node3D, character_id: int, peer_id: int) -> int:
 		"exp": int(node.get("current_exp")),
 		"level": int(node.get("level")),
 		"galleons": int(node.get("galleons")),
+		"wand_tier": int(node.get("wand_tier")),
 		"mounted": false,
 		"ward_until_tick": 0,
 		"stunned_until_tick": 0,
@@ -272,7 +273,13 @@ func remove_player(peer_id: int) -> void:
 		if record.has("character_id"):
 			players_by_character.erase(int(record["character_id"]))
 		var node = record.get("node")
+		if persistence != null:
+			persistence.save_player(record)   # last save on the way out
 		unregister_node(node if node is Node3D else null)
+		if node != null and is_instance_valid(node):
+			# Free the body: otherwise it stays in the world as a ghost that
+			# mobs keep chasing and that nothing can ever despawn.
+			node.queue_free()
 		emit_signal("player_left", uid, int(record.get("character_id", 0)))
 
 func player_record(peer_id: int) -> Dictionary:
@@ -418,6 +425,15 @@ func submit_mount(peer_id: int, mounted: bool) -> Dictionary:
 		return HPProtocol.reject(HPProtocol.REJECT_DEAD)
 	if int(record.get("cast_id", 0)) != 0:
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	var node: Node3D = record.get("node")
+	if node == null or not is_instance_valid(node):
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	if mounted:
+		# Only from the ground: the flight rule is a rule, not a client courtesy.
+		if node.has_method("is_on_floor") and not node.is_on_floor():
+			return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	elif node.has_method("can_dismount_safely") and not node.can_dismount_safely():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
 	record["mounted"] = mounted
 	touch(record)
 	_push_stats(record)
@@ -511,6 +527,9 @@ func interrupt_cast(record: Dictionary) -> void:
 	if cast_id == 0:
 		return
 	record["cast_id"] = 0
+	var node = record.get("node")
+	if node != null and is_instance_valid(node):
+		casts_by_node.erase((node as Node).get_instance_id())
 	casts.erase(cast_id)
 
 func _resolve_cast(cast: Dictionary) -> void:
@@ -683,6 +702,23 @@ func _projectile_impact(projectile: Dictionary, impact_uid: int, impact_pos: Vec
 				hits.append({"uid": impact_uid, "amount": applied})
 	emit_signal("cast_landed", int(projectile["cast_id"]), int(caster["uid"]), spell_id, hits)
 
+
+## A full spell hit on one target (damage + any status it applies), for callers
+## that resolve a hit outside the cone/projectile paths - tests, and future traps
+## or environmental effects. Same resolution as a real cast.
+func apply_spell_hit(target: Node, spell_id: String, caster: Node) -> int:
+	if not is_authority():
+		return 0
+	var target_record := record_for(target)
+	if target_record.is_empty():
+		return 0
+	var caster_record := record_for(caster)
+	var raw := HPRules.spell_damage(spell_id, int(caster_record.get("wand_tier", 0)),
+		String(caster_record.get("house", "")), 1.0)
+	var applied := _apply_damage(target_record, raw, spell_id, caster_record)
+	if applied > 0:
+		_apply_burn(target_record, spell_id, caster_record)
+	return applied
 
 ## Area damage for a spell impact resolved outside a data projectile (a client's
 ## predicted explosion, a trap, an environmental blast). Same falloff and victim
@@ -1127,6 +1163,12 @@ func _collect_loot(loot: Dictionary, player: Dictionary) -> void:
 	var pnode = player.get("node")
 	if pnode != null and is_instance_valid(pnode) and pnode.has_method("add_loot"):
 		pnode.call("add_loot", item_id, amount)
+		# Keep the record in step: the record is what stats pushes are built from,
+		# so a stale record would take the gold back on the next tick.
+		if "galleons" in pnode:
+			player["galleons"] = int(pnode.get("galleons"))
+		touch(player)
+		_push_stats(player)
 	if persistence != null:
 		persistence.queue_reward(op_id, character_id, 0, amount if item_id == "galleons" else 0,
 			[] if item_id == "galleons" else [{"id": item_id, "amount": amount, "tier": 0}])
@@ -1400,6 +1442,17 @@ func upsert_replica(uid: int, kind: int, pos: Vector3, rot_y: float, hp: int, ma
 		emit_signal("entity_died", uid, 0)
 	elif was_dead and not record["dead"]:
 		emit_signal("entity_respawned", uid)
+
+## A replica the server stopped announcing is gone: forget it, or the client
+## accumulates records (and node ids) for entities that no longer exist.
+func drop_replica(uid: int) -> void:
+	var record: Dictionary = entities.get(uid, {})
+	if record.is_empty():
+		return
+	var node = record.get("node")
+	if node != null and is_instance_valid(node):
+		by_node.erase((node as Node).get_instance_id())
+	entities.erase(uid)
 
 func attach_view_node(uid: int, node: Node3D) -> void:
 	var record: Dictionary = entities.get(uid, {})

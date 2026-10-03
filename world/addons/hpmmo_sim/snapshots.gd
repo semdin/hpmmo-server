@@ -79,12 +79,28 @@ static func interest_set(authority, peer_id: int, center: Vector3) -> Array:
 	return out
 
 
-static func encode_for(authority, peer_id: int, center: Vector3) -> Dictionary:
+static func encode_for(authority, peer_id: int, center: Vector3, known: Dictionary) -> Dictionary:
 	var uids := interest_set(authority, peer_id, center)
 	var buffer := StreamPeerBuffer.new()
 	buffer.big_endian = false
 	var sent := 0
-	for uid in uids:
+	# The peer's own body is never the one left out: the client cannot reconcile
+	# without it, and it is the entity its player cares about most.
+	var own_uid := 0
+	var player_record: Dictionary = authority.player_record(peer_id)
+	if not player_record.is_empty():
+		own_uid = int(player_record["uid"])
+	if own_uid != 0 and uids.has(own_uid):
+		uids.erase(own_uid)
+		uids.insert(0, own_uid)
+	# More entities than fit in one datagram: every entity is still delivered,
+	# just spread over consecutive ticks instead of being dropped. The cursor
+	# lives in the caller's per-peer bookkeeping (`__offset`).
+	var start := int(known.get("__offset", 0)) % maxi(1, uids.size())
+	var ordered: Array = []
+	for i in range(uids.size()):
+		ordered.append(uids[(start + i) % uids.size()])
+	for uid in ordered:
 		if sent >= HPProtocol.MAX_ENTITIES_PER_SNAPSHOT:
 			break
 		var record: Dictionary = authority.entities[uid]
@@ -93,6 +109,7 @@ static func encode_for(authority, peer_id: int, center: Vector3) -> Dictionary:
 			continue
 		_encode_entity(buffer, record, node, authority)
 		sent += 1
+	known["__offset"] = start + sent
 	buffer.seek(0)
 	return {"bytes": buffer.data_array, "uids": uids}
 

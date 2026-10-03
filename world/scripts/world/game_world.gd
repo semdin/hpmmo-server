@@ -47,11 +47,13 @@ func _ready() -> void:
 			cl.queue_free()
 
 	_setup_npcs()
+	# Training dummies are static authored scenery at fixed spots: every process
+	# builds the same ones, and only the authority registers them as entities.
+	_setup_training_grounds()
 	if authority:
-		# The authority decides what exists: packs, dummies and monoliths are its
-		# spawn decisions, sampled once and replicated. A client never rolls its
-		# own encounter.
-		_setup_training_grounds()
+		# The authority decides what exists: packs and monoliths are its spawn
+		# decisions, sampled once and replicated. A client never rolls its own
+		# encounter.
 		_setup_monoliths_and_mobs()
 	# Presentation listens to the same signals in every role; in authority roles
 	# the entities already have nodes, so only the effect hooks fire.
@@ -255,9 +257,10 @@ func _setup_training_grounds() -> void:
 		var pos: Array = entry.get("pos", [-14.0, 0.0, -2.0])
 		d.global_position = Vector3(float(pos[0]), float(pos[1]), float(pos[2]))
 		d.setup()
-		SimAuthority.register(HPProtocol.Kind.DUMMY, d, {
-			"hp": d.current_hp, "max_hp": d.max_hp, "dummy_id": int(entry.get("id", index)),
-		})
+		if SimAuthority.is_authority():
+			SimAuthority.register(HPProtocol.Kind.DUMMY, d, {
+				"hp": d.current_hp, "max_hp": d.max_hp, "dummy_id": int(entry.get("id", index)),
+			})
 	# Update Fig's hint to mention dummies
 	NetworkManager.send_chat("[System] Training dummies placed in the courtyard — practice skills safely!")
 
@@ -347,6 +350,9 @@ func _on_entity_replicating(record: Dictionary) -> void:
 				label.position.y = 4.2
 	elif kind == HPProtocol.Kind.PLAYER:
 		view.is_local_player = false
+		# Another player's body is a VIEW here: it follows the replicated state
+		# and never reads this client's keyboard.
+		view.sim_puppet = true
 		players_container.add_child(view)
 	_views[uid] = view
 	if kind != HPProtocol.Kind.PLAYER:
@@ -355,6 +361,7 @@ func _on_entity_replicating(record: Dictionary) -> void:
 	view.global_position = record.get("pos", view.global_position)
 
 func _on_entity_despawned(uid: int) -> void:
+	SimAuthority.drop_replica(uid)
 	if not _views.has(uid):
 		return
 	var view = _views[uid]

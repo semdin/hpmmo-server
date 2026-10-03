@@ -268,6 +268,15 @@ def test_agreement(out_dir, profile):
     ops_b = [r["op_id"] for r in fb.get("rewards", [])]
     check(len(ops_a) == len(set(ops_a)) and len(ops_b) == len(set(ops_b)),
           "[%s] no player was rewarded twice for one death" % profile)
+    kills_a = len({op.split(":")[1] for op in ops_a})
+    kills_b = len({op.split(":")[1] for op in ops_b})
+    check(kills_a == kills_b and kills_a > 0,
+          "[%s] both clients were credited for the same %d kill(s)" % (profile, kills_a))
+    granted_a = sum(int(r.get("exp", 0)) for r in fa.get("rewards", []))
+    gained_a = int(fa.get("exp_end", 0)) - int(fa.get("exp_start", 0))
+    check(granted_a == gained_a and gained_a > 0,
+          "[%s] the reward matches the EXP gained exactly (%d granted, %d gained)"
+          % (profile, granted_a, gained_a))
     check(not set(ops_a) & set(ops_b),
           "[%s] each player has their own reward record" % profile)
 
@@ -334,9 +343,14 @@ def test_protection(out_dir):
     check(projectile_in and projectile_in.get("after") == projectile_in.get("before"),
           "a delayed projectile does not damage a target inside a safe zone")
     check(projectile_out and projectile_out.get("after", 1) < projectile_out.get("before", 0),
-          "the same projectile does damage outside the zone (positive control)")
+          "the same projectile does damage outside the zone (positive control, same distance)")
+    burn_out = result.get("burn_outside_zone", {})
+    check(bool(burn.get("burn_started")),
+          "the incendio hit really started a burn (the check below is not vacuous)")
     check(burn and burn.get("after") == burn.get("before"),
           "burn ticks deal nothing inside a safe zone")
+    check(burn_out and burn_out.get("after", 1) < burn_out.get("before", 0),
+          "the same burn does tick outside the zone (positive control)")
     check(aoe_in and aoe_in.get("hits") == 0 and aoe_in.get("after") == aoe_in.get("before"),
           "a boss AoE overlapping a safe zone does not damage the players inside it")
     check(aoe_out and aoe_out.get("hits") == 1 and aoe_out.get("after", 1) < aoe_out.get("before", 0),

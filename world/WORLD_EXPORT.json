@@ -104,7 +104,7 @@
   "scripts/world/castle_builder.gd": "993af14dd2c7224657349b7dfa1e921d0817c520568ea9edff6f744cc74f6591",
   "scripts/world/distant_ridges.gd": "c5e47fc979cc22ea362ece198aed5ef03fb9a07fcede3b5108757b305b9b7a8f",
   "scripts/world/encounter_director.gd": "60c589a54a20f1c4849b7efc0f63c2e80e307a5339cdf726390213bb5c4bfa81",
-  "scripts/world/game_world.gd": "cf605299a5a7ff066259d4e4598aa36fcc2f65fcfa40b99c005bbe52178b658a",
+  "scripts/world/game_world.gd": "d5074df41ef63417ccd12fe1d24e7e242165f9115228bed77597e92526a531a9",
   "scripts/world/npc.gd": "94252696b42af9f11797c229603ed523585875e744f6cfa23158901724cbd296",
   "scripts/world/safe_zone.gd": "024b4cd0a2f2cda69a10dd47c718152ba384a89b4be4b51cc4e2559304d2c289",
   "scripts/world/training_dummy.gd": "22b4c47bb1d960322aa5fa62f4950df78d1cb7d5d032f3bf5e0a6439cc8746a2",

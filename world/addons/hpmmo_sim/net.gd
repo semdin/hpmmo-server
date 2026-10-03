@@ -44,7 +44,9 @@ var pending_character: Dictionary = {}
 var protocol_mismatch: String = ""
 var net_profile: int = NetProfile.LOCAL
 var _delayed: Array = []          # [{due_ms, peer_id, method, args}]
-var _known_by_peer: Dictionary = {}   # peer_id -> {uid: true}
+var _known_by_peer: Dictionary = {}   # peer_id -> {uid: true, __offset: cursor}
+var _last_chat_ms: Dictionary = {}
+const CHAT_MIN_INTERVAL_MS := 250
 var _snapshot_accumulator: float = 0.0
 var _input_accumulator: float = 0.0
 var _last_sent_input_seq: int = -1
@@ -128,6 +130,7 @@ func leave() -> void:
 	is_client = false
 	joined_world = false
 	_known_by_peer.clear()
+	_last_chat_ms.clear()
 
 func _on_connected_to_server() -> void:
 	local_peer_id = multiplayer.get_unique_id()
@@ -190,6 +193,11 @@ func sim_join(token: String, protocol_version: int, client_version: String) -> v
 	if is_client:
 		return
 	var peer_id := multiplayer.get_remote_sender_id()
+	if SimAuthority.players_by_peer.has(peer_id):
+		# One join per connection: a repeat would spawn another body, leak the
+		# previous one, and re-run the (synchronous) auth round trip.
+		sim_join_result.rpc_id(peer_id, false, "already_joined", 0, {}, SimAuthority.sim_tick, 0)
+		return
 	if protocol_version != HPProtocol.PROTOCOL_VERSION:
 		sim_join_result.rpc_id(peer_id, false, "protocol_mismatch:%d" % HPProtocol.PROTOCOL_VERSION, 0, {}, SimAuthority.sim_tick, 0)
 		return
@@ -270,6 +278,11 @@ func sim_cast_request(spell_id: String, aim: Vector3, cast_seq: int) -> void:
 		return
 	var peer_id := multiplayer.get_remote_sender_id()
 	cast_requests_received += 1
+	# A NaN aim is not a direction: it compares false against every cone and
+	# range test and would leak NaN into other clients' VFX.
+	if not is_finite(aim.x) or not is_finite(aim.y) or not is_finite(aim.z):
+		sim_cast_result.rpc_id(peer_id, cast_seq, 0, false, HPProtocol.REJECT_STATE)
+		return
 	var result := SimAuthority.request_cast(peer_id, spell_id, aim, cast_seq)
 	sim_cast_result.rpc_id(peer_id, cast_seq, int(result.get("cast_id", 0)),
 		bool(result.get("ok", false)), String(result.get("reason", "")))
@@ -300,9 +313,14 @@ func sim_pickup_request(loot_uid: int) -> void:
 func sim_chat_request(text: String) -> void:
 	if is_client:
 		return
-	var record := SimAuthority.player_record(multiplayer.get_remote_sender_id())
+	var peer_id := multiplayer.get_remote_sender_id()
+	var record := SimAuthority.player_record(peer_id)
 	if record.is_empty():
 		return
+	var now := Time.get_ticks_msec()
+	if now - int(_last_chat_ms.get(peer_id, 0)) < CHAT_MIN_INTERVAL_MS:
+		return   # one line per interval: chat shares the reliable channel
+	_last_chat_ms[peer_id] = now
 	var clean := text.strip_edges().substr(0, 200)
 	if clean.is_empty():
 		return
@@ -384,6 +402,8 @@ func sim_snapshot(tick: int, chunk: int, chunks: int, data: PackedByteArray) -> 
 	# The snapshot carries the server's clock: mirroring it here is what lets a
 	# client reason about "the same tick" as everyone else (timings, and every
 	# test that compares when something happened).
+	if tick < SimAuthority.sim_tick:
+		return   # a late datagram must not drag the world backwards
 	if tick > SimAuthority.sim_tick:
 		SimAuthority.sim_tick = tick
 	HPSnapshots.apply(data, SimAuthority)
@@ -507,9 +527,9 @@ func _broadcast_snapshots() -> void:
 		if record.is_empty():
 			continue
 		var center: Vector3 = record["node"].global_position
-		var result: Dictionary = HPSnapshots.encode_for(SimAuthority, peer_id, center)
-		var bytes: PackedByteArray = result["bytes"]
 		var known: Dictionary = _known_by_peer.get(peer_id, {})
+		var result: Dictionary = HPSnapshots.encode_for(SimAuthority, peer_id, center, known)
+		var bytes: PackedByteArray = result["bytes"]
 
 		# Visible set = replicated entities in the interest set, plus loot in
 		# range. Loot never moves, so it travels as reliable spawn/despawn
@@ -529,6 +549,8 @@ func _broadcast_snapshots() -> void:
 				sim_loot_event.rpc_id(peer_id, int(uid), String(loot["item_id"]), int(loot["amount"]), loot["pos"])
 
 		for uid in known.keys():
+			if typeof(uid) == TYPE_STRING:
+				continue   # rotation cursor, not an entity (int == String is an error)
 			if not current.has(int(uid)):
 				sim_despawn.rpc_id(peer_id, int(uid))
 		_known_by_peer[peer_id] = current
