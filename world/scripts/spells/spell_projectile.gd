@@ -104,30 +104,19 @@ func _reflect_projectile(owner_node: Node3D) -> void:
 	_reflection_grace = 0.12
 	speed *= 1.1
 
+## The projectile is a VIEW. Damage is decided by the authority: this call is a
+## report that the bolt reached something, and the engine answers with the
+## numbers (and refuses when the target is protected, already dead, or the caster
+## was not allowed to hit it in the first place).
 func _handle_hit(target: Node) -> void:
 	if spent:
 		return
 	spent = true
-	if not visual_only:
+	if not visual_only and SimAuthority.is_authority():
 		if spell_id in ["bombarda", "ultimate"]:
 			var radius := float(GameData.SPELLS[spell_id].get("radius", 9))
-			for enemy in get_tree().get_nodes_in_group("targetable"):
-				if not Rules.can_damage(caster, enemy):
-					continue
-				var distance: float = global_position.distance_to(enemy.global_position + Vector3.UP)
-				if distance <= radius and Rules.has_line_of_sight(self, enemy):
-					_damage_target(enemy, int(damage * clampf(1 - distance / radius, 0.4, 1)))
+			SimAuthority.spell_area_impact(caster, global_position, radius, spell_id, damage)
 		elif Rules.can_damage(caster, target):
-			_damage_target(target, damage)
+			SimAuthority.apply_damage(target, damage, spell_id, caster)
 	SkillFX.play_impact(get_parent(), global_position, spell_id)
 	queue_free()
-
-func _damage_target(target: Node3D, amount: int) -> void:
-	target.take_damage(amount, spell_id, caster)
-	if spell_id in ["bombarda", "expelliarmus"] and target.has_method("apply_knockback"):
-		var push := (target.global_position - global_position).normalized()
-		target.apply_knockback(Vector3(push.x, 0.15, push.z) * 10)
-	var text := preload("res://scenes/ui/floating_text.tscn").instantiate()
-	get_parent().add_child(text)
-	text.global_position = target.global_position + Vector3(0, 1.8, 0)
-	text.setup(str(amount), spell_color, 1.2)

@@ -89,16 +89,16 @@ func _update_label() -> void:
 	if label:
 		label.text = "Training Dummy\n%d / %d" % [current_hp, max_hp]
 
-func take_damage(amount: int, _spell: String, _attacker: Node3D) -> void:
-	current_hp = max(0, current_hp - amount)
-	_update_label()
-	# wobble feedback, never retaliates
-	if _pole:
-		var tw := create_tween()
-		tw.tween_property(_pole, "rotation:z", 0.12, 0.06)
-		tw.tween_property(_pole, "rotation:z", 0.0, 0.18)
+## Damage is requested from the authority (dummies keep the Phase 1 exemption
+## that makes them practiceable inside protected volumes).
+func take_damage(amount: int, spell: String, attacker: Node3D) -> void:
+	SimAuthority.apply_damage(self, amount, spell, attacker)
+
+## Presentation after the engine applied damage. Dummies never die: at zero they
+## reset, which the engine performs so every client sees the same full bar.
+func on_authoritative_damage(_spell: String, _attacker: Node3D, _stun_ms: int, _weaken_ms: int) -> void:
 	if current_hp <= 0:
-		current_hp = max_hp
+		SimAuthority.reset_dummy(self)
 		_update_label()
 		var ft_scene = load("res://scenes/ui/floating_text.tscn")
 		if ft_scene:
@@ -106,3 +106,9 @@ func take_damage(amount: int, _spell: String, _attacker: Node3D) -> void:
 			get_parent().add_child(ft)
 			ft.global_position = global_position + Vector3(0, 2.4, 0)
 			ft.setup("DUMMY RESET!", Color(0.5, 1.0, 0.5), 1.3)
+	_update_label()
+	# wobble feedback, never retaliates
+	if _pole:
+		var tw := create_tween()
+		tw.tween_property(_pole, "rotation:z", 0.12, 0.06)
+		tw.tween_property(_pole, "rotation:z", 0.0, 0.18)

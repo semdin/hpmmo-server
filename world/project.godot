@@ -8,7 +8,7 @@ config_version=5
 
 config/name="HPMMO"
 config/description="HPMMO - 3D Wizarding MMORPG with Wand Combat, Dark Monoliths, Ollivander Upgrades, and Broom Mounts"
-run/main_scene="res://scenes/server/dedicated_server.tscn"
+run/main_scene="res://server/world_server.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 
 [autoload]
@@ -18,6 +18,8 @@ DatabaseManager="*res://scripts/server/db_manager.gd"
 NetworkManager="*res://scripts/autoload/network_manager.gd"
 AudioManager="*res://scripts/systems/audio_manager.gd"
 QuestManager="*res://scripts/systems/quest_manager.gd"
+SimNet="*res://addons/hpmmo_sim/net.gd"
+SimAuthority="*res://addons/hpmmo_sim/authority.gd"
 
 [display]
 

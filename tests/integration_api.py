@@ -12,6 +12,9 @@ plan.md Phase 4 exit checks end to end:
   one-time game tickets (single use)
   session expiry/revocation paths (logout invalidates)
   stale revision rejection
+  service-token session introspection (launcher vs character-bound game sessions)
+  world-server character access via the service token (ownership bypass) while
+  bearer sessions keep the foreign-character 404
   PostgreSQL outage => explicit 503 unavailable (never a fallback backend),
   and recovery once the database returns
 
@@ -362,6 +365,81 @@ def main():
         check(status == 200, "logout revokes the session")
         status, body = http(port, "POST", "/api/characters/load", {"character_id": alice_char}, token=game_tok)
         check(status == 401, "revoked session is rejected")
+
+        # --- service-token session introspection (Phase 5 world server) ------------
+        schema_level = max(int(f[:4]) for f in os.listdir(MIGRATIONS) if f.endswith(".sql"))
+        status, body = http(port, "GET", "/api/ready")
+        check(status == 200 and body.get("schema") == schema_level,
+              f"readiness reports schema level {schema_level} (0004 session-character applied)")
+
+        status, body = http(port, "POST", "/api/login", {"username": "alice", "password": "alicepass1"})
+        check(status == 200 and body.get("token"), "launcher logs in again for introspection")
+        launcher_tok = body["token"]
+        status, body = http(port, "POST", "/api/session/introspect", {"token": launcher_tok},
+                            service_token=SERVICE_TOKEN)
+        check(status == 200 and body.get("success") and body.get("account_id") == alice_id
+              and body.get("username") == "alice" and body.get("character_id") == 0
+              and body.get("expires_in_seconds", 0) > 0 and launcher_tok not in json.dumps(body),
+              "introspect maps a login session to its account (character_id 0, no token echo)")
+
+        status, body = http(port, "POST", "/api/game-ticket", {"character_id": alice_char}, token=alice_tok)
+        check(status == 200 and body.get("ticket"), "character-bound ticket issued for introspection")
+        status, body = http(port, "POST", "/api/ticket/redeem", {"ticket": body["ticket"]})
+        bound_tok = body.get("token")
+        check(status == 200 and bound_tok, "character-bound ticket redeems for introspection")
+        status, body = http(port, "POST", "/api/session/introspect", {"token": bound_tok},
+                            service_token=SERVICE_TOKEN)
+        check(status == 200 and body.get("account_id") == alice_id and body.get("character_id") == alice_char,
+              "introspect returns the character bound to a redeemed game session")
+
+        status, body = http(port, "POST", "/api/session/introspect", {"token": bound_tok}, token=alice_tok)
+        check(status == 403, "introspect refuses a bearer session in place of the service token")
+        status, body = http(port, "POST", "/api/session/introspect", {"token": launcher_tok})
+        check(status == 403, "introspect without any service token header -> 403")
+        status, body = http(port, "POST", "/api/session/introspect",
+                            {"token": "bogus-" + secrets.token_hex(16)}, service_token=SERVICE_TOKEN)
+        check(status == 404, "introspect unknown token -> 404")
+        status, body = http(port, "POST", "/api/session/introspect", {"token": game_tok},
+                            service_token=SERVICE_TOKEN)
+        check(status == 404, "introspect revoked token -> 404 (indistinguishable from unknown)")
+        status, body = http(port, "POST", "/api/session/introspect", {}, service_token=SERVICE_TOKEN)
+        check(status == 400, "introspect missing token -> 400")
+        status, body = http(port, "POST", "/api/session/introspect", {"token": 12345},
+                            service_token=SERVICE_TOKEN)
+        check(status == 400, "introspect malformed token -> 400")
+
+        # --- service-token character access bypasses ownership ----------------------
+        status, body = http(port, "POST", "/api/characters/load", {"character_id": bob_char}, token=alice_tok)
+        check(status == 404, "bearer load of a foreign character still returns 404")
+        status, body = http(port, "POST", "/api/characters/load", {"character_id": bob_char},
+                            service_token=SERVICE_TOKEN)
+        check(status == 200 and body.get("character", {}).get("id") == bob_char,
+              "service-token load reads a character owned by a different account")
+
+        status, body = http(port, "POST", "/api/characters/save", {"character_id": bob_char, "level": 7},
+                            token=alice_tok)
+        check(status == 404, "bearer save of a foreign character still returns 404")
+        status, body = http(port, "POST", "/api/characters/load", {"character_id": bob_char},
+                            service_token=SERVICE_TOKEN)
+        base_rev = body.get("character", {}).get("revision")
+        status, body = http(port, "POST", "/api/characters/save",
+                            {"character_id": bob_char, "level": 7, "galleons": 1234,
+                             "base_revision": base_rev},
+                            service_token=SERVICE_TOKEN)
+        check(status == 200 and body.get("revision") == base_rev + 1,
+              "service-token save updates a foreign character and bumps its revision")
+        status, body = http(port, "POST", "/api/characters/load", {"character_id": bob_char}, token=bob_tok)
+        check(status == 200 and body.get("character", {}).get("level") == 7
+              and body.get("character", {}).get("galleons") == 1234,
+              "the foreign-character save is visible to its owner")
+
+        tampered = "tampered-" + secrets.token_hex(8)
+        status, body = http(port, "POST", "/api/characters/load", {"character_id": bob_char},
+                            service_token=tampered)
+        check(status == 403, "tampered service token rejected on characters/load")
+        status, body = http(port, "POST", "/api/characters/save", {"character_id": bob_char, "level": 1},
+                            service_token=tampered)
+        check(status == 403, "tampered service token rejected on characters/save")
 
         # --- PostgreSQL outage => explicit unavailable, then recovery --------------
         check(pg_stop(), "PostgreSQL stopped for the outage scenario")

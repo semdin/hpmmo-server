@@ -241,8 +241,13 @@ func _ready() -> void:
 	_load_json_data()
 	_register_input_actions()
 
+## Gameplay contracts (spells, safe zones) are SERVER-owned since Phase 5 and
+## consumed from the synced simulation package; items/houses/quests stay client
+## content. See docs/phase5-authority.md section 2.
+const SIM_DATA_DIR := "res://addons/hpmmo_sim/data/"
+
 func _load_json_data() -> void:
-	var spells_json = _read_json_file("res://data/json/spells.json")
+	var spells_json = _read_json_file(SIM_DATA_DIR + "spells.json")
 	if spells_json is Dictionary and not spells_json.is_empty():
 		for k in spells_json:
 			var s = spells_json[k]
@@ -269,7 +274,7 @@ func _load_json_data() -> void:
 	if quests_json is Dictionary and not quests_json.is_empty():
 		QUESTS = quests_json
 
-	var zones_json = _read_json_file("res://data/json/safe_zones.json")
+	var zones_json = _read_json_file(SIM_DATA_DIR + "safe_zones.json")
 	if zones_json is Dictionary and not zones_json.is_empty():
 		SAFE_ZONES = zones_json
 	print("[GameData] Static JSON configs loaded into RAM: %d Spells, %d Items, %d Houses, %d Quests, %d Safe Zones" % [

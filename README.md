@@ -17,7 +17,7 @@ Server-side repository for HPMMO (see `docs/../client/docs/plan.md` in the works
 
 | Service | Status | Notes |
 | --- | --- | --- |
-| `services/cpp/` | **Primary (Phase 4)** | C++17 service: argon2id, sessions, ownership checks, one-time game tickets, idempotent rewards/trades, numbered PostgreSQL migrations, readiness that verifies the schema level. Vendored deps are hash-pinned in `services/cpp/vendor/PROVENANCE.md`; API contract in `contracts/api.md`. |
+| `services/cpp/` | **Primary (Phase 4/5)** | C++17 service: argon2id, sessions (carrying the ticket-bound character), ownership checks, one-time game tickets, idempotent rewards/trades, service-token session introspection and character access for the Phase 5 world server, numbered PostgreSQL migrations, readiness that verifies the schema level. Vendored deps are hash-pinned in `services/cpp/vendor/PROVENANCE.md`; API contract in `contracts/api.md`. |
 | `services/db_service.py` | Legacy fallback | The original stdlib-Python service (unauthenticated; trade disabled). Kept for reference while the client adopts the new API; do not expose publicly. |
 
 ### Building the C++ service (Windows, from a fresh checkout)
@@ -64,6 +64,9 @@ From the workspace root:
   every character endpoint, validated/atomic/idempotent trades and rewards, and refuses to run
   data endpoints without a database (no SQLite fallback). Bind address defaults to
   `127.0.0.1`; expose it only behind the firewall with `HPMMO_SERVICE_TOKEN` set.
+- The **service token** is infrastructure-only (`X-Service-Token`): it unlocks session
+  introspection and unscoped character load/save for the trusted world server. It must never
+  reach a client (launcher/game build) or a log; a holder can read and write every character.
 - The **legacy Python service** (`services/db_service.py`) still exists for reference and has
   **none of these protections** - it must not be deployed alongside the new service.
 - Database credentials and the service token come from the environment

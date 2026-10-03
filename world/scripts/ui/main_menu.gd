@@ -383,15 +383,12 @@ func _handle_cmdline_args() -> void:
 		return
 
 	var user_val := ""
-	var pass_val := ""
 	var should_autologin := false
 
 	for i in range(args.size()):
 		var arg = args[i]
 		if arg == "--user" and i + 1 < args.size():
 			user_val = args[i + 1]
-		elif arg == "--pass" and i + 1 < args.size():
-			pass_val = args[i + 1]
 		elif (arg == "--server" or arg == "--ip") and i + 1 < args.size():
 			if ip_input:
 				ip_input.text = args[i + 1]
@@ -403,11 +400,80 @@ func _handle_cmdline_args() -> void:
 
 	if not user_val.is_empty() and username_input:
 		username_input.text = user_val
-	if not pass_val.is_empty() and password_input:
-		password_input.text = pass_val
 
-	if (should_autologin or (not user_val.is_empty() and not pass_val.is_empty() and "--no-autologin" not in args)):
-		print("[MainMenu] Command-line credentials supplied for '%s', initiating auto-login..." % user_val)
-		_show_panel("none")
-		auth_status_label.text = "Giriş yapılıyor... 3D Karakter Sahnesine bağlanılıyor..."
-		call_deferred("_on_login_pressed")
+	if "--no-autologin" in args:
+		return
+
+	# The launcher authenticates over HTTPS and hands the game a single-use
+	# ticket (HPMMO_TICKET) that DatabaseManager redeems for a session. The
+	# game never receives the account password on the command line.
+	if should_autologin:
+		print("[MainMenu] Launcher auto-login requested for '%s'; using the launcher session..." % user_val)
+		_begin_launcher_session()
+
+func _begin_launcher_session() -> void:
+	_show_panel("none")
+	auth_status_label.text = "Launcher oturumu doğrulanıyor..."
+	login_btn.disabled = true
+	register_btn.disabled = true
+
+	if DatabaseManager.session_active:
+		_on_launcher_session_ready(true, DatabaseManager.session_account_id)
+	elif DatabaseManager.is_session_pending():
+		DatabaseManager.session_established.connect(_on_launcher_session_ready, CONNECT_ONE_SHOT)
+	else:
+		_on_launcher_session_ready(false, 0)
+
+func _on_launcher_session_ready(success: bool, _account_id: int) -> void:
+	if not success:
+		auth_status_label.text = "Launcher oturumu bulunamadı. Lütfen giriş yapın."
+		login_btn.disabled = false
+		register_btn.disabled = false
+		_show_panel("auth")
+		return
+
+	auth_status_label.text = "Karakterleriniz yükleniyor..."
+	DatabaseManager.get_characters(0, func(res: Dictionary):
+		if not bool(res.get("success", false)):
+			auth_status_label.text = "Karakterler alınamadı: %s" % str(res.get("message", "sunucu hatası"))
+			login_btn.disabled = false
+			register_btn.disabled = false
+			_show_panel("auth")
+			return
+
+		characters_cache = res.get("characters", [])
+		NetworkManager.local_character_data = {"characters": characters_cache}
+		_enter_world_with_session()
+	)
+
+func _enter_world_with_session() -> void:
+	var ip = ip_input.text.strip_edges()
+	if ip.is_empty():
+		ip = "127.0.0.1"
+	var port = int(port_input.text) if not port_input.text.is_empty() else 7777
+
+	auth_status_label.text = "Sunucuya bağlanılıyor (%s:%d)..." % [ip, port]
+	var err = NetworkManager.join_game(ip, port)
+	if err != OK:
+		auth_status_label.text = "Sunucuya bağlanılamadı! IP adresini ve güvenlik duvarını kontrol edin."
+		return
+
+	var connected: bool = await _await_game_connection(8.0)
+	if not connected:
+		auth_status_label.text = "Sunucu bağlantısı kurulamadı. Lütfen oyunu yeniden başlatın."
+		return
+
+	if ResourceLoader.exists("res://scenes/main/character_select.tscn"):
+		get_tree().change_scene_to_file("res://scenes/main/character_select.tscn")
+	else:
+		_render_character_list(characters_cache)
+		_show_panel("select")
+
+func _await_game_connection(timeout_seconds: float) -> bool:
+	var waited := 0.0
+	while waited < timeout_seconds:
+		if NetworkManager.is_connected_to_game:
+			return true
+		await get_tree().create_timer(0.1).timeout
+		waited += 0.1
+	return NetworkManager.is_connected_to_game

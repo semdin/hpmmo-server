@@ -59,6 +59,18 @@ var _flight_time := 0.0
 var _cast_generation := 0
 var _basic_held := false
 var _hit_recovery := 0.0
+var _cast_seq := 0
+var _predicted_casts: Dictionary = {}   # cast_seq -> {spell_id, aim}
+var _predicted_ward := false
+## Server-side only: the latest movement intent this player sent. When
+## `sim_server_controlled` is true the body is driven by that intent instead of
+## local input - this is the node the authority simulates.
+var sim_input: Dictionary = {}
+var sim_server_controlled := false
+## Client-side view of another player (or of a mob): follows replicated state.
+var sim_puppet := false
+var sim_target_pos := Vector3.ZERO
+var sim_target_rot := 0.0
 const CombatRules = preload("res://scripts/spells/combat_rules.gd")
 const ParticleKit = preload("res://scripts/assets/particle_kit.gd")
 
@@ -230,7 +242,8 @@ func _process(delta: float) -> void:
 	_queue_time = maxf(0.0, _queue_time - delta)
 	_update_flight_pose(delta)
 	if is_local_player and not is_dead:
-		_tick_regeneration(delta)
+		# Regeneration is authoritative (the world server ticks it and mirrors the
+		# result back), so the local body no longer regenerates on its own.
 		if not input_blocked():
 			_handle_hotkeys()
 			if _basic_held and _queued_spell == "" and _cast_lock <= 0 and float(spell_cooldowns.get("basic_cast", 0)) <= 0:
@@ -263,28 +276,18 @@ func _physics_process(delta: float) -> void:
 			spring_arm.rotation_degrees.x = camera_rot_x
 	
 	if not is_local_player:
-		var peer_id := name.to_int()
-		if peer_id > 0 and NetworkManager.remote_states.has(peer_id):
-			var r_state: Dictionary = NetworkManager.remote_states[peer_id]
+		# Another player's body. On the authority this is the real simulated body
+		# (its input comes from the network); on a client it is a view that follows
+		# the replicated state.
+		if sim_puppet:
 			var prev_pos := global_position
-			global_position = global_position.lerp(r_state.get("pos", global_position), 15.0 * delta)
-			visuals.rotation.y = lerp_angle(visuals.rotation.y, r_state.get("rot_y", visuals.rotation.y), 15.0 * delta)
-			
-			var rem_mounted: bool = r_state.get("mounted", false)
-			if is_mounted != rem_mounted:
-				is_mounted = rem_mounted
-				if broom_mesh:
-					broom_mesh.visible = is_mounted
-				if broom_particles:
-					broom_particles.emitting = is_mounted
-			
-			var rem_hp: int = r_state.get("hp", current_hp)
-			var rem_lvl: int = r_state.get("level", level)
-			if current_hp != rem_hp or level != rem_lvl:
-				current_hp = rem_hp
-				level = rem_lvl
-				_update_nameplate()
-			
+			global_position = global_position.lerp(sim_target_pos, minf(1.0, 12.0 * delta))
+			if visuals:
+				visuals.rotation.y = lerp_angle(visuals.rotation.y, sim_target_rot, minf(1.0, 12.0 * delta))
+			if broom_mesh:
+				broom_mesh.visible = is_mounted
+			if broom_particles:
+				broom_particles.emitting = is_mounted
 			if not is_casting_anim and _hit_recovery <= 0 and is_instance_valid(anim_player):
 				var moved_dist := (global_position - prev_pos).length()
 				if moved_dist > 0.02 and not is_mounted:
@@ -305,34 +308,25 @@ func _physics_process(delta: float) -> void:
 	elif is_mounted:
 		var vertical := 0.0
 		if not input_blocked():
-			vertical = float(Input.is_action_pressed("jump")) - float(Input.is_action_pressed("flight_descend"))
+			vertical = float(_intent_jump()) - float(_intent_descend())
 		var ground := _ground_below(3.0)
 		if not ground.is_empty() and global_position.y - ground.position.y < 1.4 and vertical >= 0:
 			vertical = 0.5
 		if global_position.y > 45.0:
 			vertical = minf(vertical, -0.5)
 		velocity.y = move_toward(velocity.y, vertical * 7.0, delta * 18.0)
-	elif not input_blocked() and Input.is_action_just_pressed("jump"):
+	elif not input_blocked() and _intent_jump_edge():
 		velocity.y = 8.0
-	
+
 	# Input direction relative to camera yaw
-	var input_dir := Vector2.ZERO
-	if Input.is_action_pressed("move_forward"):
-		input_dir.y -= 1
-	if Input.is_action_pressed("move_backward"):
-		input_dir.y += 1
-	if Input.is_action_pressed("move_left"):
-		input_dir.x -= 1
-	if Input.is_action_pressed("move_right"):
-		input_dir.x += 1
-	input_dir = Vector2.ZERO if input_blocked() else input_dir.normalized()
-	
+	var input_dir := _intent_move()
+
 	var active_speed := mounted_speed if is_mounted else walk_speed
 	var is_moving := input_dir.length_squared() > 0.01
-	
+
 	if is_moving:
 		# Calculate movement vector relative to camera yaw
-		var cam_yaw: float = deg_to_rad(camera_rot_y)
+		var cam_yaw: float = deg_to_rad(_intent_yaw())
 		var forward := Vector3(-sin(cam_yaw), 0, -cos(cam_yaw))
 		var right := Vector3(cos(cam_yaw), 0, -sin(cam_yaw))
 		var move_vector := (right * input_dir.x + forward * -input_dir.y).normalized()
@@ -356,7 +350,7 @@ func _physics_process(delta: float) -> void:
 		
 		# If holding right-click while standing, face camera direction
 		if mouse_orbit_active:
-			var cam_yaw: float = deg_to_rad(camera_rot_y)
+			var cam_yaw: float = deg_to_rad(_intent_yaw())
 			visuals.rotation.y = lerp_angle(visuals.rotation.y, cam_yaw, 10.0 * delta)
 		
 		if not is_casting_anim and _hit_recovery <= 0 and is_instance_valid(anim_player):
@@ -365,6 +359,60 @@ func _physics_process(delta: float) -> void:
 				anim_player.play(idle_anim, 0.35)
 	
 	move_and_slide()
+
+## ---------------------------------------------------------------
+## Movement intent. A locally controlled body reads the keyboard; a body the
+## authority simulates (the server's copy of a connected player) reads the
+## intent that player's client sent. The same movement code runs in both cases.
+## ---------------------------------------------------------------
+
+func _intent_move() -> Vector2:
+	if sim_server_controlled:
+		return HPRules.sanitize_input_vector(sim_input.get("move", Vector2.ZERO))
+	if input_blocked():
+		return Vector2.ZERO
+	var input_dir := Vector2.ZERO
+	if Input.is_action_pressed("move_forward"):
+		input_dir.y -= 1
+	if Input.is_action_pressed("move_backward"):
+		input_dir.y += 1
+	if Input.is_action_pressed("move_left"):
+		input_dir.x -= 1
+	if Input.is_action_pressed("move_right"):
+		input_dir.x += 1
+	return input_dir.normalized()
+
+func _intent_yaw() -> float:
+	if sim_server_controlled:
+		return float(sim_input.get("yaw", 0.0))
+	return camera_rot_y
+
+func _intent_jump() -> bool:
+	if sim_server_controlled:
+		return bool(sim_input.get("jump", false))
+	return not input_blocked() and Input.is_action_pressed("jump")
+
+func _intent_descend() -> bool:
+	if sim_server_controlled:
+		return bool(sim_input.get("descend", false))
+	return not input_blocked() and Input.is_action_pressed("flight_descend")
+
+var _prev_jump := false
+
+func _intent_jump_edge() -> bool:
+	var jump := _intent_jump()
+	var edge := jump and not _prev_jump
+	_prev_jump = jump
+	return edge
+
+## The intent this client is sending upstream (SimNet calls this each input tick).
+func sim_input_intent() -> Dictionary:
+	return {
+		"move": _intent_move(),
+		"yaw": camera_rot_y,
+		"jump": Input.is_action_pressed("jump") and not input_blocked(),
+		"descend": Input.is_action_pressed("flight_descend") and not input_blocked(),
+	}
 
 func _handle_hotkeys() -> void:
 	if Input.is_action_just_pressed("spell_1"):
@@ -393,16 +441,23 @@ func toggle_broom_mount() -> void:
 		if not can_dismount_safely():
 			_spawn_floating_text("Descend near the ground first (Ctrl)", Color(1, 0.7, 0.3))
 			return
-		is_mounted = false
+		_apply_mount_state(false)
 	else:
 		if not is_on_floor():
 			return
-		is_mounted = true
+		_apply_mount_state(true)
 		velocity.y = 3.0
-	if broom_particles:
-		broom_particles.emitting = is_mounted
 	_basic_held = false
 	_mount_lock = 0.3
+	# Predicted locally for responsiveness (the dismount clearance test above is
+	# the part a client can check for itself); the authority validates the same
+	# request and its state wins on the next snapshot/stat event.
+	SimNet.submit_mount(self, is_mounted)
+
+func _apply_mount_state(mounted: bool) -> void:
+	is_mounted = mounted
+	if broom_particles:
+		broom_particles.emitting = is_mounted
 	emit_signal("mounted_changed", is_mounted)
 
 func _ground_below(distance: float) -> Dictionary:
@@ -508,7 +563,7 @@ func cast_spell(spell_id: String) -> void:
 			_mount_notice_cd = 1.0
 			_spawn_floating_text("Not while mounted!", Color(1.0, 0.8, 0.4))
 		return
-	
+
 	var s_data: Dictionary = GameData.SPELLS[spell_id]
 	var remaining := maxf(_cast_lock, float(spell_cooldowns.get(spell_id, 0.0)))
 	if remaining > 0:
@@ -517,83 +572,87 @@ func cast_spell(spell_id: String) -> void:
 			_queue_time = 0.3
 		return
 	_queued_spell = ""
-	
-	var cost: int = s_data.mana_cost
+
+	var cost: int = int(s_data.get("mana_cost", 0))
 	if current_mana < cost:
 		_spawn_floating_text("Not enough Mana!", Color(0.3, 0.6, 1.0))
 		return
-	
-	_cast_lock = 0.18 if spell_id == "basic_cast" else 0.28
-	current_mana -= cost
-	var cd: float = s_data.cooldown
-	if house == "Ravenclaw":
-		cd *= 0.8
-	spell_cooldowns[spell_id] = cd
-	
-	emit_signal("spell_cast_signal", spell_id, cd)
-	emit_stats()
-	
-	# Mouse-Aim Raycast & Skillshot Direction (Section 4.1 & 4.2 of plan.md)
+
+	# --- predicted feedback. The world server decides; everything below is the
+	# client's guess at what it will say, and a rejection undoes it cleanly.
 	var aim_hit := get_mouse_aim_point()
 	var spawn_pos := global_position + Vector3(0, 1.2, 0)
 	var cast_dir := (aim_hit - spawn_pos).normalized()
 	if cast_dir.length_squared() < 0.01:
 		cast_dir = visuals.global_basis.z
-	
+
 	# Wizard instantly faces the mouse aim direction on ground
 	var face_dir := (aim_hit - global_position)
 	face_dir.y = 0.0
 	if face_dir.length_squared() > 0.01:
 		visuals.rotation.y = atan2(face_dir.x, face_dir.z)
-	
-	# Refined Basic Attack Chain (Section 4.3 of plan.md)
+
+	# Refined Basic Attack Chain (Section 4.3 of plan.md) - animation only; the
+	# damage multiplier is the server's combo counter.
 	var anim_name := "Spellcast_Shoot"
-	var combo_mult := 1.0
 	if spell_id == "basic_cast":
 		basic_combo_timer = 1.2
 		if basic_combo_index == 0:
 			anim_name = "Spellcast_Shoot"
-			combo_mult = 1.0
 			basic_combo_index = 1
 		elif basic_combo_index == 1:
 			anim_name = "Spellcast_Raise"
-			combo_mult = 1.15
 			basic_combo_index = 2
 		else:
 			anim_name = "1H_Melee_Attack_Chop"
-			combo_mult = 1.5
 			basic_combo_index = 0
 			_spawn_floating_text("3-HIT COMBO!", Color(1.0, 0.85, 0.2), 1.4)
-	
+
+	_cast_lock = float(s_data.get("cast_lock", 0.28))
+	_cast_seq += 1
+	_predicted_casts[_cast_seq] = {"spell_id": spell_id, "aim": aim_hit}
 	_play_cast_animation(anim_name)
-	
-	# Multipliers
-	var upgrade_info = GameData.UPGRADE_TABLE.get(wand_tier, {})
-	var damage_mult: float = upgrade_info.get("multiplier", 1.0) * combo_mult
-	if house == "Gryffindor" and spell_id == "incendio":
-		damage_mult *= 1.15
-	elif house == "Slytherin" and (spell_id == "ultimate" or spell_id == "expelliarmus"):
-		damage_mult *= 1.20
-	
 	if spell_id == "protego":
-		_activate_protego()
-	elif spell_id == "incendio":
-		preload("res://scripts/spells/skill_fx.gd").play_cast(get_parent(), self, spell_id, spawn_pos, cast_dir)
-		for enemy in get_tree().get_nodes_in_group("targetable"):
-			if not CombatRules.can_damage(self, enemy):
-				continue
-			var offset: Vector3 = enemy.global_position + Vector3.UP - spawn_pos
-			if offset.length() <= float(s_data.get("range", 18)) and cast_dir.dot(offset.normalized()) >= cos(deg_to_rad(30)) and CombatRules.has_line_of_sight(self, enemy):
-				enemy.take_damage(int(s_data.damage * damage_mult), spell_id, self)
-		NetworkManager.broadcast_spell(spell_id, spawn_pos, cast_dir)
-	else:
-		var proj = PROJECTILE_SCENE.instantiate()
-		get_parent().add_child(proj)
-		proj.global_position = spawn_pos
-		proj.setup(self, spell_id, cast_dir, null, damage_mult)
-		
-		# Replicate spell launch in multiplayer
-		NetworkManager.broadcast_spell(spell_id, spawn_pos, cast_dir)
+		_activate_protego_preview()
+
+	SimNet.submit_cast(self, spell_id, aim_hit, _cast_seq)
+
+## Called when the authority answers a cast request. Accepting only arms the UI
+## feedback (mana and cooldowns are mirrored when the authority's stats arrive);
+## rejecting removes every predicted effect of that cast.
+func on_cast_answer(cast_seq: int, _cast_id: int, ok: bool, reason: String) -> void:
+	if not _predicted_casts.has(cast_seq):
+		return
+	var prediction: Dictionary = _predicted_casts[cast_seq]
+	_predicted_casts.erase(cast_seq)
+	var spell_id := String(prediction.get("spell_id", ""))
+	if ok:
+		var cd := HPRules.cooldown_for(spell_id, house)
+		if cd > 0.0:
+			spell_cooldowns[spell_id] = cd
+		emit_signal("spell_cast_signal", spell_id, cd)
+		return
+	if spell_id == "protego":
+		_clear_protego_preview()
+	_cast_generation += 1
+	is_casting_anim = false
+	_reject_feedback(reason)
+
+func _reject_feedback(reason: String) -> void:
+	match reason:
+		"no_mana":
+			_spawn_floating_text("Not enough Mana!", Color(0.3, 0.6, 1.0))
+		"cooldown":
+			pass
+		"mounted":
+			_spawn_floating_text("Not while mounted!", Color(1.0, 0.8, 0.4))
+		"protected":
+			_spawn_floating_text("Protected ground!", Color(0.4, 0.8, 1.0))
+		"dead":
+			pass
+		_:
+			if reason != "" and reason != "queued" and reason != "sent":
+				_spawn_floating_text("Cast refused", Color(1.0, 0.6, 0.4))
 
 func _play_cast_animation(anim_name: String = "Spellcast_Shoot") -> void:
 	if not is_instance_valid(anim_player):
@@ -609,72 +668,111 @@ func _play_cast_animation(anim_name: String = "Spellcast_Shoot") -> void:
 	if generation == _cast_generation and not is_dead:
 		is_casting_anim = false
 
-func _activate_protego() -> void:
+func _activate_protego_preview() -> void:
 	is_protego_active = true
 	var p_shield = PROTEGO_SCENE.instantiate()
+	p_shield.name = "ProtegoPreview"
 	add_child(p_shield)
 	p_shield.setup(self)
 	_spawn_floating_text("PROTEGO!", Color(0.2, 0.8, 1.0), 1.2)
-	await get_tree().create_timer(3.5).timeout
-	is_protego_active = false
 
+func _clear_protego_preview() -> void:
+	is_protego_active = false
+	var preview = get_node_or_null("ProtegoPreview")
+	if preview and is_instance_valid(preview):
+		preview.queue_free()
+
+## Damage arrives from the authority only. A client may ask for its own damage
+## (tests, falling) but the engine refuses anything it did not schedule.
 func take_damage(amount: int, spell_type: String, attacker: Node3D) -> void:
-	if is_dead or not is_local_player:
+	SimAuthority.apply_damage(self, amount, spell_type, attacker)
+
+## Presentation hook: the engine has already applied the numbers.
+func on_authoritative_damage(spell_type: String, attacker: Node3D, _stun_ms: int, _weaken_ms: int) -> void:
+	if is_dead:
 		return
-	var actual_dmg := maxi(0, amount)
-	if is_protego_active:
-		actual_dmg = int(amount * 0.4)
+	var actual_dmg := 0
+	var record := SimAuthority.record_for(self)
+	if not record.is_empty():
+		actual_dmg = int(record.get("last_damage", 0))
+	if is_protego_active and actual_dmg > 0:
 		_spawn_floating_text("BLOCKED 60%!", Color(0.3, 0.7, 1.0))
-	
-	current_hp = max(0, current_hp - actual_dmg)
-	_spawn_floating_text(str(actual_dmg), Color(1.0, 0.2, 0.2), 1.3)
-	
-	if is_instance_valid(anim_player) and not is_casting_anim and current_hp > 0:
+	elif actual_dmg > 0:
+		_spawn_floating_text(str(actual_dmg), Color(1.0, 0.2, 0.2), 1.3)
+	if is_instance_valid(anim_player) and not is_casting_anim and current_hp > 0 and actual_dmg > 0:
 		anim_player.play("Hit_A", 0.1)
 		_hit_recovery = 0.22
-	
 	emit_stats()
-	if current_hp <= 0:
-		_die()
 
-func _die() -> void:
+## Authority death notification: presentation only - the engine schedules the
+## respawn and calls `on_authoritative_respawn` when it fires.
+func on_authoritative_death(_killer: Node3D) -> void:
+	if is_dead:
+		return
 	is_dead = true
 	is_casting_anim = true
 	_cast_generation += 1
 	_queued_spell = ""
 	_basic_held = false
-	is_mounted = false
-	if broom_particles:
-		broom_particles.emitting = false
-	mounted_changed.emit(false)
+	_predicted_casts.clear()
+	_clear_protego_preview()
+	_apply_mount_state(false)
 	velocity = Vector3.ZERO
 	if is_instance_valid(anim_player):
 		anim_player.play("Death_A", 0.1)
 	_spawn_floating_text("DEFEATED!", Color(1.0, 0.0, 0.0), 2.0)
-	await get_tree().create_timer(2.5).timeout
-	global_position = Vector3(0, 0.5, 5.0)
-	current_hp = max_hp
-	current_mana = max_mana
+	emit_stats()
+
+func on_authoritative_respawn() -> void:
+	global_position = HPRules.respawn_position()
+	velocity = Vector3.ZERO
 	is_dead = false
 	is_casting_anim = false
 	if is_instance_valid(anim_player):
 		anim_player.play("Idle", 0.2)
 	emit_stats()
 
-func add_exp(amount: int) -> void:
-	current_exp += amount
-	_spawn_floating_text("+%d EXP" % amount, Color(0.3, 1.0, 0.5), 1.2)
-	while current_exp >= max_exp:
-		current_exp -= max_exp
-		level += 1
-		max_exp = mini(2000000000, int(max_exp * 1.5))
-		max_hp += 40
-		current_hp = max_hp
-		max_mana += 25
-		current_mana = max_mana
-		_update_nameplate()
-		_spawn_floating_text("LEVEL UP! (Lv.%d)" % level, Color(1.0, 0.85, 0.2), 1.8)
+## Authority level-up notification.
+func apply_level(new_level: int, new_max_hp: int, new_max_mana: int) -> void:
+	level = new_level
+	max_exp = HPRules.exp_threshold(new_level)
+	max_hp = new_max_hp
+	max_mana = new_max_mana
+	current_hp = max_hp
+	current_mana = max_mana
+	_update_nameplate()
+	_spawn_floating_text("LEVEL UP! (Lv.%d)" % level, Color(1.0, 0.85, 0.2), 1.8)
 	emit_stats()
+
+## Authority stat mirror: the engine owns these numbers, the node displays them.
+func apply_authoritative_stats(stats: Dictionary) -> void:
+	current_hp = clampi(int(stats.get("hp", current_hp)), 0, maxi(1, int(stats.get("max_hp", max_hp))))
+	max_hp = maxi(1, int(stats.get("max_hp", max_hp)))
+	current_mana = clampi(int(stats.get("mana", current_mana)), 0, maxi(1, int(stats.get("max_mana", max_mana))))
+	max_mana = maxi(1, int(stats.get("max_mana", max_mana)))
+	current_exp = int(stats.get("exp", current_exp))
+	max_exp = int(stats.get("max_exp", max_exp))
+	level = int(stats.get("level", level))
+	galleons = int(stats.get("galleons", galleons))
+	var was_mounted := is_mounted
+	var now_mounted := bool(stats.get("mounted", is_mounted))
+	if was_mounted != now_mounted:
+		_apply_mount_state(now_mounted)
+	if bool(stats.get("dead", false)) != is_dead:
+		if bool(stats.get("dead", false)):
+			on_authoritative_death(null)
+		else:
+			on_authoritative_respawn()
+	_update_nameplate()
+	emit_stats()
+
+## EXP grants come from the authority (kill credit, quests). In a client-only
+## role the server sends the resulting stats instead, so this is a no-op there.
+func add_exp(amount: int) -> void:
+	if not SimAuthority.is_authority():
+		return
+	SimAuthority.grant_exp(self, amount)
+	_spawn_floating_text("+%d EXP" % amount, Color(0.3, 1.0, 0.5), 1.2)
 
 func add_loot(item_id: String, amount: int) -> void:
 	if amount <= 0:

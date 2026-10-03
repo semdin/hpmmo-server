@@ -24,12 +24,18 @@ const DummyScript = preload("res://scripts/world/training_dummy.gd")
 var local_player: Node3D = null
 var overlay: CanvasLayer = null
 var _candle_t: float = 0.0
+var _views: Dictionary = {}          # sim uid -> view node (client role)
+var _view_scenes: Dictionary = {}
+
+const LOOT_SCENE = preload("res://scenes/entities/loot/loot_drop.tscn")
 
 func _ready() -> void:
 	var old_front := get_node_or_null("CastleFront")
 	if old_front:
 		old_front.queue_free()
 	WorldBuilderScript.build(self)
+	SimAuthority.attach_world(self)
+	var authority := SimAuthority.is_authority()
 	if not NetworkManager.is_dedicated_server:
 		_spawn_local_player()
 		_setup_overlay()
@@ -39,18 +45,21 @@ func _ready() -> void:
 		var cl = get_node_or_null("CanvasLayer")
 		if cl:
 			cl.queue_free()
-	
+
 	_setup_npcs()
-	_setup_training_grounds()
-	_setup_monoliths_and_mobs()
+	if authority:
+		# The authority decides what exists: packs, dummies and monoliths are its
+		# spawn decisions, sampled once and replicated. A client never rolls its
+		# own encounter.
+		_setup_training_grounds()
+		_setup_monoliths_and_mobs()
+	# Presentation listens to the same signals in every role; in authority roles
+	# the entities already have nodes, so only the effect hooks fire.
+	_setup_replication()
 
-	NetworkManager.player_connected_signal.connect(_on_remote_player_connected)
-	NetworkManager.player_disconnected_signal.connect(_on_remote_player_disconnected)
-	NetworkManager.remote_spell_cast.connect(_on_remote_spell)
-
-	for peer_id in NetworkManager.connected_players.keys():
-		if peer_id != 1 and peer_id != multiplayer.get_unique_id():
-			_spawn_remote_player(peer_id, NetworkManager.connected_players[peer_id])
+func _exit_tree() -> void:
+	# Views belong to the world that made them.
+	_views.clear()
 
 func _process(delta: float) -> void:
 	_candle_t += delta
@@ -104,6 +113,16 @@ func _spawn_local_player() -> void:
 		local_player.global_position = Vector3(0, 0.5, 5.0)
 		local_player.visuals.rotation.y = PI
 	
+	# The authority owns this body from here on: register it before anything can
+	# act on it (casts, damage, snapshots all resolve through the registry).
+	if SimAuthority.is_authority():
+		SimAuthority.register_player(local_player, int(NetworkManager.local_character_data.get("id", 0)),
+			SimNet.local_peer_id)
+	elif SimNet.joined_world:
+		# The server answered the join before the world scene existed (menus load
+		# this scene afterwards), so bind the uid it assigned now.
+		SimAuthority.register_local_player(SimNet.local_uid, SimNet.pending_character)
+
 	hud.bind_player(local_player)
 	QuestManager.bind_player(local_player)
 	_check_external_models()
@@ -227,12 +246,18 @@ func _setup_training_grounds() -> void:
 	var grounds := Node3D.new()
 	grounds.name = "TrainingGrounds"
 	add_child(grounds)
-	for i in range(3):
+	var index := 0
+	for entry in HPRules.spawn_tables().get("dummies", []):
 		var d = DummyScript.new()
-		d.name = "Dummy%d" % i
+		d.name = "Dummy%d" % index
+		index += 1
 		grounds.add_child(d)
-		d.global_position = Vector3(-14 + i * 3.0, 0, -2)
+		var pos: Array = entry.get("pos", [-14.0, 0.0, -2.0])
+		d.global_position = Vector3(float(pos[0]), float(pos[1]), float(pos[2]))
 		d.setup()
+		SimAuthority.register(HPProtocol.Kind.DUMMY, d, {
+			"hp": d.current_hp, "max_hp": d.max_hp, "dummy_id": int(entry.get("id", index)),
+		})
 	# Update Fig's hint to mention dummies
 	NetworkManager.send_chat("[System] Training dummies placed in the courtyard — practice skills safely!")
 
@@ -271,33 +296,130 @@ func _setup_monoliths_and_mobs() -> void:
 	add_child(director)
 	director.start(mobs_container)
 
-func _on_remote_player_connected(peer_id: int, info: Dictionary) -> void:
-	_spawn_remote_player(peer_id, info)
+## ------------------------------------------------------------------
+## Replication. In a client-only process the world contains no gameplay
+## entities of its own: views are created for entities the server announces and
+## removed when it stops announcing them. In authority roles the same signals
+## drive presentation for the entities the engine already simulated.
+## ------------------------------------------------------------------
 
-func _spawn_remote_player(peer_id: int, info: Dictionary) -> void:
-	var existing = players_container.get_node_or_null(str(peer_id))
-	if existing:
+func _setup_replication() -> void:
+	SimAuthority.entity_replicating.connect(_on_entity_replicating)
+	SimAuthority.entity_despawned.connect(_on_entity_despawned)
+	SimAuthority.entity_moved.connect(_on_entity_moved)
+	SimAuthority.entity_health.connect(_on_entity_health)
+	SimAuthority.cast_released.connect(_on_cast_released)
+	SimAuthority.cast_landed.connect(_on_cast_landed)
+	SimAuthority.loot_spawned.connect(_on_loot_spawned)
+	SimAuthority.chat.connect(_on_chat)
+	if is_instance_valid(local_player):
+		SimAuthority.cast_ack.connect(local_player.on_cast_answer)
+
+func _on_entity_replicating(record: Dictionary) -> void:
+	var uid := int(record["uid"])
+	if _views.has(uid) or record.get("node") != null:
+		return   # already on screen (authority roles own their nodes)
+	var kind := int(record.get("kind", 0))
+	var scene: PackedScene = null
+	match kind:
+		HPProtocol.Kind.PLAYER:
+			scene = PLAYER_SCENE
+		HPProtocol.Kind.MOB:
+			scene = load(HPProtocol.mob_scene(int(record.get("variant", HPProtocol.MOB_VARIANT_INFERI))))
+		HPProtocol.Kind.MONOLITH:
+			scene = MONOLITH_SCENE
+		_:
+			return   # dummies are authored scenery in every process
+	if scene == null:
 		return
-	var remote_p = PLAYER_SCENE.instantiate()
-	remote_p.name = str(peer_id)
-	remote_p.is_local_player = false
-	remote_p.player_name = info.get("name", "Wizard")
-	remote_p.house = info.get("house", "Gryffindor")
-	players_container.add_child(remote_p)
-	remote_p.global_position = Vector3(randf_range(-2, 2), 0.5, randf_range(3, 7))
-	NetworkManager.send_chat("[Server] %s [%s] joined the realm!" % [remote_p.player_name, remote_p.house])
+	var view: Node3D = scene.instantiate()
+	view.name = "View%d" % uid
+	if kind == HPProtocol.Kind.MOB:
+		# A replicated mob is a puppet: no AI, no damage, follows the snapshots.
+		view.sim_puppet = true
+		if (int(record.get("flags", 0)) & HPProtocol.FLAG_BOSS) != 0:
+			var is_commander := int(record.get("variant", 0)) == HPProtocol.MOB_VARIANT_DARKSATCHER
+			var visuals := view.get_node_or_null("Visuals")
+			if visuals:
+				visuals.scale = Vector3.ONE * (1.65 if is_commander else 2.0)
+			var label := view.get_node_or_null("Label3D")
+			if label:
+				label.position.y = 4.2
+	elif kind == HPProtocol.Kind.PLAYER:
+		view.is_local_player = false
+		players_container.add_child(view)
+	_views[uid] = view
+	if kind != HPProtocol.Kind.PLAYER:
+		add_child(view)
+	SimAuthority.attach_view_node(uid, view)
+	view.global_position = record.get("pos", view.global_position)
 
-func _on_remote_player_disconnected(peer_id: int) -> void:
-	var node = players_container.get_node_or_null(str(peer_id))
-	if node:
-		node.queue_free()
+func _on_entity_despawned(uid: int) -> void:
+	if not _views.has(uid):
+		return
+	var view = _views[uid]
+	_views.erase(uid)
+	if is_instance_valid(view):
+		view.queue_free()
 
-func _on_remote_spell(_peer_id: int, spell_id: String, from_pos: Vector3, dir: Vector3) -> void:
-	# Show other players' spells as visual-only projectiles
-	var proj_scene: PackedScene = load("res://scenes/spells/spell_projectile.tscn")
-	var proj = proj_scene.instantiate()
+func _on_entity_moved(uid: int, pos: Vector3, rot_y: float, flags: int) -> void:
+	if not _views.has(uid):
+		return
+	var view = _views[uid]
+	if not is_instance_valid(view):
+		return
+	if "sim_target_pos" in view:
+		view.sim_target_pos = pos
+		view.sim_target_rot = rot_y
+	else:
+		view.global_position = view.global_position.lerp(pos, 0.4)
+		if "visuals" in view and view.visuals:
+			view.visuals.rotation.y = rot_y
+
+func _on_entity_health(uid: int, hp: int, max_hp: int, _flags: int) -> void:
+	if not _views.has(uid):
+		return
+	var view = _views[uid]
+	if not is_instance_valid(view):
+		return
+	if "current_hp" in view:
+		view.current_hp = hp
+	if "max_hp" in view:
+		view.max_hp = max_hp
+	if view.has_method("_update_label"):
+		view.call("_update_label")
+
+func _on_cast_released(_cast_id: int, caster_uid: int, spell_id: String, origin: Vector3, dir: Vector3) -> void:
+	var caster = SimAuthority.record_by_uid(caster_uid).get("node")
+	if spell_id in ["incendio", "protego"]:
+		preload("res://scripts/spells/skill_fx.gd").play_cast(self, caster if caster is Node3D else null, spell_id, origin, dir)
+		return
+	var proj = preload("res://scenes/spells/spell_projectile.tscn").instantiate()
 	add_child(proj)
-	proj.global_position = from_pos
-	# find any caster (not critical for visuals)
+	proj.global_position = origin
+	# The bolt on screen is a VIEW: the authority already decided what it hits.
 	proj.visual_only = true
-	proj.setup(players_container.get_node_or_null(str(_peer_id)), spell_id, dir, null, 1.0)
+	proj.setup(caster if caster is Node3D else null, spell_id, dir, null, 1.0)
+
+func _on_cast_landed(_cast_id: int, _caster_uid: int, spell_id: String, hits: Array) -> void:
+	for hit in hits:
+		var victim = SimAuthority.record_by_uid(int(hit.get("uid", 0))).get("node")
+		if victim == null or not is_instance_valid(victim):
+			continue
+		if bool(hit.get("reflected", false)):
+			preload("res://scripts/spells/skill_fx.gd").play_impact(self, (victim as Node3D).global_position + Vector3.UP, "protego")
+			if victim.has_method("_spawn_floating_text"):
+				victim.call("_spawn_floating_text", "REFLECTED!", Color(0.3, 0.8, 1.0), 1.3)
+			continue
+		preload("res://scripts/spells/skill_fx.gd").play_impact(self, (victim as Node3D).global_position + Vector3.UP, spell_id)
+
+func _on_loot_spawned(uid: int, item_id: String, amount: int, pos: Vector3) -> void:
+	var node = LOOT_SCENE.instantiate()
+	add_child(node)
+	node.global_position = pos
+	node.setup(item_id, amount)
+	SimAuthority.attach_view_node(uid, node)
+	_views[uid] = node
+
+func _on_chat(text: String) -> void:
+	NetworkManager.chat_message_received.emit("[Server]", "", text)

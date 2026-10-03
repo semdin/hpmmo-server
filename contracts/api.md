@@ -5,6 +5,9 @@ Base URL: `http://<host>:8081`. JSON in/out. Two auth mechanisms:
 - **Session** - `Authorization: Bearer <token>` from `/api/login` or `/api/ticket/redeem`.
 - **Service token** - `X-Service-Token: <HPMMO_SERVICE_TOKEN>` for machine-to-machine endpoints
   (the authoritative world server in Phase 5). Refused when unconfigured.
+  **Trust boundary:** the service token is infrastructure-only - it must never be shipped to,
+  embedded in, or logged by a client (launcher or game build). A holder can read and write every
+  character without any ownership restriction; leaking it is a full player-data compromise.
 
 Errors return `{"success": false, "message": "..."}`. Notable statuses: 400 validation,
 401 session invalid/expired/revoked, 403 wrong/missing service token, 404 not found *or not
@@ -22,7 +25,7 @@ revision), 410 consumed/expired ticket, 503 database unavailable (no fallback ba
 | `POST /api/register` | - | `{username, password}` -> `{success, account_id}`; policy: 3-24 chars `[A-Za-z0-9_-]`, password >=8 with letters and digits |
 | `POST /api/login` | - | `{username, password}` -> `{success, account_id, username, token, expires_in_seconds}`; argon2id verification; sessions expire (HPMMO_SESSION_TTL_HOURS, default 24h) and are capped per account (HPMMO_MAX_SESSIONS, default 5, oldest revoked; the cap is advisory under exactly-concurrent logins) |
 | `POST /api/logout` | session | revokes the presented session |
-| `POST /api/ticket/redeem` | - | `{ticket}` -> `{token, account_id, character_id?, expires_in_seconds}`; single-use, TTL HPMMO_TICKET_TTL_SECONDS (default 60) |
+| `POST /api/ticket/redeem` | - | `{ticket}` -> `{token, account_id, character_id?, expires_in_seconds}`; single-use, TTL HPMMO_TICKET_TTL_SECONDS (default 60); the issued session carries the ticket's character binding (NULL for unbound tickets and plain logins) |
 
 ## Session endpoints
 
@@ -31,15 +34,17 @@ revision), 410 consumed/expired ticket, 503 database unavailable (no fallback ba
 | `POST /api/game-ticket` | `{character_id?}` -> `{ticket, expires_in_seconds}`; the launcher handoff (see below); character ownership checked when supplied |
 | `POST /api/characters/create` | `{name, house}` -> `{character:{id,name,house}}`; max 2 per account; starter items seeded as ownership rows |
 | `POST /api/characters/list` | `{}` -> `{characters:[snapshot]}` scoped to the session account |
-| `POST /api/characters/load` | `{character_id}` -> `{character: snapshot + inventory[]}`; 404 for foreign ids |
-| `POST /api/characters/save` | `{character_id, base_revision?, level?, exp?, max_hp?, current_hp?, max_mana?, current_mana?, galleons?, wand_tier?, pos?[3], rot_y?, map_id?, quests?, inventory?}` -> `{revision}`; **absent fields keep their stored values**; `inventory` present = validated full replacement of the ownership rows (capacity-limited to 40 item kinds, stacks <= 9999); `base_revision` mismatch -> 409 with the current revision. **Phase 4 gate:** progression fields accepted here are client-authoritative until Phase 5 moves authority to the world server - do not expose this endpoint to untrusted clients before then |
+| `POST /api/characters/load` | `{character_id}` -> `{character: snapshot + inventory[]}`; 404 for foreign ids; also accepts `X-Service-Token` (world server: any character, no session - see below) |
+| `POST /api/characters/save` | `{character_id, base_revision?, level?, exp?, max_hp?, current_hp?, max_mana?, current_mana?, galleons?, wand_tier?, pos?[3], rot_y?, map_id?, quests?, inventory?}` -> `{revision}`; **absent fields keep their stored values**; `inventory` present = validated full replacement of the ownership rows (capacity-limited to 40 item kinds, stacks <= 9999); `base_revision` mismatch -> 409 with the current revision; also accepts `X-Service-Token` (world server: any character, no session - see below). **Phase 4 gate:** progression fields accepted here are client-authoritative until Phase 5 moves authority to the world server - do not expose this endpoint to untrusted clients before then |
 
 ## Service-token endpoints (world server authority)
 
 | Endpoint | Body -> Response |
 | --- | --- |
+| `POST /api/session/introspect` | `{token}` -> `{success, account_id, username, character_id, expires_in_seconds}`; maps a session token to its account and the character bound at ticket redemption (`character_id: 0` when unbound). 400 missing/malformed token, 404 unknown/expired/revoked (indistinguishable). Never returns the token or its hash |
 | `POST /api/reward` | `{op_id, character_id, exp?, galleons?, items?[{id,amount,tier}]}` -> `{result}` or `{replayed:true, result}`; exactly-once per `op_id` (operations ledger) |
 | `POST /api/trade` | `{op_id, from_id, to_id, offer:{galleons,items?}, request:{galleons,items?}}` -> `{result}` or replay; validates distinct ids, non-negative galleons, sender ownership of every offered item, destination capacity (40 item kinds), and moves items + currency in ONE transaction (row locks in ascending character-id order); replays are no-ops |
+| `POST /api/characters/load` / `POST /api/characters/save` | same bodies as the session versions, but with `X-Service-Token` and no bearer session; **the per-account ownership restriction is skipped** - the trusted world server may load/save any character by id. With a bearer session the behaviour is unchanged (foreign character ids still return 404) |
 
 ## Launcher handoff (ticket flow)
 

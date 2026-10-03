@@ -40,6 +40,12 @@ func _ready() -> void:
 		_base_albedo = base_mat.albedo_color
 	_add_sky_beam()
 	_update_label()
+	if SimAuthority.is_authority():
+		# Registered as a killable entity with its own reward, so the shatterer's
+		# EXP is paid exactly once through the normal reward path.
+		SimAuthority.register(HPProtocol.Kind.MONOLITH, self, {
+			"hp": current_hp, "max_hp": max_hp, "exp_reward": 850, "name": "Dark Monolith",
+		})
 
 func _update_label() -> void:
 	if hp_label:
@@ -52,20 +58,22 @@ func _update_label() -> void:
 		else:
 			hp_label.modulate = Color(1.0, 0.2, 0.2)
 
+## Damage is resolved by the authority; this node reacts to the result. The wave
+## thresholds are a consequence of the authoritative HP, so two clients can never
+## disagree about how many waves have spawned.
 func take_damage(amount: int, spell_type: String, attacker: Node3D) -> void:
+	if is_destroyed:
+		return
+	SimAuthority.apply_damage(self, amount, spell_type, attacker)
+
+func on_authoritative_damage(_spell: String, attacker: Node3D, _stun_ms: int, _weaken_ms: int) -> void:
 	if is_destroyed:
 		return
 	if has_node("/root/AudioManager"):
 		get_node("/root/AudioManager").play_hit()
-	
-	current_hp = max(0, current_hp - amount)
 	_update_label()
 	emit_signal("monolith_damaged", current_hp, max_hp)
-	
-	# Flash mesh on hit
 	_flash_red()
-	
-	# Check wave milestones
 	var ratio := float(current_hp) / float(max_hp)
 	if ratio <= 0.75 and not wave1_triggered:
 		wave1_triggered = true
@@ -76,9 +84,9 @@ func take_damage(amount: int, spell_type: String, attacker: Node3D) -> void:
 	if ratio <= 0.25 and not wave3_triggered:
 		wave3_triggered = true
 		_spawn_wave.call_deferred(3, attacker)
-	
-	if current_hp <= 0:
-		_destroy_monolith(attacker)
+
+func on_authoritative_death(attacker: Node3D) -> void:
+	_destroy_monolith(attacker)
 
 func _flash_red() -> void:
 	if not mesh:
@@ -105,37 +113,36 @@ func _spawn_wave(wave_num: int, target_player: Node3D) -> void:
 	if dark_light:
 		dark_light.light_energy = 8.0
 	
-	var mob_configs := []
-	if wave_num == 1:
-		mob_configs = [
-			{"scene": ACROMANTULA_SCENE, "count": 3},
-			{"scene": INFERI_SCENE, "count": 2}
-		]
-	elif wave_num == 2:
-		mob_configs = [
-			{"scene": INFERI_SCENE, "count": 4},
-			{"scene": SNATCHER_SCENE, "count": 2}
-		]
-	else:
-		mob_configs = [
-			{"scene": ACROMANTULA_SCENE, "count": 4},
-			{"scene": INFERI_SCENE, "count": 4},
-			{"scene": SNATCHER_SCENE, "count": 2}
-		]
-	
-	for group in mob_configs:
-		var scene_res: PackedScene = group["scene"]
-		var count: int = group["count"]
-		for i in range(count):
+	# Wave composition, spawn scatter and mob levels are server-owned data; the
+	# authority's seeded RNG decides them so every client sees the same wave.
+	var config: Dictionary = HPRules.spawn_tables().get("monolith_config", {})
+	var thresholds: Array = config.get("wave_thresholds", [])
+	var scenes: Dictionary = HPRules.spawn_tables().get("mob_scenes", {})
+	var wave_entry: Dictionary = {}
+	for entry in thresholds:
+		if int(entry.get("wave", 0)) == wave_num:
+			wave_entry = entry
+			break
+	var rng := SimAuthority.rng
+	var dist_min := float(config.get("spawn_distance_min", 4.0))
+	var dist_max := float(config.get("spawn_distance_max", 9.0))
+	for group in wave_entry.get("spawns", []):
+		var scene_res: PackedScene = load(String(scenes.get(String(group.get("mob", "")), "")))
+		if scene_res == null:
+			continue
+		for _i in range(int(group.get("count", 0))):
 			var mob = scene_res.instantiate()
-			var angle := randf() * TAU
-			var dist := randf_range(4.0, 9.0)
+			var angle := rng.randf() * TAU
+			var dist := rng.randf_range(dist_min, dist_max)
 			var spawn_pos := global_position + Vector3(cos(angle) * dist, 0.5, sin(angle) * dist)
 			mob.position = get_parent().to_local(spawn_pos)
 			mob.summoned = true
+			mob.level = int(group.get("level", 12))
 			mob.pack_anchor = spawn_pos
 			mob.pack_id = int(get_instance_id())
+			mob.spawn_point = spawn_pos
 			get_parent().add_child(mob)
+			SimAuthority.register_mob(mob, mob.pack_id, String(HPRules.zone_id_for(spawn_pos)))
 			# Immediate aggro onto attacking player (Metin2 pack aggro)
 			if is_instance_valid(target_player) and mob.has_method("aggro_on"):
 				mob.aggro_on(target_player, true)
@@ -145,18 +152,14 @@ func _destroy_monolith(shatterer: Node3D) -> void:
 	emit_signal("monolith_destroyed")
 	if has_node("/root/QuestManager"):
 		QuestManager.add_monolith()
-	
+
 	var shatterer_name := "A brave Wizard"
 	if is_instance_valid(shatterer) and "player_name" in shatterer:
 		shatterer_name = shatterer.player_name
-		if shatterer.has_method("add_exp"):
-			shatterer.add_exp(850)
-	
+	# EXP and the loot shower are granted by the authority (one reward per kill);
+	# this node only reports the event to the players nearby.
 	NetworkManager.send_chat("[Server] The Dark Monolith has been shattered by %s! Riches shower the realm!" % shatterer_name)
-	
-	# Shower massive loot around monolith base
-	_drop_loot.call_deferred()
-	
+
 	# Disappear & schedule respawn through a child timer: it is freed with this
 	# node, so a scene change can never resume a coroutine on a freed instance.
 	hide()
@@ -169,29 +172,6 @@ func _destroy_monolith(shatterer: Node3D) -> void:
 	_respawn_timer.timeout.connect(_respawn)
 	add_child(_respawn_timer)
 	_respawn_timer.start()
-
-func _drop_loot() -> void:
-	var drops := [
-		{"id": "galleons", "amount": randi_range(600, 1800)},
-		{"id": "galleons", "amount": randi_range(400, 1200)},
-		{"id": "mat_phoenix_ash", "amount": randi_range(2, 4)},
-		{"id": "mat_dragon_heartstring", "amount": randi_range(1, 3)},
-		{"id": "mat_thestral_hair", "amount": randi_range(1, 2)},
-		{"id": "potion_health", "amount": randi_range(3, 6)},
-		{"id": "potion_mana", "amount": randi_range(3, 6)},
-	]
-	
-	# 25% chance of rare Elder core
-	if randf() < 0.25:
-		drops.append({"id": "mat_elder_core", "amount": 1})
-	
-	for drop_data in drops:
-		var loot = LOOT_SCENE.instantiate()
-		get_parent().add_child(loot)
-		var angle := randf() * TAU
-		var dist := randf_range(2.0, 7.5)
-		loot.global_position = global_position + Vector3(cos(angle) * dist, 0.4, sin(angle) * dist)
-		loot.setup(drop_data["id"], drop_data["amount"])
 
 func _respawn() -> void:
 	if is_queued_for_deletion():
@@ -207,6 +187,10 @@ func _respawn() -> void:
 	show()
 	$CollisionShape3D.set_deferred("disabled", false)
 	_update_label()
+	# The record has to come back to life with it, or the authority would still
+	# consider this monolith dead and refuse damage on the next wave.
+	if SimAuthority.is_authority():
+		SimAuthority.refresh_mob(self)
 	NetworkManager.send_chat("[Dark Monolith] A new Dark Monolith has manifested in the realm!")
 
 func _add_sky_beam() -> void:

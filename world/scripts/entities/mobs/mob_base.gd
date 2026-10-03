@@ -45,10 +45,12 @@ var _warning: MeshInstance3D
 var _corpse_time := 0.0
 var _respawn_delay := 25.0
 var _weaken_timer := 0.0
-var _burn_timer := 0.0
-var _burn_tick := 0.0
-var _burn_source: Node3D
 var _scan_timer := 0.0
+## True when this node is a CLIENT'S VIEW of a mob the world server owns: it
+## runs no AI, applies no damage, and just follows the replicated state.
+var sim_puppet := false
+var sim_target_pos := Vector3.ZERO
+var sim_target_rot := 0.0
 @onready var label: Label3D = $Label3D
 @onready var visuals: Node3D = $Visuals
 const Rules = preload("res://scripts/spells/combat_rules.gd")
@@ -65,6 +67,8 @@ func _ready() -> void:
 	_base_attack = attack_power
 	_base_speed = move_speed
 	_base_cooldown = attack_cooldown
+	if SimAuthority.is_authority():
+		SimAuthority.refresh_mob(self)
 	anim_player = visuals.find_child("AnimationPlayer", true, false)
 	if anim_player:
 		# Imported monster animations use different names from the wizard rig.
@@ -91,16 +95,16 @@ func _update_label() -> void:
 	label.visibility_range_end = 40
 
 func _physics_process(delta: float) -> void:
+	# Client view of a server-owned mob: no AI, no damage, no physics authority -
+	# only interpolation towards the last replicated sample.
+	if sim_puppet:
+		global_position = global_position.lerp(sim_target_pos, minf(1.0, 12.0 * delta))
+		if visuals:
+			visuals.rotation.y = lerp_angle(visuals.rotation.y, sim_target_rot, minf(1.0, 12.0 * delta))
+		_tick_corpse(delta)
+		return
 	if state == State.DEAD:
-		_corpse_time += delta
-		if _corpse_time > 4:
-			visuals.position.y = -minf(2.5, (_corpse_time - 4) * 0.8)
-		if _corpse_time > 6:
-			hide()
-			if summoned:
-				queue_free()
-		if not managed_respawn and not summoned and _corpse_time > _respawn_delay:
-			_respawn()
+		_tick_corpse(delta)
 		return
 	# Phase 1: enemies displaced inside a protected volume cancel the fight and
 	# walk home instead of attacking through the boundary.
@@ -110,17 +114,6 @@ func _physics_process(delta: float) -> void:
 		state = State.RETURN
 	attack_timer = maxf(0, attack_timer - delta)
 	_weaken_timer = maxf(0, _weaken_timer - delta)
-	if _burn_timer > 0:
-		_burn_timer -= delta
-		_burn_tick -= delta
-		if _burn_tick <= 0:
-			_burn_tick = 1
-			# Phase 1: burn keeps its duration but stops damaging inside
-			# protected volumes (defense-in-depth; the fight is dropped there).
-			if not SafeZone.is_protected_point(global_position):
-				take_damage(35, "burn", _burn_source)
-			if state == State.DEAD:
-				return
 	if state == State.STUNNED:
 		stun_timer -= delta
 		if stun_timer <= 0:
@@ -152,6 +145,17 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity.y = 0
 	move_and_slide()
+
+func _tick_corpse(delta: float) -> void:
+	_corpse_time += delta
+	if _corpse_time > 4:
+		visuals.position.y = -minf(2.5, (_corpse_time - 4) * 0.8)
+	if _corpse_time > 6:
+		hide()
+		if summoned and not sim_puppet:
+			queue_free()
+	if not sim_puppet and not managed_respawn and not summoned and _corpse_time > _respawn_delay:
+		_respawn()
 
 func _idle_and_wander(delta: float) -> void:
 	_scan_timer -= delta
@@ -261,22 +265,21 @@ func _cancel_attack() -> void:
 
 func _resolve_attack() -> void:
 	var kind := _attack_kind
+	var center := _attack_center
 	_cancel_attack()
 	var power := int(attack_power * (0.65 if _weaken_timer > 0 else 1.0))
 	if kind == "slam":
-		FX.play_impact(get_parent(), _attack_center, "bombarda")
-		for player in get_tree().get_nodes_in_group("players"):
-			if Rules.can_damage(self, player) and player.global_position.distance_to(_attack_center) <= 5.5 and Rules.has_line_of_sight(self, player):
-				player.take_damage(int(power * 1.7), "boss_slam", self)
+		FX.play_impact(get_parent(), center, "bombarda")
+		# AoE victims are chosen by the engine from its own entity table: a
+		# protected player inside the circle simply is not a victim.
+		SimAuthority.mob_area_attack(self, center, 5.5, int(power * 1.7), "boss_slam")
 	elif _valid_target() and Rules.has_line_of_sight(self, target_player):
 		if kind == "ranged":
-			var projectile := PROJECTILE_SCENE.instantiate()
-			get_parent().add_child(projectile)
-			projectile.global_position = global_position + Vector3.UP * 1.2
-			projectile.setup(self, "stupefy", (target_player.global_position + Vector3.UP - projectile.global_position).normalized(), target_player)
-			projectile.damage = power
+			var dir := (target_player.global_position + Vector3.UP - (global_position + Vector3.UP * 1.2)).normalized()
+			FX.play_cast(get_parent(), self, "stupefy", global_position + Vector3.UP * 1.2, dir)
+			SimAuthority.mob_projectile(self, "stupefy", dir, power)
 		elif global_position.distance_to(target_player.global_position) <= attack_range + 0.4:
-			target_player.take_damage(power, "melee", self)
+			SimAuthority.mob_melee(self, target_player, power)
 
 func trigger_enrage() -> void:
 	if is_enraged or state == State.DEAD:
@@ -287,30 +290,35 @@ func trigger_enrage() -> void:
 	attack_cooldown = _base_cooldown * 0.8
 	_update_label()
 
+## Damage requests are decided by the authority; this node never subtracts HP on
+## its own. Clients calling this only ask - the engine answers (and in a
+## client-only process the answer is "no", because the server sends the result).
 func take_damage(amount: int, type: String, attacker: Node3D) -> void:
+	if sim_puppet or state in [State.DEAD, State.RETURN]:
+		return
+	SimAuthority.apply_damage(self, amount, type, attacker)
+
+## Presentation hook after the authority applied damage: reaction state only.
+func on_authoritative_damage(type: String, attacker: Node3D, stun_ms: int, weaken_ms: int) -> void:
 	if state in [State.DEAD, State.RETURN]:
 		return
-	current_hp = maxi(0, current_hp - int(amount * (2 if weak_to_fire and type == "incendio" else 1)))
-	aggro_on(attacker)
-	if type in ["stupefy", "expelliarmus"]:
+	if is_instance_valid(attacker):
+		aggro_on(attacker)
+	if stun_ms > 0 and not is_boss:
 		_cancel_attack()
 		state = State.STUNNED
-		stun_timer = 0.5 if is_boss else (1.8 if type == "stupefy" else 0.4)
-	if type == "expelliarmus":
-		_weaken_timer = 5
-	if type == "incendio":
-		_burn_timer = 4
-		_burn_tick = 1
-		_burn_source = attacker
+		stun_timer = float(stun_ms) / 1000.0
+	elif stun_ms > 0:
+		_cancel_attack()
+		state = State.STUNNED
+		stun_timer = float(stun_ms) / 1000.0
+	if weaken_ms > 0:
+		_weaken_timer = float(weaken_ms) / 1000.0
 	_update_label()
-	if current_hp <= 0:
-		_die(attacker)
 
-func apply_knockback(force: Vector3) -> void:
-	if not is_boss and state != State.DEAD:
-		knockback_velocity = force
-
-func _die(killer: Node3D) -> void:
+## Authority death notification: the engine already paid the rewards and dropped
+## the loot, so this is the body's part only.
+func on_authoritative_death(killer: Node3D) -> void:
 	_cancel_attack()
 	state = State.DEAD
 	velocity = Vector3.ZERO
@@ -321,16 +329,19 @@ func _die(killer: Node3D) -> void:
 	if spider:
 		spider.die()
 	_corpse_time = 0
-	_respawn_delay = randf_range(90, 120) if is_boss else randf_range(25, 35)
-	if is_instance_valid(killer) and killer.has_method("add_exp"):
-		killer.add_exp(exp_reward)
-		if killer.is_local_player:
-			QuestManager.add_kill("Inferi" if weak_to_fire else ("Acromantula" if "Acromantula" in mob_name else mob_name))
-	_drop_mob_loot.call_deferred()
+	_respawn_delay = float(HPRules.respawn_delay_ms(is_boss, SimAuthority.rng)) / 1000.0
 	for mob in get_tree().get_nodes_in_group("mobs"):
 		if pack_id > 0 and mob != self and mob.pack_id == pack_id and mob.is_commander:
 			mob.trigger_enrage()
 	died.emit(self)
+
+## Authority interrupt (stun, disarm, death, leash-cancel): drop any windup.
+func cancel_cast_action() -> void:
+	_cancel_attack()
+
+func apply_knockback(force: Vector3) -> void:
+	if not is_boss and state != State.DEAD:
+		knockback_velocity = force
 
 func _drop_mob_loot() -> void:
 	var drops := [{"id": "galleons", "amount": randi_range(250, 600) if is_boss else randi_range(30, 95)}]
@@ -356,7 +367,6 @@ func _respawn() -> void:
 	target_player = null
 	stun_timer = 0
 	_weaken_timer = 0
-	_burn_timer = 0
 	knockback_velocity = Vector3.ZERO
 	velocity = Vector3.ZERO
 	attack_timer = 1
@@ -372,6 +382,9 @@ func _respawn() -> void:
 	$CollisionShape3D.set_deferred("disabled", false)
 	_play_anim("Idle")
 	_update_label()
+	if SimAuthority.is_authority():
+		SimAuthority.refresh_mob(self)
 
 func _exit_tree() -> void:
 	_cancel_attack()
+	SimAuthority.unregister_node(self)

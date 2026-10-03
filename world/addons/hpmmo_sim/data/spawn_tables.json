@@ -1,0 +1,67 @@
+{
+  "_comment": "Server-owned encounter content. The authority is the only process that samples these tables; clients receive the result.",
+  "map_id": "grounds",
+  "regions": [
+    { "id": "courtyard", "center": [0.0, 0.0], "radius": 40.0 },
+    { "id": "castle", "center": [0.0, -80.0], "radius": 48.0 },
+    { "id": "village", "center": [35.0, 20.0], "radius": 28.0 },
+    { "id": "forest_sw", "center": [17.0, -25.0], "radius": 30.0 },
+    { "id": "forest_e", "center": [46.0, -57.0], "radius": 26.0 },
+    { "id": "forest_w", "center": [-37.0, -28.0], "radius": 30.0 },
+    { "id": "forest_deep", "center": [-69.0, -48.0], "radius": 30.0 },
+    { "id": "boss_w", "center": [-91.0, -74.0], "radius": 30.0 },
+    { "id": "boss_e", "center": [53.0, -91.0], "radius": 30.0 }
+  ],
+  "packs": [
+    { "id": 1, "zone": "forest_sw", "area": [17.0, -33.0, 15.0, 15.0], "mob": "inferi", "level": 3, "count": 3, "aggro_mode": "reactive", "assist_radius": 16.0, "leash_distance": 26.0 },
+    { "id": 2, "zone": "village", "area": [8.0, 31.0, 19.0, 15.0], "mob": "acromantula", "level": 4, "count": 3, "aggro_mode": "reactive", "assist_radius": 16.0, "leash_distance": 26.0 },
+    { "id": 3, "zone": "forest_w", "area": [-37.0, -28.0, 14.0, 16.0], "mob": "acromantula", "level": 8, "count": 5, "aggro_mode": "reactive", "assist_radius": 16.0, "leash_distance": 26.0 },
+    { "id": 4, "zone": "forest_e", "area": [46.0, -57.0, 17.0, 15.0], "mob": "darksnatcher", "level": 12, "count": 3, "aggro_mode": "reactive", "assist_radius": 16.0, "leash_distance": 26.0 },
+    { "id": 5, "zone": "forest_deep", "area": [-69.0, -48.0, 16.0, 19.0], "mob": "inferi", "level": 14, "count": 5, "aggro_mode": "reactive", "assist_radius": 16.0, "leash_distance": 26.0 },
+    { "id": 6, "zone": "boss_w", "area": [-91.0, -74.0, 16.0, 16.0], "mob": "acromantula", "level": 25, "count": 1, "boss": true, "aggro_mode": "reactive", "assist_radius": 20.0, "leash_distance": 40.0 },
+    { "id": 7, "zone": "boss_e", "area": [53.0, -91.0, 18.0, 15.0], "mob": "darksnatcher", "level": 20, "count": 3, "boss": true, "commander": true, "aggro_mode": "reactive", "assist_radius": 20.0, "leash_distance": 40.0 }
+  ],
+  "pack_tuning": {
+    "hp_strength_base": 0.45,
+    "hp_strength_per_level": 0.075,
+    "hp_strength_floor": 0.35,
+    "attack_multiplier": 0.75,
+    "exp_base": 25,
+    "exp_per_level": 6,
+    "aggro_radius_low": 9.0,
+    "aggro_radius_high": 12.0,
+    "aggro_radius_level": 8
+  },
+  "boss_overrides": {
+    "matriarch": { "hp": 3500, "attack_power": 65, "attack_range": 4.5, "exp_reward": 600, "scale": 2.0, "name": "Acromantula Matriarch" },
+    "commander": { "hp": 2400, "attack_power": 55, "attack_range": 4.5, "exp_reward": 600, "scale": 1.65, "name": "Dark Snatcher Commander" }
+  },
+  "monoliths": [
+    { "id": 1, "pos": [44.0, 0.0, -76.0], "zone": "forest_e" },
+    { "id": 2, "pos": [45.0, 0.0, -25.0], "zone": "forest_sw" },
+    { "id": 3, "pos": [-45.0, 0.0, -28.0], "zone": "forest_w" },
+    { "id": 4, "pos": [-58.0, 0.0, -50.0], "zone": "forest_deep" }
+  ],
+  "monolith_config": {
+    "max_hp": 3000,
+    "respawn_ms": 30000,
+    "exp_reward": 850,
+    "wave_thresholds": [
+      { "ratio": 0.75, "wave": 1, "spawns": [ { "mob": "acromantula", "count": 3, "level": 12 }, { "mob": "inferi", "count": 2, "level": 12 } ] },
+      { "ratio": 0.5, "wave": 2, "spawns": [ { "mob": "inferi", "count": 4, "level": 14 }, { "mob": "darksnatcher", "count": 2, "level": 14 } ] },
+      { "ratio": 0.25, "wave": 3, "spawns": [ { "mob": "acromantula", "count": 4, "level": 16 }, { "mob": "inferi", "count": 4, "level": 16 }, { "mob": "darksnatcher", "count": 2, "level": 16 } ] }
+    ],
+    "spawn_distance_min": 4.0,
+    "spawn_distance_max": 9.0
+  },
+  "dummies": [
+    { "id": 1, "pos": [-14.0, 0.0, -2.0] },
+    { "id": 2, "pos": [-11.0, 0.0, -2.0] },
+    { "id": 3, "pos": [-8.0, 0.0, -2.0] }
+  ],
+  "mob_scenes": {
+    "inferi": "res://scenes/entities/mobs/mob_inferi.tscn",
+    "acromantula": "res://scenes/entities/mobs/mob_acromantula.tscn",
+    "darksnatcher": "res://scenes/entities/mobs/mob_darksnatcher.tscn"
+  }
+}

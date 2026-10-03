@@ -129,6 +129,32 @@ bool require_service_token(const httplib::Request& req, httplib::Response& res, 
     return true;
 }
 
+// Character endpoints accept either the caller's own session (scoped to that
+// account) or the trusted world server presenting the service token, which may
+// act on any character by id.
+//
+// TRUST BOUNDARY: HPMMO_SERVICE_TOKEN is infrastructure-only. It must never be
+// shipped to or handled by a client (launcher, game build, logs): a holder can
+// read and write every character, with no ownership restriction.
+struct CharacterAuth {
+    bool service = false;
+    long long account_id = 0;
+};
+
+std::optional<CharacterAuth> require_session_or_service(const httplib::Request& req,
+                                                        httplib::Response& res, const Config& cfg,
+                                                        db::Pool& pool) {
+    // The service token wins when both are presented: the world server carries
+    // no end-user session.
+    if (!req.get_header_value("X-Service-Token").empty()) {
+        if (!require_service_token(req, res, cfg)) return std::nullopt;
+        return CharacterAuth{true, 0};
+    }
+    auto session = require_session(req, res, pool);
+    if (!session) return std::nullopt;
+    return CharacterAuth{false, session->account_id};
+}
+
 // Ownership: does this account own this character id?
 std::optional<bool> owns_character(db::Conn& conn, long long account_id, long long character_id) {
     db::Result r = conn.exec("SELECT 1 FROM characters WHERE id = $1 AND account_id = $2",
@@ -395,6 +421,35 @@ void handle_logout(const httplib::Request& req, httplib::Response& res, db::Pool
     send_json(res, 200, {{"success", true}, {"message", "Logged out."}});
 }
 
+// Service-token only: map a session token to its account and bound character
+// (Phase 5 world-server lookup). The token itself and its hash are never
+// returned; unknown, expired, and revoked tokens are indistinguishable.
+void handle_session_introspect(const httplib::Request& req, httplib::Response& res, const Config& cfg,
+                               db::Pool& pool) {
+    if (!require_service_token(req, res, cfg)) return;
+    auto body = parse_body(req, res);
+    if (!body) return;
+    if (!body->contains("token") || !(*body)["token"].is_string()) {
+        return send_error(res, 400, "Missing token.");
+    }
+    const std::string token = (*body)["token"].get<std::string>();
+    if (token.empty() || token.size() > 512) return send_error(res, 400, "Invalid token.");
+    auto lease = pool.acquire();
+    db::Result r = lease.exec(
+        "SELECT s.account_id::text, a.username, COALESCE(s.character_id, 0)::text, "
+        "GREATEST(0, CEIL(EXTRACT(EPOCH FROM (s.expires_at - now()))))::bigint::text "
+        "FROM sessions s JOIN accounts a ON a.id = s.account_id "
+        "WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > now()",
+        {db::sha256_hex(token)});
+    if (!r.ok) return send_db_error(res, r, "session introspect");
+    if (r.rows.empty()) return send_error(res, 404, "Session not found.");
+    send_json(res, 200, {{"success", true},
+                         {"account_id", std::stoll(r.rows[0][0].second.value_or("0"))},
+                         {"username", r.rows[0][1].second.value_or("")},
+                         {"character_id", std::stoll(r.rows[0][2].second.value_or("0"))},
+                         {"expires_in_seconds", std::stoll(r.rows[0][3].second.value_or("0"))}});
+}
+
 void handle_game_ticket(const httplib::Request& req, httplib::Response& res, const Config& cfg,
                         db::Pool& pool) {
     auto session = require_session(req, res, pool);
@@ -450,10 +505,14 @@ void handle_ticket_redeem(const httplib::Request& req, httplib::Response& res, c
     const long long account_id = std::stoll(claim.rows[0][0].second.value_or("0"));
     const long long character_id = std::stoll(claim.rows[0][1].second.value_or("0"));
     const std::string token = db::gen_hex(24);
+    // A ticket that carried a character binds the issued session to it, so the
+    // world server can resolve the token back to the character it may act on.
+    // Unbound tickets (and plain logins) leave character_id NULL.
     db::Result ins = lease.exec(
-        "INSERT INTO sessions (account_id, token_hash, expires_at) VALUES ($1,$2, now() + interval '" +
-            std::to_string(cfg.session_ttl_hours) + " hours')",
-        {std::to_string(account_id), db::sha256_hex(token)});
+        "INSERT INTO sessions (account_id, token_hash, character_id, expires_at) VALUES "
+        "($1,$2,$3, now() + interval '" + std::to_string(cfg.session_ttl_hours) + " hours')",
+        {std::to_string(account_id), db::sha256_hex(token),
+         character_id != 0 ? std::optional<std::string>(std::to_string(character_id)) : std::nullopt});
     if (!ins.ok) {
         lease.rollback();
         return send_db_error(res, ins, "ticket session");
@@ -555,9 +614,10 @@ void handle_character_list(const httplib::Request& req, httplib::Response& res, 
     send_json(res, 200, {{"success", true}, {"characters", list}});
 }
 
-void handle_character_load(const httplib::Request& req, httplib::Response& res, db::Pool& pool) {
-    auto session = require_session(req, res, pool);
-    if (!session) return;
+void handle_character_load(const httplib::Request& req, httplib::Response& res, const Config& cfg,
+                           db::Pool& pool) {
+    auto auth = require_session_or_service(req, res, cfg, pool);
+    if (!auth) return;
     auto body = parse_body(req, res);
     if (!body) return;
     if (!body->contains("character_id") || !(*body)["character_id"].is_number_integer()) {
@@ -565,17 +625,23 @@ void handle_character_load(const httplib::Request& req, httplib::Response& res, 
     }
     const long long char_id = (*body)["character_id"].get<long long>();
     auto lease = pool.acquire();
+    std::vector<std::optional<std::string>> params = {std::to_string(char_id)};
+    std::string scope;
+    if (!auth->service) {
+        scope = " AND account_id = $2";  // a session stays scoped to its own account
+        params.push_back(std::to_string(auth->account_id));
+    }
     db::Result r = lease.exec(
-        std::string("SELECT ") + kCharacterCols + " FROM characters WHERE id = $1 AND account_id = $2",
-        {std::to_string(char_id), std::to_string(session->account_id)});
+        std::string("SELECT ") + kCharacterCols + " FROM characters WHERE id = $1" + scope, params);
     if (!r.ok) return send_db_error(res, r, "character load");
     if (r.rows.empty()) return send_error(res, 404, "Character not found.");  // same answer for foreign ids
     send_json(res, 200, {{"success", true}, {"character", character_snapshot(*lease.conn(), r.rows[0], true)}});
 }
 
-void handle_character_save(const httplib::Request& req, httplib::Response& res, db::Pool& pool) {
-    auto session = require_session(req, res, pool);
-    if (!session) return;
+void handle_character_save(const httplib::Request& req, httplib::Response& res, const Config& cfg,
+                           db::Pool& pool) {
+    auto auth = require_session_or_service(req, res, cfg, pool);
+    if (!auth) return;
     auto body = parse_body(req, res);
     if (!body) return;
     if (!body->contains("character_id") || !(*body)["character_id"].is_number_integer()) {
@@ -667,11 +733,17 @@ void handle_character_save(const httplib::Request& req, httplib::Response& res, 
     auto lease = pool.acquire();
     if (!lease.begin()) return send_error(res, 503, "Service unavailable: database unreachable.");
 
+    std::vector<std::optional<std::string>> lock_params = {std::to_string(char_id)};
+    std::string lock_scope;
+    if (!auth->service) {
+        lock_scope = " AND account_id=$2";  // a session stays scoped to its own account
+        lock_params.push_back(std::to_string(auth->account_id));
+    }
     db::Result cur = lease.exec(
         "SELECT revision::text, level::text, exp::text, max_hp::text, current_hp::text, max_mana::text, "
         "current_mana::text, galleons::text, wand_tier::text, pos_x::text, pos_y::text, pos_z::text, "
-        "rot_y::text, map_id, quests::text FROM characters WHERE id=$1 AND account_id=$2 FOR UPDATE",
-        {std::to_string(char_id), std::to_string(session->account_id)});
+        "rot_y::text, map_id, quests::text FROM characters WHERE id=$1" + lock_scope + " FOR UPDATE",
+        lock_params);
     if (!cur.ok) {
         lease.rollback();
         return send_db_error(res, cur, "character save");
@@ -1039,6 +1111,9 @@ int serve(const Config& cfg, db::Pool& pool) {
     svr.Post("/api/logout", [&](const httplib::Request& req, httplib::Response& res) {
         handle_logout(req, res, pool);
     });
+    svr.Post("/api/session/introspect", [&](const httplib::Request& req, httplib::Response& res) {
+        handle_session_introspect(req, res, cfg, pool);
+    });
     svr.Post("/api/game-ticket", [&](const httplib::Request& req, httplib::Response& res) {
         handle_game_ticket(req, res, cfg, pool);
     });
@@ -1052,10 +1127,10 @@ int serve(const Config& cfg, db::Pool& pool) {
         handle_character_list(req, res, pool);
     });
     svr.Post("/api/characters/load", [&](const httplib::Request& req, httplib::Response& res) {
-        handle_character_load(req, res, pool);
+        handle_character_load(req, res, cfg, pool);
     });
     svr.Post("/api/characters/save", [&](const httplib::Request& req, httplib::Response& res) {
-        handle_character_save(req, res, pool);
+        handle_character_save(req, res, cfg, pool);
     });
     svr.Post("/api/reward", [&](const httplib::Request& req, httplib::Response& res) {
         handle_reward(req, res, cfg, pool);

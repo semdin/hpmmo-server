@@ -68,26 +68,30 @@ func _process(delta: float) -> void:
 	mesh.position.y = 0.4 + bob
 	label.position.y = 1.0 + bob
 
+## A pickup is a REQUEST: the authority checks the range, credits the item to
+## the character and removes the drop. It answers with the item having left the
+## ground, which is when this view disappears.
 func collect(collector: Node3D) -> bool:
 	if is_collected or not is_instance_valid(collector) or not collector.has_method("add_loot"):
 		return false
 	if "is_local_player" in collector and (not collector.is_local_player or collector.is_dead):
 		return false
+	var uid: int = get_meta("sim_uid", 0)
+	if uid == 0:
+		return false
+	if not SimAuthority.is_authority() and not SimNet.is_client:
+		return false
+	var result: Dictionary = SimNet.submit_pickup(collector, uid)
+	if not bool(result.get("ok", false)):
+		return false
 	is_collected = true
-	
-	# Give to collector if player
-	if collector.has_method("add_loot"):
-		collector.add_loot(item_id, amount)
-	
-	# Pickup feedback
+	# Pickup feedback (the credit itself is authoritative).
 	var ft_scene = load("res://scenes/ui/floating_text.tscn")
 	if ft_scene:
 		var ft = ft_scene.instantiate()
 		get_parent().add_child(ft)
 		ft.global_position = global_position + Vector3(0, 1.0, 0)
 		ft.setup("+ " + label.text, Color(1.0, 0.9, 0.3), 1.2)
-	
-	queue_free()
 	return true
 
 func _on_body_entered(body: Node3D) -> void:
