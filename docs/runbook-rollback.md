@@ -53,6 +53,13 @@ sudo /opt/hpmmo/bin/hpmmo_deploy.sh --release <id> --reason "why"
 # --deploy does both in one step; CI uses exactly this.
 ```
 
+**Before the first deployment, one thing must exist:** the synthetic login+join
+check. `deploy/smoke_client.sh` runs `world/server/smoke_client.tscn` (or
+`.gd`) headless from the release; that scene is the world/client workstream's
+deliverable. Until it ships, point `HPMMO_SMOKE_CMD` in the environment file at
+your own client check. Without either, the controller refuses to deploy (exit
+`2`, before anything is touched) rather than advertising an unverified release.
+
 **First time on an existing box (the one-time move off the manual tarball
 layout).** The release that is running today has no maintenance API, so the
 normal path cannot drain it. Do this once, deliberately, in a window:

@@ -384,7 +384,10 @@ func _handle(request: Dictionary) -> Dictionary:
 		return _handle_begin(body)
 	if route == "POST /admin/maintenance/abort":
 		return _handle_abort()
-	if route == "POST /admin/admin/save":
+	# `/admin/save` is the contract; `/admin/admin/save` was a typo in the spec
+	# that shipped once, so both are accepted (the deployment controller calls
+	# the contract path first and only falls back to the typo).
+	if route == "POST /admin/save" or route == "POST /admin/admin/save":
 		return _handle_save()
 	if route == "POST /admin/disconnect-all":
 		return _handle_disconnect_all()
