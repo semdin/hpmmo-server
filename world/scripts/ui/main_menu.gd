@@ -61,15 +61,6 @@ func _ready() -> void:
 	raven_btn.pressed.connect(func(): _select_house("Ravenclaw"))
 	huff_btn.pressed.connect(func(): _select_house("Hufflepuff"))
 	
-	# Network signals
-	NetworkManager.connection_status_changed.connect(_on_network_status)
-	NetworkManager.connection_succeeded.connect(_on_connection_succeeded)
-	NetworkManager.connection_failed.connect(_on_connection_failed)
-	NetworkManager.auth_register_result.connect(_on_auth_register_result)
-	NetworkManager.auth_login_result.connect(_on_auth_login_result)
-	NetworkManager.character_create_result.connect(_on_character_create_result)
-	NetworkManager.character_select_result.connect(_on_character_select_result)
-	
 	# Dynamically load background banner safely without editor import dependency
 	var bg_paths = ["res://assets/branding/hpmmo_banner.jpg", "res://launcher/assets/hpmmo_banner.jpg"]
 	for p in bg_paths:
@@ -86,20 +77,32 @@ func _ready() -> void:
 	_handle_cmdline_args()
 
 func _exit_tree() -> void:
-	if NetworkManager.connection_status_changed.is_connected(_on_network_status):
-		NetworkManager.connection_status_changed.disconnect(_on_network_status)
-	if NetworkManager.connection_succeeded.is_connected(_on_connection_succeeded):
-		NetworkManager.connection_succeeded.disconnect(_on_connection_succeeded)
-	if NetworkManager.connection_failed.is_connected(_on_connection_failed):
-		NetworkManager.connection_failed.disconnect(_on_connection_failed)
-	if NetworkManager.auth_register_result.is_connected(_on_auth_register_result):
-		NetworkManager.auth_register_result.disconnect(_on_auth_register_result)
-	if NetworkManager.auth_login_result.is_connected(_on_auth_login_result):
-		NetworkManager.auth_login_result.disconnect(_on_auth_login_result)
-	if NetworkManager.character_create_result.is_connected(_on_character_create_result):
-		NetworkManager.character_create_result.disconnect(_on_character_create_result)
-	if NetworkManager.character_select_result.is_connected(_on_character_select_result):
-		NetworkManager.character_select_result.disconnect(_on_character_select_result)
+	pass
+
+func _on_network_status(msg: String) -> void:
+	if auth_status_label:
+		auth_status_label.text = msg
+
+func _on_connection_succeeded() -> void:
+	pass
+
+func _on_connection_failed() -> void:
+	if auth_status_label:
+		auth_status_label.text = "Bağlantı hatası! Sunucu IP ve güvenlik duvarını kontrol edin."
+
+func _on_auth_register_result(success: bool, message: String) -> void:
+	if auth_status_label:
+		auth_status_label.text = message
+
+func _on_character_create_result(success: bool, message: String, char_data: Dictionary) -> void:
+	if confirm_create_btn:
+		confirm_create_btn.disabled = false
+	if create_status_label:
+		create_status_label.text = message
+	if success:
+		characters_cache.append(char_data)
+		_render_character_list(characters_cache)
+		_show_panel("select")
 
 func _show_panel(panel_name: String) -> void:
 	auth_panel.visible = (panel_name == "auth")
