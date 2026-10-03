@@ -1,7 +1,7 @@
 {
  "generated": "2026-10-03",
  "source_repository": "hpmmo-client",
- "source_revision": "216a39774bc3bf11e18d327ca8ece40cc1d07d3e",
+ "source_revision": "16c821d267cec0fd773a21f414aee34281241954",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/models/characters/wizard.glb": "cf898585da33fab50c724d31605fb931eb2912e6d2280092141e98ca81ad507d",
@@ -60,7 +60,7 @@
   "data/json/quests.json": "6b22db277a3e09c1e3edb4ace485ee1d61942b96c1769e738ed299dadb09434e",
   "data/json/safe_zones.json": "33450fe4041ee721705e8811a7c6e442bbda55afc4438440dbc394a607b240b2",
   "data/json/spells.json": "edbcc16c7b7af3ccc4f00afbb2acd4e3d5a323804016472d9a40b0ec63011db9",
-  "project.godot": "b11b12fa95935e4a4882c0eec19b5b75dc415fea9db76eae3e32f7308b884af4",
+  "project.godot": "f71d2b5673dbab9b8b8dc513c3b2ce98d6fcdabd81c2e708c5b54b64975d19a1",
   "scenes/entities/loot/loot_drop.tscn": "90a9f2399f278c205caf9b78f9cd01e5341cc03f453ba61b0bbfb303ef3c19f7",
   "scenes/entities/mobs/mob_acromantula.tscn": "fd9754f70126a98083a97669e0a176c94d0dcef80af73c8e0e3dd2d9b1a0396f",
   "scenes/entities/mobs/mob_darksnatcher.tscn": "deb4193c15010a7c791d5045d7d246339932549436abe09e9788f0c2e70deec5",
