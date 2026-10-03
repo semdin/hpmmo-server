@@ -1,0 +1,42 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/entities/mobs/mob_base.gd" id="1_mb"]
+[ext_resource type="PackedScene" path="res://assets/models/monsters/Ninja.gltf" id="2_dw"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
+radius = 0.45
+height = 1.85
+
+[node name="MobDarkSnatcher" type="CharacterBody3D" groups=["mobs", "targetable"]]
+collision_layer = 2
+collision_mask = 7
+script = ExtResource("1_mb")
+mob_name = "Dark Snatcher"
+level = 20
+max_hp = 420
+attack_power = 40
+move_speed = 5.5
+aggro_radius = 16.0
+attack_range = 14.0
+attack_cooldown = 2.0
+exp_reward = 180
+is_ranged = true
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, 0)
+shape = SubResource("CapsuleShape3D_1")
+
+[node name="Visuals" type="Node3D" parent="."]
+
+[node name="dark_wizard" parent="Visuals" instance=ExtResource("2_dw")]
+transform = Transform3D(0.75, 0, 0, 0, 0.75, 0, 0, 0, 0.75, 0, 0, 0)
+
+[node name="Label3D" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.3, 0)
+billboard = 1
+double_sided = false
+text = "[Lv.20] Dark Snatcher
+420 / 420"
+font_size = 32
+outline_size = 8
+outline_modulate = Color(0, 0, 0, 1)

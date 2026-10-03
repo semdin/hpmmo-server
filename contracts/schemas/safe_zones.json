@@ -1,0 +1,8 @@
+{
+  "spawn_buffer": 8.0,
+  "zones": [
+    { "id": "courtyard", "shape": "cylinder", "center": [0.0, 0.0, 0.0], "radius": 21.0, "y_min": -10.0, "y_max": 200.0 },
+    { "id": "castle_approach", "shape": "cylinder", "center": [0.0, 0.0, -28.0], "radius": 12.0, "y_min": -10.0, "y_max": 200.0 },
+    { "id": "village_square", "shape": "cylinder", "center": [35.0, 0.0, 20.0], "radius": 9.0, "y_min": -10.0, "y_max": 200.0 }
+  ]
+}

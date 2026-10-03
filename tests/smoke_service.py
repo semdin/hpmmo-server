@@ -84,60 +84,60 @@ def main():
         if not ready:
             out = proc.stdout.read() if proc.stdout else ""
             print(out[-2000:])
-            return finish(tmp, proc)
+            return finish()
 
-        status, body = call(port, "GET", "/api/health")
-        check(status == 200 and body.get("status") == "ok", "health reports ok")
-        check(os.path.exists(env["HPMMO_SQLITE_PATH"]), "sqlite file created at HPMMO_SQLITE_PATH")
+        if ready:
+            status, body = call(port, "GET", "/api/health")
+            check(status == 200 and body.get("status") == "ok", "health reports ok")
+            check(os.path.exists(env["HPMMO_SQLITE_PATH"]), "sqlite file created at HPMMO_SQLITE_PATH")
 
-        name = f"smoke{port}"
-        status, body = call(port, "POST", "/api/register", {"username": name, "password": "smoketest1"})
-        check(status == 200 and body.get("success"), "register succeeds")
-        account_id = body.get("account_id")
+            name = f"smoke{port}"
+            status, body = call(port, "POST", "/api/register", {"username": name, "password": "smoketest1"})
+            check(status == 200 and body.get("success"), "register succeeds")
+            account_id = body.get("account_id")
 
-        status, body = call(port, "POST", "/api/login", {"username": name, "password": "smoketest1"})
-        check(status == 200 and body.get("success") and body.get("account_id") == account_id,
-              "login returns the account")
+            status, body = call(port, "POST", "/api/login", {"username": name, "password": "smoketest1"})
+            check(status == 200 and body.get("success") and body.get("account_id") == account_id,
+                  "login returns the account")
 
-        status, body = call(port, "POST", "/api/characters/create",
-                            {"account_id": account_id, "name": f"Smoke{port}", "house": "Gryffindor"})
-        check(status == 200 and body.get("success"), "character create succeeds")
-        char = body.get("character", {})
-        char_id = char.get("id")
-        check(isinstance(char_id, int) and char_id > 0, "created character has an id")
-        check(isinstance(char.get("inventory"), list) and char["inventory"],
-              "starter inventory present")
+            status, body = call(port, "POST", "/api/characters/create",
+                                {"account_id": account_id, "name": f"Smoke{port}", "house": "Gryffindor"})
+            check(status == 200 and body.get("success"), "character create succeeds")
+            char = body.get("character", {})
+            char_id = char.get("id")
+            check(isinstance(char_id, int) and char_id > 0, "created character has an id")
+            check(isinstance(char.get("inventory"), list) and char["inventory"],
+                  "starter inventory present")
 
-        status, body = call(port, "POST", "/api/characters/load", {"character_id": char_id})
-        check(status == 200 and body.get("character", {}).get("id") == char_id, "character load round-trips")
+            status, body = call(port, "POST", "/api/characters/load", {"character_id": char_id})
+            check(status == 200 and body.get("character", {}).get("id") == char_id, "character load round-trips")
 
-        status, body = call(port, "POST", "/api/characters/save",
-                            {"character_id": char_id, "level": 2, "pos": [1.0, 0.5, 5.0]})
-        check(status == 200 and body.get("success"), "save with character_id succeeds")
+            status, body = call(port, "POST", "/api/characters/save",
+                                {"character_id": char_id, "level": 2, "pos": [1.0, 0.5, 5.0]})
+            check(status == 200 and body.get("success"), "save with character_id succeeds")
 
-        # Contract pin: the game currently posts the load-shaped dict keyed 'id'.
-        status, body = call(port, "POST", "/api/characters/save", {"id": char_id, "level": 3})
-        check(status == 400, "save without character_id is rejected (400) - client key contract pin")
+            # Contract pin: the game currently posts the load-shaped dict keyed 'id'.
+            status, body = call(port, "POST", "/api/characters/save", {"id": char_id, "level": 3})
+            check(status == 400, "save without character_id is rejected (400) - client key contract pin")
 
-        status, body = call(port, "POST", "/api/trade",
-                            {"player1_id": char_id, "player2_id": char_id})
-        check(status == 503, "trade endpoint stays disabled (503) until the Phase 4 rewrite")
+            status, body = call(port, "POST", "/api/trade",
+                                {"player1_id": char_id, "player2_id": char_id})
+            check(status == 503, "trade endpoint stays disabled (503) until the Phase 4 rewrite")
 
-        status, body = call(port, "POST", "/api/nonexistent", {})
-        check(status == 404, "unknown route returns 404")
-
+            status, body = call(port, "POST", "/api/nonexistent", {})
+            check(status == 404, "unknown route returns 404")
     finally:
-        return finish(tmp, proc)
+        if proc.poll() is None:
+            proc.terminate()
+            try:
+                proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+        shutil.rmtree(tmp, ignore_errors=True)
+    return finish()
 
 
-def finish(tmp, proc):
-    if proc.poll() is None:
-        proc.terminate()
-        try:
-            proc.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-    shutil.rmtree(tmp, ignore_errors=True)
+def finish():
     print(f"SMOKE RESULT: {len(failures)} failures")
     return 1 if failures else 0
 

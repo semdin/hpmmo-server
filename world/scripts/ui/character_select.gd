@@ -1,0 +1,347 @@
+extends Node3D
+
+## 3D Character Selection Stage (Section 3.2 of plan.md)
+## Interactive 3D stone podium with glowing runes, rim lighting, atmospheric embers,
+## house-specific robes, wand tier aura, max 2 characters per account, and arrow-key navigation.
+
+@onready var camera: Camera3D = $Camera3D
+@onready var podium: Node3D = $Podium
+@onready var podium_light: OmniLight3D = $Podium/PodiumLight
+@onready var rune_ring: MeshInstance3D = $Podium/RuneRing
+@onready var model_anchor: Node3D = $Podium/ModelAnchor
+@onready var wand_aura: CPUParticles3D = $Podium/WandAuraParticles
+
+# 2D UI References
+@onready var slot_label: Label = $CanvasLayer/TopBar/SlotLabel
+@onready var char_name_label: Label = $CanvasLayer/InfoCard/Margin/VBox/CharNameLabel
+@onready var char_house_label: Label = $CanvasLayer/InfoCard/Margin/VBox/HouseLabel
+@onready var char_stats_label: Label = $CanvasLayer/InfoCard/Margin/VBox/StatsLabel
+@onready var char_wand_label: Label = $CanvasLayer/InfoCard/Margin/VBox/WandLabel
+@onready var char_galleons_label: Label = $CanvasLayer/InfoCard/Margin/VBox/GalleonsLabel
+@onready var char_location_label: Label = $CanvasLayer/InfoCard/Margin/VBox/LocationLabel
+
+@onready var enter_world_btn: Button = $CanvasLayer/BottomBar/EnterWorldBtn
+@onready var new_char_btn: Button = $CanvasLayer/BottomBar/NewCharBtn
+@onready var prev_slot_btn: Button = $CanvasLayer/NavButtons/PrevSlotBtn
+@onready var next_slot_btn: Button = $CanvasLayer/NavButtons/NextSlotBtn
+@onready var logout_btn: Button = $CanvasLayer/TopBar/LogoutBtn
+
+# Create Character Modal
+@onready var create_modal: PanelContainer = $CanvasLayer/CreateModal
+@onready var new_name_input: LineEdit = $CanvasLayer/CreateModal/Margin/VBox/NameRow/NewNameInput
+@onready var modal_status_label: Label = $CanvasLayer/CreateModal/Margin/VBox/ModalStatusLabel
+@onready var confirm_create_btn: Button = $CanvasLayer/CreateModal/Margin/VBox/Buttons/ConfirmCreateBtn
+@onready var cancel_create_btn: Button = $CanvasLayer/CreateModal/Margin/VBox/Buttons/CancelCreateBtn
+@onready var modal_house_desc: Label = $CanvasLayer/CreateModal/Margin/VBox/HouseDescLabel
+@onready var gryf_btn: Button = $CanvasLayer/CreateModal/Margin/VBox/HouseRow/GryfBtn
+@onready var slyth_btn: Button = $CanvasLayer/CreateModal/Margin/VBox/HouseRow/SlythBtn
+@onready var raven_btn: Button = $CanvasLayer/CreateModal/Margin/VBox/HouseRow/RavenBtn
+@onready var huff_btn: Button = $CanvasLayer/CreateModal/Margin/VBox/HouseRow/HuffBtn
+
+const WIZARD_MODEL_SCENE = preload("res://assets/models/characters/wizard.glb")
+
+var characters: Array = []
+var current_slot: int = 0 # 0 or 1 (max 2 characters)
+var selected_house: String = "Gryffindor"
+var current_char_node: Node3D = null
+var current_anim_player: AnimationPlayer = null
+var is_switching: bool = false
+
+func _ready() -> void:
+	# Connect UI buttons
+	enter_world_btn.pressed.connect(_on_enter_world_pressed)
+	new_char_btn.pressed.connect(_on_new_char_pressed)
+	prev_slot_btn.pressed.connect(func(): _switch_slot((current_slot - 1 + 2) % 2))
+	next_slot_btn.pressed.connect(func(): _switch_slot((current_slot + 1) % 2))
+	logout_btn.pressed.connect(_on_logout_pressed)
+
+	confirm_create_btn.pressed.connect(_on_confirm_create_pressed)
+	cancel_create_btn.pressed.connect(func(): create_modal.hide())
+	gryf_btn.pressed.connect(func(): _select_modal_house("Gryffindor"))
+	slyth_btn.pressed.connect(func(): _select_modal_house("Slytherin"))
+	raven_btn.pressed.connect(func(): _select_modal_house("Ravenclaw"))
+	huff_btn.pressed.connect(func(): _select_modal_house("Hufflepuff"))
+
+	# Connect NetworkManager signals
+	NetworkManager.character_create_result.connect(_on_character_create_result)
+	NetworkManager.character_select_result.connect(_on_character_select_result)
+
+	_select_modal_house("Gryffindor")
+	create_modal.hide()
+
+	# Retrieve characters from NetworkManager cache
+	_load_characters()
+
+func _exit_tree() -> void:
+	if NetworkManager.character_create_result.is_connected(_on_character_create_result):
+		NetworkManager.character_create_result.disconnect(_on_character_create_result)
+	if NetworkManager.character_select_result.is_connected(_on_character_select_result):
+		NetworkManager.character_select_result.disconnect(_on_character_select_result)
+
+func _unhandled_input(event: InputEvent) -> void:
+	if create_modal.visible:
+		return
+	
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_LEFT or event.keycode == KEY_A:
+			_switch_slot((current_slot - 1 + 2) % 2)
+		elif event.keycode == KEY_RIGHT or event.keycode == KEY_D:
+			_switch_slot((current_slot + 1) % 2)
+		elif event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER:
+			if enter_world_btn.visible and not enter_world_btn.disabled:
+				_on_enter_world_pressed()
+
+func _load_characters() -> void:
+	# If characters were passed from login, use them
+	if NetworkManager.local_character_data.has("characters"):
+		characters = NetworkManager.local_character_data["characters"]
+	else:
+		# Check offline local character or peer character list
+		var offline_char = DatabaseManager.load_offline_character()
+		if not offline_char.is_empty():
+			characters = [offline_char]
+		else:
+			characters = []
+
+	current_slot = 0
+	_update_slot_display(false)
+
+func _switch_slot(new_slot: int) -> void:
+	if is_switching or new_slot == current_slot:
+		return
+	is_switching = true
+	current_slot = new_slot
+
+	# Smooth podium 180-degree rotation animation
+	var target_rot_y = podium.rotation.y + PI
+	var tween = create_tween().set_parallel(true)
+	tween.tween_property(podium, "rotation:y", target_rot_y, 0.45).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tween.tween_property(camera, "fov", 58.0, 0.22).set_trans(Tween.TRANS_SINE)
+	tween.chain().tween_property(camera, "fov", 62.0, 0.23).set_trans(Tween.TRANS_SINE)
+	
+	await tween.finished
+	is_switching = false
+	_update_slot_display(true)
+
+func _update_slot_display(_animated: bool = true) -> void:
+	slot_label.text = "BÜYÜCÜ SEÇİMİ — YUVA %d / 2" % [current_slot + 1]
+
+	var has_character = current_slot < characters.size()
+	var total_chars = characters.size()
+
+	# Enforce max 2 characters per account (Section 3.2)
+	if total_chars >= 2:
+		new_char_btn.disabled = true
+		new_char_btn.text = "Maksimum Karakter (2/2)"
+	else:
+		new_char_btn.disabled = false
+		new_char_btn.text = "➕ Yeni Büyücü Oluştur"
+
+	if has_character:
+		var c = characters[current_slot]
+		var c_name: String = c.get("name", "Wizard")
+		var c_house: String = c.get("house", "Gryffindor")
+		var c_level: int = c.get("level", 1)
+		var c_wand: int = c.get("wand_tier", 0)
+		var c_galleons: int = c.get("galleons", 500)
+		var c_hp: int = c.get("current_hp", 500)
+		var c_max_hp: int = c.get("max_hp", 500)
+		var c_mana: int = c.get("current_mana", 300)
+		var c_max_mana: int = c.get("max_mana", 300)
+
+		char_name_label.text = c_name
+		char_house_label.text = "[ %s ]" % c_house
+		if GameData.HOUSES.has(c_house):
+			var house_data = GameData.HOUSES[c_house]
+			char_house_label.modulate = house_data.primary_color
+			_apply_rune_color(house_data.primary_color)
+		
+		char_stats_label.text = "Seviye: %d  |  Can: %d/%d  |  Mana: %d/%d" % [c_level, c_hp, c_max_hp, c_mana, c_max_mana]
+		char_wand_label.text = "Asa: +%d Büyü Gücü" % c_wand
+		char_galleons_label.text = "Servet: %d Galleon 💰" % c_galleons
+		char_location_label.text = "Konum: Hogwarts Avlusu"
+
+		enter_world_btn.visible = true
+		enter_world_btn.disabled = false
+		enter_world_btn.text = "⚔️ '%s' İLE DÜNYAYA GİR" % c_name
+
+		_spawn_podium_character(c)
+	else:
+		char_name_label.text = "[ BOŞ YUVA ]"
+		char_house_label.text = "Yeni bir büyücü oluşturun"
+		char_house_label.modulate = Color(0.7, 0.7, 0.7)
+		char_stats_label.text = "Seviye: —  |  HP: —  |  Mana: —"
+		char_wand_label.text = "Asa: Yok"
+		char_galleons_label.text = "Galleon: 0"
+		char_location_label.text = "Konum: Henüz Başlanmadı"
+
+		enter_world_btn.visible = false
+		_clear_podium_character()
+		_apply_rune_color(Color(0.4, 0.5, 0.7, 0.6))
+
+func _spawn_podium_character(c_data: Dictionary) -> void:
+	_clear_podium_character()
+
+	var wiz = WIZARD_MODEL_SCENE.instantiate()
+	model_anchor.add_child(wiz)
+	current_char_node = wiz
+	wiz.position = Vector3.ZERO
+	wiz.rotation = Vector3.ZERO
+
+	# Hide staff/spellbook, show 1H wand
+	var staff = wiz.get_node_or_null("Rig/Skeleton3D/handslot_r/2H_Staff")
+	if staff: staff.hide()
+	var book1 = wiz.get_node_or_null("Rig/Skeleton3D/handslot_l/Spellbook")
+	if book1: book1.hide()
+	var book2 = wiz.get_node_or_null("Rig/Skeleton3D/handslot_l/Spellbook_open")
+	if book2: book2.hide()
+
+	# Tint cape with house colors
+	var c_house: String = c_data.get("house", "Gryffindor")
+	if GameData.HOUSES.has(c_house):
+		var primary_col = GameData.HOUSES[c_house].primary_color
+		var cape = wiz.get_node_or_null("Rig/Skeleton3D/chest/Mage_Cape")
+		if cape and cape is MeshInstance3D:
+			var mat = StandardMaterial3D.new()
+			mat.albedo_color = primary_col
+			mat.roughness = 0.4
+			cape.set_surface_override_material(0, mat)
+
+	# Wand aura particles
+	var wand_tier: int = c_data.get("wand_tier", 0)
+	if wand_tier >= 4 and wand_aura:
+		var up_info = GameData.UPGRADE_TABLE.get(wand_tier, {})
+		wand_aura.emitting = true
+		wand_aura.color = up_info.get("aura", Color.TRANSPARENT)
+	elif wand_aura:
+		wand_aura.emitting = false
+
+	# Play Idle breathing animation
+	var anim = wiz.find_child("AnimationPlayer", true, false)
+	if anim and anim is AnimationPlayer:
+		current_anim_player = anim
+		if anim.has_animation("Idle"):
+			anim.play("Idle")
+
+func _clear_podium_character() -> void:
+	if is_instance_valid(current_char_node):
+		current_char_node.queue_free()
+		current_char_node = null
+	current_anim_player = null
+	if wand_aura:
+		wand_aura.emitting = false
+
+func _apply_rune_color(col: Color) -> void:
+	if podium_light:
+		podium_light.light_color = col
+	if rune_ring and rune_ring.get_surface_override_material(0):
+		var mat = rune_ring.get_surface_override_material(0)
+		if mat is StandardMaterial3D:
+			mat.albedo_color = col
+			mat.emission = col
+
+func _on_enter_world_pressed() -> void:
+	if current_slot >= characters.size():
+		return
+	
+	var c = characters[current_slot]
+	var char_id: int = c.get("id", 1)
+	enter_world_btn.disabled = true
+	enter_world_btn.text = "Dünya Yükleniyor..."
+
+	if NetworkManager.is_connected_to_game and not NetworkManager.is_server_only_offline():
+		NetworkManager.request_select_character(char_id)
+	else:
+		# Offline / Solo mode selection
+		NetworkManager.local_character_data = c
+		NetworkManager.local_player_name = c.get("name", "Wizard")
+		NetworkManager.local_player_house = c.get("house", "Gryffindor")
+		get_tree().change_scene_to_file("res://scenes/world/game_world.tscn")
+
+func _on_character_select_result(success: bool, message: String, _char_data: Dictionary) -> void:
+	enter_world_btn.disabled = false
+	if not success:
+		slot_label.text = "Hata: %s" % message
+		return
+	
+	get_tree().change_scene_to_file("res://scenes/world/game_world.tscn")
+
+func _on_new_char_pressed() -> void:
+	if characters.size() >= 2:
+		return
+	create_modal.show()
+	modal_status_label.text = ""
+	new_name_input.grab_focus()
+
+func _select_modal_house(h_name: String) -> void:
+	selected_house = h_name
+	if GameData.HOUSES.has(h_name):
+		var data = GameData.HOUSES[h_name]
+		modal_house_desc.text = "%s - \"%s\"\n%s" % [data.name, data.motto, data.trait]
+		modal_house_desc.modulate = data.primary_color
+
+	gryf_btn.flat = (h_name != "Gryffindor")
+	slyth_btn.flat = (h_name != "Slytherin")
+	raven_btn.flat = (h_name != "Ravenclaw")
+	huff_btn.flat = (h_name != "Hufflepuff")
+
+func _on_confirm_create_pressed() -> void:
+	var c_name = new_name_input.text.strip_edges()
+	if c_name.length() < 2:
+		modal_status_label.text = "Karakter adı en az 2 harften oluşmalıdır!"
+		return
+
+	confirm_create_btn.disabled = true
+	modal_status_label.text = "Büyücü oluşturuluyor..."
+
+	if NetworkManager.is_connected_to_game and not NetworkManager.is_server_only_offline():
+		NetworkManager.request_create_character(c_name, selected_house)
+	else:
+		# Offline create
+		var new_char = {
+			"id": characters.size() + 1,
+			"name": c_name,
+			"house": selected_house,
+			"level": 1,
+			"exp": 0,
+			"max_hp": 500,
+			"current_hp": 500,
+			"max_mana": 300,
+			"current_mana": 300,
+			"galleons": 500,
+			"wand_tier": 0,
+			"pos_x": 0.0,
+			"pos_y": 0.5,
+			"pos_z": 5.0,
+			"rot_y": PI,
+			"inventory": [
+				{"id": "wand_hawthorn", "amount": 1, "tier": 0},
+				{"id": "robe_apprentice", "amount": 1, "tier": 0},
+				{"id": "broom_nimbus2000", "amount": 1, "tier": 0},
+				{"id": "mat_phoenix_ash", "amount": 5, "tier": 0},
+				{"id": "mat_dragon_heartstring", "amount": 2, "tier": 0},
+				{"id": "potion_health", "amount": 5, "tier": 0},
+				{"id": "potion_mana", "amount": 5, "tier": 0}
+			],
+			"quests": {}
+		}
+		DatabaseManager.save_offline_character(new_char)
+		characters.append(new_char)
+		confirm_create_btn.disabled = false
+		create_modal.hide()
+		current_slot = characters.size() - 1
+		_update_slot_display(true)
+
+func _on_character_create_result(success: bool, message: String, char_data: Dictionary) -> void:
+	confirm_create_btn.disabled = false
+	if success:
+		characters.append(char_data)
+		create_modal.hide()
+		current_slot = characters.size() - 1
+		_update_slot_display(true)
+	else:
+		modal_status_label.text = message
+
+func _on_logout_pressed() -> void:
+	NetworkManager.disconnect_game()
+	get_tree().change_scene_to_file("res://scenes/main/main_menu.tscn")

@@ -1,0 +1,37 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/spells/protego_shield.gd" id="1_ps"]
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_1"]
+radius = 1.8
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1"]
+transparency = 1
+blend_mode = 1
+albedo_color = Color(0.2, 0.7, 1, 0.35)
+emission_enabled = true
+emission = Color(0.1, 0.5, 0.9, 1)
+emission_energy_multiplier = 1.5
+rim_enabled = true
+rim = 1.0
+
+[sub_resource type="SphereMesh" id="SphereMesh_1"]
+material = SubResource("StandardMaterial3D_1")
+radius = 1.8
+height = 3.6
+
+[node name="ProtegoShield" type="Area3D" groups=["shields"]]
+collision_layer = 16
+collision_mask = 4
+script = ExtResource("1_ps")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("SphereShape3D_1")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+mesh = SubResource("SphereMesh_1")
+
+[node name="OmniLight3D" type="OmniLight3D" parent="."]
+light_color = Color(0.2, 0.7, 1, 1)
+light_energy = 2.0
+omni_range = 5.0

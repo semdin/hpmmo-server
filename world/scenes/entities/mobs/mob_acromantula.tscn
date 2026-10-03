@@ -1,0 +1,39 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/entities/mobs/mob_base.gd" id="1_mb"]
+
+[ext_resource type="Script" path="res://scripts/assets/spider_rig.gd" id="2_rig"]
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_1"]
+radius = 1.0
+
+[node name="MobAcromantula" type="CharacterBody3D" groups=["mobs", "targetable"]]
+collision_layer = 2
+collision_mask = 7
+script = ExtResource("1_mb")
+mob_name = "Acromantula"
+level = 14
+max_hp = 340
+attack_power = 32
+move_speed = 7.5
+aggro_radius = 14.0
+exp_reward = 110
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+shape = SubResource("SphereShape3D_1")
+
+[node name="Visuals" type="Node3D" parent="."]
+
+[node name="SpiderRig" type="Node3D" parent="Visuals"]
+script = ExtResource("2_rig")
+
+[node name="Label3D" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.1, 0)
+billboard = 1
+double_sided = false
+text = "[Lv.14] Acromantula
+340 / 340"
+font_size = 32
+outline_size = 8
+outline_modulate = Color(0, 0, 0, 1)

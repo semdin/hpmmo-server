@@ -1,0 +1,34 @@
+{
+  "Gryffindor": {
+    "name": "Gryffindor",
+    "primary_color": "#c7141f",
+    "secondary_color": "#f2c41f",
+    "trait": "Bravery: +15% Fire Spell Damage & +10% Critical Strike Chance",
+    "motto": "Forti Animo Estote",
+    "starting_bonus": {"bonus_fire_dmg": 0.15, "crit_rate": 0.10}
+  },
+  "Slytherin": {
+    "name": "Slytherin",
+    "primary_color": "#14732e",
+    "secondary_color": "#c0c0c7",
+    "trait": "Ambition: +20% Dark Magic Damage & 10% Life Leech on Hit",
+    "motto": "Soli Fortes Praevalent",
+    "starting_bonus": {"bonus_dark_dmg": 0.20, "life_leech": 0.10}
+  },
+  "Ravenclaw": {
+    "name": "Ravenclaw",
+    "primary_color": "#144794",
+    "secondary_color": "#d18c38",
+    "trait": "Wisdom: -20% Spell Cooldowns & +25% Max Mana Pool",
+    "motto": "Sapientia Super Omnia",
+    "starting_bonus": {"cooldown_reduction": 0.20, "max_mana_mult": 1.25}
+  },
+  "Hufflepuff": {
+    "name": "Hufflepuff",
+    "primary_color": "#ebb826",
+    "secondary_color": "#2e2e2e",
+    "trait": "Loyalty: +25% Max Health & +15% Damage Reduction",
+    "motto": "In Fidelitate Robur",
+    "starting_bonus": {"max_hp_mult": 1.25, "damage_reduction": 0.15}
+  }
+}

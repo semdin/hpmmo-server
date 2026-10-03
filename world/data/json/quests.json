@@ -1,0 +1,32 @@
+{
+  "q_wand_awakening": {
+    "id": "q_wand_awakening",
+    "title": "Wand Awakening",
+    "npc": "Professor Fig",
+    "desc": "Speak with Ollivander in the courtyard and practice casting your Basic Cast and Stupefy on the Training Dummies.",
+    "target_kills": {"TrainingDummy": 3},
+    "reward_exp": 150,
+    "reward_galleons": 100,
+    "reward_items": [{"id": "potion_health", "amount": 3}]
+  },
+  "q_spider_infestation": {
+    "id": "q_spider_infestation",
+    "title": "The Whispering Woods",
+    "npc": "Hagrid",
+    "desc": "The Forbidden Forest is crawling with venomous Acromantulas. Defeat 5 Acromantulas to protect the castle grounds.",
+    "target_kills": {"Acromantula": 5},
+    "reward_exp": 350,
+    "reward_galleons": 250,
+    "reward_items": [{"id": "mat_dragon_heartstring", "amount": 2}]
+  },
+  "q_dark_monolith": {
+    "id": "q_dark_monolith",
+    "title": "Shatter the Dark Monolith",
+    "npc": "Professor Fig",
+    "desc": "A corrupted Dark Monolith has emerged near the Black Lake. Gather other wizards, shatter its obsidian core, and collect the ancient drops.",
+    "target_kills": {"DarkMonolith": 1},
+    "reward_exp": 800,
+    "reward_galleons": 500,
+    "reward_items": [{"id": "mat_thestral_hair", "amount": 1}, {"id": "broom_nimbus2000", "amount": 1}]
+  }
+}

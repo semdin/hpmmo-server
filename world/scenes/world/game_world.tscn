@@ -1,0 +1,348 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/world/game_world.gd" id="1_gw"]
+[ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="2_hud"]
+[ext_resource type="PackedScene" path="res://scenes/ui/inventory_ui.tscn" id="3_inv"]
+[ext_resource type="PackedScene" path="res://scenes/ui/ollivander_ui.tscn" id="4_oll"]
+[ext_resource type="PackedScene" path="res://assets/models/environment/wall_doorway.glb" id="5_door"]
+[ext_resource type="PackedScene" path="res://assets/models/environment/wall_arched.gltf.glb" id="6_arch"]
+[ext_resource type="PackedScene" path="res://assets/models/environment/wall.gltf.glb" id="7_wall"]
+[ext_resource type="PackedScene" path="res://assets/models/environment/pillar_decorated.gltf.glb" id="8_pil"]
+[ext_resource type="PackedScene" path="res://assets/models/environment/torch_lit.gltf.glb" id="9_tor"]
+[ext_resource type="PackedScene" path="res://assets/models/environment/banner_patternA_red.gltf.glb" id="10_red"]
+[ext_resource type="PackedScene" path="res://assets/models/environment/banner_patternA_green.gltf.glb" id="11_grn"]
+[ext_resource type="PackedScene" path="res://assets/models/environment/banner_patternA_blue.gltf.glb" id="12_blu"]
+[ext_resource type="PackedScene" path="res://assets/models/environment/banner_patternA_yellow.gltf.glb" id="13_yel"]
+[ext_resource type="PackedScene" path="res://assets/models/environment/chest_gold.glb" id="14_box"]
+[ext_resource type="PackedScene" path="res://assets/models/environment/column.gltf.glb" id="15_col"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
+sky_top_color = Color(0.04, 0.08, 0.22, 1)
+sky_horizon_color = Color(0.24, 0.22, 0.36, 1)
+ground_bottom_color = Color(0.06, 0.08, 0.06, 1)
+ground_horizon_color = Color(0.14, 0.16, 0.2, 1)
+sun_angle_max = 25.0
+
+[sub_resource type="Sky" id="Sky_env"]
+sky_material = SubResource("ProceduralSkyMaterial_sky")
+
+[sub_resource type="Environment" id="Environment_1"]
+background_mode = 2
+sky = SubResource("Sky_env")
+ambient_light_source = 2
+ambient_light_color = Color(0.25, 0.28, 0.38, 1)
+ambient_light_energy = 0.9
+tonemap_mode = 3
+tonemap_exposure = 1.15
+tonemap_white = 1.15
+ssao_enabled = true
+ssao_radius = 1.5
+ssao_intensity = 1.2
+glow_enabled = true
+glow_levels/1 = 0.6
+glow_levels/2 = 0.4
+glow_intensity = 0.9
+glow_strength = 1.0
+glow_bloom = 0.35
+glow_hdr_threshold = 1.0
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ground"]
+size = Vector3(520, 1, 520)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_grass"]
+albedo_color = Color(0.18, 0.3, 0.15, 1)
+roughness = 0.85
+
+[sub_resource type="BoxMesh" id="BoxMesh_grass"]
+material = SubResource("StandardMaterial3D_grass")
+size = Vector3(520, 1, 520)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_courtyard"]
+albedo_color = Color(0.38, 0.36, 0.35, 1)
+roughness = 0.65
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_courtyard"]
+material = SubResource("StandardMaterial3D_courtyard")
+top_radius = 18.0
+bottom_radius = 18.5
+height = 0.3
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_anvil"]
+albedo_color = Color(0.15, 0.15, 0.18, 1)
+metallic = 0.9
+roughness = 0.3
+
+[sub_resource type="BoxMesh" id="BoxMesh_anvil"]
+material = SubResource("StandardMaterial3D_anvil")
+size = Vector3(1.2, 0.9, 0.8)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_pine"]
+albedo_color = Color(0.1, 0.22, 0.12, 1)
+roughness = 0.7
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_pine1"]
+material = SubResource("StandardMaterial3D_pine")
+top_radius = 0.1
+bottom_radius = 2.4
+height = 3.2
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_pine2"]
+material = SubResource("StandardMaterial3D_pine")
+top_radius = 0.1
+bottom_radius = 1.7
+height = 2.6
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_pine3"]
+material = SubResource("StandardMaterial3D_pine")
+top_radius = 0.05
+bottom_radius = 1.0
+height = 2.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_trunk"]
+albedo_color = Color(0.28, 0.16, 0.08, 1)
+roughness = 0.9
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_trunk"]
+material = SubResource("StandardMaterial3D_trunk")
+top_radius = 0.35
+bottom_radius = 0.45
+height = 2.5
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_rock"]
+albedo_color = Color(0.35, 0.34, 0.32, 1)
+roughness = 0.8
+
+[sub_resource type="SphereMesh" id="SphereMesh_rock"]
+material = SubResource("StandardMaterial3D_rock")
+radius = 1.2
+height = 1.8
+radial_segments = 6
+rings = 4
+
+[node name="GameWorld" type="Node3D"]
+script = ExtResource("1_gw")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_1")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866, -0.354, 0.354, 0, 0.707, 0.707, -0.5, -0.612, 0.612, 0, 35, 0)
+light_color = Color(0.96, 0.92, 0.85, 1)
+light_energy = 1.4
+shadow_enabled = true
+shadow_bias = 0.04
+directional_shadow_mode = 2
+
+[node name="Terrain" type="StaticBody3D" parent="."]
+collision_layer = 1
+collision_mask = 7
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Terrain"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+shape = SubResource("BoxShape3D_ground")
+
+[node name="GrassMesh" type="MeshInstance3D" parent="Terrain"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+mesh = SubResource("BoxMesh_grass")
+
+[node name="Courtyard" type="MeshInstance3D" parent="Terrain"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 6.0)
+mesh = SubResource("CylinderMesh_courtyard")
+
+[node name="CastleFront" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 22.0)
+
+[node name="Doorway" parent="CastleFront" instance=ExtResource("5_door")]
+transform = Transform3D(1.6, 0, 0, 0, 1.6, 0, 0, 0, 1.6, 0, 0, 0)
+
+[node name="WallArchL" parent="CastleFront" instance=ExtResource("6_arch")]
+transform = Transform3D(1.6, 0, 0, 0, 1.6, 0, 0, 0, 1.6, -6.4, 0, 0)
+
+[node name="WallArchR" parent="CastleFront" instance=ExtResource("6_arch")]
+transform = Transform3D(1.6, 0, 0, 0, 1.6, 0, 0, 0, 1.6, 6.4, 0, 0)
+
+[node name="WallL2" parent="CastleFront" instance=ExtResource("7_wall")]
+transform = Transform3D(1.6, 0, 0, 0, 1.6, 0, 0, 0, 1.6, -12.8, 0, 0)
+
+[node name="WallR2" parent="CastleFront" instance=ExtResource("7_wall")]
+transform = Transform3D(1.6, 0, 0, 0, 1.6, 0, 0, 0, 1.6, 12.8, 0, 0)
+
+[node name="HousePillars" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 14.0)
+
+[node name="PillarGryffindor" parent="HousePillars" instance=ExtResource("8_pil")]
+transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, -7.5, 0, 0)
+
+[node name="BannerGryf" parent="HousePillars/PillarGryffindor" instance=ExtResource("10_red")]
+transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0, 2.5, -0.6)
+
+[node name="PillarRavenclaw" parent="HousePillars" instance=ExtResource("8_pil")]
+transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, -2.5, 0, 0)
+
+[node name="BannerRaven" parent="HousePillars/PillarRavenclaw" instance=ExtResource("12_blu")]
+transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0, 2.5, -0.6)
+
+[node name="PillarSlytherin" parent="HousePillars" instance=ExtResource("8_pil")]
+transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 2.5, 0, 0)
+
+[node name="BannerSlyth" parent="HousePillars/PillarSlytherin" instance=ExtResource("11_grn")]
+transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0, 2.5, -0.6)
+
+[node name="PillarHufflepuff" parent="HousePillars" instance=ExtResource("8_pil")]
+transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 7.5, 0, 0)
+
+[node name="BannerHuff" parent="HousePillars/PillarHufflepuff" instance=ExtResource("13_yel")]
+transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0, 2.5, -0.6)
+
+[node name="TorchL" parent="HousePillars" instance=ExtResource("9_tor")]
+transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, -11.0, 0, 0)
+
+[node name="TorchLightL" type="OmniLight3D" parent="HousePillars/TorchL"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.8, 0)
+light_color = Color(1, 0.65, 0.2, 1)
+light_energy = 2.5
+omni_range = 8.0
+
+[node name="TorchR" parent="HousePillars" instance=ExtResource("9_tor")]
+transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 11.0, 0, 0)
+
+[node name="TorchLightR" type="OmniLight3D" parent="HousePillars/TorchR"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.8, 0)
+light_color = Color(1, 0.65, 0.2, 1)
+light_energy = 2.5
+omni_range = 8.0
+
+[node name="OllivanderWorkshop" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.5, 0, 5.0)
+
+[node name="AnvilMesh" type="MeshInstance3D" parent="OllivanderWorkshop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, 0)
+mesh = SubResource("BoxMesh_anvil")
+
+[node name="GoldChest" parent="OllivanderWorkshop" instance=ExtResource("14_box")]
+transform = Transform3D(0.8, 0, 0, 0, 0.8, 0, 0, 0, 0.8, -1.8, 0, 0.2)
+
+[node name="WorkshopLabel" type="Label3D" parent="OllivanderWorkshop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
+billboard = 1
+double_sided = false
+text = "Ollivander's Forge
+[Press 'O' or Bag to Refine]"
+font_size = 28
+outline_size = 8
+outline_modulate = Color(0, 0, 0, 1)
+
+[node name="ForbiddenForest" type="Node3D" parent="."]
+
+[node name="PineTree1" type="Node3D" parent="ForbiddenForest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22.0, 0, -10.0)
+
+[node name="Trunk" type="MeshInstance3D" parent="ForbiddenForest/PineTree1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.25, 0)
+mesh = SubResource("CylinderMesh_trunk")
+
+[node name="Tier1" type="MeshInstance3D" parent="ForbiddenForest/PineTree1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.0, 0)
+mesh = SubResource("CylinderMesh_pine1")
+
+[node name="Tier2" type="MeshInstance3D" parent="ForbiddenForest/PineTree1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.8, 0)
+mesh = SubResource("CylinderMesh_pine2")
+
+[node name="Tier3" type="MeshInstance3D" parent="ForbiddenForest/PineTree1"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6.2, 0)
+mesh = SubResource("CylinderMesh_pine3")
+
+[node name="PineTree2" type="Node3D" parent="ForbiddenForest"]
+transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, -32.0, 0, -22.0)
+
+[node name="Trunk" type="MeshInstance3D" parent="ForbiddenForest/PineTree2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.25, 0)
+mesh = SubResource("CylinderMesh_trunk")
+
+[node name="Tier1" type="MeshInstance3D" parent="ForbiddenForest/PineTree2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.0, 0)
+mesh = SubResource("CylinderMesh_pine1")
+
+[node name="Tier2" type="MeshInstance3D" parent="ForbiddenForest/PineTree2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.8, 0)
+mesh = SubResource("CylinderMesh_pine2")
+
+[node name="Tier3" type="MeshInstance3D" parent="ForbiddenForest/PineTree2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6.2, 0)
+mesh = SubResource("CylinderMesh_pine3")
+
+[node name="PineTree3" type="Node3D" parent="ForbiddenForest"]
+transform = Transform3D(1.1, 0, 0, 0, 1.1, 0, 0, 0, 1.1, 26.0, 0, -12.0)
+
+[node name="Trunk" type="MeshInstance3D" parent="ForbiddenForest/PineTree3"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.25, 0)
+mesh = SubResource("CylinderMesh_trunk")
+
+[node name="Tier1" type="MeshInstance3D" parent="ForbiddenForest/PineTree3"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.0, 0)
+mesh = SubResource("CylinderMesh_pine1")
+
+[node name="Tier2" type="MeshInstance3D" parent="ForbiddenForest/PineTree3"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.8, 0)
+mesh = SubResource("CylinderMesh_pine2")
+
+[node name="Tier3" type="MeshInstance3D" parent="ForbiddenForest/PineTree3"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6.2, 0)
+mesh = SubResource("CylinderMesh_pine3")
+
+[node name="PineTree4" type="Node3D" parent="ForbiddenForest"]
+transform = Transform3D(1.3, 0, 0, 0, 1.3, 0, 0, 0, 1.3, 38.0, 0, -32.0)
+
+[node name="Trunk" type="MeshInstance3D" parent="ForbiddenForest/PineTree4"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.25, 0)
+mesh = SubResource("CylinderMesh_trunk")
+
+[node name="Tier1" type="MeshInstance3D" parent="ForbiddenForest/PineTree4"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.0, 0)
+mesh = SubResource("CylinderMesh_pine1")
+
+[node name="Tier2" type="MeshInstance3D" parent="ForbiddenForest/PineTree4"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.8, 0)
+mesh = SubResource("CylinderMesh_pine2")
+
+[node name="Tier3" type="MeshInstance3D" parent="ForbiddenForest/PineTree4"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6.2, 0)
+mesh = SubResource("CylinderMesh_pine3")
+
+[node name="Boulder1" type="MeshInstance3D" parent="ForbiddenForest"]
+transform = Transform3D(1.4, 0, 0, 0, 0.9, 0, 0, 0, 1.2, -14.0, 0.6, -18.0)
+mesh = SubResource("SphereMesh_rock")
+
+[node name="Boulder2" type="MeshInstance3D" parent="ForbiddenForest"]
+transform = Transform3D(1.8, 0, 0, 0, 1.1, 0, 0, 0, 1.5, 18.0, 0.8, -24.0)
+mesh = SubResource("SphereMesh_rock")
+
+[node name="MonolithPillars" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -32.0)
+
+[node name="Col1" parent="MonolithPillars" instance=ExtResource("15_col")]
+transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, -4.5, 0, -4.5)
+
+[node name="Col2" parent="MonolithPillars" instance=ExtResource("15_col")]
+transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 4.5, 0, -4.5)
+
+[node name="Col3" parent="MonolithPillars" instance=ExtResource("15_col")]
+transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, -4.5, 0, 4.5)
+
+[node name="Col4" parent="MonolithPillars" instance=ExtResource("15_col")]
+transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 4.5, 0, 4.5)
+
+[node name="Players" type="Node3D" parent="."]
+
+[node name="Mobs" type="Node3D" parent="."]
+
+[node name="Monoliths" type="Node3D" parent="."]
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="HUD" parent="CanvasLayer" instance=ExtResource("2_hud")]
+
+[node name="InventoryUI" parent="CanvasLayer" instance=ExtResource("3_inv")]
+
+[node name="OllivanderUI" parent="CanvasLayer" instance=ExtResource("4_oll")]

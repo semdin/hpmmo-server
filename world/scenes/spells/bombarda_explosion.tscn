@@ -1,0 +1,42 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/spells/bombarda_blast.gd" id="1_bb"]
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_1"]
+radius = 8.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_fire"]
+shading_mode = 0
+albedo_color = Color(1, 0.5, 0.1, 1)
+
+[sub_resource type="SphereMesh" id="SphereMesh_fire"]
+material = SubResource("StandardMaterial3D_fire")
+radius = 0.4
+height = 0.8
+
+[node name="BombardaExplosion" type="Area3D"]
+collision_layer = 0
+collision_mask = 7
+script = ExtResource("1_bb")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("SphereShape3D_1")
+
+[node name="OmniLight3D" type="OmniLight3D" parent="."]
+light_color = Color(1, 0.6, 0.15, 1)
+light_energy = 5.0
+omni_range = 14.0
+
+[node name="CPUParticles3D" type="CPUParticles3D" parent="."]
+emitting = true
+amount = 40
+lifetime = 0.7
+one_shot = true
+explosiveness = 0.95
+mesh = SubResource("SphereMesh_fire")
+spread = 180.0
+gravity = Vector3(0, -4, 0)
+initial_velocity_min = 12.0
+initial_velocity_max = 20.0
+scale_amount_min = 0.5
+scale_amount_max = 1.6
