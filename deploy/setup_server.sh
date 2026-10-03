@@ -35,7 +35,7 @@ fi
 # 1. Update and install prerequisites
 echo "[1/5] Updating packages and installing prerequisites..."
 sudo apt-get update -y
-sudo apt-get install -y wget unzip tar curl ufw python3 python3-pip postgresql postgresql-contrib
+sudo apt-get install -y wget unzip tar curl ufw python3 python3-pip postgresql postgresql-contrib build-essential cmake ninja-build libpq-dev
 pip3 install psycopg2-binary || pip install psycopg2-binary --break-system-packages || true
 
 # 2. Setup Godot 4.7.2 Linux Headless Engine
@@ -69,10 +69,17 @@ if command -v psql &> /dev/null; then
     sudo -u postgres psql -c "CREATE DATABASE hpmmo_db OWNER hpmmo;" 2>/dev/null || true
     sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE hpmmo_db TO hpmmo;" 2>/dev/null || true
 
-    SCHEMA="$GAME_DIR/db/migrations/0001_initial_schema.sql"
-    if [ -f "$SCHEMA" ]; then
-        PGPASSWORD="$HPMMO_DB_PASSWORD" psql -h localhost -U hpmmo -d hpmmo_db -f "$SCHEMA" || true
+    if [ -f "$GAME_DIR/deploy/apply_migrations.sh" ]; then
+        echo "Applying database migrations..."
+        bash "$GAME_DIR/deploy/apply_migrations.sh" || true
     fi
+fi
+
+# Compile C++ persistence microservice (Phase 4)
+if [ -d "$GAME_DIR/services/cpp" ]; then
+    echo "Building C++ persistence service (hpmmo_service)..."
+    cmake -S "$GAME_DIR/services/cpp" -B "$GAME_DIR/services/cpp/build" -G Ninja -DCMAKE_BUILD_TYPE=Release
+    ninja -C "$GAME_DIR/services/cpp/build"
 fi
 
 # 4. Firewall (SSH, 7777 UDP game, 8081 TCP API - see plan.md B3 before exposing 8081)
@@ -82,19 +89,20 @@ sudo ufw allow 7777/udp || true
 sudo ufw allow 8081/tcp || true
 sudo ufw --force enable || true
 
-# 5. Systemd services (hpmmo-db & hpmmo) in the Phase 3 layout
+# 5. Systemd services (hpmmo-db & hpmmo) in the Phase 4/5 layout
 echo "[5/5] Creating systemd background services..."
 sudo tee /etc/systemd/system/hpmmo-db.service > /dev/null <<EOF
 [Unit]
-Description=HPMMO Database & Persistence Microservice
+Description=HPMMO C++ Database & Persistence Microservice
 After=network.target postgresql.service
+Requires=postgresql.service
 
 [Service]
 Type=simple
 User=$USER
-WorkingDirectory=$GAME_DIR/services
+WorkingDirectory=$GAME_DIR/services/cpp
 EnvironmentFile=$ENV_FILE
-ExecStart=/usr/bin/python3 $GAME_DIR/services/db_service.py
+ExecStart=$GAME_DIR/services/cpp/build/hpmmo_service serve
 Restart=always
 RestartSec=3
 
@@ -104,7 +112,7 @@ EOF
 
 sudo tee /etc/systemd/system/hpmmo.service > /dev/null <<EOF
 [Unit]
-Description=HPMMO Dedicated Godot Game Server
+Description=HPMMO Dedicated Godot Game World Server
 After=network.target hpmmo-db.service
 Wants=hpmmo-db.service
 
@@ -113,7 +121,7 @@ Type=simple
 User=$USER
 WorkingDirectory=$GAME_DIR/world
 EnvironmentFile=$ENV_FILE
-ExecStart=$BIN_DIR/godot_server --headless scenes/server/dedicated_server.tscn
+ExecStart=$BIN_DIR/godot_server --headless
 Restart=always
 RestartSec=5
 

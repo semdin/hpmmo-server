@@ -30,7 +30,7 @@ mkdir -p "$STAGE_DIR"
 tar -xzf "$ARCHIVE" -C "$STAGE_DIR"
 
 echo "[2/6] Sanity checks on the staged release..."
-for f in world/project.godot services/db_service.py contracts/protocol.md; do
+for f in world/project.godot services/cpp/src/main.cpp contracts/protocol.md; do
     if [ ! -e "$STAGE_DIR/$f" ]; then
         echo "ERROR: staged release is missing $f" >&2
         exit 1
@@ -40,6 +40,10 @@ if find "$STAGE_DIR" -name '*.db' | grep -q .; then
     echo "ERROR: staged release contains an account database file" >&2
     exit 1
 fi
+
+echo "Compiling C++ persistence service in staging..."
+cmake -S "$STAGE_DIR/services/cpp" -B "$STAGE_DIR/services/cpp/build" -G Ninja -DCMAKE_BUILD_TYPE=Release
+ninja -C "$STAGE_DIR/services/cpp/build"
 
 echo "[3/6] Stopping services..."
 sudo systemctl stop hpmmo || true
