@@ -126,73 +126,67 @@ func _on_login_pressed() -> void:
 	var user = username_input.text.strip_edges()
 	var pass_w = password_input.text.strip_edges()
 	if user.is_empty() or pass_w.is_empty():
-		auth_status_label.text = "Please enter both account username and password."
+		auth_status_label.text = "Lütfen kullanıcı adı ve şifre girin."
 		return
 	
-	pending_auth = {"action": "login", "user": user, "pass": pass_w}
-	_connect_to_server_if_needed()
+	var ip = ip_input.text.strip_edges()
+	if ip.is_empty():
+		ip = "213.250.145.75"
+	DatabaseManager.api_base_url = "http://%s:8081" % ip
+	
+	auth_status_label.text = "Giriş yapılıyor..."
+	login_btn.disabled = true
+	register_btn.disabled = true
+	
+	DatabaseManager.login_account(user, pass_w, func(res: Dictionary):
+		if not bool(res.get("success", false)):
+			login_btn.disabled = false
+			register_btn.disabled = false
+			auth_status_label.text = "Giriş başarısız: %s" % str(res.get("message", "Kullanıcı adı veya şifre hatalı."))
+			return
+		
+		DatabaseManager.session_token = str(res.get("token", ""))
+		DatabaseManager.session_account_id = int(res.get("account_id", 0))
+		DatabaseManager.session_active = true
+		
+		auth_status_label.text = "Karakterler yükleniyor..."
+		DatabaseManager.get_characters(DatabaseManager.session_account_id, func(char_res: Dictionary):
+			login_btn.disabled = false
+			register_btn.disabled = false
+			if not bool(char_res.get("success", false)):
+				auth_status_label.text = "Karakterler alınamadı: %s" % str(char_res.get("message", "Sunucu hatası."))
+				return
+			
+			characters_cache = char_res.get("characters", [])
+			NetworkManager.local_character_data = {"characters": characters_cache}
+			_enter_world_with_session()
+		)
+	)
 
 func _on_register_pressed() -> void:
 	var user = username_input.text.strip_edges()
 	var pass_w = password_input.text.strip_edges()
 	if user.length() < 3 or pass_w.length() < 4:
-		auth_status_label.text = "Username must be >= 3 chars, password >= 4 chars."
-		return
-	
-	pending_auth = {"action": "register", "user": user, "pass": pass_w}
-	_connect_to_server_if_needed()
-
-func _connect_to_server_if_needed() -> void:
-	if NetworkManager.is_connected_to_game and NetworkManager.multiplayer.has_multiplayer_peer():
-		_execute_pending_auth()
+		auth_status_label.text = "Kullanıcı adı en az 3, şifre en az 4 karakter olmalıdır."
 		return
 	
 	var ip = ip_input.text.strip_edges()
 	if ip.is_empty():
-		ip = "127.0.0.1"
-	var port = int(port_input.text) if not port_input.text.is_empty() else 7777
+		ip = "213.250.145.75"
+	DatabaseManager.api_base_url = "http://%s:8081" % ip
 	
-	auth_status_label.text = "Connecting to %s:%d..." % [ip, port]
+	auth_status_label.text = "Hesap oluşturuluyor..."
 	login_btn.disabled = true
 	register_btn.disabled = true
 	
-	var err = NetworkManager.join_game(ip, port)
-	if err != OK:
+	DatabaseManager.register_account(user, pass_w, func(res: Dictionary):
 		login_btn.disabled = false
 		register_btn.disabled = false
-		auth_status_label.text = "Failed to open network socket to server."
-
-func _on_connection_succeeded() -> void:
-	login_btn.disabled = false
-	register_btn.disabled = false
-	auth_status_label.text = "Connected! Authenticating..."
-	_execute_pending_auth()
-
-func _execute_pending_auth() -> void:
-	if pending_auth.is_empty():
-		return
-	var action = pending_auth.get("action", "")
-	var user = pending_auth.get("user", "")
-	var pass_w = pending_auth.get("pass", "")
-	
-	if action == "login":
-		NetworkManager.request_login(user, pass_w)
-	elif action == "register":
-		NetworkManager.request_register(user, pass_w)
-	pending_auth.clear()
-
-func _on_connection_failed() -> void:
-	login_btn.disabled = false
-	register_btn.disabled = false
-	auth_status_label.text = "Connection failed! Check server IP & firewall."
-
-func _on_network_status(msg: String) -> void:
-	auth_status_label.text = msg
-
-func _on_auth_register_result(success: bool, message: String) -> void:
-	auth_status_label.text = message
-	if success:
-		auth_status_label.text = "Account created! Now click 'Log In' to enter."
+		if bool(res.get("success", false)):
+			auth_status_label.text = "Hesap başarıyla oluşturuldu! Şimdi 'Log In' ile giriş yapabilirsiniz."
+		else:
+			auth_status_label.text = "Kayıt başarısız: %s" % str(res.get("message", "Kayıt hatası."))
+	)
 
 func _on_auth_login_result(success: bool, message: String, characters: Array) -> void:
 	auth_status_label.text = message
@@ -203,7 +197,6 @@ func _on_auth_login_result(success: bool, message: String, characters: Array) ->
 	characters_cache = characters
 	NetworkManager.local_character_data = {"characters": characters}
 	
-	# Transition directly to 3D Character Selection Stage (Section 3.1 & 3.2 of plan.md)
 	if ResourceLoader.exists("res://scenes/main/character_select.tscn"):
 		get_tree().change_scene_to_file("res://scenes/main/character_select.tscn")
 	else:
@@ -265,7 +258,14 @@ func _on_enter_world_pressed() -> void:
 	
 	select_status_label.text = "Loading character into Hogwarts Valley..."
 	enter_world_btn.disabled = true
-	NetworkManager.request_select_character(selected_char_id)
+	for c in characters_cache:
+		if int(c.get("id", 0)) == selected_char_id:
+			NetworkManager.local_character_data = c
+			NetworkManager.local_player_name = c.get("name", "Wizard")
+			NetworkManager.local_player_house = c.get("house", "Gryffindor")
+			break
+	if is_inside_tree() and get_tree():
+		get_tree().change_scene_to_file("res://scenes/world/game_world.tscn")
 
 func _on_character_select_result(success: bool, message: String, _char_data: Dictionary) -> void:
 	enter_world_btn.disabled = false
@@ -297,13 +297,34 @@ func _on_confirm_create_pressed() -> void:
 	
 	create_status_label.text = "Creating character '%s' [%s]..." % [c_name, selected_house]
 	confirm_create_btn.disabled = true
-	NetworkManager.request_create_character(c_name, selected_house)
-
-func _on_character_create_result(success: bool, message: String, char_data: Dictionary) -> void:
-	confirm_create_btn.disabled = false
-	create_status_label.text = message
-	if success:
-		characters_cache.append(char_data)
+	if DatabaseManager.session_active:
+		DatabaseManager.create_character(DatabaseManager.session_account_id, c_name, selected_house, func(res: Dictionary):
+			confirm_create_btn.disabled = false
+			if bool(res.get("success", false)):
+				create_status_label.text = "Character created!"
+				var char_data = res.get("character", {})
+				characters_cache.append(char_data)
+				_render_character_list(characters_cache)
+				_show_panel("select")
+			else:
+				create_status_label.text = "Create failed: %s" % str(res.get("message", "Error"))
+		)
+	else:
+		var new_char = {
+			"id": characters_cache.size() + 1,
+			"name": c_name,
+			"house": selected_house,
+			"level": 1,
+			"exp": 0,
+			"max_hp": 500,
+			"current_hp": 500,
+			"max_mana": 300,
+			"current_mana": 300,
+			"galleons": 500,
+			"wand_tier": 0
+		}
+		confirm_create_btn.disabled = false
+		characters_cache.append(new_char)
 		_render_character_list(characters_cache)
 		_show_panel("select")
 
@@ -366,13 +387,16 @@ func _load_client_config() -> void:
 			if file:
 				var json_res = JSON.parse_string(file.get_as_text())
 				if json_res is Dictionary:
+					var s_ip: String = str(json_res.get("server_ip", "213.250.145.75"))
+					var a_port: int = int(json_res.get("api_port", 8081))
+					DatabaseManager.api_base_url = "http://%s:%d" % [s_ip, a_port]
 					if json_res.has("server_ip") and ip_input:
-						ip_input.text = str(json_res["server_ip"])
+						ip_input.text = s_ip
 					if json_res.has("server_port") and port_input:
 						port_input.text = str(json_res["server_port"])
 					if json_res.has("last_username") and username_input:
 						username_input.text = str(json_res["last_username"])
-					print("[MainMenu] Loaded client configuration from %s" % p)
+					print("[MainMenu] Loaded client configuration from %s (API: %s)" % [p, DatabaseManager.api_base_url])
 					return
 
 func _handle_cmdline_args() -> void:
@@ -383,15 +407,19 @@ func _handle_cmdline_args() -> void:
 		return
 
 	var user_val := ""
+	var pass_val := ""
 	var should_autologin := false
 
 	for i in range(args.size()):
 		var arg = args[i]
 		if arg == "--user" and i + 1 < args.size():
 			user_val = args[i + 1]
+		elif (arg == "--pass" or arg == "--password") and i + 1 < args.size():
+			pass_val = args[i + 1]
 		elif (arg == "--server" or arg == "--ip") and i + 1 < args.size():
 			if ip_input:
 				ip_input.text = args[i + 1]
+			DatabaseManager.api_base_url = "http://%s:8081" % args[i + 1]
 		elif arg == "--port" and i + 1 < args.size():
 			if port_input:
 				port_input.text = args[i + 1]
@@ -400,16 +428,20 @@ func _handle_cmdline_args() -> void:
 
 	if not user_val.is_empty() and username_input:
 		username_input.text = user_val
+	if not pass_val.is_empty() and password_input:
+		password_input.text = pass_val
 
 	if "--no-autologin" in args:
 		return
 
-	# The launcher authenticates over HTTPS and hands the game a single-use
-	# ticket (HPMMO_TICKET) that DatabaseManager redeems for a session. The
-	# game never receives the account password on the command line.
 	if should_autologin:
-		print("[MainMenu] Launcher auto-login requested for '%s'; using the launcher session..." % user_val)
-		_begin_launcher_session()
+		print("[MainMenu] Auto-login requested for '%s'..." % user_val)
+		if DatabaseManager.session_active or DatabaseManager.is_session_pending():
+			_begin_launcher_session()
+		elif not user_val.is_empty() and not pass_val.is_empty():
+			call_deferred("_on_login_pressed")
+		else:
+			_begin_launcher_session()
 
 func _begin_launcher_session() -> void:
 	_show_panel("auth")

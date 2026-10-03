@@ -245,18 +245,13 @@ func _on_enter_world_pressed() -> void:
 		return
 	
 	var c = characters[current_slot]
-	var char_id: int = c.get("id", 1)
 	enter_world_btn.disabled = true
 	enter_world_btn.text = "Dünya Yükleniyor..."
 
-	if NetworkManager.is_connected_to_game and not NetworkManager.is_server_only_offline():
-		NetworkManager.request_select_character(char_id)
-	else:
-		# Offline / Solo mode selection
-		NetworkManager.local_character_data = c
-		NetworkManager.local_player_name = c.get("name", "Wizard")
-		NetworkManager.local_player_house = c.get("house", "Gryffindor")
-		get_tree().change_scene_to_file("res://scenes/world/game_world.tscn")
+	NetworkManager.local_character_data = c
+	NetworkManager.local_player_name = c.get("name", "Wizard")
+	NetworkManager.local_player_house = c.get("house", "Gryffindor")
+	get_tree().change_scene_to_file("res://scenes/world/game_world.tscn")
 
 func _on_character_select_result(success: bool, message: String, _char_data: Dictionary) -> void:
 	enter_world_btn.disabled = false
@@ -294,8 +289,19 @@ func _on_confirm_create_pressed() -> void:
 	confirm_create_btn.disabled = true
 	modal_status_label.text = "Büyücü oluşturuluyor..."
 
-	if NetworkManager.is_connected_to_game and not NetworkManager.is_server_only_offline():
-		NetworkManager.request_create_character(c_name, selected_house)
+	if DatabaseManager.session_active:
+		DatabaseManager.create_character(DatabaseManager.session_account_id, c_name, selected_house, func(res: Dictionary):
+			confirm_create_btn.disabled = false
+			if bool(res.get("success", false)):
+				modal_status_label.text = "Karakter oluşturuldu!"
+				var new_char = res.get("character", {})
+				characters.append(new_char)
+				current_slot = characters.size() - 1
+				create_modal.hide()
+				_update_slot_display(true)
+			else:
+				modal_status_label.text = "Hata: %s" % str(res.get("message", "Oluşturulamadı"))
+		)
 	else:
 		# Offline create
 		var new_char = {

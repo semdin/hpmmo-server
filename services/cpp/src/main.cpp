@@ -8,6 +8,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <string>
 
 namespace {
@@ -42,6 +43,13 @@ Config Config::from_env() {
     c.argon2_t_cost = static_cast<unsigned>(env_int("HPMMO_ARGON2_T", 3));
     c.argon2_parallelism = static_cast<unsigned>(env_int("HPMMO_ARGON2_P", 1));
     c.migrations_dir = env_or("HPMMO_MIGRATIONS_DIR", "db/migrations");
+    if (!std::filesystem::exists(c.migrations_dir)) {
+        if (std::filesystem::exists("../../db/migrations")) {
+            c.migrations_dir = "../../db/migrations";
+        } else if (std::filesystem::exists("../db/migrations")) {
+            c.migrations_dir = "../db/migrations";
+        }
+    }
     c.db_pool_size = static_cast<int>(env_int("HPMMO_DB_POOL", 4));
     c.allow_reset = env_or("HPMMO_ALLOW_RESET", "0") == "1";
     if (c.max_sessions_per_account < 1) c.max_sessions_per_account = 1;  // guard OFFSET arithmetic

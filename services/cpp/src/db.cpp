@@ -399,7 +399,7 @@ MigrationStatus migrate(Conn& conn, const std::string& migrations_dir) {
         return st;
     }
     st.db_reachable = true;
-    Result lock = conn.exec("SELECT pg_advisory_lock(0x48504D4D)");
+    Result lock = conn.exec("SELECT pg_advisory_lock(1213222221)");
     if (!lock.ok) {
         st.error = "could not take migration lock: " + lock.error;
         return st;
@@ -456,7 +456,7 @@ MigrationStatus migrate(Conn& conn, const std::string& migrations_dir) {
         }
         std::printf("[migrate] applied %s\n", path.filename().string().c_str());
     }
-    Result rel = conn.exec("SELECT pg_advisory_unlock(0x48504D4D)");
+    Result rel = conn.exec("SELECT pg_advisory_unlock(1213222221)");
     (void)rel;
     MigrationStatus after = migration_status(conn, migrations_dir);
     return after;
