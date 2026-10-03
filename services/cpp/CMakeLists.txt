@@ -37,17 +37,22 @@ if(NOT PG_ROOT)
     endif()
 endif()
 message(STATUS "PG_ROOT = ${PG_ROOT}")
-find_path(PG_INCLUDE_DIR libpq-fe.h PATHS ${PG_ROOT}/include NO_DEFAULT_PATH)
+find_path(PG_INCLUDE_DIR libpq-fe.h
+    PATHS ${PG_ROOT}/include /usr/include/postgresql /usr/local/include/postgresql
+    PATH_SUFFIXES postgresql)
 if(NOT PG_INCLUDE_DIR)
     find_path(PG_INCLUDE_DIR libpq-fe.h)
 endif()
-find_library(PG_LIBRARY NAMES pq libpq libpq.a PATHS ${PG_ROOT}/lib NO_DEFAULT_PATH)
+find_library(PG_LIBRARY NAMES pq libpq libpq.a
+    PATHS ${PG_ROOT}/lib /usr/lib /usr/local/lib /usr/lib/x86_64-linux-gnu /usr/lib/aarch64-linux-gnu)
 if(NOT PG_LIBRARY)
     find_library(PG_LIBRARY NAMES pq libpq)
 endif()
 if(NOT PG_INCLUDE_DIR OR NOT PG_LIBRARY)
     message(FATAL_ERROR "libpq not found - set -DPG_ROOT=<postgres binaries root> or HPMMO_PG_ROOT")
 endif()
+message(STATUS "Found libpq include: ${PG_INCLUDE_DIR}")
+message(STATUS "Found libpq library: ${PG_LIBRARY}")
 
 add_executable(hpmmo_service
     src/main.cpp
