@@ -20,36 +20,47 @@ New-Item -ItemType Directory -Force $OutDir | Out-Null
 New-Item -ItemType Directory -Force $stage | Out-Null
 
 $include = @('world', 'services', 'contracts', 'db', 'deploy', 'tests')
-foreach ($item in $include) {
-    $src = Join-Path $serverRoot $item
-    if (-not (Test-Path $src)) { throw "missing $item in server repo" }
-    Copy-Item -Recurse -Force $src (Join-Path $stage $item)
-}
-Copy-Item -Force (Join-Path $serverRoot 'README.md') (Join-Path $stage 'README.md')
+try {
+    foreach ($item in $include) {
+        $src = Join-Path $serverRoot $item
+        if (-not (Test-Path $src)) { throw "missing $item in server repo" }
+        Copy-Item -Recurse -Force $src (Join-Path $stage $item)
+    }
+    Copy-Item -Force (Join-Path $serverRoot 'README.md') (Join-Path $stage 'README.md')
 
-# Prune anything that must never ship.
-Get-ChildItem -Recurse -Force $stage -Directory |
-    Where-Object { $_.Name -in @('.godot', '__pycache__', '.git') } |
-    Remove-Item -Recurse -Force
-Get-ChildItem -Recurse -Force $stage -File |
-    Where-Object { $_.Extension -in @('.db', '.pyc', '.log') } |
-    Remove-Item -Force
+    # Prune anything that must never ship.
+    Get-ChildItem -Recurse -Force $stage -Directory |
+        Where-Object { $_.Name -in @('.godot', '__pycache__', '.git') } |
+        Remove-Item -Recurse -Force
+    Get-ChildItem -Recurse -Force $stage -File |
+        Where-Object { $_.Extension -in @('.db', '.pyc', '.log') } |
+        Remove-Item -Force
 
-# Exit-check enforcement: fail the build if account data or client visual
-# payloads leaked into the package.
-$bad = Get-ChildItem -Recurse -Force $stage | Where-Object {
-    $_.Name -eq 'candidates' -or $_.Extension -eq '.db' -or
-    ($_.PSIsContainer -and $_.Name -eq 'assets')
-}
-if ($bad) {
-    throw ("package contains forbidden entries:`n" + (($bad | ForEach-Object { $_.FullName }) -join "`n"))
-}
+    # Exit-check enforcement: no account databases anywhere; no client visual
+    # payloads (candidates/previews/branding) at the package ROOT - the world's
+    # own assets under world/assets are server content and must ship.
+    $bad = @()
+    $bad += Get-ChildItem -Recurse -Force $stage -File | Where-Object { $_.Extension -eq '.db' }
+    $bad += Get-ChildItem -Recurse -Force $stage -Directory | Where-Object { $_.Name -eq 'candidates' }
+    foreach ($rootForbidden in @('assets', 'docs', 'launcher_cpp', 'tools')) {
+        $p = Join-Path $stage $rootForbidden
+        if (Test-Path $p) { $bad += Get-Item $p }
+    }
+    if ($bad) {
+        throw ("package contains forbidden entries:`n" + (($bad | ForEach-Object { $_.FullName }) -join "`n"))
+    }
+    if (-not (Test-Path (Join-Path $stage 'world\assets\models'))) {
+        throw 'world assets missing from the package - run dev.ps1 sync-world first'
+    }
 
-$tar = Join-Path $OutDir "$stageName.tar.gz"
-Push-Location $stage
-tar -czf $tar *
-Pop-Location
-Remove-Item -Recurse -Force $stage
+    $tar = Join-Path $OutDir "$stageName.tar.gz"
+    Push-Location $stage
+    tar -czf $tar *
+    Pop-Location
+}
+finally {
+    Remove-Item -Recurse -Force $stage -ErrorAction SilentlyContinue
+}
 
 $size = (Get-Item $tar).Length
 Write-Output "wrote $tar ($([math]::Round($size / 1MB, 1)) MB)"
