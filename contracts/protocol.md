@@ -1,27 +1,41 @@
 # HPMMO Network Protocol Contract
 
-Generated from `scripts/autoload/network_manager.gd` (client revision pinned in workspace.lock.json).
-Server owns this contract; regenerate with `client/tools/workspace/extract_protocol.py`.
+Generated from `world/addons/hpmmo_sim/net.gd` in the server repository (the client runs a
+hash-pinned copy of the same package). Regenerate with
+`client/tools/workspace/extract_protocol.py`.
+
+Channels: 0 snapshots (unreliable), 1 events (reliable, authority only),
+2 intents (reliable, client -> server), 3 input frames (unreliable, ordered).
+A client's messages are intents: the server validates every one of them and answers with
+its own state. `server_relay` is off, so clients cannot address each other.
 
 | RPC | Flags | Parameters |
 | --- | --- | --- |
-| `rpc_broadcast_state` | `any_peer, unreliable` | pos: Vector3, rot_y: float, mounted: bool, hp: int, level: int |
-| `rpc_relay_state` | `authority, unreliable` | peer_id: int, pos: Vector3, rot_y: float, mounted: bool, hp: int, level: int |
-| `rpc_broadcast_spell` | `any_peer, reliable` | spell_id: String, from_pos: Vector3, dir: Vector3 |
-| `rpc_relay_spell` | `authority, reliable` | caster_id: int, spell_id: String, from_pos: Vector3, dir: Vector3 |
-| `_register_my_info` | `any_peer, reliable` | info: Dictionary |
-| `_sync_player_info` | `authority, reliable` | id: int, info: Dictionary |
-| `rpc_send_chat` | `any_peer, call_local, reliable` | sender_name: String, sender_house: String, message: String |
-| `rpc_request_register` | `any_peer, reliable` | username: String, password: String |
-| `rpc_register_result` | `authority, reliable` | success: bool, message: String |
-| `rpc_request_login` | `any_peer, reliable` | username: String, password: String |
-| `rpc_login_result` | `authority, reliable` | success: bool, message: String, characters: Array |
-| `rpc_request_create_character` | `any_peer, reliable` | char_name: String, house: String |
-| `rpc_create_character_result` | `authority, reliable` | success: bool, message: String, char_data: Dictionary |
-| `rpc_request_select_character` | `any_peer, reliable` | char_id: int |
-| `rpc_character_select_result` | `authority, reliable` | success: bool, message: String, char_data: Dictionary |
+| `sim_join` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | token: String, protocol_version: int, client_version: String |
+| `sim_input` | `any_peer, call_remote, unreliable_ordered, HPProtocol.CH_INPUT` | seq: int, move: Vector2, yaw: float, jump: bool, descend: bool |
+| `sim_cast_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | spell_id: String, aim: Vector3, cast_seq: int |
+| `sim_mount_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | mounted: bool |
+| `sim_respawn_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | - |
+| `sim_pickup_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | loot_uid: int |
+| `sim_chat_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | text: String |
+| `sim_join_result` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | ok: bool, reason: String, uid: int, character: Dictionary, tick: int, world_seed: int |
+| `sim_cast_result` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | cast_seq: int, cast_id: int, ok: bool, reason: String |
+| `sim_cast_started` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | uid: int, cast_id: int, spell_id: String, aim: Vector3, release_tick: int |
+| `sim_cast_released` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | cast_id: int, caster_uid: int, spell_id: String, origin: Vector3, dir: Vector3 |
+| `sim_cast_landed` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | cast_id: int, caster_uid: int, spell_id: String, hits: Array |
+| `sim_damage_event` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | uid: int, amount: int, hp: int, spell_id: String, attacker_uid: int |
+| `sim_death_event` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | uid: int, killer_uid: int |
+| `sim_respawn_event` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | uid: int |
+| `sim_stats_event` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | uid: int, stats: Dictionary |
+| `sim_loot_event` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | uid: int, item_id: String, amount: int, pos: Vector3 |
+| `sim_loot_despawn` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | uid: int |
+| `sim_reward_event` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | character_id: int, exp: int, galleons: int, items: Array, op_id: String |
+| `sim_chat_event` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | text: String |
+| `sim_notice` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | kind: String, detail: String |
+| `sim_snapshot` | `authority, call_remote, unreliable, HPProtocol.CH_SNAPSHOT` | tick: int, chunk: int, chunks: int, data: PackedByteArray |
+| `sim_despawn` | `authority, call_remote, reliable, HPProtocol.CH_SNAPSHOT` | uid: int |
 
-Surface entries: 15. Hash of this document is pinned in the workspace lock;
+Surface entries: 23. Hash of this document is pinned in the workspace lock;
 payload schemas for gameplay data live in `contracts/schemas/`.
 
-Surface hash: `ce1583bff0d92ef394a7139a5b75276122a6e3a0c331a9ae69c2be6aff25730c`
+Surface hash: `045885024db2998250c4e48319397bd014a8bc4712593e94c569bbb459eebed5`
