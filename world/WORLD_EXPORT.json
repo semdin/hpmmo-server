@@ -1,7 +1,7 @@
 {
  "generated": "2026-10-03",
  "source_repository": "hpmmo-client",
- "source_revision": "4cee7c89d99cb581ac1d8693c841a521666b6ec6",
+ "source_revision": "d5728b706864909ce9c66c9739168e9c69c55a47",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/models/characters/wizard.glb": "cf898585da33fab50c724d31605fb931eb2912e6d2280092141e98ca81ad507d",
@@ -71,6 +71,10 @@
   "scenes/spells/bombarda_explosion.tscn": "f42d0fa5c9835d7d4db0f0d388b5691e844ced825f27cffb23b2490569fd07c1",
   "scenes/spells/protego_shield.tscn": "4375b045d640b6fd630091537b393464a30c27532067cf4bad90240cf0c75c66",
   "scenes/spells/spell_projectile.tscn": "bd9cb0dc9ee037a64e7b35f3e80ff177bc1fa54e30b25a10199c848f96821f5d",
+  "scenes/ui/floating_text.tscn": "99bd170e72365f6b3f1db8c0c95c89db5f1825f15e20df710eceb6f42b868d5b",
+  "scenes/ui/hud.tscn": "ac19e3672da133d2bf0afd378f3af7b4b95eaba9d1e84bb2e7edf5a86421583f",
+  "scenes/ui/inventory_ui.tscn": "eb4fe087d0ba38f527852d4938962ab53ff03f90614d758f854af13e95c33817",
+  "scenes/ui/ollivander_ui.tscn": "165506ed56a5725bc8b557586a48f8cda5a392d4c34fa3c73e36283a926e8db2",
   "scenes/world/game_world.tscn": "2674c7c4ea6797a14485dc400616c29e71dad6f6c5f3d66b506d2eb2db406cbb",
   "scripts/assets/material_kit.gd": "d8bd78c8f7092a1491471e44b6b4ca6004082431ceb4694c4a97a4bacd43ade3",
   "scripts/assets/model_factory.gd": "2b0a49b22ed82b65159bd01c837fb3b92ccbff8cf58161dccbfd8b671a9d9189",
