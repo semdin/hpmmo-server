@@ -11,7 +11,8 @@ class_name HPProtocol
 ## Bumped whenever a message shape, semantics, or rule constant changes in a way
 ## that makes older clients disagree. Clients whose version differs are refused
 ## at join instead of silently desyncing.
-const PROTOCOL_VERSION := 4
+## v5: per-map state and the server-authorized map-transfer exchange.
+const PROTOCOL_VERSION := 5
 
 ## Simulation / replication rates.
 const SIM_HZ := 20
@@ -40,6 +41,18 @@ const INTEREST_RADIUS := 70.0
 const MAX_ENTITIES_PER_SNAPSHOT := 30
 const DEFAULT_MAP := "grounds"
 
+## Map transfer (plan.md Phase 8). A client that requested a transfer but never
+## acknowledged readiness must not strand its character between maps, so the
+## reservation expires and the character returns to its last valid safe spawn.
+## Test affordance: HPMMO_DEV_TRANSFER_TIMEOUT_MS (never set in production).
+const TRANSFER_TIMEOUT_MS := 15000
+
+static func transfer_timeout_ms() -> int:
+	var raw := OS.get_environment("HPMMO_DEV_TRANSFER_TIMEOUT_MS")
+	if raw != "" and raw.is_valid_int():
+		return maxi(250, int(raw))
+	return TRANSFER_TIMEOUT_MS
+
 ## Rejection reasons a client must be able to render without a new server build.
 const REJECT_OK := ""
 const REJECT_UNKNOWN_SPELL := "unknown_spell"
@@ -54,6 +67,15 @@ const REJECT_LINE_OF_SIGHT := "no_line_of_sight"
 const REJECT_INPUT_BUFFER := "input_buffer"
 const REJECT_ZONE := "wrong_zone"
 const REJECT_STATE := "invalid_state"
+## Map transfer (plan.md Phase 8).
+const REJECT_TRANSFER_PENDING := "transfer_pending"
+const REJECT_NO_PORTAL := "no_portal"
+const REJECT_WRONG_MAP := "wrong_map"
+const REJECT_NO_FLIGHT := "no_flight"
+const REJECT_MAP_UNAVAILABLE := "map_unavailable"
+const REJECT_MAP_FULL := "map_full"
+const REJECT_TRANSFER_TOKEN := "bad_transfer_token"
+const REJECT_ABORTED := "aborted"
 
 ## Combat state machine (plan Phase 5: idle -> windup -> release -> recovery -> idle).
 enum CastState { IDLE = 0, WINDUP = 1, RELEASE = 2, RECOVERY = 3, STUNNED = 4, DEAD = 5 }
@@ -107,6 +129,16 @@ const MSG_TARGET_REQUEST := "target_request"
 const MSG_INTERACT_REQUEST := "interact_request"
 const MSG_PICKUP_REQUEST := "pickup_request"
 const MSG_RESPAWN_REQUEST := "respawn_request"
+## Map transfer exchange (plan.md Phase 8). request/ready/abort travel client ->
+## server; granted/refused/committed/expired/map_state travel server -> client.
+const MSG_TRANSFER_REQUEST := "transfer_request"
+const MSG_TRANSFER_READY := "transfer_ready"
+const MSG_TRANSFER_ABORT := "transfer_abort"
+const MSG_TRANSFER_GRANTED := "transfer_granted"
+const MSG_TRANSFER_REFUSED := "transfer_refused"
+const MSG_TRANSFER_COMMITTED := "transfer_committed"
+const MSG_TRANSFER_EXPIRED := "transfer_expired"
+const MSG_MAP_STATE := "map_state"
 const MSG_SNAPSHOT := "snapshot"
 const MSG_DESPAWN := "despawn"
 const MSG_STATS := "stats"

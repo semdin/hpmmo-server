@@ -18,11 +18,15 @@ const ACROMANTULA_SCENE = preload("res://scenes/entities/mobs/mob_acromantula.ts
 const SNATCHER_SCENE = preload("res://scenes/entities/mobs/mob_darksnatcher.tscn")
 const OVERLAY_SCRIPT = preload("res://scripts/ui/mmorpg_overlay.gd")
 const WorldBuilderScript = preload("res://scripts/world/world_builder.gd")
+const MapControllerScript = preload("res://scripts/world/map_controller.gd")
 const NPCScript = preload("res://scripts/world/npc.gd")
 const DummyScript = preload("res://scripts/world/training_dummy.gd")
 
 var local_player: Node3D = null
 var overlay: CanvasLayer = null
+## Client half of map transfer (plan.md Phase 8): portal interaction, fade and
+## loading UI, loading the castle interior and unloading the outdoor world.
+var map_controller: Node = null
 var _candle_t: float = 0.0
 var _views: Dictionary = {}          # sim uid -> view node (client role)
 var _view_scenes: Dictionary = {}
@@ -40,6 +44,7 @@ func _ready() -> void:
 		_spawn_local_player()
 		_setup_overlay()
 		_connect_ui_signals()
+		_setup_map_controller()
 	else:
 		print("[Dedicated Server] Headless world active (no local player/UI).")
 		var cl = get_node_or_null("CanvasLayer")
@@ -157,6 +162,13 @@ func _save_offline_state() -> void:
 			"quests": {}
 		}
 		DatabaseManager.save_offline_character(save_data)
+
+func _setup_map_controller() -> void:
+	# One controller per world: it owns the portal trigger volumes, the transfer
+	# fade/loading UI, the floor label, and the load/unload of a second map.
+	map_controller = MapControllerScript.new()
+	map_controller.name = "MapController"
+	add_child(map_controller)
 
 func _setup_overlay() -> void:
 	overlay = CanvasLayer.new()

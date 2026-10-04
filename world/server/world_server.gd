@@ -71,10 +71,49 @@ func _ready() -> void:
 
 	world = WORLD_SCENE.instantiate()
 	add_child(world)
-	print("[WorldServer] world ready: seed=%d tick=%dHz protocol=%d" % [
-		SimAuthority.seed_value, HPProtocol.SIM_HZ, HPProtocol.PROTOCOL_VERSION])
+	# Roster transitions are logged immediately (not only on the 5 s status
+	# tick): operations and the Phase 8 map tests need to see joins, leaves and
+	# entity counts without waiting for a timer.
+	SimAuthority.player_joined.connect(func(_uid: int, _character_id: int, _peer_id: int): _print_roster("join"))
+	SimAuthority.player_left.connect(func(_uid: int, _character_id: int): _print_roster("leave"))
+
+	# --- Phase 8 magical staircase (ADDITIVE dev/test hook) --------------------
+	# The interior map is authored by another workstream and is not part of the
+	# exported world yet, so a test - or local play - can place the staircase by
+	# environment. With HPMMO_DEV_STAIRCASE unset, none of this runs. Production
+	# wiring is the interior scene instancing staircase.tscn at its StaircaseSlot;
+	# the authority runtime is HPStaircase either way.
+	var stair_at := OS.get_environment("HPMMO_DEV_STAIRCASE")
+	if stair_at != "":
+		var parts := stair_at.split(",")
+		if parts.size() == 3:
+			var stair: Node3D = (load("res://addons/hpmmo_sim/staircase.gd") as GDScript).new()
+			stair.name = "MagicalStaircase"
+			add_child(stair)
+			stair.global_position = Vector3(float(parts[0]), float(parts[1]), float(parts[2]))
+			print("[WorldServer] dev magical staircase at %s" % stair.global_position)
+		else:
+			printerr("[WorldServer] HPMMO_DEV_STAIRCASE wants 'x,y,z', got '%s'" % stair_at)
+	# ---------------------------------------------------------------------------
+
+	print("[WorldServer] world ready: seed=%d tick=%dHz protocol=%d maps=%s" % [
+		SimAuthority.seed_value, HPProtocol.SIM_HZ, HPProtocol.PROTOCOL_VERSION,
+		", ".join(HPMaps.map_ids())])
 	print("[WorldServer] listening on :%d - waiting for players" % port)
 	print("=========================================================")
+
+## One line per roster change: enough to prove "no duplicate character" and
+## "the registry did not grow" without reading internals.
+func _print_roster(event: String) -> void:
+	var players := []
+	for peer_id in SimAuthority.players_by_peer.keys():
+		var record := SimAuthority.player_record(int(peer_id))
+		players.append("peer %d uid %d char %d map=%s" % [
+			int(peer_id), int(record.get("uid", 0)), int(record.get("character_id", 0)),
+			String(record.get("map_id", ""))])
+	print("[WorldServer] roster(%s): players=%d entities=%d | %s" % [
+		event, SimAuthority.players_by_peer.size(), SimAuthority.entities.size(),
+		" ; ".join(players)])
 
 func _env(name: String, fallback: String) -> String:
 	var value := OS.get_environment(name)
@@ -94,8 +133,8 @@ func _process(delta: float) -> void:
 		var record := SimAuthority.player_record(int(peer_id))
 		var node = record.get("node")
 		if node != null and is_instance_valid(node):
-			players.append("peer %d uid %d at (%.1f, %.1f, %.1f) hp %d exp %d" % [
-				int(peer_id), int(record.get("uid", 0)),
+			players.append("peer %d uid %d map=%s at (%.1f, %.1f, %.1f) hp %d exp %d" % [
+				int(peer_id), int(record.get("uid", 0)), String(record.get("map_id", "")),
 				(node as Node3D).global_position.x, (node as Node3D).global_position.y,
 				(node as Node3D).global_position.z, int(record.get("hp", 0)),
 				int(record.get("exp", 0))])

@@ -1,0 +1,47 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/world/castle_interior.gd" id="1_ci"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_interior"]
+sky_top_color = Color(0.05, 0.055, 0.08, 1)
+sky_horizon_color = Color(0.12, 0.11, 0.13, 1)
+ground_bottom_color = Color(0.04, 0.04, 0.05, 1)
+ground_horizon_color = Color(0.09, 0.09, 0.11, 1)
+sun_angle_max = 5.0
+
+[sub_resource type="Sky" id="Sky_interior"]
+sky_material = SubResource("ProceduralSkyMaterial_interior")
+
+[sub_resource type="Environment" id="Environment_interior"]
+background_mode = 2
+sky = SubResource("Sky_interior")
+ambient_light_source = 3
+ambient_light_color = Color(0.34, 0.33, 0.38, 1)
+ambient_light_energy = 0.5
+tonemap_mode = 3
+tonemap_exposure = 1.05
+ssao_enabled = true
+ssao_radius = 1.2
+ssao_intensity = 0.8
+glow_enabled = true
+glow_intensity = 0.3
+glow_strength = 1.0
+glow_bloom = 0.08
+
+[node name="CastleInterior" type="Node3D"]
+script = ExtResource("1_ci")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_interior")
+
+[node name="SkyLight" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866, -0.354, 0.354, 0, 0.707, 0.707, -0.5, -0.612, 0.612, 0, 30, 0)
+light_color = Color(0.72, 0.75, 0.9, 1)
+light_energy = 0.35
+shadow_enabled = false
+
+; The grand staircase hall's moving-staircase slot. Owned by the staircase
+; workstream: `castle_interior.gd` instantiates res://scenes/world/castle/
+; staircase.tscn here only when that scene exists in this build.
+[node name="StaircaseSlot" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 200, 0)

@@ -289,6 +289,17 @@ static func _zone_list() -> Array:
 	ensure_loaded()
 	return _zones.get("zones", [])
 
+## Safe zones are map-scoped (plan.md Phase 8): a volume is only evaluated on
+## the maps whose catalog entry references it, so a position inside the castle
+## can never be "protected" by an outdoor volume, and the grounds keep every
+## volume they author. Without a catalog the legacy behaviour (all volumes
+## apply) is preserved rather than silently disabling protection.
+static func _zone_applies(zone: Dictionary, point: Vector3) -> bool:
+	var map_id := HPMaps.map_for_point(point)
+	if not HPMaps.map_exists(map_id):
+		return true
+	return HPMaps.safe_zone_ids(map_id).has(String(zone.get("id", "")))
+
 static func spawn_buffer() -> float:
 	ensure_loaded()
 	return float(_zones.get("spawn_buffer", 8.0))
@@ -318,6 +329,8 @@ static func protection_id(point: Vector3) -> String:
 	return ""
 
 static func _point_in_zone(point: Vector3, zone: Dictionary, pad: float) -> bool:
+	if not _zone_applies(zone, point):
+		return false
 	var y_min := float(zone.get("y_min", -1000.0))
 	var y_max := float(zone.get("y_max", 1000.0))
 	if point.y < y_min or point.y > y_max:
@@ -333,6 +346,15 @@ static func _point_in_zone(point: Vector3, zone: Dictionary, pad: float) -> bool
 		return absf(dx) <= float(half[0]) + pad and absf(dy) <= float(half[1]) + pad and absf(dz) <= float(half[2]) + pad
 	var radius := float(zone.get("radius", 0.0)) + pad
 	return (dx * dx + dz * dz) <= radius * radius
+
+## Zone id for an entity on a specific map. The authored regions belong to one
+## entity set (`spawn_tables.json`); a map that does not run that set (the
+## greybox interior) has no regions, so its entities carry no grounds zone id.
+static func zone_id_for_map(map_id: String, point: Vector3) -> String:
+	ensure_loaded()
+	if map_id == "" or HPMaps.entity_set(map_id) != String(_spawns.get("map_id", "")):
+		return ""
+	return zone_id_for(point)
 
 ## Authored region containing this point (used for entity zone ids and interest
 ## grouping). Falls back to the nearest region whose radius covers the point.

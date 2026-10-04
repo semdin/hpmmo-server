@@ -192,6 +192,9 @@ func save_player(record: Dictionary) -> void:
 
 ## Full character state. `pos` and `inventory` are written wholesale, which is
 ## why the world server is the single writer of a character during its session.
+## `map_id` comes from the authoritative record, never from the client: it is
+## what lets a character that logged out inside the castle resume there, and
+## what makes an interrupted transfer recover to a valid map on relog.
 func character_payload(node: Node, record: Dictionary) -> Dictionary:
 	var inventory: Array = []
 	if "inventory" in node:
@@ -214,7 +217,7 @@ func character_payload(node: Node, record: Dictionary) -> Dictionary:
 		"wand_tier": int(node.get("wand_tier")),
 		"pos": [node.global_position.x, node.global_position.y, node.global_position.z],
 		"rot_y": float(node.get("visuals").rotation.y) if node.get("visuals") != null else 0.0,
-		"map_id": HPProtocol.DEFAULT_MAP,
+		"map_id": String(record.get("map_id", HPProtocol.DEFAULT_MAP)),
 		"inventory": inventory,
 	}
 

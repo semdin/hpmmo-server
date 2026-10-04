@@ -38,15 +38,20 @@ static func _rotation_y(node: Node3D) -> float:
 	return node.rotation.y
 
 
-## Interest set for one peer: everything within INTEREST_RADIUS of that peer's
-## player, plus every pack mate of an in-range mob (a pack must appear whole),
-## plus the player itself.
+## Interest set for one peer: everything ON THAT PEER'S MAP within
+## INTEREST_RADIUS of its player, plus every pack mate of an in-range mob (a
+## pack must appear whole), plus the player itself. Map membership is the outer
+## filter (plan.md Phase 8): a client standing in the castle is never sent
+## outdoor entity state, and vice versa, however close the two maps' coordinates
+## happen to be.
 static func interest_set(authority, peer_id: int, center: Vector3) -> Array:
 	var radius := HPProtocol.INTEREST_RADIUS
 	var own_uid := 0
+	var peer_map := HPProtocol.DEFAULT_MAP
 	var player_record: Dictionary = authority.player_record(peer_id)
 	if not player_record.is_empty():
 		own_uid = int(player_record["uid"])
+		peer_map = String(player_record.get("map_id", HPProtocol.DEFAULT_MAP))
 	var selected: Dictionary = {}
 	var pack_ids: Dictionary = {}
 	for uid in authority.entities.keys():
@@ -54,13 +59,16 @@ static func interest_set(authority, peer_id: int, center: Vector3) -> Array:
 		var kind := int(record.get("kind", 0))
 		if kind == HPProtocol.Kind.LOOT or kind == HPProtocol.Kind.NPC:
 			continue
+		if String(record.get("map_id", HPProtocol.DEFAULT_MAP)) != peer_map:
+			continue
 		var node = record.get("node")
 		if node == null or not is_instance_valid(node):
 			continue
 		if uid == own_uid or (node as Node3D).global_position.distance_to(center) <= radius:
 			selected[uid] = true
+			# Only mobs group by pack: a pack is a single encounter on one map.
 			var pack_id := int(record.get("pack_id", 0))
-			if pack_id > 0:
+			if kind == HPProtocol.Kind.MOB and pack_id > 0:
 				pack_ids[pack_id] = true
 	if not pack_ids.is_empty():
 		for uid in authority.entities.keys():
@@ -68,6 +76,8 @@ static func interest_set(authority, peer_id: int, center: Vector3) -> Array:
 				continue
 			var record: Dictionary = authority.entities[uid]
 			if int(record.get("kind", 0)) != HPProtocol.Kind.MOB:
+				continue
+			if String(record.get("map_id", HPProtocol.DEFAULT_MAP)) != peer_map:
 				continue
 			if not pack_ids.has(int(record.get("pack_id", 0))):
 				continue

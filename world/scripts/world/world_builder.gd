@@ -27,6 +27,33 @@ static func build(world: Node3D) -> void:
 	_build_floating_candles(world)
 	_build_stars_and_moon(world)
 	_build_world_boundaries(world)
+	_build_broom_landing(world)
+
+## Everything build() adds at the world root. `teardown()` frees exactly these,
+## which is what lets the map controller prove an outdoor world can be unloaded
+## before the castle interior is loaded (plan.md Phase 8, "old worlds actually
+## unload"). Scene-authored nodes (Terrain, the HUD, Players, Mobs, NPCs,
+## TrainingGrounds) are NOT in this list: they are the world's collision and its
+## live entities, not its map resources.
+const BUILT_NODES := [
+	"OuterMeadow", "StonePaths", "HogwartsCastle", "CourtyardFountain",
+	"HogsmeadeVillage", "ForbiddenForest", "BlackLake", "QuidditchPitch",
+	"Props", "LevelDressing", "FloatingCandles", "Moon", "MoonLight",
+	"BroomLanding", "WorldBoundaries",
+]
+
+## Free the outdoor scenery built by build(). Nodes are removed from the tree
+## first so `has_node("HogwartsCastle")` is false in the same frame (build() uses
+## that as its idempotence guard), then freed.
+static func teardown(world: Node3D) -> void:
+	if world == null or not is_instance_valid(world):
+		return
+	for node_name in BUILT_NODES:
+		var node := world.get_node_or_null(node_name)
+		if node == null:
+			continue
+		world.remove_child(node)
+		node.queue_free()
 
 # ---------------------------------------------------------------- sky
 
@@ -699,6 +726,7 @@ static func _build_floating_candles(world: Node3D) -> void:
 static func _build_stars_and_moon(world: Node3D) -> void:
 	# moon
 	var moon := MeshInstance3D.new()
+	moon.name = "Moon"
 	var sm := SphereMesh.new()
 	sm.radius = 6.0
 	sm.height = 12.0
@@ -710,10 +738,69 @@ static func _build_stars_and_moon(world: Node3D) -> void:
 	moon.position = Vector3(-140, 110, -220)
 	world.add_child(moon)
 	var ml := DirectionalLight3D.new()
+	ml.name = "MoonLight"
 	ml.light_color = Color(0.7, 0.8, 1.0)
 	ml.light_energy = 0.35
 	ml.rotation_degrees = Vector3(-50, -30, 0)
 	world.add_child(ml)
+
+# ------------------------------------------------------ broom landing (Phase 8)
+
+## Landing/dismount area in front of the castle gate. Broom flight is prohibited
+## inside the castle slice, so a rider lands here and walks in. Purely
+## presentation: flush with the ground and collision-free, so it can never trip
+## the approach route.
+static func _build_broom_landing(world: Node3D) -> void:
+	# Matches the catalog's authored landing circle: castle_door.landing and the
+	# "castle_landing_pad" spawn point in maps.json both centre on (0, -40).
+	var pad := Node3D.new()
+	pad.name = "BroomLanding"
+	pad.position = Vector3(0, 0, -40)
+	world.add_child(pad)
+	var disc := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = 4.0
+	cm.bottom_radius = 4.2
+	cm.height = 0.12
+	cm.material = MaterialKitScript.cobble_material()
+	disc.mesh = cm
+	disc.position.y = -0.04
+	pad.add_child(disc)
+	# painted ring so the pad reads from the air
+	var ring := MeshInstance3D.new()
+	var tm := TorusMesh.new()
+	tm.inner_radius = 3.4
+	tm.outer_radius = 3.7
+	tm.material = MaterialKitScript.gold_material()
+	ring.mesh = tm
+	ring.rotation.x = PI * 0.5
+	ring.position.y = 0.03
+	pad.add_child(ring)
+	# Corner posts sit on the diagonals: the x=0 approach line stays clear.
+	for i in range(4):
+		var angle := PI * 0.25 + TAU * float(i) / 4.0
+		var post := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = Vector3(0.22, 1.2, 0.22)
+		bm.material = MaterialKitScript.wood_material()
+		post.mesh = bm
+		post.position = Vector3(cos(angle) * 4.3, 0.6, sin(angle) * 4.3)
+		pad.add_child(post)
+	var lamp := OmniLight3D.new()
+	lamp.light_color = Color(1.0, 0.85, 0.5)
+	lamp.light_energy = 1.2
+	lamp.omni_range = 14.0
+	lamp.position = Vector3(0, 2.4, 0)
+	pad.add_child(lamp)
+	var label := Label3D.new()
+	label.text = "BROOM LANDING\nDISMOUNT BEFORE ENTERING"
+	label.font_size = 30
+	label.outline_size = 8
+	label.outline_modulate = Color(0, 0, 0)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	# Off the walk line, so it is readable without being walked through.
+	label.position = Vector3(3.2, 3.6, 1.6)
+	pad.add_child(label)
 
 # ---------------------------------------------------------------- boundaries
 

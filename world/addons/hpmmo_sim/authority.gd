@@ -45,6 +45,23 @@ signal player_left(uid: int, character_id: int)
 ## signal to listen to in every role.
 signal maintenance_event(state: String, reason: String, seconds_remaining: int)
 
+## Map transfer lifecycle (plan.md Phase 8). The authority is the only process
+## that grants, commits or expires a transfer; every signal names the peer so the
+## network layer can answer exactly one client. The shapes are the contract the
+## client's map controller is written against:
+##   grant    -> the client loads the destination map (spawn from the catalog)
+##   commit   -> ownership moved; the body is at `pos`
+##   refused  -> nothing changed; `reason` is one of the REJECT_* strings
+##   expired  -> the reservation timed out; the body is back at `pos`
+signal transfer_granted(peer_id: int, token: int, map_id: String, spawn_id: String)
+signal transfer_committed(peer_id: int, token: int, map_id: String, pos: Vector3, spawn_id: String)
+signal transfer_refused(peer_id: int, reason: String)
+signal transfer_expired(peer_id: int, token: int, map_id: String, pos: Vector3)
+## The local body's map changed (or was first assigned, at join). Presentation
+## loads/unloads the map scene and moves the body to the server-approved spot.
+signal map_state(map_id: String, pos: Vector3, spawn_id: String)
+signal map_changed(uid: int, map_id: String, pos: Vector3)
+
 enum Role { OFFLINE, HOST, DEDICATED, CLIENT }
 
 const HPProtocol = preload("res://addons/hpmmo_sim/protocol.gd")
@@ -70,6 +87,26 @@ var _autosave_accumulator_ms: int = 0
 var casts: Dictionary = {}           # cast_id -> cast record
 var projectiles: Array = []          # data-only swept projectiles (authoritative)
 var casts_by_node: Dictionary = {}   # instance_id -> cast_id (casting entity)
+
+## Map transfer reservations (plan.md Phase 8): token -> reservation record.
+## Nothing about a transfer is client-owned: the token references a server-side
+## reservation that expires on the sim clock.
+var transfers: Dictionary = {}
+var _next_transfer_token: int = 1
+
+## Optional map provider (a client-side map controller, or a server-side map
+## host). When present it answers `ensure_map_built(map_id)`, so a transfer is
+## only reserved for a destination whose scene really exists in this build.
+var map_provider: Node = null
+
+## Map the local body belongs to (role CLIENT / HOST / OFFLINE presentation).
+var local_map: String = HPProtocol.DEFAULT_MAP
+## Set by the network layer when the server assigns a map to this client's
+## entity, before the world scene exists (menus load it afterwards).
+var pending_map_state: Dictionary = {}
+
+func local_map_id() -> String:
+	return local_map
 
 const TICK_MS := 1000 / HPProtocol.SIM_HZ
 const AUTOSAVE_INTERVAL_MS := 30000
@@ -163,12 +200,16 @@ func register(kind: int, node: Node3D, extra: Dictionary = {}) -> int:
 	if node == null or not is_instance_valid(node):
 		return 0
 	var uid := _make_uid()
+	var position: Vector3 = node.global_position
+	var map_id := String(extra.get("map_id", ""))
+	if map_id == "":
+		map_id = HPMaps.map_for_point(position)
 	var record := {
 		"uid": uid,
 		"kind": kind,
 		"node": node,
-		"map_id": HPProtocol.DEFAULT_MAP,
-		"zone_id": HPRules.zone_id_for(node.global_position),
+		"map_id": map_id,
+		"zone_id": HPRules.zone_id_for_map(map_id, position),
 		"pack_id": 0,
 		"revision": 1,
 		"damage_log": [],
@@ -222,6 +263,7 @@ func _kind(node: Node) -> int:
 # ------------------------------------------------------------------ lifecycle
 
 func register_player(node: Node3D, character_id: int, peer_id: int) -> int:
+	var start_map := HPMaps.map_for_point(node.global_position)
 	var uid := register(HPProtocol.Kind.PLAYER, node, {
 		"character_id": character_id,
 		"peer_id": peer_id,
@@ -246,6 +288,13 @@ func register_player(node: Node3D, character_id: int, peer_id: int) -> int:
 		"queued_spell": "",
 		"queued_until_tick": 0,
 		"last_cast_seq": -1,
+		"map_id": start_map,
+		## Last server-approved, grounded location. A transfer that never
+		## completes returns the body here instead of stranding it between maps.
+		"safe_spawn_map": start_map,
+		"safe_spawn": node.global_position,
+		"pending_transfer": 0,
+		"transfer_count": 0,
 		"input": {"move": Vector2.ZERO, "yaw": 0.0, "jump": false, "descend": false, "seq": -1},
 	})
 	players_by_peer[peer_id] = uid
@@ -329,6 +378,20 @@ func remove_player(peer_id: int) -> void:
 	if not record.is_empty():
 		if record.has("character_id"):
 			players_by_character.erase(int(record["character_id"]))
+		if int(record.get("pending_transfer", 0)) != 0:
+			# A disconnect during a transfer: drop the reservation and put the
+			# body back on its last valid safe spot before saving, so a relog can
+			# never resume "between maps" and never spawn a duplicate elsewhere.
+			cancel_transfer_for_uid(uid, "disconnect")
+			_settle_to_safe_spawn(record)
+			touch(record)
+		# [Phase 8 staircase - ADDITIVE hook] world objects (the magical staircase)
+		# resolve a body that is leaving mid-travel to a valid landing before the
+		# final save, so a relog never resumes between floors. A no-op while the
+		# group is empty.
+		for resolver in get_tree().get_nodes_in_group(HPStaircase.GROUP_RESOLVER):
+			if resolver.has_method("resolve_departing_player"):
+				resolver.call("resolve_departing_player", record, "disconnect")
 		var node = record.get("node")
 		if persistence != null:
 			persistence.save_player(record)   # last save on the way out
@@ -356,6 +419,8 @@ func submit_input(peer_id: int, seq: int, move: Vector2, yaw: float, jump: bool,
 	var record := player_record(peer_id)
 	if record.is_empty() or bool(record.get("dead", false)):
 		return
+	if int(record.get("pending_transfer", 0)) != 0:
+		return   # the body is owned by the transfer until it completes or expires
 	var intent: Dictionary = record["input"]
 	if seq < int(intent.get("seq", -1)):
 		return
@@ -386,6 +451,8 @@ func cast_for_record(record: Dictionary, spell_id: String, aim: Vector3, cast_se
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
 	if bool(record.get("dead", false)):
 		return _reject_cast(record, cast_seq, HPProtocol.REJECT_DEAD)
+	if int(record.get("pending_transfer", 0)) != 0:
+		return _reject_cast(record, cast_seq, HPProtocol.REJECT_TRANSFER_PENDING)
 	var data := HPRules.spell(spell_id)
 	if data.is_empty():
 		return _reject_cast(record, cast_seq, HPProtocol.REJECT_UNKNOWN_SPELL)
@@ -489,12 +556,19 @@ func submit_mount(peer_id: int, mounted: bool) -> Dictionary:
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
 	if bool(record.get("dead", false)):
 		return HPProtocol.reject(HPProtocol.REJECT_DEAD)
+	if int(record.get("pending_transfer", 0)) != 0:
+		return HPProtocol.reject(HPProtocol.REJECT_TRANSFER_PENDING)
 	if int(record.get("cast_id", 0)) != 0:
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
 	var node: Node3D = record.get("node")
 	if node == null or not is_instance_valid(node):
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
 	if mounted:
+		# Broom flight is prohibited inside the castle slice (plan.md Phase 8).
+		# The authority decides it from the map catalog: a client's own check is
+		# presentation, never the rule.
+		if not HPMaps.flight_allowed(String(record.get("map_id", HPProtocol.DEFAULT_MAP))):
+			return HPProtocol.reject(HPProtocol.REJECT_NO_FLIGHT)
 		# Only from the ground: the flight rule is a rule, not a client courtesy.
 		if node.has_method("is_on_floor") and not node.is_on_floor():
 			return HPProtocol.reject(HPProtocol.REJECT_STATE)
@@ -515,6 +589,278 @@ func submit_respawn(peer_id: int) -> Dictionary:
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
 	_respawn_player(record)
 	return HPProtocol.accept()
+
+# ------------------------------------------------------------- map transfer
+##
+## Server-authorized map transfer (plan.md Phase 8). The sequence is fixed:
+##
+##   request -> validate -> reserve destination -> mark transfer pending
+##   grant   -> the client loads the destination map
+##   ready   -> transfer entity ownership -> spawn from a server-approved spot
+##
+## Nothing here is a client-side teleport: until the readiness acknowledgement
+## arrives the entity keeps its old map, position and collision, no input is
+## accepted, and every failure path (refusal, expiry, disconnect, death) leaves
+## the character at a valid location with no duplicate entity.
+
+func map_id_for_uid(uid: int) -> String:
+	return String(entities.get(uid, {}).get("map_id", ""))
+
+func map_id_of_peer(peer_id: int) -> String:
+	var record := player_record(peer_id)
+	if record.is_empty():
+		return ""
+	return String(record.get("map_id", ""))
+
+func players_on_map(map_id: String) -> int:
+	var count := 0
+	for uid in entities.keys():
+		var record: Dictionary = entities[uid]
+		if int(record.get("kind", 0)) == HPProtocol.Kind.PLAYER \
+				and String(record.get("map_id", "")) == map_id:
+			count += 1
+	return count
+
+## Is the destination buildable in THIS process? The catalog is the baseline;
+## a map provider (a map controller / server-side map host) can additionally
+## answer for a scene that has not shipped yet, so a transfer is never reserved
+## into empty space.
+func map_provider_ready(map_id: String) -> bool:
+	if not HPMaps.map_exists(map_id) or not HPMaps.map_available(map_id):
+		return false
+	if map_provider != null and is_instance_valid(map_provider) \
+			and map_provider.has_method("ensure_map_built"):
+		return bool(map_provider.call("ensure_map_built", map_id))
+	return true
+
+## A client's transfer request. `portal_id` names the doorway the client is
+## standing at; `to_map` is the destination the client *believes* it leads to -
+## checked against the catalog, never trusted. Everything else (spawn, token,
+## expiry, whether the body moves at all) is decided here.
+func request_transfer(peer_id: int, portal_id: String, to_map: String = "") -> Dictionary:
+	if not is_authority():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	if mutations_frozen():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	var record := player_record(peer_id)
+	if record.is_empty():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	# One reservation at a time: a repeated request must not stack tokens.
+	if int(record.get("pending_transfer", 0)) != 0:
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_TRANSFER_PENDING)
+	# A dead or incapacitated body does not walk through doors.
+	if bool(record.get("dead", false)):
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_DEAD)
+	var from_map := String(record.get("map_id", HPProtocol.DEFAULT_MAP))
+	var portal := HPMaps.portal(portal_id)
+	if portal.is_empty() or String(portal.get("map_id", "")) != from_map:
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_NO_PORTAL)
+	var destination := to_map_of(portal)
+	if to_map != "" and to_map != destination:
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_WRONG_MAP)
+	var node: Node3D = record.get("node")
+	if node == null or not is_instance_valid(node):
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_STATE)
+	# The body must actually stand at the portal it names: a request from
+	# anywhere in the world is not a transfer. The authority checks its OWN
+	# position, so a client cannot claim to be at the door.
+	if not HPMaps.portal_contains(portal, node.global_position):
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_RANGE)
+	# Broom flight is prohibited inside the initial castle slice: the authority
+	# refuses the mounted entry and reports why (the client shows the notice).
+	if bool(record.get("mounted", false)) and not HPMaps.flight_allowed(destination):
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_NO_FLIGHT)
+	if destination == from_map or not map_provider_ready(destination):
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_MAP_UNAVAILABLE)
+	var spawn_id := String(portal.get("to_spawn", "default"))
+	if not HPMaps.has_spawn_point(destination, spawn_id):
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_MAP_UNAVAILABLE)
+	if players_on_map(destination) >= HPMaps.capacity(destination):
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_MAP_FULL)
+
+	# --- reserve the destination spawn
+	var token := _next_transfer_token
+	_next_transfer_token += 1
+	var approval: Vector3 = HPMaps.spawn_point(destination, spawn_id)
+	transfers[token] = {
+		"uid": int(record["uid"]),
+		"peer_id": peer_id,
+		"from_map": from_map,
+		"to_map": destination,
+		"spawn_id": spawn_id,
+		"pos": approval,
+		"created_tick": sim_tick,
+		"expires_tick": sim_tick + maxi(1, int(ceil(float(HPProtocol.transfer_timeout_ms()) / TICK_MS))),
+	}
+	# --- mark the transfer pending: no input, no cast, no mount, no pickup until
+	# it completes or expires. Any cast in progress is cancelled (the combat
+	# state machine's map-transfer transition).
+	record["pending_transfer"] = token
+	interrupt_cast(record)
+	var intent: Dictionary = record.get("input", {})
+	intent["move"] = Vector2.ZERO
+	intent["jump"] = false
+	intent["descend"] = false
+	touch(record)
+	emit_signal("transfer_granted", peer_id, token, destination, spawn_id)
+	print("[Authority] transfer %d granted: peer %d %s -> %s (spawn %s)" % [
+		token, peer_id, from_map, destination, spawn_id])
+	return {"ok": true, "reason": HPProtocol.REJECT_OK, "token": token, "map_id": destination,
+		"spawn_id": spawn_id, "pos": approval}
+
+## The client finished loading the destination map. Ownership moves HERE and
+## nowhere else: this is the only place `map_id` changes for a player.
+func transfer_ready(peer_id: int, token: int) -> Dictionary:
+	if not is_authority():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	var record := player_record(peer_id)
+	if record.is_empty():
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_STATE)
+	if not transfers.has(token):
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_TRANSFER_TOKEN)
+	var reservation: Dictionary = transfers[token]
+	if int(reservation.get("uid", 0)) != int(record.get("uid", 0)) \
+			or int(record.get("pending_transfer", 0)) != token:
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_TRANSFER_TOKEN)
+	if sim_tick > int(reservation.get("expires_tick", 0)):
+		_expire_transfer(token, "timeout")
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_TRANSFER_TOKEN)
+	if mutations_frozen():
+		# The save barrier owns the world: keep the reservation pending and
+		# refuse the acknowledgement rather than moving a body mid-save.
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_STATE)
+	_commit_transfer(record, reservation, token)
+	transfers.erase(token)
+	return {"ok": true, "reason": HPProtocol.REJECT_OK, "map_id": String(reservation["to_map"]),
+		"spawn_id": String(reservation["spawn_id"]), "pos": reservation["pos"]}
+
+func _commit_transfer(record: Dictionary, reservation: Dictionary, token: int) -> void:
+	var node: Node3D = record.get("node")
+	var spawn_pos: Vector3 = reservation["pos"]
+	record["map_id"] = String(reservation["to_map"])
+	record["pending_transfer"] = 0
+	record["transfer_count"] = int(record.get("transfer_count", 0)) + 1
+	record["safe_spawn_map"] = String(reservation["to_map"])
+	record["safe_spawn"] = spawn_pos
+	if node != null and is_instance_valid(node):
+		node.global_position = spawn_pos
+		node.set("velocity", Vector3.ZERO)
+	touch(record)
+	emit_signal("transfer_committed", int(reservation["peer_id"]), token,
+		String(reservation["to_map"]), spawn_pos, String(reservation["spawn_id"]))
+	print("[Authority] transfer committed: uid=%d -> %s at (%.1f, %.1f, %.1f)" % [
+		int(record["uid"]), reservation["to_map"], spawn_pos.x, spawn_pos.y, spawn_pos.z])
+
+## The client could not load the destination (or the player cancelled): the
+## reservation is released and the body returns to its last valid safe spawn.
+func transfer_abort(peer_id: int, token: int) -> Dictionary:
+	if not is_authority():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	var record := player_record(peer_id)
+	if record.is_empty():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	var reservation: Dictionary = transfers.get(token, {})
+	if reservation.is_empty() or int(record.get("pending_transfer", 0)) != token \
+			or int(reservation.get("uid", 0)) != int(record.get("uid", 0)):
+		return HPProtocol.reject(HPProtocol.REJECT_TRANSFER_TOKEN)
+	transfers.erase(token)
+	record["pending_transfer"] = 0
+	_settle_to_safe_spawn(record)
+	touch(record)
+	emit_signal("transfer_refused", peer_id, HPProtocol.REJECT_ABORTED)
+	return {"ok": true, "reason": HPProtocol.REJECT_ABORTED,
+		"map_id": String(record.get("map_id", "")), "pos": record.get("safe_spawn", Vector3.ZERO)}
+
+func _refuse_transfer(peer_id: int, reason: String) -> Dictionary:
+	emit_signal("transfer_refused", peer_id, reason)
+	return HPProtocol.reject(reason)
+
+## Releases whatever reservation this entity holds (disconnect, death). The body
+## itself is settled separately by the caller.
+func cancel_transfer_for_uid(uid: int, reason: String) -> void:
+	for token in transfers.keys():
+		var reservation: Dictionary = transfers[token]
+		if int(reservation.get("uid", 0)) != uid:
+			continue
+		transfers.erase(token)
+		var record := record_by_uid(uid)
+		if not record.is_empty() and int(record.get("pending_transfer", 0)) == int(token):
+			record["pending_transfer"] = 0
+			touch(record)
+		print("[Authority] transfer token %d cancelled (%s): uid %d stays in %s" % [
+			int(token), reason, uid, reservation.get("from_map", "")])
+
+## A reservation that was never acknowledged expires on the sim clock (bounded):
+## the character returns to its last valid safe spawn in the map it is really in
+## - never left between maps, never duplicated.
+func _expire_transfer(token: int, reason: String) -> void:
+	if not transfers.has(token):
+		return
+	var reservation: Dictionary = transfers[token]
+	transfers.erase(token)
+	var uid := int(reservation.get("uid", 0))
+	var record := record_by_uid(uid)
+	if record.is_empty() or int(record.get("pending_transfer", 0)) != token:
+		return
+	record["pending_transfer"] = 0
+	_settle_to_safe_spawn(record)
+	touch(record)
+	emit_signal("transfer_expired", int(reservation.get("peer_id", 0)), token,
+		String(record.get("map_id", HPProtocol.DEFAULT_MAP)), record.get("safe_spawn", Vector3.ZERO))
+	print("[Authority] transfer token %d expired (%s): uid %d returned to the last valid safe spawn in %s" % [
+		token, reason, uid, record.get("map_id", "")])
+
+func _check_transfers() -> void:
+	for token in transfers.keys():
+		if sim_tick > int((transfers[token] as Dictionary).get("expires_tick", 0)):
+			_expire_transfer(int(token), "timeout")
+
+## Puts a body back on its last server-approved grounded location (or the map's
+## authored respawn when none is known). This is the one rescue path every
+## interrupted transfer uses.
+func _settle_to_safe_spawn(record: Dictionary) -> void:
+	var map_id := String(record.get("map_id", HPProtocol.DEFAULT_MAP))
+	var pos: Vector3 = HPMaps.respawn_point(map_id)
+	var safe: Vector3 = record.get("safe_spawn", pos)
+	if String(record.get("safe_spawn_map", "")) == map_id and HPMaps.contains_point(map_id, safe):
+		pos = safe
+	var node = record.get("node")
+	if node != null and is_instance_valid(node):
+		(node as Node3D).global_position = pos
+		node.set("velocity", Vector3.ZERO)
+	record["safe_spawn_map"] = map_id
+	record["safe_spawn"] = pos
+
+## The last valid safe spawn is refreshed while a body stands still on real
+## ground in its own map: that is where a failed transfer returns it.
+func _tick_safe_spawns() -> void:
+	for uid in entities.keys():
+		var record: Dictionary = entities[uid]
+		if int(record.get("kind", 0)) != HPProtocol.Kind.PLAYER:
+			continue
+		if bool(record.get("dead", false)) or int(record.get("pending_transfer", 0)) != 0:
+			continue
+		if bool(record.get("mounted", false)):
+			continue
+		var node = record.get("node")
+		if node == null or not is_instance_valid(node):
+			continue
+		var body := node as Node3D
+		if body == null:
+			continue
+		if body.has_method("is_on_floor") and not body.is_on_floor():
+			continue
+		var map_id := String(record.get("map_id", HPProtocol.DEFAULT_MAP))
+		if not HPMaps.contains_point(map_id, body.global_position):
+			continue
+		record["safe_spawn_map"] = map_id
+		record["safe_spawn"] = body.global_position
+
+func _respawn_position_for(record: Dictionary) -> Vector3:
+	return HPMaps.respawn_point(String(record.get("map_id", HPProtocol.DEFAULT_MAP)))
+
+static func to_map_of(portal: Dictionary) -> String:
+	return String(portal.get("to_map", ""))
 
 # ------------------------------------------------------------------ sim loop
 
@@ -543,6 +889,8 @@ func _step() -> void:
 	_advance_effects()
 	_check_respawns()
 	_check_fall_protection()
+	_check_transfers()
+	_tick_safe_spawns()
 	_regen_accumulator_ms += TICK_MS
 	if _regen_accumulator_ms >= REGEN_INTERVAL_MS:
 		_regen_accumulator_ms = 0
@@ -853,9 +1201,12 @@ func mob_area_attack(attacker_node: Node, center: Vector3, radius: float, raw: i
 	if not is_authority():
 		return hits
 	var attacker := record_for(attacker_node)
+	var attacker_map := String(attacker.get("map_id", ""))
 	for uid in entities.keys():
 		var record: Dictionary = entities[uid]
 		if int(record.get("kind", 0)) != HPProtocol.Kind.PLAYER or bool(record.get("dead", false)):
+			continue
+		if attacker_map != "" and String(record.get("map_id", HPProtocol.DEFAULT_MAP)) != attacker_map:
 			continue
 		var node = record.get("node")
 		if node == null or not is_instance_valid(node):
@@ -904,9 +1255,15 @@ func _projectile_damage(projectile: Dictionary, caster: Dictionary) -> int:
 
 func _damageable_targets(caster_uid: int) -> Array:
 	var out: Array = []
+	# A caster with no record (scripted/environmental damage) keeps the legacy
+	# unfiltered behaviour; a real caster can only damage its own map, however
+	# close two maps' coordinates happen to be.
+	var caster_map := String(entities.get(caster_uid, {}).get("map_id", ""))
 	for uid in entities.keys():
 		var record: Dictionary = entities[uid]
 		if uid == caster_uid or bool(record.get("dead", false)):
+			continue
+		if caster_map != "" and String(record.get("map_id", HPProtocol.DEFAULT_MAP)) != caster_map:
 			continue
 		var kind := int(record["kind"])
 		if kind != HPProtocol.Kind.PLAYER and kind != HPProtocol.Kind.MOB \
@@ -1071,6 +1428,10 @@ func interrupt_mob(record: Dictionary) -> void:
 func _kill(target: Dictionary, killer: Dictionary) -> void:
 	if bool(target.get("dead", false)):
 		return
+	# Death cancels a pending transfer: the reservation must not survive the
+	# body it belonged to (the respawn puts the character on its own map).
+	if int(target.get("pending_transfer", 0)) != 0:
+		cancel_transfer_for_uid(int(target["uid"]), "death")
 	target["dead"] = true
 	target["hp"] = 0
 	touch(target)
@@ -1175,19 +1536,22 @@ func _drop_loot(target: Dictionary) -> void:
 		drops = HPRules.mob_loot(is_boss, rng)
 	var node = target.get("node")
 	var origin: Vector3 = node.global_position if node != null and is_instance_valid(node) else Vector3.ZERO
+	var map_id := String(target.get("map_id", HPMaps.map_for_point(origin)))
 	for drop in drops:
-		_spawn_loot_node(String(drop["id"]), int(drop["amount"]), origin)
+		_spawn_loot_node(String(drop["id"]), int(drop["amount"]), origin, map_id)
 
 ## Spawned by the authority; in the dedicated server the loot node is a plain
 ## replicated marker, on the host/offline it is the real pickup scene.
-func _spawn_loot_node(item_id: String, amount: int, origin: Vector3) -> void:
+func _spawn_loot_node(item_id: String, amount: int, origin: Vector3, map_id: String = "") -> void:
 	var uid := _make_uid()
+	if map_id == "":
+		map_id = HPMaps.map_for_point(origin)
 	entities[uid] = {
 		"uid": uid,
 		"kind": HPProtocol.Kind.LOOT,
 		"node": null,
-		"map_id": HPProtocol.DEFAULT_MAP,
-		"zone_id": HPRules.zone_id_for(origin),
+		"map_id": map_id,
+		"zone_id": HPRules.zone_id_for_map(map_id, origin),
 		"pack_id": 0,
 		"revision": 1,
 		"dead": false,
@@ -1215,8 +1579,12 @@ func request_pickup(peer_id: int, loot_uid: int) -> Dictionary:
 	var player := player_record(peer_id)
 	if player.is_empty():
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	if int(player.get("pending_transfer", 0)) != 0:
+		return HPProtocol.reject(HPProtocol.REJECT_TRANSFER_PENDING)
 	var loot: Dictionary = entities.get(loot_uid, {})
 	if loot.is_empty() or int(loot.get("kind", 0)) != HPProtocol.Kind.LOOT:
+		return HPProtocol.reject(HPProtocol.REJECT_NO_TARGET)
+	if String(loot.get("map_id", HPProtocol.DEFAULT_MAP)) != String(player.get("map_id", HPProtocol.DEFAULT_MAP)):
 		return HPProtocol.reject(HPProtocol.REJECT_NO_TARGET)
 	var node: Node3D = player["node"]
 	if node.global_position.distance_to(loot["pos"]) > LOOT_PICKUP_RANGE:
@@ -1271,9 +1639,16 @@ func _respawn_player(record: Dictionary) -> void:
 	record["respawn_tick"] = 0
 	var node = record.get("node")
 	if node != null and is_instance_valid(node):
-		node.global_position = HPRules.respawn_position()
 		if node.has_method("on_authoritative_respawn"):
+			# The node's own handler resets to the legacy single-map spawn; the
+			# authority then places the body at the respawn point of ITS map, so
+			# a character that dies inside the castle does not wake up outdoors.
 			node.call("on_authoritative_respawn")
+		var respawn_pos := _respawn_position_for(record)
+		node.global_position = respawn_pos
+		node.set("velocity", Vector3.ZERO)
+		record["safe_spawn_map"] = String(record.get("map_id", HPProtocol.DEFAULT_MAP))
+		record["safe_spawn"] = respawn_pos
 	touch(record)
 	_push_stats(record)
 	emit_signal("entity_respawned", int(record["uid"]))
@@ -1315,10 +1690,11 @@ func _check_respawns() -> void:
 		if respawn_tick > 0 and sim_tick >= respawn_tick and bool(record.get("dead", false)):
 			_respawn_player(record)
 
-## The kill-plane rule belongs to the authority: a body that falls out of the
-## world is returned to the respawn point by the same process that owns every
-## other position, so it can never be a client-side rescue that other players
-## never see.
+## The kill-plane rule belongs to the authority: a body that falls out of its
+## map is returned to that map's respawn point by the same process that owns
+## every other position, so it can never be a client-side rescue that other
+## players never see. The floor is per map (plan.md Phase 8), which is also what
+## keeps a body inside an empty greybox map at a valid location.
 func _check_fall_protection() -> void:
 	for uid in entities.keys():
 		var record: Dictionary = entities[uid]
@@ -1327,14 +1703,19 @@ func _check_fall_protection() -> void:
 		var node = record.get("node")
 		if node == null or not is_instance_valid(node):
 			continue
-		if (node as Node3D).global_position.y >= -10.0:
+		var map_id := String(record.get("map_id", HPProtocol.DEFAULT_MAP))
+		if (node as Node3D).global_position.y >= HPMaps.y_min(map_id):
 			continue
-		(node as Node3D).global_position = HPRules.respawn_position()
+		(node as Node3D).global_position = _respawn_position_for(record)
 		node.set("velocity", Vector3.ZERO)
 		record["hp"] = int(record.get("max_hp", 1))
 		touch(record)
 		_push_stats(record)
-		print("[Authority] player %d fell out of the world; returned to spawn" % uid)
+		# Rate-limited: a floorless greybox map (before its scene ships) bounces
+		# its bodies at the spawn point and must not flood the server log.
+		if sim_tick - int(record.get("last_fall_warn_tick", -1000)) > 10 * HPProtocol.SIM_HZ:
+			record["last_fall_warn_tick"] = sim_tick
+			print("[Authority] player %d fell out of %s; returned to its spawn" % [uid, map_id])
 
 ## Public EXP grant (kills, quests, monoliths). Level-up rules live here so the
 ## client cannot level itself.
@@ -1436,14 +1817,18 @@ func register_local_player(uid: int, character: Dictionary) -> void:
 
 func record_local_player(uid: int, node: Node3D, character: Dictionary) -> void:
 	var peer_id := SimNet.local_peer_id if SimNet != null else 1
+	var assigned_map := HPMaps.map_for_point(node.global_position)
+	if not pending_map_state.is_empty():
+		assigned_map = String(pending_map_state.get("map_id", assigned_map))
+	local_map = assigned_map
 	entities[uid] = {
 		"uid": uid,
 		"kind": HPProtocol.Kind.PLAYER,
 		"node": node,
 		"local": true,
 		"replica": true,
-		"map_id": HPProtocol.DEFAULT_MAP,
-		"zone_id": HPRules.zone_id_for(node.global_position),
+		"map_id": assigned_map,
+		"zone_id": HPRules.zone_id_for_map(assigned_map, node.global_position),
 		"pack_id": 0,
 		"revision": 0,
 		"dead": false,
@@ -1461,6 +1846,33 @@ func record_local_player(uid: int, node: Node3D, character: Dictionary) -> void:
 	players_by_peer[peer_id] = uid
 	if int(character.get("id", 0)) > 0:
 		players_by_character[int(character["id"])] = uid
+
+## Client-side: the server assigned this body a map. Stored until the body is
+## bound if the world scene does not exist yet, then applied (the map controller
+## loads the scene and the body is placed at the server-approved position).
+func note_map_state(map_id: String, pos: Vector3, spawn_id: String) -> void:
+	pending_map_state = {"map_id": map_id, "spawn_id": spawn_id, "pos": pos}
+	if local_uid != 0 and entities.has(local_uid):
+		apply_map_state(local_uid, map_id, pos, spawn_id)
+	else:
+		emit_signal("map_state", map_id, pos, spawn_id)
+
+func apply_map_state(uid: int, map_id: String, pos: Vector3, spawn_id: String) -> void:
+	pending_map_state = {"map_id": map_id, "spawn_id": spawn_id, "pos": pos}
+	var record: Dictionary = entities.get(uid, {})
+	if not record.is_empty():
+		var changed := String(record.get("map_id", "")) != map_id
+		record["map_id"] = map_id
+		touch(record)
+		if bool(record.get("local", false)) or uid == local_uid:
+			local_map = map_id
+			var node = record.get("node")
+			if node != null and is_instance_valid(node) and node is Node3D:
+				(node as Node3D).global_position = pos
+				node.set("velocity", Vector3.ZERO)
+			if changed:
+				emit_signal("map_changed", uid, map_id, pos)
+	emit_signal("map_state", map_id, pos, spawn_id)
 
 var local_uid: int = 0
 
@@ -1486,7 +1898,9 @@ func upsert_replica(uid: int, kind: int, pos: Vector3, rot_y: float, hp: int, ma
 			"kind": kind,
 			"node": null,
 			"replica": true,
-			"map_id": HPProtocol.DEFAULT_MAP,
+			# Everything the server sends a client is on that client's map (the
+			# interest filter is map-scoped), so the replica inherits it.
+			"map_id": local_map,
 			"zone_id": HPRules.zone_id_for(pos),
 			"revision": 0,
 			"variant": variant,

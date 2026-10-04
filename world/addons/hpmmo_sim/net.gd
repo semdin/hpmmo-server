@@ -144,11 +144,14 @@ func _on_connected_to_server() -> void:
 ## hack to everyone else. Nudge a new arrival to the nearest clear spot instead.
 func _avoid_spawn_overlap(node: Node3D) -> void:
 	const CLEARANCE := 1.4
+	var my_map := HPMaps.map_for_point(node.global_position)
 	var occupied: Array = []
 	for uid in SimAuthority.entities.keys():
 		var record: Dictionary = SimAuthority.entities[uid]
 		if int(record.get("kind", 0)) != HPProtocol.Kind.PLAYER:
 			continue
+		if String(record.get("map_id", HPProtocol.DEFAULT_MAP)) != my_map:
+			continue   # two bodies on different maps are not in each other's way
 		var other = record.get("node")
 		if other != null and is_instance_valid(other) and other != node:
 			occupied.append((other as Node3D).global_position)
@@ -259,6 +262,16 @@ func sim_spawn_player(peer_id: int, identity: Dictionary) -> void:
 		if character.has("pos") and (character["pos"] as Array).size() == 3:
 			var pos: Array = character["pos"]
 			node.global_position = Vector3(float(pos[0]), float(pos[1]), float(pos[2]))
+		# A character that logged out inside the castle resumes there: the saved
+		# map is authoritative, and a saved position that does not belong to it
+		# (an interrupted transfer, an edited save) is replaced by that map's
+		# authored respawn instead of stranding the body between maps.
+		var saved_map := String(character.get("map_id", ""))
+		if HPMaps.map_exists(saved_map):
+			node.global_position = HPMaps.valid_position(saved_map, node.global_position)
+		else:
+			node.global_position = HPMaps.valid_position(
+				HPMaps.map_for_point(node.global_position), node.global_position)
 	elif identity.has("spawn"):
 		var spawn: Array = identity["spawn"]
 		node.global_position = Vector3(float(spawn[0]), float(spawn[1]), float(spawn[2]))
@@ -269,6 +282,10 @@ func sim_spawn_player(peer_id: int, identity: Dictionary) -> void:
 	# The client needs its own numbers immediately: without this it would show
 	# defaults until the first time something changed them.
 	sim_stats_event.rpc_id(peer_id, uid, SimAuthority.build_stats(SimAuthority.entities[uid]))
+	# And it needs to know which map it belongs to before a single snapshot
+	# arrives, or it would boot the wrong map scene.
+	sim_map_state.rpc_id(peer_id, String(SimAuthority.entities[uid].get("map_id", HPProtocol.DEFAULT_MAP)),
+		node.global_position, "")
 	sim_chat_event.rpc("[Server] %s joined the realm." % node.player_name)
 	emit_signal("client_spawned", peer_id, int(identity.get("character_id", 0)), String(node.player_name))
 
@@ -307,6 +324,29 @@ func sim_respawn_request() -> void:
 	if is_client:
 		return
 	SimAuthority.submit_respawn(multiplayer.get_remote_sender_id())
+
+## Map transfer (plan.md Phase 8), client -> server. The client names the portal
+## it stands at and the map it believes the door leads to; the authority checks
+## both against the catalog (never trusting the claim) and answers through the
+## transfer signals, which the bridge below fans out to exactly this peer.
+@rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
+func sim_transfer_request(portal_id: String, to_map: String) -> void:
+	if is_client:
+		return
+	SimAuthority.request_transfer(multiplayer.get_remote_sender_id(),
+		portal_id.strip_edges().substr(0, 64), to_map.strip_edges().substr(0, 64))
+
+@rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
+func sim_transfer_ready(token: int) -> void:
+	if is_client:
+		return
+	SimAuthority.transfer_ready(multiplayer.get_remote_sender_id(), token)
+
+@rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
+func sim_transfer_abort(token: int) -> void:
+	if is_client:
+		return
+	SimAuthority.transfer_abort(multiplayer.get_remote_sender_id(), token)
 
 @rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
 func sim_pickup_request(loot_uid: int) -> void:
@@ -408,6 +448,34 @@ func sim_notice(kind: String, detail: String) -> void:
 func sim_maintenance_event(state: String, reason: String, seconds_remaining: int) -> void:
 	SimAuthority.on_maintenance_event(state, reason, seconds_remaining)
 
+## Map transfer lifecycle (plan.md Phase 8). Emission only: the client's map
+## controller listens to SimAuthority.transfer_* / map_state.
+@rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
+func sim_transfer_granted(token: int, map_id: String, spawn_id: String) -> void:
+	SimAuthority.emit_signal("transfer_granted", local_peer_id, token, map_id, spawn_id)
+
+@rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
+func sim_transfer_committed(token: int, map_id: String, pos: Vector3, spawn_id: String) -> void:
+	SimAuthority.emit_signal("transfer_committed", local_peer_id, token, map_id, pos, spawn_id)
+	# Ownership already moved on the authority: the client binds the new map and
+	# places its predicted body at the server-approved spawn immediately, so the
+	# transition does not wait for the next snapshot.
+	SimAuthority.apply_map_state(SimAuthority.local_uid, map_id, pos, spawn_id)
+
+@rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
+func sim_transfer_refused(reason: String) -> void:
+	SimAuthority.emit_signal("transfer_refused", local_peer_id, reason)
+
+@rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
+func sim_transfer_expired(token: int, map_id: String, pos: Vector3) -> void:
+	SimAuthority.emit_signal("transfer_expired", local_peer_id, token, map_id, pos)
+	# The body is back at its last valid safe spawn: resync the prediction.
+	SimAuthority.apply_map_state(SimAuthority.local_uid, map_id, pos, "")
+
+@rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
+func sim_map_state(map_id: String, pos: Vector3, spawn_id: String) -> void:
+	SimAuthority.note_map_state(map_id, pos, spawn_id)
+
 @rpc("authority", "call_remote", "unreliable", HPProtocol.CH_SNAPSHOT)
 func sim_snapshot(tick: int, chunk: int, chunks: int, data: PackedByteArray) -> void:
 	if not is_client:
@@ -497,6 +565,34 @@ func submit_pickup(player_node: Node, loot_uid: int) -> Dictionary:
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
 	return SimAuthority.request_pickup(int(record.get("peer_id", 0)), loot_uid)
 
+## Map transfer entry points, used by client code in EVERY role (plan.md Phase
+## 8). In role CLIENT the exchange travels to the server; in the authority roles
+## the same engine answers locally, so offline/host play exercises the identical
+## validation. A client-role call answers only "sent": the transfer_* signals
+## are the real answer, and no local code may skip them.
+func request_transfer(player_node: Node, portal_id: String, to_map: String = "") -> Dictionary:
+	if is_client:
+		sim_transfer_request.rpc_id(1, portal_id, to_map)
+		return {"ok": true, "reason": "sent"}
+	var record := SimAuthority.record_for(player_node)
+	if record.is_empty():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	return SimAuthority.request_transfer(int(record.get("peer_id", 0)), portal_id, to_map)
+
+## The client finished loading the destination map: acknowledging is what moves
+## entity ownership. Nothing else may do it.
+func mark_transfer_ready(token: int) -> Dictionary:
+	if is_client:
+		sim_transfer_ready.rpc_id(1, token)
+		return {"ok": true, "reason": "sent"}
+	return SimAuthority.transfer_ready(local_peer_id, token)
+
+func abort_transfer(token: int) -> Dictionary:
+	if is_client:
+		sim_transfer_abort.rpc_id(1, token)
+		return {"ok": true, "reason": "sent"}
+	return SimAuthority.transfer_abort(local_peer_id, token)
+
 func submit_chat(text: String) -> void:
 	if is_client:
 		sim_chat_request.rpc_id(1, text)
@@ -529,6 +625,10 @@ func bridge_authority() -> void:
 	SimAuthority.loot_spawned.connect(broadcast_loot)
 	SimAuthority.loot_taken.connect(broadcast_loot_taken)
 	SimAuthority.maintenance_event.connect(broadcast_maintenance)
+	SimAuthority.transfer_granted.connect(broadcast_transfer_granted)
+	SimAuthority.transfer_committed.connect(broadcast_transfer_committed)
+	SimAuthority.transfer_refused.connect(broadcast_transfer_refused)
+	SimAuthority.transfer_expired.connect(broadcast_transfer_expired)
 	SimAuthority.reward_granted.connect(func(uid: int, character_id: int, exp: int, galleons: int, items: Array, op_id: String):
 		broadcast_reward(uid, character_id, exp, galleons, items, op_id))
 	print("[SimNet] authority events bridged to %d peer(s)" % multiplayer.get_peers().size())
@@ -556,6 +656,8 @@ func _broadcast_snapshots() -> void:
 			var loot: Dictionary = SimAuthority.entities[uid]
 			if int(loot.get("kind", 0)) != HPProtocol.Kind.LOOT:
 				continue
+			if String(loot.get("map_id", HPProtocol.DEFAULT_MAP)) != String(record.get("map_id", HPProtocol.DEFAULT_MAP)):
+				continue   # loot on another map is not this client's to see
 			if (loot["pos"] as Vector3).distance_to(center) > HPProtocol.INTEREST_RADIUS:
 				continue
 			current[int(uid)] = true
@@ -626,15 +728,22 @@ func broadcast_stats(uid: int, stats: Dictionary) -> void:
 func broadcast_loot(uid: int, item_id: String, amount: int, pos: Vector3) -> void:
 	if not has_peers():
 		return
+	var loot_map := String(SimAuthority.entities.get(uid, {}).get("map_id", HPProtocol.DEFAULT_MAP))
 	for peer_id in multiplayer.get_peers():
+		var record := SimAuthority.player_record(peer_id)
+		if record.is_empty() or String(record.get("map_id", HPProtocol.DEFAULT_MAP)) != loot_map:
+			continue
 		sim_loot_event.rpc_id(peer_id, uid, item_id, amount, pos)
 
 func broadcast_loot_taken(uid: int, character_id: int, _item_id: String, _amount: int) -> void:
 	if not has_peers():
 		return
+	var loot_map := String(SimAuthority.entities.get(uid, {}).get("map_id", HPProtocol.DEFAULT_MAP))
 	for peer_id in multiplayer.get_peers():
 		var record := SimAuthority.player_record(peer_id)
-		if not record.is_empty() and int(record.get("character_id", 0)) == character_id:
+		if record.is_empty() or String(record.get("map_id", HPProtocol.DEFAULT_MAP)) != loot_map:
+			continue
+		if int(record.get("character_id", 0)) == character_id:
 			sim_reward_event.rpc_id(peer_id, character_id, 0, 0, [], "loot")
 		sim_loot_despawn.rpc_id(peer_id, uid)
 
@@ -660,6 +769,34 @@ func broadcast_maintenance(state: String, reason: String, seconds_remaining: int
 	if not has_peers():
 		return
 	sim_maintenance_event.rpc(state, reason, seconds_remaining)
+
+## Map transfer fan-out (plan.md Phase 8). Each answer goes to exactly the peer
+## that owns the reservation; a peer that has already dropped is skipped.
+func _send_peer_event(peer_id: int, method: String, args: Array) -> void:
+	if peer_id <= 0 or not has_peers():
+		return
+	if not multiplayer.get_peers().has(peer_id):
+		return
+	callv("rpc_id", [peer_id, method] + args)
+
+func broadcast_transfer_granted(peer_id: int, token: int, map_id: String, spawn_id: String) -> void:
+	_send_peer_event(peer_id, "sim_transfer_granted", [token, map_id, spawn_id])
+
+func broadcast_transfer_committed(peer_id: int, token: int, map_id: String, pos: Vector3, spawn_id: String) -> void:
+	_send_peer_event(peer_id, "sim_transfer_committed", [token, map_id, pos, spawn_id])
+
+func broadcast_transfer_refused(peer_id: int, reason: String) -> void:
+	_send_peer_event(peer_id, "sim_transfer_refused", [reason])
+	if reason != HPProtocol.REJECT_ABORTED:
+		# The player asked to go somewhere; the refusal must say why rather than
+		# silently doing nothing.
+		_send_peer_event(peer_id, "sim_notice", ["transfer_refused", reason])
+
+func broadcast_transfer_expired(peer_id: int, token: int, map_id: String, pos: Vector3) -> void:
+	_send_peer_event(peer_id, "sim_transfer_expired", [token, map_id, pos])
+	_send_peer_event(peer_id, "sim_map_state", [map_id, pos, ""])
+	_send_peer_event(peer_id, "sim_notice", ["transfer_expired",
+		"the transfer timed out; you are back at your last safe spot"])
 
 func _peer_can_see(peer_id: int, uid: int) -> bool:
 	var known: Dictionary = _known_by_peer.get(peer_id, {})

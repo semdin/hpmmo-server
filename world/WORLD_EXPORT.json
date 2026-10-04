@@ -1,7 +1,7 @@
 {
- "generated": "2026-10-03",
+ "generated": "2026-10-04",
  "source_repository": "hpmmo-client",
- "source_revision": "adac84605d9c820c0785034ec5da800aa67f9c91",
+ "source_revision": "1963691c0fce9125edbb48a38b3bf38fca37c82d",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/models/characters/wizard.glb": "cf898585da33fab50c724d31605fb931eb2912e6d2280092141e98ca81ad507d",
@@ -73,6 +73,7 @@
   "scenes/ui/hud.tscn": "ac19e3672da133d2bf0afd378f3af7b4b95eaba9d1e84bb2e7edf5a86421583f",
   "scenes/ui/inventory_ui.tscn": "eb4fe087d0ba38f527852d4938962ab53ff03f90614d758f854af13e95c33817",
   "scenes/ui/ollivander_ui.tscn": "165506ed56a5725bc8b557586a48f8cda5a392d4c34fa3c73e36283a926e8db2",
+  "scenes/world/castle_interior.tscn": "527d6364b1fff18fe5f6c44c22b0afaf6946dfaad5aa1328187084f32379d62e",
   "scenes/world/game_world.tscn": "2674c7c4ea6797a14485dc400616c29e71dad6f6c5f3d66b506d2eb2db406cbb",
   "scripts/assets/material_kit.gd": "d8bd78c8f7092a1491471e44b6b4ca6004082431ceb4694c4a97a4bacd43ade3",
   "scripts/assets/model_factory.gd": "2b0a49b22ed82b65159bd01c837fb3b92ccbff8cf58161dccbfd8b671a9d9189",
@@ -102,12 +103,15 @@
   "scripts/ui/mmorpg_overlay.gd": "362d896cbb07db797402499ad5d05bc7e0b0cfb126497d98e0d9a94760bd8716",
   "scripts/ui/ollivander_ui.gd": "311656e318412c1e6575a66fa6167e90d80cfeaae22500d07caee90fb61879cf",
   "scripts/world/castle_builder.gd": "993af14dd2c7224657349b7dfa1e921d0817c520568ea9edff6f744cc74f6591",
+  "scripts/world/castle_interior.gd": "beaeb2deba9f56b1bf373644596ca2a9810072b424c3a0e96e85e27a3c86cea2",
+  "scripts/world/castle_interior_builder.gd": "7b08da20f7c78c59fd186f7f0cdcf6f7f1aa1824fabf5d7f4140308522e2e456",
   "scripts/world/distant_ridges.gd": "c5e47fc979cc22ea362ece198aed5ef03fb9a07fcede3b5108757b305b9b7a8f",
   "scripts/world/encounter_director.gd": "60c589a54a20f1c4849b7efc0f63c2e80e307a5339cdf726390213bb5c4bfa81",
-  "scripts/world/game_world.gd": "0659776cd0c1c896b7a1eb49180e88d6877cee289e186d0fdad0cd1129778cf8",
+  "scripts/world/game_world.gd": "e19c89ae32af8461627586fdb98bff4f5bada74c692b69608894841fa213c3ff",
+  "scripts/world/map_controller.gd": "5eb4adfdb11cf498cbe9b6d3dc8471a76bb291e928fb198b23e97fe020605759",
   "scripts/world/npc.gd": "94252696b42af9f11797c229603ed523585875e744f6cfa23158901724cbd296",
   "scripts/world/safe_zone.gd": "024b4cd0a2f2cda69a10dd47c718152ba384a89b4be4b51cc4e2559304d2c289",
   "scripts/world/training_dummy.gd": "22b4c47bb1d960322aa5fa62f4950df78d1cb7d5d032f3bf5e0a6439cc8746a2",
-  "scripts/world/world_builder.gd": "3c9bb32832a80209f0218e422d9015b560fb8811caacae954418778453cf81f0"
+  "scripts/world/world_builder.gd": "59af689aa4e94fc2c42df8952cd15835613a93362cfeb2ca1ffe900d72cabffe"
  }
 }
