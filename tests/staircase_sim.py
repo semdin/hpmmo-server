@@ -282,15 +282,24 @@ def test_agreement_and_ride(out_dir):
     if not common:
         return
 
-    # The comparison itself: same state, same destination, same position.
+    # The comparison itself: same state, same destination, same position. Both
+    # clients' ticks are the server tick each snapshot carried (net.gd mirrors
+    # it, never re-derives it), so a shared tick is the same authoritative
+    # instant in both transcripts; each platform reading is that client's own
+    # scene at that tick, never a value copied out of the other transcript.
     state_mismatch = 0
     pos_mismatch = 0
     nav_mismatch = 0
     worst = 0.0
+    first_state = None
+    first_pos = None
     for tick in common:
         a, b = sa[tick], sb[tick]
         if (a["state"], a["from"], a["to"], a["dock"]) != (b["state"], b["from"], b["to"], b["dock"]):
             state_mismatch += 1
+            if first_state is None:
+                first_state = (tick, (a["state"], a["from"], a["to"], a["dock"]),
+                               (b["state"], b["from"], b["to"], b["dock"]))
         if bool(a["nav"]) != bool(b["nav"]) or bool(a["entry"]) != bool(b["entry"]):
             nav_mismatch += 1
         if a["state"] == b["state"]:
@@ -300,11 +309,16 @@ def test_agreement_and_ride(out_dir):
         worst = max(worst, delta)
         if delta > 0.05:
             pos_mismatch += 1
+            if first_pos is None:
+                first_pos = (tick, list(a["platform"]), list(b["platform"]))
     check(state_mismatch == 0,
-          "both clients report the same state/destination on every shared tick (%d disagreements)"
-          % state_mismatch)
+          "both clients report the same state/destination on every shared tick (%d disagreements%s)"
+          % (state_mismatch, "" if first_state is None else
+             "; first at tick %d: alpha %s vs beta %s" % first_state))
     check(pos_mismatch == 0,
-          "both clients report the same platform position on every shared tick (worst %.4f m)" % worst)
+          "both clients report the same platform position on every shared tick (worst %.4f m%s)"
+          % (worst, "" if first_pos is None else
+             "; first at tick %d: alpha %s vs beta %s" % first_pos))
     check(nav_mismatch == 0,
           "both clients agree on whether boarding/navigation is open on every shared tick")
 

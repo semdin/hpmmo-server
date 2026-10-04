@@ -13,21 +13,23 @@ extends Node
 ## Contract it speaks (owned by the server workstream, synced into
 ## `addons/hpmmo_sim/` - verified against the synced copy):
 ##
-##   SimNet.submit_transfer_request(player, portal_id) -> Dictionary
-##   SimNet.submit_transfer_ready(token) -> Dictionary
-##   SimNet.submit_transfer_abort(token) -> Dictionary
-##   SimAuthority.transfer_granted(peer_id, token, map_id, spawn_id, pos)
-##   SimAuthority.transfer_committed(peer_id, token, map_id, spawn_id, pos)
-##   SimAuthority.transfer_refused(peer_id, reason)
-##   SimAuthority.transfer_expired(peer_id, token, map_id, pos)
-##   SimAuthority.map_state(map_id, spawn_id, pos)   # join, or a correction
-##   SimAuthority.map_changed(uid, map_id, pos)
-##   SimAuthority.local_map_id  (property)
+##   SimNet.request_transfer(player, portal_id, to_map) -> Dictionary
+##   SimNet.mark_transfer_ready(token) -> Dictionary
+##   SimNet.abort_transfer(token) -> Dictionary
+##   SimAuthority.transfer_granted(peer_id: int, token: int, map_id: String, spawn_id: String)
+##   SimAuthority.transfer_committed(peer_id: int, token: int, map_id: String, pos: Vector3, spawn_id: String)
+##   SimAuthority.transfer_refused(peer_id: int, reason: String)
+##   SimAuthority.transfer_expired(peer_id: int, token: int, map_id: String, pos: Vector3)
+##   SimAuthority.map_state(map_id: String, pos: Vector3, spawn_id: String)   # join, or a correction
+##   SimAuthority.map_changed(uid: int, map_id: String, pos: Vector3)
 ##
-## Every entry point is probed with has_method()/has_signal() before use, so a
-## contract revision cannot turn into a parse error in the client; and if the
-## transfer API is absent entirely the controller still loads and unloads maps
-## locally, printing one line saying the server handshake was skipped.
+## One contract, one shape: the signals are connected directly to handlers with
+## exactly these signatures, so a revision that renamed a method or reordered a
+## field is a startup error, never a silently normalised no-op. If the API is
+## absent entirely the controller says so loudly and refuses door transfers
+## instead of loading maps locally behind the server's back - offline play does
+## not need a fallback, because the same SimNet entry points answer through the
+## in-process authority in that role too.
 ##
 ## Map data (portals, spawn points) comes from the shared catalog through
 ## HPMaps. The constants below are the same values written out, used as a
@@ -115,14 +117,25 @@ var transfer_log: Array = []
 
 func _ready() -> void:
 	world = get_parent() as Node3D
-	server_api = (SimNet.has_method("request_transfer") or SimNet.has_method("submit_transfer_request")) \
-		and (SimNet.has_method("mark_transfer_ready") or SimNet.has_method("submit_transfer_ready")) \
-		and SimAuthority.has_signal("transfer_granted")
+	# One fail-fast check of the ONE shipped contract, made once at startup.
+	# This is not a probe for an alternative shape: if any part is missing the
+	# synced hpmmo_sim package is broken, and a door must refuse loudly rather
+	# than swap maps locally behind the server's back.
+	server_api = SimNet.has_method("request_transfer") \
+		and SimNet.has_method("mark_transfer_ready") \
+		and SimAuthority.has_signal("transfer_granted") \
+		and SimAuthority.has_signal("transfer_committed") \
+		and SimAuthority.has_signal("transfer_refused") \
+		and SimAuthority.has_signal("transfer_expired") \
+		and SimAuthority.has_signal("map_state") \
+		and SimAuthority.has_signal("map_changed")
 	if not server_api:
-		print("[MapController] hpmmo_sim map-transfer API absent in this build; " +
-			"maps are still loaded and unloaded locally (request -> grant -> load -> " +
-			"ready -> commit) but the server handshake is skipped.")
-	_connect_sim()
+		push_error("[MapController] the synced hpmmo_sim map-transfer API " +
+			"(SimNet.request_transfer/mark_transfer_ready and the transfer_*/map_* signals) " +
+			"is not in this build. Doors are disabled; maps are NOT swapped locally, because " +
+			"a local swap would hide a broken sim-package sync.")
+	else:
+		_connect_sim()
 	_build_ui()
 	current_map = _initial_map()
 	call_deferred("_bind_player")
@@ -157,29 +170,17 @@ func _bind_player() -> void:
 
 ## --------------------------------------------------------------- sim hooks
 
-## Signal connections use small lambdas rather than direct method references:
-## the transfer contract is still moving, and two revisions of it order the
-## position/spawn fields differently. An untyped lambda takes whichever shape is
-## live and normalises it, so a contract revision cannot crash the client.
+## Signal wiring for the one shipped contract: direct, typed connections whose
+## handler signatures are the signal signatures. A contract revision that
+## reorders a field now fails at connect time instead of being normalised into
+## whichever reading the lambda guessed.
 func _connect_sim() -> void:
-	if SimAuthority.has_signal("transfer_granted"):
-		SimAuthority.connect("transfer_granted", func(peer_id, token, map_id, spawn_id):
-			_on_transfer_granted(int(peer_id), int(token), String(map_id), String(spawn_id)))
-	if SimAuthority.has_signal("transfer_committed"):
-		SimAuthority.connect("transfer_committed", func(peer_id, token, map_id, a, b):
-			_on_transfer_committed(int(peer_id), int(token), String(map_id), a, b))
-	if SimAuthority.has_signal("transfer_refused"):
-		SimAuthority.connect("transfer_refused", func(peer_id, reason):
-			_on_transfer_refused(int(peer_id), String(reason)))
-	if SimAuthority.has_signal("transfer_expired"):
-		SimAuthority.connect("transfer_expired", func(peer_id, token, map_id, pos):
-			_on_transfer_expired(int(peer_id), int(token), String(map_id), pos))
-	if SimAuthority.has_signal("map_state"):
-		SimAuthority.connect("map_state", func(map_id, a, b):
-			_on_map_state(String(map_id), a, b))
-	if SimAuthority.has_signal("map_changed"):
-		SimAuthority.connect("map_changed", func(uid, map_id, pos):
-			_on_map_changed(int(uid), String(map_id), pos))
+	SimAuthority.transfer_granted.connect(_on_transfer_granted)
+	SimAuthority.transfer_committed.connect(_on_transfer_committed)
+	SimAuthority.transfer_refused.connect(_on_transfer_refused)
+	SimAuthority.transfer_expired.connect(_on_transfer_expired)
+	SimAuthority.map_state.connect(_on_map_state)
+	SimAuthority.map_changed.connect(_on_map_changed)
 
 func _map_available(map_id: String) -> bool:
 	match map_id:
@@ -275,38 +276,23 @@ func _begin_transfer(portal: Dictionary) -> void:
 	if _mounted():
 		_feedback("Dismount before entering - the broom cannot fly inside the castle.")
 		return
-	_pending_portal = portal
-	var to_map := String(portal.get("to_map", ""))
-	var spawn_id := String(portal.get("to_spawn", "default"))
-	if server_api:
-		# The client names only the portal it stands at: destination, spawn,
-		# token and timing are the server's. In the authority roles the same
-		# engine answers locally, so offline play runs the identical validation.
-		var result: Dictionary = _api_request_transfer(String(portal.get("id", "")), to_map)
-		if not bool(result.get("ok", false)):
-			_feedback(_reason_text(String(result.get("reason", ""))))
-			return
-		if String(result.get("reason", "")) == "sent":
-			return   # the server's answer arrives as a transfer_* signal
+	if not server_api:
+		_feedback("Map transfers are unavailable: the synced map-transfer API is missing from this build.")
 		return
-	# No transfer API in this build: run the same steps locally.
-	_start_transfer(to_map, spawn_id, 0)
-
-## The transfer request entry point, whichever revision of the contract is
-## synced (both take the player and the portal; one also takes the destination).
-func _api_request_transfer(portal_id: String, to_map: String) -> Dictionary:
-	if SimNet.has_method("request_transfer"):
-		return SimNet.call("request_transfer", local_player, portal_id, to_map)
-	if SimNet.has_method("submit_transfer_request"):
-		return SimNet.call("submit_transfer_request", local_player, portal_id)
-	return {"ok": false, "reason": "no_transfer_api"}
-
-## "I loaded the destination map" - the acknowledgement that moves ownership.
-func _api_transfer_ready(token: int) -> void:
-	if SimNet.has_method("mark_transfer_ready"):
-		SimNet.call("mark_transfer_ready", token)
-	elif SimNet.has_method("submit_transfer_ready"):
-		SimNet.call("submit_transfer_ready", token)
+	_pending_portal = portal
+	# The client names only the portal it stands at: destination, spawn, token
+	# and timing are the server's. In the authority roles (offline/host) the same
+	# entry point answers locally through the in-process engine, so offline play
+	# runs the identical validation.
+	var result: Dictionary = SimNet.request_transfer(
+		local_player, String(portal.get("id", "")), String(portal.get("to_map", "")))
+	if not bool(result.get("ok", false)):
+		_feedback(_reason_text(String(result.get("reason", ""))))
+		return
+	# "sent" (client role), or a local grant that was emitted synchronously
+	# inside the call and has already started the load; either way the
+	# transfer_* signal drives the rest, and nothing here may skip it.
+	return
 
 ## The authority approved the transfer: load the destination, then acknowledge.
 func _on_transfer_granted(peer_id: int, token: int, map_id: String, spawn_id: String) -> void:
@@ -314,12 +300,8 @@ func _on_transfer_granted(peer_id: int, token: int, map_id: String, spawn_id: St
 		return
 	_start_transfer(map_id, spawn_id, token)
 
-func _on_transfer_committed(peer_id: int, _token: int, map_id: String, a, b) -> void:
+func _on_transfer_committed(peer_id: int, _token: int, map_id: String, pos: Vector3, _spawn_id: String) -> void:
 	if peer_id != SimNet.local_peer_id:
-		return
-	# (pos, spawn_id) or (spawn_id, pos): whichever revision is live.
-	var pos: Vector3 = a if a is Vector3 else b
-	if not (pos is Vector3):
 		return
 	current_map = map_id
 	_commit_seen = true
@@ -332,8 +314,8 @@ func _on_transfer_refused(peer_id: int, reason: String) -> void:
 	_pending_portal = {}
 	_feedback(_reason_text(reason))
 
-func _on_transfer_expired(peer_id: int, _token: int, map_id: String, pos) -> void:
-	if peer_id != SimNet.local_peer_id or not (pos is Vector3):
+func _on_transfer_expired(peer_id: int, _token: int, map_id: String, pos: Vector3) -> void:
+	if peer_id != SimNet.local_peer_id:
 		return
 	_pending_portal = {}
 	_feedback("The transfer timed out; you are back at your last safe spot.")
@@ -344,11 +326,7 @@ func _on_transfer_expired(peer_id: int, _token: int, map_id: String, pos) -> voi
 
 ## The authoritative answer to "which map is this body in": sent at join and on
 ## an interrupted transfer. It always wins.
-func _on_map_state(map_id: String, a, b) -> void:
-	# (pos, spawn_id) or (spawn_id, pos): whichever revision is live.
-	var pos: Vector3 = a if a is Vector3 else b
-	if not (pos is Vector3):
-		return
+func _on_map_state(map_id: String, pos: Vector3, _spawn_id: String) -> void:
 	if busy:
 		return
 	if map_id == current_map and _map_loaded(map_id):
@@ -395,7 +373,7 @@ func _start_transfer(map_id: String, spawn_id: String, token: int, forced_pos: V
 	# the map's own out-of-band check.
 	_commit_seen = false
 	if token != 0:
-		_api_transfer_ready(token)
+		SimNet.mark_transfer_ready(token)
 		await _await_commit(2.0)
 	if not _commit_seen:
 		var target: Vector3 = forced_pos if forced_pos is Vector3 else _spawn_point(map_id, spawn_id)

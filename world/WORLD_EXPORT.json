@@ -1,7 +1,7 @@
 {
  "generated": "2026-10-04",
  "source_repository": "hpmmo-client",
- "source_revision": "1963691c0fce9125edbb48a38b3bf38fca37c82d",
+ "source_revision": "cac8789c4fc1d393fb79e3d380a4d87b04b9d3ff",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/models/characters/wizard.glb": "cf898585da33fab50c724d31605fb931eb2912e6d2280092141e98ca81ad507d",
@@ -108,7 +108,7 @@
   "scripts/world/distant_ridges.gd": "c5e47fc979cc22ea362ece198aed5ef03fb9a07fcede3b5108757b305b9b7a8f",
   "scripts/world/encounter_director.gd": "60c589a54a20f1c4849b7efc0f63c2e80e307a5339cdf726390213bb5c4bfa81",
   "scripts/world/game_world.gd": "e19c89ae32af8461627586fdb98bff4f5bada74c692b69608894841fa213c3ff",
-  "scripts/world/map_controller.gd": "5eb4adfdb11cf498cbe9b6d3dc8471a76bb291e928fb198b23e97fe020605759",
+  "scripts/world/map_controller.gd": "22f5249bf5091c060a3f43ea7024f8e475125026895a7bb386afe5e27bd27926",
   "scripts/world/npc.gd": "94252696b42af9f11797c229603ed523585875e744f6cfa23158901724cbd296",
   "scripts/world/safe_zone.gd": "024b4cd0a2f2cda69a10dd47c718152ba384a89b4be4b51cc4e2559304d2c289",
   "scripts/world/training_dummy.gd": "22b4c47bb1d960322aa5fa62f4950df78d1cb7d5d032f3bf5e0a6439cc8746a2",

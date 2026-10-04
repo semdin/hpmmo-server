@@ -304,15 +304,25 @@ def test_forged(out_dir, profile="local"):
           "no forged cast was accepted")
     check("unknown_spell" in final.get("casts_rejected", []),
           "an unknown spell id was rejected explicitly")
-    # Reconciliation snaps the predicted body to the authoritative one when they
-    # disagree; the allowed snap therefore grows with the one-way delay (a body
-    # walking at 8.5 m/s covers that much ground before the correction lands).
-    # This is about the ABSENCE of a hack teleport, not about zero correction.
-    delay_ms = {"local": 0, "broadband": 60, "mobile": 150, "awful": 300}.get(profile, 0)
-    allowed_snap = 0.5 + (delay_ms / 1000.0) * 8.5 * 1.5
-    check(float(final.get("max_position_step", 99)) <= allowed_snap,
-          "a 50x input vector did not teleport the player (max step %.3f m <= %.2f m allowed at %s)"
-          % (float(final.get("max_position_step", 99)), allowed_snap, profile))
+    # The claim is about the AUTHORITY, not the renderer. The rendered body's
+    # per-frame step carries the frame duration and the reconciliation snap
+    # (which fires when the prediction is more than 1 m out), so it cannot
+    # answer "did the 50x vector teleport this body?". The probe records the
+    # server positions this client receives, normalised by the server ticks each
+    # step spans; the bound is then HPRules.max_travel_distance(SIM_DT) exactly -
+    # the same rule the server uses to reject teleport claims, no extra slack.
+    rule_step = float(final.get("speed_limit_per_tick", 0.0))
+    max_auth_step = float(final.get("max_auth_step_per_tick", float("inf")))
+    auth_samples = int(final.get("auth_step_samples", 0))
+    auth_ticks = int(final.get("auth_step_ticks", 0))
+    check(auth_samples >= 10 and auth_ticks > 0 and max_auth_step > 0.0,
+          "the authoritative movement was measured on a moving body (%d server-side steps over %d ticks)"
+          % (auth_samples, auth_ticks))
+    check(auth_samples >= 10 and max_auth_step <= rule_step,
+          "a 50x input vector did not teleport the player (authoritative %.3f m/tick <= "
+          "HPRules.max_travel_distance(%.3f s) = %.3f m/tick, walk speed %.1f m/s, %s)"
+          % (max_auth_step, float(final.get("sim_dt", 0.05)), rule_step,
+             float(final.get("walk_speed", 0.0)), profile))
     check(final.get("forged_mob_died") is False,
           "the mob was still alive after the forged damage claim")
     travelled = float(final.get("distance_travelled", 0))
