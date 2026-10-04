@@ -3,6 +3,7 @@ extends RefCounted
 ## Walkable Hogwarts-inspired campus. Every structural piece has collision;
 ## doors are actual openings, with a continuous ground-level route throughout.
 const Kit = preload("res://scripts/assets/material_kit.gd")
+const PBR = preload("res://scripts/assets/pbr_kit.gd")
 static var _materials: Dictionary = {}
 
 static func build(world: Node3D) -> void:
@@ -11,16 +12,11 @@ static func build(world: Node3D) -> void:
 	castle.name = "HogwartsCastle"
 	castle.position = Vector3(0, 0, -72)
 	world.add_child(castle)
-	var stone := ShaderMaterial.new()
-	stone.shader = preload("res://assets/textures/masonry.gdshader")
-	var trim := _mat(Color(0.7, 0.65, 0.54))
-	var roof := Kit.castle_roof_material()
-	var wood := Kit.wood_material()
-	var floor_mat := ShaderMaterial.new()
-	floor_mat.shader = preload("res://assets/textures/masonry.gdshader")
-	floor_mat.set_shader_parameter("stone_color", Color(0.38, 0.39, 0.38))
-	floor_mat.set_shader_parameter("mortar_color", Color(0.3, 0.31, 0.3))
-	floor_mat.set_shader_parameter("tile_scale", 0.65)
+	var stone := PBR.surface("stone_ashlar_01")
+	var trim := PBR.surface("trim_sheet_01", Color(0.95, 0.92, 0.86), {"metres": 2.0})
+	var roof := PBR.surface("roof_slates_03")
+	var wood := PBR.surface("dark_wooden_planks")
+	var floor_mat := PBR.surface("stone_tiles_02")
 	var gold := Kit.gold_material()
 	# Great Hall: 28 m wide, 46 m long, 13 m high. Open portal at z=24.
 	_box(castle, "GreatHallFloor", Vector3(0, -0.04, 1), Vector3(30, 0.24, 48), floor_mat)
@@ -93,10 +89,15 @@ static func build(world: Node3D) -> void:
 			_table(castle, Vector3(-27, 0, 0), 7, wood)
 		else:
 			_box(castle, "Blackboard", Vector3(28, 2.5, -14.3), Vector3(8, 3, 0.2), _mat(Color(0.04, 0.13, 0.12)), false)
-	# Distinct skyline, flanking towers and rear astronomy spire.
+	# Distinct skyline, flanking towers and rear astronomy spire. None of these
+	# towers has a door: they are solid shafts, and Phase 10 says so out loud
+	# with a sealed plaque at each front tower base so nobody reads them as
+	# enterable content (the enterable tower is the interior tower landing).
 	for side in [-1, 1]:
 		_tower(castle, Vector3(side * 20, 0, 24), 4.2, 25, stone, roof, trim)
 		_tower(castle, Vector3(side * 18, 0, -25), 5, 32, stone, roof, trim)
+	_sealed_tower_mark(castle, Vector3(-20, 2.0, 28.4), "TOWER SEALED\nLATER CONTENT")
+	_sealed_tower_mark(castle, Vector3(20, 2.0, 28.4), "TOWER SEALED\nLATER CONTENT")
 	_tower(castle, Vector3(0, 0, -33), 6, 43, stone, roof, trim)
 	# Entry forecourt with uninterrupted six-metre approach from the spawn area.
 	_box(castle, "EntryCourt", Vector3(0, 0.02, 33), Vector3(34, 0.1, 16), floor_mat)
@@ -214,6 +215,23 @@ static func _bookshelf(parent: Node3D, pos: Vector3, wood: Material, colors: Arr
 static func _banner(parent: Node3D, pos: Vector3, color: Color) -> void:
 	_box(parent, "HouseBanner", pos, Vector3(2.2, 4.8, 0.07), _mat(color), false)
 	_box(parent, "BannerGoldStripe", pos + Vector3(0, 0, 0.06), Vector3(0.22, 4.7, 0.03), Kit.gold_material(), false)
+
+## A sealed plaque at an inactive tower's base: "this is not a door".
+static func _sealed_tower_mark(parent: Node3D, pos: Vector3, text: String) -> void:
+	var plaque := PBR.kit_instance("plaque_0_8x0_5")
+	if plaque != null:
+		plaque.position = pos
+		plaque.scale = Vector3(1.6, 1.6, 1.0)
+		parent.add_child(plaque)
+	var label := Label3D.new()
+	label.text = text
+	label.font_size = 22
+	label.modulate = Color(0.92, 0.86, 0.72)
+	label.outline_size = 8
+	label.outline_modulate = Color(0, 0, 0)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.position = pos + Vector3(0, 0.95, 0.1)
+	parent.add_child(label)
 
 static func _tower(parent: Node3D, pos: Vector3, radius: float, height: float, stone: Material, roof: Material, trim: Material) -> void:
 	var cylinder := CylinderMesh.new()

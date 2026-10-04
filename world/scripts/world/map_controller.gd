@@ -441,6 +441,7 @@ func _load_map(map_id: String) -> bool:
 			if is_instance_valid(light):
 				light.visible = true
 		_sun_disabled.clear()
+		_apply_interior_ambience(false)
 		return true
 	if map_id != MAP_INTERIOR:
 		return false
@@ -455,7 +456,36 @@ func _load_map(map_id: String) -> bool:
 		if not attached:
 			print("[MapController] StaircaseSlot left empty: %s is not present in this build " % STAIRCASE_PATH +
 				"(owned by the staircase workstream; no file was created or edited here).")
+	_apply_interior_ambience(true)
 	return true
+
+## Phase 10: an interior is not lit by the open sky. While the castle interior
+## is the resident map the ambient is a dim warm fill, so the torch fixtures
+## and the baked occlusion give the rooms contrast instead of a cold wash. The
+## outdoor sky ambient is restored on the way out.
+func _apply_interior_ambience(inside: bool) -> void:
+	var env_node := world.get_node_or_null("WorldEnvironment")
+	if env_node == null or not (env_node is WorldEnvironment):
+		return
+	var env: Environment = (env_node as WorldEnvironment).environment
+	if env == null:
+		return
+	if inside:
+		if not env.has_meta("phase10_outdoor_ambient"):
+			env.set_meta("phase10_outdoor_ambient", {
+				"source": env.ambient_light_source,
+				"color": env.ambient_light_color,
+				"energy": env.ambient_light_energy,
+			})
+		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+		env.ambient_light_color = Color(0.40, 0.36, 0.32)
+		env.ambient_light_energy = 0.62
+	elif env.has_meta("phase10_outdoor_ambient"):
+		var saved: Dictionary = env.get_meta("phase10_outdoor_ambient")
+		env.ambient_light_source = int(saved["source"])
+		env.ambient_light_color = saved["color"]
+		env.ambient_light_energy = float(saved["energy"])
+		env.remove_meta("phase10_outdoor_ambient")
 
 func _free_interior() -> void:
 	if _interior == null or not is_instance_valid(_interior):

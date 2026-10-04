@@ -19,6 +19,7 @@ const SNATCHER_SCENE = preload("res://scenes/entities/mobs/mob_darksnatcher.tscn
 const OVERLAY_SCRIPT = preload("res://scripts/ui/mmorpg_overlay.gd")
 const WorldBuilderScript = preload("res://scripts/world/world_builder.gd")
 const MapControllerScript = preload("res://scripts/world/map_controller.gd")
+const QualityPresetScript = preload("res://scripts/world/quality_preset.gd")
 const NPCScript = preload("res://scripts/world/npc.gd")
 const DummyScript = preload("res://scripts/world/training_dummy.gd")
 
@@ -28,6 +29,7 @@ var overlay: CanvasLayer = null
 ## loading UI, loading the castle interior and unloading the outdoor world.
 var map_controller: Node = null
 var _candle_t: float = 0.0
+var _particle_sweep: float = 1.0
 var _views: Dictionary = {}          # sim uid -> view node (client role)
 var _view_scenes: Dictionary = {}
 
@@ -70,6 +72,13 @@ func _exit_tree() -> void:
 
 func _process(delta: float) -> void:
 	_candle_t += delta
+	# Reduced-quality particle budget: effects spawn during play, so the preset
+	# is re-applied on a slow sweep rather than once at build time.
+	_particle_sweep -= delta
+	if _particle_sweep <= 0.0:
+		_particle_sweep = 1.0
+		if QualityPresetScript.particle_scale() != 1.0:
+			QualityPresetScript.tune_particles(self)
 	var candles := get_node_or_null("FloatingCandles")
 	if candles:
 		for c in candles.get_children():

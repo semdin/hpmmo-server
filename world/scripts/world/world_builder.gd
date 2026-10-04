@@ -1,10 +1,15 @@
 extends RefCounted
 
 const MaterialKitScript = preload("res://scripts/assets/material_kit.gd")
+const PBR = preload("res://scripts/assets/pbr_kit.gd")
+const OutdoorTerrain = preload("res://scripts/world/outdoor_terrain.gd")
+const QualityPreset = preload("res://scripts/world/quality_preset.gd")
 
 ## Builds a real wizarding valley: castle, village, forest, lake,
 ## quidditch pitch, paths, lamps, fences, floating candles, stars.
-## All procedural so no external binary assets are needed.
+## Phase 10 resurfaced it with authored PBR materials, shaped the terrain
+## outside the playable core, and instanced the vegetation through the Gothic
+## kit. Plan.md Phase 8's route, encounter areas and landing pad are untouched.
 
 
 static func build(world: Node3D) -> void:
@@ -13,6 +18,7 @@ static func build(world: Node3D) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 20260707
 
+	QualityPreset.apply(world)
 	_apply_sky_and_fog(world)
 	_reskin_terrain(world)
 	_build_paths(world)
@@ -24,6 +30,8 @@ static func build(world: Node3D) -> void:
 	_build_quidditch_pitch(world)
 	_build_lamps_and_fences(world, rng)
 	_build_level_dressing(world, rng)
+	OutdoorTerrain.build(world)
+	PBR.flush(world)
 	_build_floating_candles(world)
 	_build_stars_and_moon(world)
 	_build_world_boundaries(world)
@@ -38,7 +46,7 @@ static func build(world: Node3D) -> void:
 const BUILT_NODES := [
 	"OuterMeadow", "StonePaths", "HogwartsCastle", "CourtyardFountain",
 	"HogsmeadeVillage", "ForbiddenForest", "BlackLake", "QuidditchPitch",
-	"Props", "LevelDressing", "FloatingCandles", "Moon", "MoonLight",
+	"Props", "LevelDressing", "TerrainPass", "FloatingCandles", "Moon", "MoonLight",
 	"BroomLanding", "WorldBoundaries",
 ]
 
@@ -63,69 +71,74 @@ static func _apply_sky_and_fog(world: Node3D) -> void:
 		var env: Environment = (env_node as WorldEnvironment).environment
 		if env:
 			env.background_mode = Environment.BG_SKY
-			# Golden-hour grade: warm sun, cool shadows, crystal-clear horizons
+			# Clear daylight that keeps texture detail: a bright sky supplies
+			# most of the ambient, so sun-baked surfaces do not need a strong
+			# directional light and the material albedo stays readable.
 			var sky_mat := env.sky.sky_material as ProceduralSkyMaterial
 			if sky_mat:
-				sky_mat.sky_top_color = Color(0.12, 0.29, 0.52)
-				sky_mat.sky_horizon_color = Color(0.62, 0.76, 0.88)
-				sky_mat.ground_bottom_color = Color(0.08, 0.10, 0.12)
-				sky_mat.ground_horizon_color = Color(0.35, 0.42, 0.49)
-				sky_mat.sun_angle_max = 14.0
-			
-			# Fog Removal & Horizon Clarity (Section 8.1 of plan.md):
-			# Reduced by 92% from 0.008 to 0.0006 for pristine horizons and distant castle visibility
+				sky_mat.sky_top_color = Color(0.20, 0.40, 0.68)
+				sky_mat.sky_horizon_color = Color(0.68, 0.79, 0.90)
+				sky_mat.ground_bottom_color = Color(0.14, 0.16, 0.17)
+				sky_mat.ground_horizon_color = Color(0.42, 0.47, 0.52)
+				sky_mat.sun_angle_max = 10.0
+			# No broad haze: fog stays off so it can never disguise unfinished
+			# terrain or swallow navigation landmarks (plan.md Phase 10).
 			env.fog_enabled = false
-			env.fog_light_color = Color(0.75, 0.68, 0.60)
-			env.fog_density = 0.0006
-			env.fog_aerial_perspective = 0.08
-			env.fog_sky_affect = 0.15
-			
-			# Lighting & Filmic Post-Processing (Section 8.2 of plan.md):
+			env.fog_density = 0.0002
+			env.fog_aerial_perspective = 0.0
+			env.fog_sky_affect = 0.0
+			# Restrained bloom: only genuinely emissive fixtures should glow.
 			env.glow_enabled = true
-			env.glow_intensity = 0.35
-			env.glow_bloom = 0.04
+			env.glow_intensity = 0.22
+			env.glow_bloom = 0.02
+			env.glow_hdr_threshold = 1.1
 			env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
 			env.tonemap_mode = Environment.TONE_MAPPER_ACES
-			env.tonemap_exposure = 1.15
+			env.tonemap_exposure = 1.12
 			env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-			env.ambient_light_energy = 0.95
+			env.ambient_light_energy = 1.0
 			env.adjustment_enabled = true
-			env.adjustment_saturation = 1.05
-			env.adjustment_contrast = 1.02
+			env.adjustment_saturation = 1.04
+			env.adjustment_contrast = 1.03
 			env.ssao_enabled = true
-			env.ssao_intensity = 1.2
+			env.ssao_intensity = 1.1
+			env.ssao_radius = 1.4
 			env.ssr_enabled = false
 			env.ssr_max_steps = 64
-	
-	# Directional Sunlight: Golden hour rim lighting with 4-split shadow cascades (Section 8.2)
+	# One shadow-casting directional light; the quality preset can switch it off.
 	var sun := world.get_node_or_null("DirectionalLight3D") as DirectionalLight3D
 	if sun:
-		sun.light_color = Color(1.0, 0.93, 0.8)
-		sun.light_energy = 1.35
+		sun.light_color = Color(1.0, 0.97, 0.90)
+		sun.light_energy = 1.25
 		sun.shadow_enabled = true
-		sun.rotation_degrees = Vector3(-38, -32, 0)
+		sun.rotation_degrees = Vector3(-44, -30, 0)
 		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
-		sun.directional_shadow_max_distance = 110.0
+		sun.directional_shadow_max_distance = 150.0
 
 # ---------------------------------------------------------------- terrain
 
 static func _reskin_terrain(world: Node3D) -> void:
 	var grass_mesh := world.get_node_or_null("Terrain/GrassMesh")
 	if grass_mesh and grass_mesh is MeshInstance3D:
-		(grass_mesh as MeshInstance3D).set_surface_override_material(0, 	MaterialKitScript.grass_material())
-		# enlarge play area feel: keep 200x200 but add outer meadow ring
+		(grass_mesh as MeshInstance3D).set_surface_override_material(0,
+			PBR.surface("grass_ground_01"))
 	var meadow := MeshInstance3D.new()
 	meadow.name = "OuterMeadow"
 	var pm := PlaneMesh.new()
 	pm.size = Vector2(600, 600)
-	pm.material = 	MaterialKitScript.meadow_material()
 	meadow.mesh = pm
+	meadow.material_override = PBR.surface("grass_ground_01", Color(0.86, 0.92, 0.82),
+		{"metres": 8.0})
 	meadow.position = Vector3(0, -0.62, 0)
 	world.add_child(meadow)
 
 	var court := world.get_node_or_null("Terrain/Courtyard")
 	if court and court is MeshInstance3D:
-		(court as MeshInstance3D).set_surface_override_material(0, 	MaterialKitScript.cobble_material())
+		(court as MeshInstance3D).set_surface_override_material(0, PBR.surface("stone_tiles_02"))
+		# The Phase 8 courtyard disc was 20 cm proud of the collision plane, so
+		# walkers sank into it. Flush it with the ground now that it carries the
+		# paving material.
+		court.position.y = -0.13
 
 # ---------------------------------------------------------------- paths
 
@@ -139,7 +152,7 @@ static func _cobble_path(parent: Node3D, from: Vector3, to: Vector3, width: floa
 	var path := MeshInstance3D.new()
 	var pm := PlaneMesh.new()
 	pm.size = Vector2(width, length)
-	pm.material = 	MaterialKitScript.cobble_material()
+	path.material_override = PBR.surface("stone_tiles_02", Color(0.9, 0.9, 0.86))
 	path.mesh = pm
 	path.position = mid
 	path.rotation.y = atan2(dir.x, dir.z)
@@ -172,7 +185,7 @@ static func _build_courtyard_details(world: Node3D) -> void:
 	base_mesh.top_radius = 2.4
 	base_mesh.bottom_radius = 2.8
 	base_mesh.height = 1.0
-	base_mesh.material = 	MaterialKitScript.cobble_material()
+	base_mesh.material = PBR.surface("stone_tiles_02")
 	base.mesh = base_mesh
 	base.position.y = 0.5
 	fountain.add_child(base)
@@ -181,7 +194,7 @@ static func _build_courtyard_details(world: Node3D) -> void:
 	water_mesh.top_radius = 2.2
 	water_mesh.bottom_radius = 2.2
 	water_mesh.height = 0.2
-	water_mesh.material = 	MaterialKitScript.water_material()
+	water_mesh.material = PBR.surface("stone_tiles_02", Color(0.6, 0.75, 0.9))
 	water.mesh = water_mesh
 	water.position.y = 1.0
 	fountain.add_child(water)
@@ -190,7 +203,7 @@ static func _build_courtyard_details(world: Node3D) -> void:
 	pillar_mesh.top_radius = 0.3
 	pillar_mesh.bottom_radius = 0.45
 	pillar_mesh.height = 2.2
-	pillar_mesh.material = 	MaterialKitScript.castle_wall_material()
+	pillar_mesh.material = PBR.surface("stone_ashlar_01")
 	pillar.mesh = pillar_mesh
 	pillar.position.y = 1.6
 	fountain.add_child(pillar)
@@ -253,9 +266,9 @@ static func _build_village(world: Node3D) -> void:
 	var village := Node3D.new()
 	village.name = "HogsmeadeVillage"
 	world.add_child(village)
-	var wall_mat := 	MaterialKitScript.castle_wall_material()
-	var roof_mat := 	MaterialKitScript.wood_material()
-	var wood_mat := 	MaterialKitScript.wood_material()
+	var wall_mat := PBR.surface("stone_ashlar_01", Color(0.92, 0.9, 0.86), {"metres": 4.0})
+	var roof_mat := PBR.surface("roof_slates_03")
+	var wood_mat := PBR.surface("dark_wooden_planks")
 	var spots := [
 		[Vector3(34, 0, 16), 0.4], [Vector3(42, 0, 10), -0.5],
 		[Vector3(38, 0, 24), 2.8], [Vector3(28, 0, 24), -2.6],
@@ -302,22 +315,9 @@ static func _build_forbidden_forest(world: Node3D, rng: RandomNumberGenerator) -
 	var forest := Node3D.new()
 	forest.name = "ForbiddenForest"
 	world.add_child(forest)
-	var trunk_mat := 	MaterialKitScript.bark_material()
-	var leaf_mat := 	MaterialKitScript.leaf_material()
-	# dense cluster west + north-west
-	for i in range(110):
-		var x := rng.randf_range(-85, -38)
-		var z := rng.randf_range(-70, -12)
-		# keep monolith clearing
-		if Vector2(x + 45, z + 28).length() < 9.0:
-			continue
-		var s := rng.randf_range(0.8, 1.7)
-		_tree(forest, Vector3(x, 0, z), trunk_mat, leaf_mat, s)
-	# a few lone pines east
-	for i in range(18):
-		var x := rng.randf_range(48, 80)
-		var z := rng.randf_range(-60, 0)
-		_tree(forest, Vector3(x, 0, z), trunk_mat, leaf_mat, rng.randf_range(0.9, 1.5))
+	# Phase 10: the canopy comes from the instanced terrain pass
+	# (outdoor_terrain.gd, two authored species with visibility ranges); this
+	# node keeps the forest's identity marker and the deep-wood light.
 	var label := Label3D.new()
 	label.text = "FORBIDDEN FOREST"
 	label.font_size = 36
@@ -345,7 +345,7 @@ static func _build_black_lake(world: Node3D) -> void:
 	var water := MeshInstance3D.new()
 	var pm := PlaneMesh.new()
 	pm.size = Vector2(30, 22)
-	pm.material = 	MaterialKitScript.water_material()
+	pm.material = MaterialKitScript.water_material()
 	water.mesh = pm
 	water.position.y = 0.05
 	lake.add_child(water)
@@ -355,9 +355,11 @@ static func _build_black_lake(world: Node3D) -> void:
 	rim_mesh.top_radius = 17.0
 	rim_mesh.bottom_radius = 18.5
 	rim_mesh.height = 0.35
-	rim_mesh.material = 	MaterialKitScript.cobble_material()
+	rim_mesh.material = PBR.surface("stone_tiles_02", Color(0.75, 0.72, 0.66))
 	rim.mesh = rim_mesh
-	rim.position.y = -0.1
+	# Buried below the ground plane: the lake reads as a pond in the meadow
+	# instead of a raised stone dome.
+	rim.position.y = -0.32
 	lake.add_child(rim)
 	var label := Label3D.new()
 	label.text = "BLACK LAKE"
@@ -378,7 +380,7 @@ static func _build_quidditch_pitch(world: Node3D) -> void:
 	world.add_child(pitch)
 	var grass := MeshInstance3D.new()
 	var pm := PlaneMesh.new()
-	var gm := 	MaterialKitScript.meadow_material()
+	var gm := PBR.surface("grass_ground_01", Color(0.9, 0.98, 0.85), {"metres": 8.0})
 	pm.size = Vector2(36, 22)
 	pm.material = gm
 	grass.mesh = pm
@@ -389,13 +391,13 @@ static func _build_quidditch_pitch(world: Node3D) -> void:
 	var tm := TorusMesh.new()
 	tm.inner_radius = 4.6
 	tm.outer_radius = 5.0
-	tm.material = 	MaterialKitScript.cobble_material()
+	tm.material = PBR.surface("stone_tiles_02")
 	ring.mesh = tm
 	ring.rotation.x = PI * 0.5
 	ring.position.y = 0.08
 	pitch.add_child(ring)
 	# 6 goal hoops
-	var gold := 	MaterialKitScript.gold_material()
+	var gold := MaterialKitScript.gold_material()
 	for side in [-1, 1]:
 		for h_i in range(3):
 			var pole := MeshInstance3D.new()
@@ -403,7 +405,7 @@ static func _build_quidditch_pitch(world: Node3D) -> void:
 			cm.top_radius = 0.12
 			cm.bottom_radius = 0.12
 			cm.height = 6.0 + h_i * 1.6
-			cm.material = 	MaterialKitScript.wood_material()
+			cm.material = PBR.surface("dark_wooden_planks")
 			pole.mesh = cm
 			pole.position = Vector3(side * 16.0, (6.0 + h_i * 1.6) * 0.5, (h_i - 1) * 5.0)
 			pitch.add_child(pole)
@@ -477,7 +479,7 @@ static func _build_lamps_and_fences(world: Node3D, rng: RandomNumberGenerator) -
 	for p in lamp_spots:
 		_lamp(props, p)
 	# fence line around courtyard
-	var wood := 	MaterialKitScript.wood_material()
+	var wood := PBR.surface("dark_wooden_planks")
 	for i in range(-8, 9):
 		if abs(i) < 2:
 			continue # gate opening
@@ -505,7 +507,7 @@ static func _build_level_dressing(world: Node3D, rng: RandomNumberGenerator) -> 
 	var dz := Node3D.new()
 	dz.name = "LevelDressing"
 	world.add_child(dz)
-	var stone := MaterialKitScript.castle_wall_material()
+	var stone := PBR.surface("stone_ashlar_01", Color(1.0, 1.0, 1.0), {"metres": 4.0})
 	var wood := MaterialKitScript.wood_material()
 	# -- forest arch gate (west path): two pillars + beam + hanging lantern
 	for side in [-1, 1]:
@@ -619,46 +621,9 @@ static func _build_level_dressing(world: Node3D, rng: RandomNumberGenerator) -> 
 		plank.position = Vector3(-30 + 0.0, 0.25, 22 + i * 1.0)
 		dz.add_child(plank)
 	preload("res://scripts/world/distant_ridges.gd").build(dz)
-	# -- scatter: grass tufts (crossed planes), rocks, flowers — cheap but rich
-	var leaf := MaterialKitScript.leaf_material()
-	for i in range(160):
-		var tuft := MeshInstance3D.new()
-		var tm := PlaneMesh.new()
-		tm.size = Vector2(0.7, 0.5)
-		tm.material = leaf
-		tuft.mesh = tm
-		tuft.position = Vector3(rng.randf_range(-90, 90), 0.25, rng.randf_range(-70, 45))
-		if tuft.position.distance_to(Vector3(0, 0, 5)) < 12.0 or (absf(tuft.position.x) < 40 and tuft.position.z < -38):
-			tuft.free()
-			continue # keep courtyard clean
-		tuft.rotation.y = rng.randf_range(0, TAU)
-		dz.add_child(tuft)
-	for i in range(50):
-		var rock := MeshInstance3D.new()
-		var rm := SphereMesh.new()
-		rm.radius = rng.randf_range(0.25, 0.8)
-		rm.height = rm.radius * 1.2
-		rm.material = stone
-		rock.mesh = rm
-		rock.position = Vector3(rng.randf_range(-90, 90), 0.15, rng.randf_range(-70, 45))
-		if absf(rock.position.x) < 40 and rock.position.z < -38:
-			rock.free()
-			continue
-		rock.scale.y = 0.6
-		dz.add_child(rock)
-	for i in range(60):
-		var fl := MeshInstance3D.new()
-		var fm := SphereMesh.new()
-		fm.radius = 0.09
-		fm.height = 0.18
-		var fmat := StandardMaterial3D.new()
-		fmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		var petals := [Color(1, 0.4, 0.5), Color(1, 0.9, 0.3), Color(0.7, 0.5, 1.0), Color(1, 1, 1)]
-		fmat.albedo_color = petals[i % petals.size()]
-		fm.material = fmat
-		fl.mesh = fm
-		fl.position = Vector3(rng.randf_range(-60, 60), 0.35, rng.randf_range(-40, 35))
-		dz.add_child(fl)
+	# Grass tufts, rocks and flowers are now instanced kit modules with
+	# visibility ranges (outdoor_terrain.gd), replacing the 270 individual
+	# PlaneMesh/SphereMesh nodes the greybox scattered here.
 
 static func _torch(parent: Node3D, pos: Vector3) -> void:
 	var t := Node3D.new()
@@ -762,7 +727,7 @@ static func _build_broom_landing(world: Node3D) -> void:
 	cm.top_radius = 4.0
 	cm.bottom_radius = 4.2
 	cm.height = 0.12
-	cm.material = MaterialKitScript.cobble_material()
+	cm.material = PBR.surface("stone_tiles_02")
 	disc.mesh = cm
 	disc.position.y = -0.04
 	pad.add_child(disc)
@@ -782,7 +747,7 @@ static func _build_broom_landing(world: Node3D) -> void:
 		var post := MeshInstance3D.new()
 		var bm := BoxMesh.new()
 		bm.size = Vector3(0.22, 1.2, 0.22)
-		bm.material = MaterialKitScript.wood_material()
+		bm.material = PBR.surface("dark_wooden_planks")
 		post.mesh = bm
 		post.position = Vector3(cos(angle) * 4.3, 0.6, sin(angle) * 4.3)
 		pad.add_child(post)
