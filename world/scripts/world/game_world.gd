@@ -394,6 +394,16 @@ func _on_entity_moved(uid: int, pos: Vector3, rot_y: float, flags: int) -> void:
 	if "sim_target_pos" in view:
 		view.sim_target_pos = pos
 		view.sim_target_rot = rot_y
+		# Phase 9: the replicated flight phase rides in the record's `state` byte,
+		# so a remote rider animates the phase the authority chose, not a guess.
+		if "sim_mount_phase" in view:
+			view.sim_mount_phase = int(SimAuthority.entities.get(uid, {}).get("state", 0))
+		if "is_mounted" in view:
+			var replicated_mount := (flags & HPProtocol.FLAG_MOUNTED) != 0
+			if replicated_mount != bool(view.is_mounted):
+				view.is_mounted = replicated_mount
+				if view.has_method("_apply_mount_state"):
+					view._apply_mount_state(replicated_mount)
 	else:
 		view.global_position = view.global_position.lerp(pos, 0.4)
 		if "visuals" in view and view.visuals:

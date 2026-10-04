@@ -9,6 +9,44 @@ signal spell_cast_signal(spell_id: String, cooldown: float)
 signal loot_collected_signal(item_id: String, amount: int)
 signal mounted_changed(is_mounted: bool)
 signal inventory_changed
+## Phase 9: animation events (`footstep:<surface>`, `fx:wand_release`, ...) that
+## Phase 12 consumes for audio. Emitted from measured contact, never from a
+## hardcoded frame number.
+signal animation_event(event_name: String)
+
+## --------------------------------------------------------------- Phase 9 body
+## Measured from hero_wizard.glb (hooded adventurer, 1.835 m crown). Every
+## distance that depends on body size is derived from these, so a second resize
+## is a constant change, not a hunt through the file.
+const HERO_CROWN_HEIGHT := 1.84
+const CAMERA_HEIGHT := 1.55          # pivot at chest/eye level of the new body
+const NAMEPLATE_HEIGHT := 2.18       # crown + 0.34 headroom for the label
+const CAPSULE_RADIUS := 0.35         # art-direction section 2 silhouette
+const CAPSULE_HEIGHT := 1.85
+const CAST_ORIGIN_HEIGHT := 1.25     # wand hand height when standing
+const INTERACT_RADIUS := 3.5         # NPC / object interaction reach
+const PICKUP_RADIUS := 4.9           # loot reach (broom-length arm + lean)
+const TARGET_RANGE := 35.0
+const TARGET_AIM_HEIGHT := 1.15      # chest height of the taller silhouette
+const MOUNT_CLEAR_HEIGHT := 1.15     # headroom needed above the crown to take off
+const MOUNT_LATERAL_LENGTH := 2.35   # broom footprint length when mounted
+const MOUNT_LATERAL_WIDTH := 0.6
+const DISMOUNT_CEILING := 2.15       # headroom required at the landing spot
+const COMBAT_WINDOW := 2.0           # seconds after taking damage that mounting is refused
+
+## Phase 9 mount state machine. The authority owns the actual permission
+## (`submit_mount`); these states only describe the rider's presentation.
+enum MountState { GROUND = 0, MOUNTING = 1, FLYING = 2, LANDING = 3 }
+
+var mount_state: int = MountState.GROUND
+## Replicated presentation phase (HPProtocol.MountPhase) for remote riders.
+var sim_mount_phase: int = 0
+var camera_roll_limit := 6.0
+var camera_roll := 0.0
+var _combat_until := 0.0
+var _rider_roll := 0.0
+## Names of animation events this body has fired (tests read it; audio will).
+var animation_events: Array[String] = []
 
 # Player Info
 @export var player_name: String = "Harry"
@@ -59,6 +97,13 @@ var _flight_time := 0.0
 var _cast_generation := 0
 var _basic_held := false
 var _hit_recovery := 0.0
+var _was_airborne := false
+## Committed attacks: movement is explicitly restricted until this expires
+## (plan Phase 9 - "explicit movement restrictions for committed attacks").
+var _committed_until := 0.0
+## Spells whose recovery commits the caster in place.
+const COMMITTED_SPELLS := {"bombarda": 0.35, "ultimate": 0.5}
+const COMMITTED_MELEE := 0.45
 var _cast_seq := 0
 var _predicted_casts: Dictionary = {}   # cast_seq -> {spell_id, aim}
 var _predicted_ward := false
@@ -73,6 +118,20 @@ var sim_target_pos := Vector3.ZERO
 var sim_target_rot := 0.0
 const CombatRules = preload("res://scripts/spells/combat_rules.gd")
 const ParticleKit = preload("res://scripts/assets/particle_kit.gd")
+const HeroAnimationScript = preload("res://scripts/entities/hero_animation.gd")
+const BroomFlightScript = preload("res://scripts/entities/broom_flight.gd")
+## Phase 9 socket convention: one socket per attachment point, bound to the
+## skeleton by bone name (docs/phase9-rig-and-sockets.md).
+const SOCKET_BONES := {
+	"Socket_Wand": "Wrist.R",
+	"Socket_Hand_L": "Wrist.L",
+	"Socket_Hand_R": "Wrist.R",
+	"Socket_Foot_L": "Foot.L",
+	"Socket_Foot_R": "Foot.R",
+	"Socket_Torso": "Chest",
+	"Socket_Head": "Head",
+	"Socket_Hips": "Hips",
+}
 
 # Node References
 @onready var visuals: Node3D = get_node_or_null("Visuals")
@@ -80,19 +139,28 @@ const ParticleKit = preload("res://scripts/assets/particle_kit.gd")
 @onready var camera_pivot: Node3D = get_node_or_null("CameraPivot")
 @onready var spring_arm: SpringArm3D = get_node_or_null("CameraPivot/SpringArm3D")
 @onready var camera: Camera3D = get_node_or_null("CameraPivot/SpringArm3D/Camera3D")
-@onready var broom_mesh: MeshInstance3D = get_node_or_null("Visuals/BroomMesh")
+@onready var broom_mesh: Node3D = get_node_or_null("Visuals/BroomMesh")
 @onready var broom_particles: CPUParticles3D = get_node_or_null("Visuals/BroomMesh/BroomParticles")
 @onready var wand_aura_particles: CPUParticles3D = get_node_or_null("Visuals/WandAuraParticles")
 @onready var wand_tip: Marker3D = get_node_or_null("Visuals/WandTipMarker")
 @onready var nameplate: Label3D = get_node_or_null("NameplateLabel3D")
+## Phase 9: the animation graph and the authored broom rig.
+var hero_anim: HeroAnimation
+var broom: BroomFlight
+var sockets: Dictionary = {}
 
 func _find_anim_player() -> AnimationPlayer:
-	if has_node("Visuals/wizard/AnimationPlayer"):
-		return get_node("Visuals/wizard/AnimationPlayer") as AnimationPlayer
 	var vis = get_node_or_null("Visuals")
 	if vis:
-		return vis.find_child("AnimationPlayer", true, false) as AnimationPlayer
+		var found := vis.find_child("AnimationPlayer", true, false)
+		if found:
+			return found as AnimationPlayer
 	return null
+
+func _find_skeleton() -> Skeleton3D:
+	if visuals == null:
+		return null
+	return visuals.find_child("Skeleton3D", true, false) as Skeleton3D
 
 const PROJECTILE_SCENE = preload("res://scenes/spells/spell_projectile.tscn")
 const PROTEGO_SCENE = preload("res://scenes/spells/protego_shield.tscn")
@@ -110,10 +178,13 @@ func _ready() -> void:
 	# Decouple camera pivot from player rotation completely
 	if camera_pivot and spring_arm:
 		camera_pivot.top_level = true
-		camera_pivot.global_position = global_position + Vector3(0, 1.4, 0)
+		camera_pivot.global_position = global_position + Vector3(0, CAMERA_HEIGHT, 0)
 		camera_pivot.rotation_degrees = Vector3(0, camera_rot_y, 0)
 		spring_arm.rotation_degrees = Vector3(camera_rot_x, 0, 0)
 		spring_arm.spring_length = camera_distance
+	if nameplate:
+		nameplate.position.y = NAMEPLATE_HEIGHT
+	_setup_sockets()
 	
 	_setup_character_model()
 	if broom_particles:
@@ -145,31 +216,90 @@ func _ready() -> void:
 		emit_stats()
 
 func _setup_character_model() -> void:
-	# Hide staff and closed spellbook, show 1H wand and cape
-	var staff = visuals.get_node_or_null("wizard/Rig/Skeleton3D/handslot_r/2H_Staff")
-	if staff:
-		staff.hide()
-	var spellbook = visuals.get_node_or_null("wizard/Rig/Skeleton3D/handslot_l/Spellbook")
-	if spellbook:
-		spellbook.hide()
-	var spellbook_open = visuals.get_node_or_null("wizard/Rig/Skeleton3D/handslot_l/Spellbook_open")
-	if spellbook_open:
-		spellbook_open.hide()
+	# Phase 9 hero: the model, its animation graph and the broom rig. The
+	# graph is a child of Visuals so it dies with the body and never leaks.
+	var skeleton := _find_skeleton()
+	if anim_player and skeleton:
+		hero_anim = HeroAnimationScript.new()
+		hero_anim.name = "HeroAnimation"
+		visuals.add_child(hero_anim)
+		hero_anim.setup(anim_player, skeleton, visuals)
+		hero_anim.event_fired.connect(_on_animation_event)
+	_setup_broom()
 
+## Build the socket set once, from the documented bone map. Sockets are
+## BoneAttachment3D nodes so they follow the skeleton without baking offsets into
+## the GLB (the moved-body contract: change a bone name here, nowhere else).
+func _setup_sockets() -> void:
+	var skeleton := _find_skeleton()
+	if skeleton == null or not sockets.is_empty():
+		return
+	for socket_name in SOCKET_BONES.keys():
+		var bone: String = SOCKET_BONES[socket_name]
+		if skeleton.find_bone(bone) < 0:
+			# Godot sanitises dots in bone names (`Foot.L` -> `Foot_L`); accept
+			# either spelling rather than silently missing a socket.
+			var dotted := bone.replace("_L", ".L").replace("_R", ".R")
+			if skeleton.find_bone(dotted) >= 0:
+				bone = dotted
+			else:
+				continue
+		var attachment := BoneAttachment3D.new()
+		attachment.name = socket_name
+		attachment.bone_name = bone
+		skeleton.add_child(attachment)
+		sockets[socket_name] = attachment
+
+func socket(name: String) -> Node3D:
+	return sockets.get(name, null)
+
+func _setup_broom() -> void:
+	if broom_mesh == null:
+		return
+	broom = BroomFlightScript.new()
+	broom.name = "BroomRig"
+	broom_mesh.add_child(broom)
+	broom.setup(self, visuals, broom_particles, broom_mesh)
+	if broom_mesh is Node3D:
+		broom_mesh.rotation = Vector3.ZERO   # the authored GLB is already +Z forward
+	_align_broom_to_hips()
+
+## The single mount convention: the broom's SeatSocket is placed under the
+## hero's Socket_Hips, so the rider sits on the saddle without per-clip fudging.
+func _align_broom_to_hips() -> void:
+	if broom == null or broom.seat_socket == null or visuals == null:
+		return
+	var hips := socket("Socket_Hips")
+	if hips == null:
+		return
+	var target_local := visuals.to_local(hips.global_position)
+	broom_mesh.position = target_local - broom.seat_offset()
+
+## House variation is material-only (no duplicated rig): the robe family takes a
+## darkened house tone and the trim family the house primary colour.
 func _apply_house_customization() -> void:
 	if not GameData.HOUSES.has(house):
 		return
 	var h_data = GameData.HOUSES[house]
 	var primary_col: Color = h_data.primary_color
-	
-	# Tint cape with Hogwarts house primary color
-	var cape = visuals.get_node_or_null("wizard/Rig/Skeleton3D/chest/Mage_Cape")
-	if cape and cape is MeshInstance3D:
-		var mat = StandardMaterial3D.new()
-		mat.albedo_color = primary_col
-		mat.roughness = 0.5
-		cape.set_surface_override_material(0, mat)
-	
+	var body := visuals.find_child("Hero_Body", true, false)
+	if body is MeshInstance3D:
+		var mesh: Mesh = (body as MeshInstance3D).mesh
+		for i in range(mesh.get_surface_count()):
+			var mat := mesh.surface_get_material(i)
+			if mat is StandardMaterial3D:
+				var named := (mat as StandardMaterial3D).resource_name
+				if named == "Hero_Trim":
+					var trim := (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
+					trim.albedo_color = primary_col
+					trim.metallic = 0.35
+					trim.roughness = 0.45
+					(body as MeshInstance3D).set_surface_override_material(i, trim)
+				elif named == "Hero_Robe":
+					var robe := (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
+					robe.albedo_color = primary_col.darkened(0.72)
+					(body as MeshInstance3D).set_surface_override_material(i, robe)
+
 	if house == "Hufflepuff":
 		max_hp = 625
 		current_hp = 625
@@ -240,7 +370,10 @@ func _process(delta: float) -> void:
 	_mount_lock = maxf(0.0, _mount_lock - delta)
 	_mount_notice_cd = maxf(0.0, _mount_notice_cd - delta)
 	_queue_time = maxf(0.0, _queue_time - delta)
+	_combat_until = maxf(0.0, _combat_until - delta)
 	_update_flight_pose(delta)
+	if hero_anim:
+		hero_anim.tick(delta)
 	if is_local_player and not is_dead:
 		# Regeneration is authoritative (the world server ticks it and mirrors the
 		# result back), so the local body no longer regenerates on its own.
@@ -272,11 +405,11 @@ func _physics_process(delta: float) -> void:
 
 	# Update decoupled camera pivot position & rotation smoothly
 	if is_local_player and is_instance_valid(camera_pivot):
-		camera_pivot.global_position = camera_pivot.global_position.lerp(global_position + Vector3(0, 1.4, 0), 1.0 - exp(-20.0 * delta))
+		camera_pivot.global_position = camera_pivot.global_position.lerp(global_position + Vector3(0, CAMERA_HEIGHT, 0), 1.0 - exp(-20.0 * delta))
 		camera_pivot.rotation_degrees.y = camera_rot_y
 		if spring_arm:
 			spring_arm.rotation_degrees.x = camera_rot_x
-	
+
 	if not is_local_player:
 		# Another player's body. On a client it is a view that follows the
 		# replicated state; on the authority it is the REAL body, simulated here
@@ -287,24 +420,23 @@ func _physics_process(delta: float) -> void:
 			global_position = global_position.lerp(sim_target_pos, minf(1.0, 12.0 * delta))
 			if visuals:
 				visuals.rotation.y = lerp_angle(visuals.rotation.y, sim_target_rot, minf(1.0, 12.0 * delta))
-			if broom_mesh:
-				broom_mesh.visible = is_mounted
-			if broom_particles:
-				broom_particles.emitting = is_mounted
-			if not is_casting_anim and _hit_recovery <= 0 and is_instance_valid(anim_player):
+			# Remote riders follow the replicated phase, not a local guess, so
+			# every client shows the same animation phase for the same body.
+			if is_mounted and sim_mount_phase > 0:
+				if hero_anim:
+					hero_anim.set_locomotion("mount%d" % sim_mount_phase, clip_for_mount_phase(sim_mount_phase))
+			elif hero_anim:
 				var moved_dist := (global_position - prev_pos).length()
-				if moved_dist > 0.02 and not is_mounted:
-					if anim_player.current_animation != "Running_A":
-						anim_player.play("Running_A", 0.2)
+				if moved_dist > 0.02:
+					hero_anim.set_locomotion("remote_run", "Running_A")
 				else:
-					var remote_idle := "Sit_Chair_Idle" if is_mounted else "Idle"
-					if anim_player.current_animation != remote_idle:
-						anim_player.play(remote_idle, 0.35)
+					hero_anim.set_locomotion("remote_idle", "Idle")
 			return
 	
 	if is_dead:
 		velocity = Vector3.ZERO
 		return
+	_was_airborne = not is_on_floor() and not is_mounted
 	# Gravity & Mounting
 	if not is_on_floor() and not is_mounted:
 		velocity.y -= gravity * delta
@@ -343,25 +475,64 @@ func _physics_process(delta: float) -> void:
 		if _cast_lock <= 0.0:
 			visuals.rotation.y = lerp_angle(visuals.rotation.y, target_yaw, minf(1, 14.0 * delta))
 		
-		if not is_casting_anim and _hit_recovery <= 0 and is_instance_valid(anim_player):
-			var run_anim := "Running_A" if not is_mounted else "Sit_Chair_Idle"
-			if anim_player.current_animation != run_anim:
-				anim_player.play(run_anim, 0.2)
 	else:
 		velocity.x = move_toward(velocity.x, 0, active_speed * 12.0 * delta)
 		velocity.z = move_toward(velocity.z, 0, active_speed * 12.0 * delta)
-		
+
 		# If holding right-click while standing, face camera direction
 		if mouse_orbit_active:
 			var cam_yaw: float = deg_to_rad(_intent_yaw())
 			visuals.rotation.y = lerp_angle(visuals.rotation.y, cam_yaw, 10.0 * delta)
-		
-		if not is_casting_anim and _hit_recovery <= 0 and is_instance_valid(anim_player):
-			var idle_anim := "Sit_Chair_Idle" if is_mounted else "Idle"
-			if anim_player.current_animation != idle_anim:
-				anim_player.play(idle_anim, 0.35)
-	
+
 	move_and_slide()
+	_update_animation_state()
+
+## The state machine half of the animation graph: it selects the clip, the graph
+## blends it. States are named so a test can assert which one is active.
+func _update_animation_state() -> void:
+	if hero_anim == null:
+		return
+	if is_dead:
+		hero_anim.set_locomotion("dead", "Death_A")
+		return
+	if _hit_recovery > 0.0:
+		hero_anim.set_locomotion("stun", "Stun_Loop")
+		return
+	if is_mounted:
+		var phase := sim_mount_phase if sim_puppet else mount_phase()
+		hero_anim.set_locomotion("mount%d" % phase, clip_for_mount_phase(phase))
+		return
+	if not is_on_floor():
+		hero_anim.set_locomotion("air_up", "Jump_Start" if velocity.y > 0.5 else "Fall")
+		return
+	if _was_airborne:
+		hero_anim.play_oneshot("Land")
+	var horizontal := Vector2(velocity.x, velocity.z).length()
+	if horizontal < 0.25:
+		hero_anim.set_locomotion("idle", "Idle")
+		return
+	var yaw := visuals.rotation.y
+	var forward := Vector3(sin(yaw), 0, cos(yaw))
+	var left := Vector3(cos(yaw), 0, -sin(yaw))
+	var dir := Vector3(velocity.x, 0, velocity.z).normalized()
+	var along := dir.dot(forward)
+	var lateral := dir.dot(left)
+	if along < -0.5:
+		hero_anim.set_locomotion("walk_back", "Walk_Back")
+	elif lateral > 0.5:
+		hero_anim.set_locomotion("strafe_l", "Strafe_L")
+	elif lateral < -0.5:
+		hero_anim.set_locomotion("strafe_r", "Strafe_R")
+	elif horizontal < walk_speed * 0.55:
+		hero_anim.set_locomotion("walk", "Walk_A")
+	else:
+		hero_anim.set_locomotion("run", "Running_A")
+
+func _on_animation_event(event_name: String) -> void:
+	animation_events.append(event_name)
+	if animation_events.size() > 32:
+		animation_events.pop_front()
+	emit_signal("animation_event", event_name)
 
 ## ---------------------------------------------------------------
 ## Movement intent. A locally controlled body reads the keyboard; a body the
@@ -370,6 +541,9 @@ func _physics_process(delta: float) -> void:
 ## ---------------------------------------------------------------
 
 func _intent_move() -> Vector2:
+	if _committed_until > 0.0:
+		# A committed attack roots the caster: intent is zero, not merely slow.
+		return Vector2.ZERO
 	if sim_server_controlled:
 		return HPRules.sanitize_input_vector(sim_input.get("move", Vector2.ZERO))
 	if SimNet.is_client and not SimNet.forced_intent.is_empty():
@@ -446,46 +620,174 @@ func toggle_broom_mount() -> void:
 	if is_dead or _cast_lock > 0 or _mount_lock > 0:
 		return
 	if is_mounted:
-		if not can_dismount_safely():
-			_spawn_floating_text("Descend near the ground first (Ctrl)", Color(1, 0.7, 0.3))
+		var dismount_reason := dismount_block_reason()
+		if dismount_reason != "":
+			_spawn_floating_text(dismount_reason, Color(1, 0.7, 0.3))
 			return
 		_apply_mount_state(false)
 	else:
-		if not is_on_floor():
+		var mount_reason := mount_block_reason()
+		if mount_reason != "":
+			if _mount_notice_cd <= 0.0:
+				_mount_notice_cd = 0.8
+				_spawn_floating_text(mount_reason, Color(1, 0.7, 0.3))
 			return
 		_apply_mount_state(true)
 		velocity.y = 3.0
 	_basic_held = false
 	_mount_lock = 0.3
-	# Predicted locally for responsiveness (the dismount clearance test above is
-	# the part a client can check for itself); the authority validates the same
+	# Predicted locally for responsiveness (the clearance tests above are the
+	# part a client can check for itself); the authority validates the same
 	# request and its state wins on the next snapshot/stat event.
 	SimNet.submit_mount(self, is_mounted)
 
+## Why a mount request is refused, in player-facing words. Empty means allowed.
+## Every rule here is mirrored by `SimAuthority.submit_mount`, which is the
+## decider; this is the feedback path so a refusal is explainable.
+func mount_block_reason() -> String:
+	if is_dead:
+		return "You are defeated!"
+	if _hit_recovery > 0.0:
+		return "You are stunned!"
+	if _combat_until > 0.0:
+		return "Not while in combat!"
+	var record := SimAuthority.record_for(self)
+	if not record.is_empty() and int(record.get("pending_transfer", 0)) != 0:
+		return "The map is still loading!"
+	if not is_on_floor():
+		return "Take off from the ground!"
+	var ground := _ground_below(1.2)
+	if ground.is_empty() or ground.normal.dot(Vector3.UP) <= 0.7:
+		return "The ground is too unstable to take off!"
+	if not _flight_clearance_ok():
+		return "Not enough room to take off here!"
+	if not HPMaps.flight_allowed(current_map_id()):
+		return "Flight is not allowed on this map!"
+	return ""
+
+## The map this body is on. The authority owns the field; the client reads it.
+func current_map_id() -> String:
+	var record := SimAuthority.record_for(self)
+	if not record.is_empty() and record.has("map_id"):
+		return String(record["map_id"])
+	return HPProtocol.DEFAULT_MAP
+
+## Landing checks, in the order the plan lists them: ground normal, capsule
+## clearance, ceiling height and a safe dismount position.
+func dismount_block_reason() -> String:
+	var ground := _ground_below(3.0)
+	if ground.is_empty() or ground.normal.dot(Vector3.UP) <= 0.7:
+		return "Descend near level ground first (Ctrl)"
+	var landing: Vector3 = ground.position
+	var standing := _capsule_clear(landing + Vector3.UP * (CAPSULE_HEIGHT * 0.5 + 0.06))
+	if not standing:
+		return "No room to stand up here!"
+	if not _ceiling_clear(landing, DISMOUNT_CEILING):
+		return "The ceiling is too low to dismount!"
+	return ""
+
+func can_dismount_safely() -> bool:
+	return dismount_block_reason() == ""
+
+func _capsule_clear(at: Vector3) -> bool:
+	var shape := CapsuleShape3D.new()
+	shape.radius = CAPSULE_RADIUS
+	shape.height = CAPSULE_HEIGHT
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = shape
+	query.transform = Transform3D(Basis(), at)
+	query.collision_mask = 1
+	query.exclude = [get_rid()]
+	return get_world_3d().direct_space_state.intersect_shape(query, 1).is_empty()
+
+func _ceiling_clear(from: Vector3, height: float) -> bool:
+	var query := PhysicsRayQueryParameters3D.create(from + Vector3.UP * 0.1, from + Vector3.UP * height, 1)
+	query.exclude = [get_rid()]
+	return get_world_3d().direct_space_state.intersect_ray(query).is_empty()
+
+## Room for the broom itself: headroom above the crown plus the shaft's length
+## swept at saddle height. Rejecting here is what stops a take-off inside a
+## corridor from poking the broom through a wall.
+func _flight_clearance_ok() -> bool:
+	if not _ceiling_clear(global_position, HERO_CROWN_HEIGHT + MOUNT_CLEAR_HEIGHT):
+		return false
+	var yaw := visuals.rotation.y if visuals else rotation.y
+	var basis := Basis(Vector3.UP, yaw)
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(MOUNT_LATERAL_WIDTH, 0.5, MOUNT_LATERAL_LENGTH)
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = shape
+	query.transform = Transform3D(basis, global_position + Vector3.UP * 0.95)
+	query.collision_mask = 1
+	query.exclude = [get_rid()]
+	return get_world_3d().direct_space_state.intersect_shape(query, 1).is_empty()
+
 func _apply_mount_state(mounted: bool) -> void:
 	is_mounted = mounted
+	mount_state = MountState.MOUNTING if mounted else MountState.LANDING
 	if broom_particles:
-		broom_particles.emitting = is_mounted
+		broom_particles.emitting = mounted
+	if broom:
+		broom.set_flying(mounted)
+	_align_broom_to_hips()
+	if mounted:
+		if hero_anim:
+			hero_anim.play_oneshot("Mount_Broom")
+		mount_state = MountState.FLYING
+	else:
+		if hero_anim:
+			hero_anim.play_oneshot("Dismount_Broom")
 	emit_signal("mounted_changed", is_mounted)
+
+## Presentation phase for this rider; the authority replicates it so remote
+## clients animate the same phase (HPProtocol.MountPhase).
+func mount_phase() -> int:
+	if not is_mounted:
+		return HPProtocol.MountPhase.NONE
+	var lateral := 0.0
+	if is_local_player and not input_blocked():
+		lateral = Input.get_axis("move_right", "move_left")
+	elif sim_server_controlled:
+		lateral = float(sim_input.get("move", Vector2.ZERO).x)
+	var vertical := 0.0
+	if _intent_jump():
+		vertical += 1.0
+	if _intent_descend():
+		vertical -= 1.0
+	var speed_ratio := Vector2(velocity.x, velocity.z).length() / maxf(0.1, mounted_speed)
+	return HPProtocol.mount_phase_for(true, -lateral, vertical, speed_ratio, 0.0)
+
+## Mount clip for a given replicated phase (used by remote puppets).
+static func clip_for_mount_phase(phase: int) -> String:
+	match phase:
+		HPProtocol.MountPhase.CLIMB:
+			return "Broom_Climb"
+		HPProtocol.MountPhase.DIVE:
+			return "Broom_Dive"
+		HPProtocol.MountPhase.BANK_L:
+			return "Broom_Bank_L"
+		HPProtocol.MountPhase.BANK_R:
+			return "Broom_Bank_R"
+		HPProtocol.MountPhase.BRAKE:
+			return "Broom_Brake"
+		HPProtocol.MountPhase.ACCELERATE:
+			return "Broom_Accelerate"
+		HPProtocol.MountPhase.CRUISE:
+			return "Broom_Cruise"
+		HPProtocol.MountPhase.TAKEOFF:
+			return "Broom_Takeoff"
+		HPProtocol.MountPhase.MOUNTING:
+			return "Mount_Broom"
+		HPProtocol.MountPhase.LANDING:
+			return "Broom_Land"
+		HPProtocol.MountPhase.DISMOUNT:
+			return "Dismount_Broom"
+		_:
+			return "Broom_Seated_Idle"
 
 func _ground_below(distance: float) -> Dictionary:
 	var query := PhysicsRayQueryParameters3D.create(global_position + Vector3.UP * 0.1, global_position - Vector3.UP * distance, 1)
 	return get_world_3d().direct_space_state.intersect_ray(query)
-
-func can_dismount_safely() -> bool:
-	var ground := _ground_below(3.0)
-	if ground.is_empty() or ground.normal.dot(Vector3.UP) <= 0.7:
-		return false
-	# Reject landings without capsule clearance (low ceilings, walls, props).
-	var shape := CapsuleShape3D.new()
-	shape.radius = 0.45
-	shape.height = 1.8
-	var query := PhysicsShapeQueryParameters3D.new()
-	query.shape = shape
-	query.transform = Transform3D(Basis(), ground.position + Vector3.UP * 0.91)
-	query.collision_mask = 1
-	query.exclude = [get_rid()]
-	return get_world_3d().direct_space_state.intersect_shape(query, 1).is_empty()
 
 func input_blocked() -> bool:
 	var focus := get_viewport().gui_get_focus_owner()
@@ -514,11 +816,25 @@ func _update_flight_pose(delta: float) -> void:
 	_mount_blend = move_toward(_mount_blend, 1.0 if is_mounted else 0.0, delta * 3.2)
 	if broom_mesh:
 		broom_mesh.visible = _mount_blend > 0.01
-	visuals.position.y = _mount_blend * (0.15 + sin(_flight_time * 3.0) * 0.06)
+	if broom:
+		broom.set_flying(is_mounted)
+		broom.tick(delta)
+		if broom_mesh.visible:
+			_align_broom_to_hips()
+	# The rider sits on the saddle: lift the visuals by the seat height instead of
+	# the old 0.15 m placeholder, so the boots clear the ground while hovering.
+	visuals.position.y = _mount_blend * (0.34 + sin(_flight_time * 3.0) * 0.05)
 	var speed_ratio := Vector2(velocity.x, velocity.z).length() / mounted_speed
 	visuals.rotation.x = lerpf(visuals.rotation.x, -0.2 * speed_ratio * _mount_blend, minf(1, delta * 5))
 	var turn := 0.0 if not is_local_player or input_blocked() else Input.get_axis("move_right", "move_left")
-	visuals.rotation.z = lerpf(visuals.rotation.z, turn * 0.22 * _mount_blend, minf(1, delta * 5))
+	# Rider lean is blended with acceleration and banking; the camera roll is a
+	# restrained, configurable fraction of the same bank (plan Phase 9).
+	var bank_target := turn * 0.22 * _mount_blend
+	visuals.rotation.z = lerpf(visuals.rotation.z, bank_target, minf(1, delta * 5))
+	_rider_roll = lerpf(_rider_roll, bank_target, minf(1, delta * 4))
+	var roll_deg := clampf(rad_to_deg(_rider_roll), -camera_roll_limit, camera_roll_limit)
+	if camera_pivot:
+		camera_pivot.rotation_degrees.z = lerpf(camera_pivot.rotation_degrees.z, roll_deg, minf(1, delta * 3))
 
 func restore_character(data: Dictionary) -> void:
 	level = clampi(int(data.get("level", 1)), 1, 100)
@@ -545,7 +861,7 @@ func restore_character(data: Dictionary) -> void:
 
 func get_mouse_aim_point() -> Vector3:
 	if is_instance_valid(current_target) and CombatRules.can_damage(self, current_target):
-		return current_target.global_position + Vector3.UP
+		return current_target.global_position + Vector3.UP * TARGET_AIM_HEIGHT
 	if not is_instance_valid(camera):
 		return global_position + visuals.global_basis.z * 20.0 + Vector3.UP
 	var mouse_pos := get_viewport().get_mouse_position()
@@ -589,7 +905,7 @@ func cast_spell(spell_id: String) -> void:
 	# --- predicted feedback. The world server decides; everything below is the
 	# client's guess at what it will say, and a rejection undoes it cleanly.
 	var aim_hit := get_mouse_aim_point()
-	var spawn_pos := global_position + Vector3(0, 1.2, 0)
+	var spawn_pos := global_position + Vector3(0, CAST_ORIGIN_HEIGHT, 0)
 	var cast_dir := (aim_hit - spawn_pos).normalized()
 	if cast_dir.length_squared() < 0.01:
 		cast_dir = visuals.global_basis.z
@@ -617,6 +933,9 @@ func cast_spell(spell_id: String) -> void:
 			_spawn_floating_text("3-HIT COMBO!", Color(1.0, 0.85, 0.2), 1.4)
 
 	_cast_lock = float(s_data.get("cast_lock", 0.28))
+	_committed_until = maxf(_committed_until, float(COMMITTED_SPELLS.get(spell_id, 0.0)))
+	if anim_name.begins_with("1H_Melee") or anim_name == "Melee_Chop_A":
+		_committed_until = maxf(_committed_until, COMMITTED_MELEE)
 	_cast_seq += 1
 	_predicted_casts[_cast_seq] = {"spell_id": spell_id, "aim": aim_hit}
 	_play_cast_animation(anim_name)
@@ -662,19 +981,34 @@ func _reject_feedback(reason: String) -> void:
 			if reason != "" and reason != "queued" and reason != "sent":
 				_spawn_floating_text("Cast refused", Color(1.0, 0.6, 0.4))
 
+## Cast presentation. The upper-body clip is blended OVER locomotion (so a
+## moving caster keeps their footwork), and the clip is seeked so its extension
+## pose lands on the authority's release moment - `fx:wand_release` is only
+## emitted then, never on a guessed frame.
 func _play_cast_animation(anim_name: String = "Spellcast_Shoot") -> void:
-	if not is_instance_valid(anim_player):
+	if hero_anim == null and not is_instance_valid(anim_player):
 		return
 	is_casting_anim = true
 	_cast_generation += 1
 	var generation := _cast_generation
-	if anim_player.has_animation(anim_name):
-		anim_player.play(anim_name, 0.08)
-	else:
-		anim_player.play("Spellcast_Shoot", 0.08)
-	await get_tree().create_timer(0.35).timeout
+	var upper := anim_name + "_Upper"
+	var hold := 0.42
+	if hero_anim:
+		hero_anim.start_cast(upper if hero_anim.has_clip(upper) else anim_name, hold)
+		hero_anim.align_cast(hold * 0.6, 0.45)
+	elif anim_player:
+		if anim_player.has_animation(anim_name):
+			anim_player.play(anim_name, 0.08)
+		elif anim_player.has_animation("Spellcast_Shoot"):
+			anim_player.play("Spellcast_Shoot", 0.08)
+	await get_tree().create_timer(hold * 0.6).timeout
+	if animation_events.size() < 32:
+		_on_animation_event("fx:wand_release")
+	await get_tree().create_timer(hold * 0.4).timeout
 	if generation == _cast_generation and not is_dead:
 		is_casting_anim = false
+		if hero_anim:
+			hero_anim.end_cast()
 
 func _activate_protego_preview() -> void:
 	is_protego_active = true
@@ -699,6 +1033,8 @@ func take_damage(amount: int, spell_type: String, attacker: Node3D) -> void:
 func on_authoritative_damage(spell_type: String, attacker: Node3D, _stun_ms: int, _weaken_ms: int) -> void:
 	if is_dead:
 		return
+	# Taking a hit starts the combat window that refuses mount requests.
+	_combat_until = COMBAT_WINDOW
 	var actual_dmg := 0
 	var record := SimAuthority.record_for(self)
 	if not record.is_empty():
@@ -707,8 +1043,11 @@ func on_authoritative_damage(spell_type: String, attacker: Node3D, _stun_ms: int
 		_spawn_floating_text("BLOCKED 60%!", Color(0.3, 0.7, 1.0))
 	elif actual_dmg > 0:
 		_spawn_floating_text(str(actual_dmg), Color(1.0, 0.2, 0.2), 1.3)
-	if is_instance_valid(anim_player) and not is_casting_anim and current_hp > 0 and actual_dmg > 0:
-		anim_player.play("Hit_A", 0.1)
+	if not is_casting_anim and current_hp > 0 and actual_dmg > 0:
+		if hero_anim:
+			hero_anim.play_oneshot("Hit_A")
+		elif is_instance_valid(anim_player):
+			anim_player.play("Hit_A", 0.1)
 		_hit_recovery = 0.22
 	emit_stats()
 
@@ -740,7 +1079,9 @@ func on_authoritative_death(_killer: Node3D) -> void:
 	_clear_protego_preview()
 	_apply_mount_state(false)
 	velocity = Vector3.ZERO
-	if is_instance_valid(anim_player):
+	if hero_anim:
+		hero_anim.set_locomotion("dead", "Death_A", true)
+	elif is_instance_valid(anim_player):
 		anim_player.play("Death_A", 0.1)
 	_spawn_floating_text("DEFEATED!", Color(1.0, 0.0, 0.0), 2.0)
 	emit_stats()
@@ -750,7 +1091,10 @@ func on_authoritative_respawn() -> void:
 	velocity = Vector3.ZERO
 	is_dead = false
 	is_casting_anim = false
-	if is_instance_valid(anim_player):
+	if hero_anim:
+		hero_anim.play_oneshot("Revive")
+		hero_anim.set_locomotion("idle", "Idle", true)
+	elif is_instance_valid(anim_player):
 		anim_player.play("Idle", 0.2)
 	emit_stats()
 
@@ -820,7 +1164,7 @@ func add_loot(item_id: String, amount: int) -> void:
 func pickup_nearest_loot() -> void:
 	var loot_nodes = get_tree().get_nodes_in_group("loot")
 	var nearest_loot: Area3D = null
-	var min_dist: float = 7.0
+	var min_dist: float = PICKUP_RADIUS
 	for loot in loot_nodes:
 		if is_instance_valid(loot):
 			var dist = global_position.distance_to(loot.global_position)
@@ -833,7 +1177,7 @@ func pickup_nearest_loot() -> void:
 func cycle_nearest_target() -> void:
 	var targets: Array[Node3D] = []
 	for target in get_tree().get_nodes_in_group("targetable"):
-		if CombatRules.can_damage(self, target) and global_position.distance_to(target.global_position) < 35:
+		if CombatRules.can_damage(self, target) and global_position.distance_to(target.global_position) < TARGET_RANGE:
 			targets.append(target)
 	if targets.is_empty():
 		set_target(null)
@@ -887,7 +1231,7 @@ func _spawn_floating_text(text: String, col: Color, scale_mult: float = 1.0) -> 
 	if FT_SCENE:
 		var ft = FT_SCENE.instantiate()
 		get_parent().add_child(ft)
-		ft.global_position = global_position + Vector3(0, 2.2, 0)
+		ft.global_position = global_position + Vector3(0, NAMEPLATE_HEIGHT + 0.1, 0)
 		ft.setup(text, col, scale_mult)
 
 ## Public single-line feedback hook (potions, UI events).

@@ -1,11 +1,12 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://scripts/entities/player.gd" id="1_pl"]
-[ext_resource type="PackedScene" path="res://assets/models/characters/wizard.glb" id="2_wiz"]
+[ext_resource type="PackedScene" path="res://assets/models/characters/hero_wizard.glb" id="2_hero"]
+[ext_resource type="PackedScene" path="res://assets/models/props/broom_flight.glb" id="3_broom"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
-radius = 0.45
-height = 1.8
+radius = 0.35
+height = 1.85
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_aura"]
 shading_mode = 0
@@ -16,34 +17,9 @@ material = SubResource("StandardMaterial3D_aura")
 radius = 0.05
 height = 0.1
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_broom"]
-albedo_color = Color(0.38, 0.22, 0.12, 1)
-metallic = 0.3
-roughness = 0.4
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_handle"]
-material = SubResource("StandardMaterial3D_broom")
-top_radius = 0.03
-bottom_radius = 0.04
-height = 1.9
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bristles"]
-albedo_color = Color(0.7, 0.55, 0.25, 1)
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_bristles"]
-material = SubResource("StandardMaterial3D_bristles")
-top_radius = 0.04
-bottom_radius = 0.16
-height = 0.65
-
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wind"]
 shading_mode = 0
 albedo_color = Color(1, 0.9, 0.5, 0.7)
-
-[sub_resource type="SphereMesh" id="SphereMesh_wind"]
-material = SubResource("StandardMaterial3D_wind")
-radius = 0.06
-height = 0.12
 
 [node name="Player" type="CharacterBody3D" groups=["players", "targetable"]]
 collision_layer = 2
@@ -51,19 +27,18 @@ collision_mask = 7
 script = ExtResource("1_pl")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.925, 0)
 shape = SubResource("CapsuleShape3D_1")
 
 [node name="Visuals" type="Node3D" parent="."]
 
-[node name="wizard" parent="Visuals" instance=ExtResource("2_wiz")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+[node name="hero" parent="Visuals" instance=ExtResource("2_hero")]
 
 [node name="WandTipMarker" type="Marker3D" parent="Visuals"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.42, 1.15, -0.6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.42, 1.3, 0.55)
 
 [node name="WandAuraParticles" type="CPUParticles3D" parent="Visuals"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.42, 1.15, -0.6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.42, 1.3, 0.55)
 emitting = false
 amount = 25
 lifetime = 0.5
@@ -74,27 +49,22 @@ gravity = Vector3(0, 1.8, 0)
 scale_amount_min = 0.6
 scale_amount_max = 1.4
 
-[node name="BroomMesh" type="MeshInstance3D" parent="Visuals"]
-transform = Transform3D(1, 0, 0, 0, -0.05, -0.999, 0, 0.999, -0.05, 0, 0.62, 0.05)
+[node name="BroomMesh" parent="Visuals" instance=ExtResource("3_broom")]
 visible = false
-mesh = SubResource("CylinderMesh_handle")
-
-[node name="Bristles" type="MeshInstance3D" parent="Visuals/BroomMesh"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.9, 0)
-mesh = SubResource("CylinderMesh_bristles")
 
 [node name="BroomParticles" type="CPUParticles3D" parent="Visuals/BroomMesh"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.2, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -1.15)
 emitting = false
 amount = 30
 lifetime = 0.4
-mesh = SubResource("SphereMesh_wind")
+emission_shape = 1
+emission_sphere_radius = 0.08
 gravity = Vector3(0, -0.5, 3.0)
 scale_amount_min = 0.5
 scale_amount_max = 1.2
 
 [node name="NameplateLabel3D" type="Label3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.3, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.18, 0)
 billboard = 1
 double_sided = false
 text = "[Gryffindor]

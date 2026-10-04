@@ -83,6 +83,50 @@ enum CastState { IDLE = 0, WINDUP = 1, RELEASE = 2, RECOVERY = 3, STUNNED = 4, D
 ## Entity kinds replicated to clients.
 enum Kind { PLAYER = 1, MOB = 2, DUMMY = 3, MONOLITH = 4, LOOT = 5, NPC = 6 }
 
+## Mount presentation phase (plan.md Phase 9). Carried in a PLAYER entity's
+## existing `state` byte inside snapshots, so a remote client animates the same
+## flight phase it would if it owned the body - the phase is decided here, from
+## authoritative state, and never by the client that renders it. NONE means "not
+## mounted"; every mounted player carries a phase >= SEATED.
+enum MountPhase {
+	NONE = 0,
+	MOUNTING = 1,
+	SEATED = 2,
+	TAKEOFF = 3,
+	ACCELERATE = 4,
+	CRUISE = 5,
+	BANK_L = 6,
+	BANK_R = 7,
+	CLIMB = 8,
+	DIVE = 9,
+	BRAKE = 10,
+	LANDING = 11,
+	DISMOUNT = 12,
+}
+
+## Pure derivation of the flight phase. `lateral` is the intent's left/right axis
+## (+1 = right), `vertical` its climb axis (+1 = up), `speed_ratio` the horizontal
+## speed over the mounted top speed, and `accel_ratio` its rate of change.
+static func mount_phase_for(mounted: bool, lateral: float, vertical: float,
+		speed_ratio: float, accel_ratio: float = 0.0) -> int:
+	if not mounted:
+		return MountPhase.NONE
+	if vertical > 0.3:
+		return MountPhase.CLIMB
+	if vertical < -0.3:
+		return MountPhase.DIVE
+	if lateral < -0.4:
+		return MountPhase.BANK_L
+	if lateral > 0.4:
+		return MountPhase.BANK_R
+	if speed_ratio > 0.12 and accel_ratio < -1.5:
+		return MountPhase.BRAKE
+	if speed_ratio > 0.75:
+		return MountPhase.CRUISE
+	if speed_ratio > 0.2:
+		return MountPhase.ACCELERATE
+	return MountPhase.SEATED
+
 ## Per-entity presentation flags packed into one byte in snapshots.
 const FLAG_DEAD := 1 << 0
 const FLAG_MOUNTED := 1 << 1

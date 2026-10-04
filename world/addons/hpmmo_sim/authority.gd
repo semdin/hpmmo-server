@@ -891,6 +891,7 @@ func _step() -> void:
 	_check_fall_protection()
 	_check_transfers()
 	_tick_safe_spawns()
+	_tick_mount_phases()
 	_regen_accumulator_ms += TICK_MS
 	if _regen_accumulator_ms >= REGEN_INTERVAL_MS:
 		_regen_accumulator_ms = 0
@@ -900,6 +901,46 @@ func _step() -> void:
 		_autosave_accumulator_ms = 0
 		if persistence != null:
 			persistence.autosave_all(entities, players_by_peer)
+
+# ------------------------------------------------------------- mount phase
+##
+## Plan Phase 9: "Replicate mount state and animation phase to remote clients."
+## The mount *state* already travels as FLAG_MOUNTED in every snapshot; this
+## fills the same snapshot's unused `state` byte on PLAYER entities with the
+## flight phase, derived here from authoritative input and the body's own speed,
+## so every client renders the same phase for the same rider.
+func _tick_mount_phases() -> void:
+	for uid in entities.keys():
+		var record: Dictionary = entities[uid]
+		if int(record.get("kind", 0)) != HPProtocol.Kind.PLAYER:
+			continue
+		var mounted := bool(record.get("mounted", false))
+		if not mounted:
+			record["state"] = HPProtocol.MountPhase.NONE
+			record["__mount_speed"] = 0.0
+			continue
+		var node = record.get("node")
+		if node == null or not is_instance_valid(node):
+			continue
+		var lateral := 0.0
+		var vertical := 0.0
+		var input = record.get("input")
+		if input is Dictionary:
+			var move = input.get("move", null)
+			if move is Vector2:
+				lateral = (move as Vector2).x
+			vertical += 1.0 if bool(input.get("jump", false)) else 0.0
+			vertical -= 1.0 if bool(input.get("descend", false)) else 0.0
+		var speed := 0.0
+		if node is CharacterBody3D:
+			speed = Vector2((node as CharacterBody3D).velocity.x, (node as CharacterBody3D).velocity.z).length()
+		var top := float(node.get("mounted_speed")) if "mounted_speed" in node else 0.0
+		if top <= 0.1:
+			top = 15.0
+		var previous := float(record.get("__mount_speed", 0.0))
+		record["__mount_speed"] = speed
+		record["state"] = HPProtocol.mount_phase_for(
+			true, lateral, vertical, speed / top, (speed - previous) * HPProtocol.SIM_HZ)
 
 # ------------------------------------------------------------- cast pipeline
 
