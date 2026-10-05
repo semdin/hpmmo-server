@@ -2,6 +2,15 @@ extends Control
 
 ## Metin2-style HUD for HPMMO
 ## HP/Mana orbs & bars, EXP progress, spell hotbar with cooldowns, target frame, and chat
+##
+## Phase 13: the widget values are bound to the authoritative state model
+## through `UIStateBinder` - one subscription point that connects to the
+## authority's stat payloads and entity deltas and disconnects cleanly on
+## rebind and tree exit. Bars keep an instant authoritative readout plus a
+## tween-safe animation layer (`StatBar`), and the panels below add cast
+## feedback, status and safe-area indication, death/respawn, travel and
+## staircase state, the maintenance countdown, the onboarding route and the
+## settings screen.
 
 @onready var hp_bar: ProgressBar = $BottomBar/StatusBars/HpBar
 @onready var hp_label: Label = $BottomBar/StatusBars/HpBar/HpLabel
@@ -38,6 +47,23 @@ var current_target: Node3D = null
 var _currency: Label
 var _last_galleons := -1
 
+## Phase 13: the authoritative binding and the panels it feeds.
+var binder: UIStateBinder = null
+var feedback: CombatFeedback = null
+var travel: TravelFeedback = null
+var maintenance: MaintenanceUI = null
+var onboarding: OnboardingUI = null
+var settings: SettingsUI = null
+
+var _hp_stat: StatBar = null
+var _mana_stat: StatBar = null
+var _exp_stat: StatBar = null
+var _target_stat: StatBar = null
+var _stats_seen: int = 0
+## True once an authoritative payload has carried currency: the mirror's
+## per-frame value is no longer allowed to overwrite it.
+var _galleons_from_authority := false
+
 func _ready() -> void:
 	target_panel.hide()
 	_apply_theme()
@@ -49,63 +75,233 @@ func _ready() -> void:
 	add_child(_currency)
 	chat_input.text_submitted.connect(_on_chat_submitted)
 	NetworkManager.chat_message_received.connect(_on_chat_received)
-	
+
 	slot_1.pressed.connect(func(): _trigger_player_spell("stupefy"))
 	slot_2.pressed.connect(func(): _trigger_player_spell("incendio"))
 	slot_3.pressed.connect(func(): _trigger_player_spell("bombarda"))
 	slot_4.pressed.connect(func(): _trigger_player_spell("expelliarmus"))
 	slot_q.pressed.connect(func(): _trigger_player_spell("protego"))
 	slot_e.pressed.connect(func(): _trigger_player_spell("ultimate"))
-	
+
 	mount_button.pressed.connect(func(): if is_instance_valid(player): player.toggle_broom_mount())
-	
+
+	_setup_phase13()
 	_add_system_chat("Welcome to HPMMO! Cast spells with 1-4, Q, E. Shift mounts/dismounts. Space rises, Ctrl descends.")
 	_add_system_chat("Target Dark Monoliths and mobs with Left Click or Tab. Destroy Monoliths for massive loot!")
 
+## Phase 13 wiring: the animation layers, the authoritative binder and the
+## panels. Built at runtime so the scene file keeps its node paths (other
+## systems and the walkthrough depend on them).
+func _setup_phase13() -> void:
+	_hp_stat = StatBar.new().attach(self, hp_bar)
+	_mana_stat = StatBar.new().attach(self, mana_bar)
+	_exp_stat = StatBar.new().attach(self, exp_bar)
+	_target_stat = StatBar.new().attach(self, target_hp_bar)
+
+	binder = UIStateBinder.new()
+	binder.name = "StateBinder"
+	add_child(binder)
+	binder.stats_applied.connect(_on_binder_stats)
+	binder.target_changed.connect(_on_target_changed)
+	binder.target_health_changed.connect(_on_target_health)
+	binder.cast_rejected.connect(_on_cast_rejected)
+	binder.death_changed.connect(_on_death_sound)
+	binder.level_changed.connect(_on_level_sound)
+
+	feedback = CombatFeedback.new()
+	feedback.name = "CombatFeedback"
+	add_child(feedback)
+	feedback.setup(binder, null)
+
+	travel = TravelFeedback.new()
+	travel.name = "TravelFeedback"
+	add_child(travel)
+
+	maintenance = MaintenanceUI.new()
+	maintenance.name = "MaintenanceUI"
+	add_child(maintenance)
+	maintenance.setup(binder)
+
+	onboarding = OnboardingUI.new()
+	onboarding.name = "OnboardingUI"
+	add_child(onboarding)
+
+	settings = SettingsUI.new()
+	settings.name = "SettingsUI"
+	add_child(settings)
+
+	_add_quick_button("SettingsBtn", "[F1] Settings", func(): settings.toggle())
+	_add_quick_button("JournalBtn", "[J] Guide", func(): onboarding.toggle_panel())
+	_ensure_ui_action("toggle_settings", KEY_F1)
+	_ensure_ui_action("toggle_onboarding", KEY_J)
+
+func _add_quick_button(button_name: String, text: String, action: Callable) -> void:
+	var quick := get_node_or_null("BottomBar/QuickBar")
+	if quick == null:
+		return
+	var button := Button.new()
+	button.name = button_name
+	button.text = text
+	button.custom_minimum_size = Vector2(90, 26)
+	button.add_theme_font_size_override("font_size", 11)
+	button.focus_mode = Control.FOCUS_NONE
+	button.pressed.connect(action)
+	quick.add_child(button)
+
+func _ensure_ui_action(action: String, keycode: int) -> void:
+	if InputMap.has_action(action):
+		return
+	InputMap.add_action(action)
+	var event := InputEventKey.new()
+	event.physical_keycode = keycode
+	InputMap.action_add_event(action, event)
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("toggle_settings"):
+		if settings != null:
+			settings.toggle()
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("toggle_onboarding"):
+		if onboarding != null:
+			onboarding.toggle_panel()
+		get_viewport().set_input_as_handled()
+
 func bind_player(p_player: Node3D) -> void:
-	if player == p_player:
+	if player == p_player and binder != null and binder.player == p_player:
 		player.emit_stats()
 		return
-	if is_instance_valid(player):
-		player.stats_changed.disconnect(_on_stats_changed)
-		player.target_changed.disconnect(_on_target_changed)
-		player.spell_cast_signal.disconnect(_on_spell_cast)
-		player.mounted_changed.disconnect(_on_mounted_changed)
-		player.loot_collected_signal.disconnect(_on_loot_collected)
 	player = p_player
-	player.stats_changed.connect(_on_stats_changed)
-	player.target_changed.connect(_on_target_changed)
-	player.spell_cast_signal.connect(_on_spell_cast)
-	player.mounted_changed.connect(_on_mounted_changed)
-	player.loot_collected_signal.connect(_on_loot_collected)
+	if binder != null:
+		binder.bind(player)
+	if feedback != null:
+		feedback.player = player
+	var world := _find_world()
+	if travel != null:
+		travel.setup(player, world)
+	if onboarding != null:
+		onboarding.setup(binder, player, world)
+	# A fresh life starts from the server's numbers, never from the last body's
+	# half-animated bar.
+	if _hp_stat != null:
+		_hp_stat.snap()
+	if _mana_stat != null:
+		_mana_stat.snap()
+	if _exp_stat != null:
+		_exp_stat.snap()
+	if _target_stat != null:
+		_target_stat.snap()
+	_last_galleons = -1
+	_galleons_from_authority = false
 	player.emit_stats()
+
+func _find_world() -> Node3D:
+	var node: Node = get_parent()
+	while node != null:
+		if node is Node3D and "local_player" in node:
+			return node as Node3D
+		node = node.get_parent()
+	return null
+
+## Called cleanly when the world (and this HUD) goes away, and on rebind.
+func _exit_tree() -> void:
+	if binder != null and is_instance_valid(binder):
+		binder.unbind()
 
 func _trigger_player_spell(spell_id: String) -> void:
 	if is_instance_valid(player):
 		player.cast_spell(spell_id)
 
-func _on_stats_changed(hp: int, max_hp: int, mana: int, max_mana: int, exp: int, max_exp: int, level: int) -> void:
-	hp_bar.max_value = max_hp
-	hp_bar.value = hp
+## ------------------------------------------------- Phase 13: authoritative
+
+## One entry point for stat payloads: the authority's `stats_changed` (primary)
+## and the mirror's own signal (same numbers) both land here, so the widgets
+## only ever have one writer.
+func _on_binder_stats(stats: Dictionary) -> void:
+	_stats_seen += 1
+	var hp := int(stats.get("hp", 0))
+	var max_hp := int(stats.get("max_hp", 1))
+	var mana := int(stats.get("mana", 0))
+	var max_mana := int(stats.get("max_mana", 1))
+	var exp := int(stats.get("exp", 0))
+	var max_exp := int(stats.get("max_exp", 1))
+	var level := int(stats.get("level", 1))
+	_hp_stat.set_value(hp, max_hp)
 	hp_label.text = "%d / %d" % [hp, max_hp]
-	
-	mana_bar.max_value = max_mana
-	mana_bar.value = mana
+	_mana_stat.set_value(mana, max_mana)
 	mana_label.text = "%d / %d" % [mana, max_mana]
-	
-	exp_bar.max_value = max_exp
-	exp_bar.value = exp
-	var exp_pct = int((float(exp) / float(max_exp)) * 100.0)
+	_exp_stat.set_value(exp, max_exp)
+	var exp_pct := int((float(exp) / maxf(1.0, float(max_exp))) * 100.0)
 	exp_label.text = "EXP: %d / %d (%d%%)" % [exp, max_exp, exp_pct]
-	
 	level_label.text = "Lv. %d" % level
+	var galleons := int(stats.get("galleons", -1))
+	if String(stats.get("source", "")) == "authority":
+		# Once the server has spoken about currency, its number is the one the
+		# HUD shows; the per-frame mirror sync below is only for sessions where
+		# no stat payload has arrived yet.
+		_galleons_from_authority = true
+	if galleons >= 0:
+		_last_galleons = galleons
+		_update_currency()
+	# Mount and life state are applied by the mirror itself
+	# (`apply_authoritative_stats` calls `_apply_mount_state` / the death and
+	# respawn transitions before this signal fires), so the HUD only displays
+	# them - it never writes gameplay state back onto the body.
+
+func _on_stats_changed(hp: int, max_hp: int, mana: int, max_mana: int, exp: int, max_exp: int, level: int) -> void:
+	# Kept as the mirror's direct entry point (tests and other systems call
+	# `emit_stats`); it applies exactly the same numbers to the same widgets.
+	_on_binder_stats({
+		"hp": hp, "max_hp": max_hp, "mana": mana, "max_mana": max_mana,
+		"exp": exp, "max_exp": max_exp, "level": level,
+		"galleons": int(player.galleons) if is_instance_valid(player) else -1,
+		"dead": bool(player.is_dead) if is_instance_valid(player) else false,
+		"mounted": bool(player.is_mounted) if is_instance_valid(player) else false,
+	})
+
+func _update_currency() -> void:
+	if not is_instance_valid(player):
+		return
+	_currency.text = "%s  •  %s  •  %d Galleons" % [player.player_name, player.house, _last_galleons]
+
+func _on_target_health(_uid: int, hp: int, max_hp: int) -> void:
+	_target_stat.set_value(hp, max_hp)
+	target_hp_bar.tooltip_text = "%d / %d" % [hp, max_hp]
+
+func _on_cast_rejected(_cast_seq: int, _spell_id: String, _reason: String) -> void:
+	_play_ui("ui_deny")
+
+func _on_death_sound(is_dead: bool) -> void:
+	if is_dead:
+		_play_ui("ui_cancel")
+
+func _on_level_sound(_level: int) -> void:
+	_play_ui("ui_levelup")
+
+func _play_ui(key: String) -> void:
+	var audio := get_node_or_null("/root/AudioManager")
+	if audio != null and audio.has_method("play_sound_at"):
+		audio.call("play_sound_at", key, Vector3.ZERO, null, true)
+
+## Cooldown remaining for a spell, preferring the authority's tick deadline
+## over the locally predicted mirror.
+func cooldown_remaining(spell_id: String) -> float:
+	if binder != null:
+		var record := binder.record_for_local()
+		var cooldowns = record.get("cooldowns", {})
+		if cooldowns is Dictionary:
+			var until := int(cooldowns.get(spell_id, 0))
+			if until > int(SimAuthority.sim_tick):
+				return float(until - int(SimAuthority.sim_tick)) * float(HPProtocol.SIM_DT)
+	if is_instance_valid(player):
+		return float(player.spell_cooldowns.get(spell_id, 0.0))
+	return 0.0
 
 func _on_target_changed(target: Node3D) -> void:
 	current_target = target
 	if not is_instance_valid(target):
 		target_panel.hide()
 		return
-	
+
 	target_panel.show()
 	_update_target_frame()
 
@@ -115,12 +311,12 @@ func _process(delta: float) -> void:
 		_update_target_frame()
 	elif not is_instance_valid(current_target) and target_panel.visible:
 		target_panel.hide()
-	
+
 	# Update cooldown numbers on hotbar
 	if is_instance_valid(player):
-		if _last_galleons != player.galleons:
+		if not _galleons_from_authority and _last_galleons != player.galleons:
 			_last_galleons = player.galleons
-			_currency.text = "%s  •  %s  •  %d Galleons" % [player.player_name, player.house, player.galleons]
+			_update_currency()
 		_update_slot_cd(slot_1, "stupefy", "1")
 		_update_slot_cd(slot_2, "incendio", "2")
 		_update_slot_cd(slot_3, "bombarda", "3")
@@ -129,7 +325,7 @@ func _process(delta: float) -> void:
 		_update_slot_cd(slot_e, "ultimate", "E")
 
 func _update_slot_cd(slot: Button, spell_id: String, key_hint: String) -> void:
-	var cd = player.spell_cooldowns.get(spell_id, 0.0)
+	var cd := cooldown_remaining(spell_id)
 	slot.disabled = player.is_dead
 	slot.tooltip_text = "%s\n%d mana • %.1fs cooldown\n%s" % [GameData.SPELLS[spell_id].name, GameData.SPELLS[spell_id].mana_cost, GameData.SPELLS[spell_id].cooldown, GameData.SPELLS[spell_id].desc]
 	if cd > 0.0:
@@ -143,7 +339,7 @@ func _update_target_frame() -> void:
 	if not is_instance_valid(current_target) or ("current_hp" in current_target and current_target.current_hp <= 0):
 		target_panel.hide()
 		return
-	
+
 	if "mob_name" in current_target:
 		var is_boss_target: bool = "is_boss" in current_target and current_target.is_boss
 		var is_enraged_target: bool = "is_enraged" in current_target and current_target.is_enraged
@@ -159,19 +355,32 @@ func _update_target_frame() -> void:
 			target_name_label.text = "[Lv.%d] %s" % [current_target.level, current_target.mob_name]
 			target_name_label.modulate = Color(1.0, 1.0, 1.0)
 			target_hp_bar.modulate = Color(1.0, 0.3, 0.3)
-		target_hp_bar.max_value = current_target.max_hp
-		target_hp_bar.value = current_target.current_hp
+		_target_stat.set_value(_target_hp_value(), _target_max_hp_value())
 	elif current_target.is_in_group("monoliths"):
 		target_name_label.text = "Dark Monolith (Lv.35)"
 		target_name_label.modulate = Color(0.8, 0.4, 1.0)
 		target_hp_bar.modulate = Color(0.8, 0.4, 1.0)
-		target_hp_bar.max_value = current_target.max_hp
-		target_hp_bar.value = current_target.current_hp
+		_target_stat.set_value(_target_hp_value(), _target_max_hp_value())
 	elif "current_hp" in current_target and "max_hp" in current_target:
 		target_name_label.text = "Training Dummy"
 		target_name_label.modulate = Color(0.8, 0.9, 0.8)
-		target_hp_bar.max_value = current_target.max_hp
-		target_hp_bar.value = current_target.current_hp
+		_target_stat.set_value(_target_hp_value(), _target_max_hp_value())
+
+## Prefer the authority's health delta for this target; fall back to the node
+## only when the authority has not spoken about it (a local dummy in a test).
+func _target_hp_value() -> int:
+	if binder != null and binder.has_target_health():
+		return binder.target_hp()
+	if "current_hp" in current_target:
+		return int(current_target.current_hp)
+	return 0
+
+func _target_max_hp_value() -> int:
+	if binder != null and binder.has_target_health():
+		return binder.target_max_hp()
+	if "max_hp" in current_target:
+		return int(current_target.max_hp)
+	return 1
 
 func _on_mounted_changed(is_mounted: bool) -> void:
 	mount_button.text = "Dismount" if is_mounted else "Nimbus"
@@ -185,6 +394,38 @@ func _on_loot_collected(item_id: String, amount: int) -> void:
 func _on_spell_cast(spell_id: String, cd: float) -> void:
 	pass
 
+## Listener evidence for the Phase 13 checks: every subscription this HUD holds
+## through its binder, plus the panel-owned ones.
+## Layout evidence: where each Phase 13 panel actually sits, at the current
+## window size. Used by the captures and by the scalable-UI check.
+func layout_report() -> Dictionary:
+	var panel_list := {
+		"cast": feedback._cast_panel if feedback != null else null,
+		"feedback": feedback._feedback_label if feedback != null else null,
+		"status": feedback._status_label if feedback != null else null,
+		"toasts": feedback._toast_box.get_parent() if feedback != null and feedback._toast_box != null else null,
+		"location": travel._location_label if travel != null else null,
+		"portal": travel._portal_panel if travel != null else null,
+		"stairs": travel._stairs_panel if travel != null else null,
+		"mounted": travel._mounted_panel if travel != null else null,
+		"maintenance": maintenance._panel if maintenance != null else null,
+		"onboarding": onboarding._panel if onboarding != null else null,
+		"settings": settings.panel if settings != null else null,
+	}
+	var out := {}
+	for key in panel_list:
+		var control = panel_list[key]
+		if control is Control and is_instance_valid(control):
+			out[key] = Rect2((control as Control).global_position, (control as Control).size)
+	return out
+
+func listener_report() -> Dictionary:
+	var report := {"binder": {}, "total": 0}
+	if binder != null:
+		report["binder"] = binder.listener_report()
+		report["total"] = int(report["binder"].get("total", 0))
+	return report
+
 func _on_chat_submitted(text: String) -> void:
 	if text.strip_edges().is_empty():
 		chat_input.release_focus()
@@ -197,7 +438,7 @@ func _on_chat_received(sender_name: String, sender_house: String, message: Strin
 	var color_hex = "ffffff"
 	if GameData.HOUSES.has(sender_house):
 		color_hex = GameData.HOUSES[sender_house].primary_color.to_html(false)
-	
+
 	var line = "[color=#%s][%s] %s:[/color] %s\n" % [color_hex, sender_house, sender_name, message]
 	chat_history.append_text(line)
 

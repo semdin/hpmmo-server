@@ -1,0 +1,5 @@
+{"event":"step","next":"register","step":"register","t":0.0}
+{"event":"register","message":"Account created.","step":"register","success":true,"t":0.2}
+{"detail":"session established","event":"pass","step":"register","t":0.3}
+{"detail":"Missing session token.","event":"fail","step":"register","t":0.4}
+{"event":"final","failures":["create_character: Missing session token."],"step":"register","steps":2,"t":0.4}

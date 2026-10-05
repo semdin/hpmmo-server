@@ -528,6 +528,63 @@ def test_happy(out_dir, port, server, stub):
     check(found, "the server's status lines report the player on castle_interior")
 
 
+def test_interior_collision(out_dir, port, server, stub):
+    """Bug 2 regression: an authoritative body indoors must rest on the interior
+    floor. Two runs, one per claim - enter and hold still, enter and walk a few
+    metres - both entered through the real door handshake. What is asserted is
+    the SERVER's own position samples (the client's body is only a prediction of
+    them) and the server log's fall rescue, which must never have to fire."""
+    print("\n--- interior collision: stand still and walk inside the castle ---")
+    interior_floor = spawn_point("castle_interior", "vestibule")[1] - 0.5   # authored floor, 200.0
+    for label, extra in (
+            ("orin", ["--stand-seconds=5", "--walk-seconds=0"]),
+            ("peri", ["--stand-seconds=0", "--walk-seconds=4"])):
+        marker = len(log_lines(server.log_path))
+        records, final = named(label, out_dir, port, "stand", 16, extra)
+        if not final:
+            continue
+        uid = int(final.get("uid", 0))
+        check(final.get("map_id") == "castle_interior" and final.get("commit_map") == "castle_interior",
+              "%s entered the castle through the door (%s)" % (label, final.get("commit_map")))
+        reports = by_event(records, "stand_report")
+        check(bool(reports), "%s produced the stand/walk report" % label)
+        if not reports:
+            continue
+        report = reports[-1]
+        for phase, samples, seconds in (
+                ("standing still", report.get("stand_samples", []), float(report.get("stand_seconds", 0.0))),
+                ("walking", report.get("walk_samples", []), float(report.get("walk_seconds", 0.0)))):
+            if seconds <= 0.0:
+                continue   # this run measures the other half only
+            auth_y = [float(s["auth"][1]) for s in samples if len(s.get("auth", [])) == 3]
+            local_y = [float(s["local"][1]) for s in samples if len(s.get("local", [])) == 3]
+            context = "%s while %s (%d samples)" % (label, phase, len(auth_y))
+            if not auth_y:
+                check(False, "the server position was sampled " + context)
+                continue
+            # The client renders its own predicted body; it must not be dragged
+            # off the floor by the server's answer either.
+            check(min(auth_y) >= interior_floor - 0.6,
+                  "the server keeps the body on the interior floor %s (lowest y=%.2f, floor=%.1f)"
+                  % (context, min(auth_y), interior_floor))
+            if local_y:
+                check(min(local_y) >= interior_floor - 0.6,
+                      "the rendered body stays on the interior floor %s (lowest y=%.2f)"
+                      % (context, min(local_y)))
+            check(max(auth_y) - min(auth_y) <= 1.2,
+                  "the body does not cycle through the floor %s (height range=%.2f m)"
+                  % (context, max(auth_y) - min(auth_y)))
+        if float(report.get("walk_seconds", 0.0)) > 0.0:
+            check(float(report.get("walk_distance", 0.0)) >= 2.0,
+                  "%s walked %.1f m along the interior floor"
+                  % (label, float(report.get("walk_distance", 0.0))))
+        fell = [line for line in log_lines(server.log_path)[marker:]
+                if ("player %d fell out of" % uid) in line]
+        check(not fell, "%s: the per-map fall rescue never fired (%d warnings)" % (label, len(fell)))
+        if fell:
+            print("    fall warnings: %s" % fell[:3])
+
+
 def test_roundtrips(out_dir, port, server, stub):
     print("\n--- repeated transfers ---")
     before = len(statuses(server.log_path))
@@ -755,7 +812,11 @@ def main():
         print("client simulation package not found - run dev.ps1 sync-sim first")
         return 2
 
-    out_dir = args.out_dir or tempfile.mkdtemp(prefix="hpmmo-maps-")
+    # Absolute on purpose: the client probes inherit the launcher's working
+    # directory, which is not this script's, so a relative --out-dir silently
+    # writes every probe transcript somewhere else (the run then looks like
+    # every probe hung, with no transcript at all).
+    out_dir = os.path.abspath(args.out_dir) if args.out_dir else tempfile.mkdtemp(prefix="hpmmo-maps-")
     os.makedirs(out_dir, exist_ok=True)
     print("artifacts: %s" % out_dir)
 
@@ -792,9 +853,12 @@ def main():
         stub.add_character("otto", seeded_character(107, "otto", ground_stand, "grounds"))
         stub.add_character("mira", seeded_character(108, "mira", ground_stand, "grounds"))
         stub.add_character("kate", seeded_character(109, "kate", ground_stand, "grounds"))
+        stub.add_character("orin", seeded_character(111, "orin", ground_stand, "grounds"))
+        stub.add_character("peri", seeded_character(112, "peri", ground_stand, "grounds"))
 
         test_cross_map(out_dir, port, server, stub)
         test_happy(out_dir, port, server, stub)
+        test_interior_collision(out_dir, port, server, stub)
         test_roundtrips(out_dir, port, server, stub)
         test_opposite(out_dir, port, server, stub)
         test_mounted(out_dir, port, server, stub)

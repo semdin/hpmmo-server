@@ -1,0 +1,10 @@
+{"event":"step","next":"register","step":"register","t":0.0}
+{"event":"register","message":"Account created.","step":"register","success":true,"t":0.2}
+{"detail":"session established","event":"pass","step":"register","t":0.3}
+{"detail":"created Journey94312","event":"pass","step":"register","t":0.5}
+{"event":"step","next":"join","step":"join","t":0.5}
+{"detail":"world accepted the session token","event":"pass","step":"join","t":0.6}
+{"character_id":1.0,"event":"join","step":"join","t":0.6,"uid":0}
+{"event":"step","next":"enter_world","step":"enter_world","t":0.6}
+{"detail":"map=grounds pos=(-29.0, 2.0, -24.0)","event":"pass","step":"enter_world","t":0.9}
+{"event":"step","next":"courtyard","step":"courtyard","t":0.9}

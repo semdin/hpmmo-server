@@ -1,0 +1,62 @@
+[
+  {
+    "level": 0,
+    "reports": 12,
+    "steps": 1204,
+    "players": 0,
+    "entities": 30.0,
+    "p50_us": 132,
+    "p95_us": 252,
+    "p99_us": 347,
+    "max_us": 3103,
+    "budget_us": 50000
+  },
+  {
+    "level": 2,
+    "reports": 12,
+    "steps": 1204,
+    "players": 2,
+    "entities": 36.7,
+    "p50_us": 212,
+    "p95_us": 1085,
+    "p99_us": 7478,
+    "max_us": 72865,
+    "budget_us": 50000
+  },
+  {
+    "level": 4,
+    "reports": 11,
+    "steps": 1103,
+    "players": 4,
+    "entities": 39.9,
+    "p50_us": 186,
+    "p95_us": 1008,
+    "p99_us": 9239,
+    "max_us": 79403,
+    "budget_us": 50000
+  },
+  {
+    "level": 8,
+    "reports": 11,
+    "steps": 1103,
+    "players": 8,
+    "entities": 43.6,
+    "p50_us": 241,
+    "p95_us": 2339,
+    "p99_us": 13359,
+    "max_us": 102679,
+    "budget_us": 50000
+  },
+  {
+    "level": 16,
+    "reports": 11,
+    "steps": 1103,
+    "players": 16,
+    "entities": 52.1,
+    "p50_us": 338,
+    "p95_us": 6561,
+    "p99_us": 10250,
+    "max_us": 26969,
+    "budget_us": 50000
+  }
+]

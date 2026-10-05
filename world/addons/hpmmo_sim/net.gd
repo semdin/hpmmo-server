@@ -268,13 +268,19 @@ func sim_spawn_player(peer_id: int, identity: Dictionary) -> void:
 		# authored respawn instead of stranding the body between maps.
 		var saved_map := String(character.get("map_id", ""))
 		if HPMaps.map_exists(saved_map):
+			# The map must be resident in THIS process before the body rests on
+			# it - the provider builds an indoor map's collision here (inert on
+			# clients); without it the body free-falls on the fall rescue.
+			SimAuthority.map_provider_ready(saved_map)
 			node.global_position = HPMaps.valid_position(saved_map, node.global_position)
 		else:
-			node.global_position = HPMaps.valid_position(
-				HPMaps.map_for_point(node.global_position), node.global_position)
+			var best_map := HPMaps.map_for_point(node.global_position)
+			SimAuthority.map_provider_ready(best_map)
+			node.global_position = HPMaps.valid_position(best_map, node.global_position)
 	elif identity.has("spawn"):
 		var spawn: Array = identity["spawn"]
 		node.global_position = Vector3(float(spawn[0]), float(spawn[1]), float(spawn[2]))
+		SimAuthority.map_provider_ready(HPMaps.map_for_point(node.global_position))
 	_avoid_spawn_overlap(node)
 	var uid := SimAuthority.register_player(node, int(identity.get("character_id", 0)), peer_id)
 	_known_by_peer[peer_id] = {}

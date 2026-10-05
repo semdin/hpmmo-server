@@ -343,8 +343,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			cast_spell("basic_cast")
 	
 	elif event is InputEventMouseMotion and mouse_orbit_active:
-		camera_rot_y -= event.relative.x * 0.28
-		camera_rot_x = clamp(camera_rot_x - event.relative.y * 0.25, -70.0, 25.0)
+		# Phase 13 hook: the mouse sensitivity slider scales the same raw
+		# relative motion; 1.0 is the authored speed.
+		var sensitivity: float = GameSettings.mouse_sensitivity_value()
+		camera_rot_y -= event.relative.x * 0.28 * sensitivity
+		camera_rot_x = clamp(camera_rot_x - event.relative.y * 0.25 * sensitivity, -70.0, 25.0)
 
 func _input(event: InputEvent) -> void:
 	# Releases must be observed even if a GUI panel consumes the event.
@@ -792,6 +795,12 @@ func _ground_below(distance: float) -> Dictionary:
 func input_blocked() -> bool:
 	var focus := get_viewport().gui_get_focus_owner()
 	if focus is LineEdit or focus is TextEdit:
+		return true
+	# Phase 13 hook: any open panel that takes keyboard focus registers itself in
+	# `UIFocus.GROUP` (client/scripts/ui/ui_focus.gd), so keys typed in a menu
+	# cannot also cast a spell or mount the broom. Mouse clicks are consumed by
+	# the Controls themselves before `_unhandled_input` ever sees them.
+	if UIFocus.is_blocking(get_tree()):
 		return true
 	var world := get_parent().get_parent()
 	for path in ["CanvasLayer/InventoryUI", "CanvasLayer/OllivanderUI"]:

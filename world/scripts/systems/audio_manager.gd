@@ -68,7 +68,10 @@ var _streams: Dictionary = {}        # path -> AudioStream
 var played_log: Array[String] = []
 var _local_player: Node = null
 var _footstep_variant := 0
-var _zone_beds: Array[AudioStreamPlayer] = []
+# Node, not AudioStreamPlayer: the zone beds are AudioStreamPlayer3D, which is a
+# sibling class, so appending one to a typed Array[AudioStreamPlayer] raises an
+# engine error on every zone change whenever a real audio device is present.
+var _zone_beds: Array[Node] = []
 var _reverb_sfx: AudioEffectReverb
 var _reverb_amb: AudioEffectReverb
 var _limiter_sfx: AudioEffectLimiter

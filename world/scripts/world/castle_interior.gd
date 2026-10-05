@@ -14,6 +14,11 @@ extends Node3D
 
 const Builder = preload("res://scripts/world/castle_interior_builder.gd")
 
+## The world server builds this map with collision only (server/world/server/
+## map_host.gd sets this before the node enters the tree): a dedicated server
+## simulates bodies, it does not draw, and it must not load the visual kit.
+var collision_only := false
+
 const MAP_ID := "castle_interior"
 const DISPLAY_NAME := "Hogwarts Castle"
 
@@ -35,7 +40,7 @@ func _ready() -> void:
 	build()
 
 func build() -> void:
-	Builder.build(self)
+	Builder.build(self, collision_only)
 
 ## Remove everything this map put in the tree. The map controller then frees the
 ## scene root itself; keeping both paths means a map can also be cleared in

@@ -47,9 +47,17 @@ const RAIL_T := 0.14
 ## exact gaps the walls already have.
 static var _openings: Array = []
 
-static func build(root: Node3D) -> void:
+## Collision-only builds (the world server's map host, server/world/server/
+## map_host.gd): the exact same layout and colliders with no surfaces, kit
+## props, lights or materials. A dedicated server simulates bodies, it does not
+## draw, and loading the PBR sets and kit meshes for it would cost memory for
+## nothing. Scoped to one `build()` call.
+static var _collision_only := false
+
+static func build(root: Node3D, collision_only: bool = false) -> void:
 	if root.has_node("InteriorStructure"):
 		return
+	_collision_only = collision_only
 	var s := Node3D.new()
 	s.name = "InteriorStructure"
 	root.add_child(s)
@@ -73,36 +81,45 @@ static func build(root: Node3D) -> void:
 	_build_lights(s)
 	_build_floor_wear(s)
 
-	# Repeated kit props (treads, balusters, candles, rubble) become one
-	# MultiMesh per module; single props stay individual meshes.
-	PBR.flush(s)
-	# Merge the many architectural boxes into per-material, per-chunk draws.
-	# Named nodes and their collision bodies stay in place.
-	Batch.boxes(s)
+	if not _collision_only:
+		# Repeated kit props (treads, balusters, candles, rubble) become one
+		# MultiMesh per module; single props stay individual meshes.
+		PBR.flush(s)
+		# Merge the many architectural boxes into per-material, per-chunk draws.
+		# Named nodes and their collision bodies stay in place.
+		Batch.boxes(s)
 	_openings.clear()
+	_collision_only = false
 
 # =========================================================== materials
 
+## Material helpers return null in a collision-only build: there is no surface
+## to paint, and resolving a PBR set would load its textures for nothing.
 static func _stone() -> Material:
-	return PBR.slot_material("stone")
+	return null if _collision_only else PBR.slot_material("stone")
 
 static func _trim_mat() -> Material:
-	return PBR.slot_material("trim")
+	return null if _collision_only else PBR.slot_material("trim")
 
 static func _floor_mat() -> Material:
-	return PBR.slot_material("stone_floor")
+	return null if _collision_only else PBR.slot_material("stone_floor")
 
 static func _wood() -> Material:
-	return PBR.slot_material("wood")
+	return null if _collision_only else PBR.slot_material("wood")
 
 static func _carpet(color: Color) -> Material:
+	if _collision_only:
+		return null
 	var m := StandardMaterial3D.new()
 	m.albedo_color = color
 	m.roughness = 0.95
 	return m
 
 static func _basement_mat() -> Material:
-	return PBR.surface("stone_ashlar_02", Color(0.78, 0.80, 0.86), {"rough_min": 0.55})
+	return null if _collision_only else PBR.surface("stone_ashlar_02", Color(0.78, 0.80, 0.86), {"rough_min": 0.55})
+
+static func _dungeon_floor_mat() -> Material:
+	return null if _collision_only else PBR.surface("stone_tiles_02", Color(0.7, 0.72, 0.78))
 
 static var _mats: Dictionary = {}
 
@@ -122,7 +139,15 @@ static func _mat(color: Color, glow: bool = false, rough: float = 0.82) -> Stand
 
 # =========================================================== primitives
 
-static func _mesh(parent: Node3D, title: String, mesh: Mesh, pos: Vector3, material: Material) -> MeshInstance3D:
+static func _mesh(parent: Node3D, title: String, mesh: Mesh, pos: Vector3, material: Material) -> Node3D:
+	if _collision_only:
+		# A positional placeholder, not a surface: the caller that needs one
+		# (the tower floor) attaches its collider to this transform.
+		var placeholder := Node3D.new()
+		placeholder.name = title
+		placeholder.position = pos
+		parent.add_child(placeholder)
+		return placeholder
 	var node := MeshInstance3D.new()
 	node.name = title
 	node.mesh = mesh
@@ -133,10 +158,11 @@ static func _mesh(parent: Node3D, title: String, mesh: Mesh, pos: Vector3, mater
 
 ## A box. `solid` adds the Phase 8 collider; `visible_box` false keeps a
 ## collider without a greybox mesh (the kit supplies the visible surface).
+## A collision-only build keeps the collider and creates no surface at all.
 static func _box(parent: Node3D, title: String, pos: Vector3, size: Vector3,
-		material: Material, solid: bool = true, visible_box: bool = true) -> MeshInstance3D:
-	var node: MeshInstance3D = null
-	if visible_box:
+		material: Material, solid: bool = true, visible_box: bool = true) -> Node3D:
+	var node: Node3D = null
+	if visible_box and not _collision_only:
 		var mesh := BoxMesh.new()
 		mesh.size = size
 		node = _mesh(parent, title, mesh, pos, material)
@@ -176,9 +202,13 @@ static func _cyl_collider(parent: Node3D, title: String, pos: Vector3, radius: f
 	body.position = pos + Vector3(0, height * 0.5, 0)
 	parent.add_child(body)
 
-## One kit module as a real node (multi-material props, banners with tint).
+## One kit module as a real node (multi-material props, banners with tint). A
+## collision-only build creates none: the collider that belongs to the prop is
+## placed by its owner, not by the module.
 static func _kit(parent: Node3D, module: String, pos: Vector3, rot_y: float = 0.0,
 		scale := Vector3.ONE, tint: Color = Color.WHITE) -> Node3D:
+	if _collision_only:
+		return null
 	var node := PBR.kit_instance(module, tint)
 	if node == null:
 		return null
@@ -191,6 +221,8 @@ static func _kit(parent: Node3D, module: String, pos: Vector3, rot_y: float = 0.
 ## One kit module queued for MultiMesh instancing (repeated props).
 static func _kit_instanced(module: String, pos: Vector3, rot_y: float = 0.0,
 		scale := Vector3.ONE) -> void:
+	if _collision_only:
+		return
 	var basis := Basis.from_euler(Vector3(0.0, rot_y, 0.0))
 	basis = basis * Basis.from_scale(scale)
 	PBR.queue(module, Transform3D(basis, pos))
@@ -327,6 +359,8 @@ static func _stairs(parent: Node3D, title: String, axis: String, cross: float, s
 		para.transform = Transform3D(basis, centre + lateral * (side * (width * 0.5 + RAIL_T * 0.5)) + normal * (RAIL_H * 0.5))
 		parent.add_child(para)
 		_box(para, title + "ParapetWall", Vector3.ZERO, Vector3(RAIL_T, RAIL_H, length), null, true, false)
+		if _collision_only:
+			continue
 		var segs := int(round(length / 4.0))
 		for i in range(segs):
 			var t := (float(i) + 0.5) / float(segs)
@@ -486,8 +520,8 @@ static func _build_second_floor(s: Node3D) -> void:
 
 static func _build_basement(s: Node3D) -> void:
 	var dark := _basement_mat()
-	_slab(s, "BasementBayFloor", -52, -40, -24, -10, Y_BASEMENT, PBR.surface("stone_tiles_02", Color(0.7, 0.72, 0.78)))
-	_slab(s, "BasementClassroomFloor", -58, -34, -10, 10, Y_BASEMENT, PBR.surface("stone_tiles_02", Color(0.7, 0.72, 0.78)))
+	_slab(s, "BasementBayFloor", -52, -40, -24, -10, Y_BASEMENT, _dungeon_floor_mat())
+	_slab(s, "BasementClassroomFloor", -58, -34, -10, 10, Y_BASEMENT, _dungeon_floor_mat())
 	_wall(s, "BasementBayWest", "x", -52, -24, -10, Y_BASEMENT, Y_GROUND, dark)
 	_wall(s, "BasementBayEast", "x", -40, -24, -10, Y_BASEMENT, Y_GROUND, dark)
 	_wall(s, "BasementBayNorth", "z", -24, -52, -40, Y_BASEMENT, Y_GROUND, dark)
@@ -561,11 +595,12 @@ static func _build_tower(s: Node3D) -> void:
 	body.add_child(collision)
 	floor_node.add_child(body)
 	# Slate cap: an octagonal Gothic roof instead of the Phase 8 cone.
-	var cap := PBR.kit_instance("tower_cap_7")
-	if cap != null:
-		cap.position = centre + Vector3(0, Y_SECOND + 5.2, 0)
-		cap.rotation.y = PI / 16.0
-		s.add_child(cap)
+	if not _collision_only:
+		var cap := PBR.kit_instance("tower_cap_7")
+		if cap != null:
+			cap.position = centre + Vector3(0, Y_SECOND + 5.2, 0)
+			cap.rotation.y = PI / 16.0
+			s.add_child(cap)
 	# bridge from the second-floor east gallery into the tower
 	_slab(s, "TowerBridgeFloor", 44, 49.5, 4, 12, Y_SECOND, _floor_mat())
 	_rail(s, "TowerBridgeRailN", "z", 4, 44, 49.5, Y_SECOND)
@@ -578,6 +613,8 @@ static func _build_tower(s: Node3D) -> void:
 ## rectangle exactly, scaled to the opening the wall already has. Visual only:
 ## the collider is the wall's own gap.
 static func _build_arches(s: Node3D) -> void:
+	if _collision_only:
+		return
 	for o in _openings:
 		var width: float = float(o["width"])
 		var height: float = float(o["height"])
@@ -640,6 +677,8 @@ static func _build_buttresses_and_columns(s: Node3D) -> void:
 ## Sparse decals: moss at the wall bases and worn earth where routes converge.
 ## Alpha-scissored quads, no collision, laid 1 cm over the floor.
 static func _build_floor_wear(s: Node3D) -> void:
+	if _collision_only:
+		return
 	var moss := PBR.slot_material("moss")
 	var dirt := PBR.slot_material("dirt")
 	for spot in [
@@ -675,10 +714,11 @@ static func _build_furniture_great_hall(s: Node3D) -> void:
 		var x: float = [-46.0, -40.0, -34.0, -28.0][i]
 		for z in [-12.0, 6.0]:
 			_table(s, Vector3(x, Y_GROUND, z), 14.0 if z < 0.0 else 16.0)
-		var banner := PBR.kit_instance("banner_1_2x3", house_colors[i])
-		if banner != null:
-			banner.position = Vector3(x, Y_GROUND + 8.6, -23.55)
-			s.add_child(banner)
+		if not _collision_only:
+			var banner := PBR.kit_instance("banner_1_2x3", house_colors[i])
+			if banner != null:
+				banner.position = Vector3(x, Y_GROUND + 8.6, -23.55)
+				s.add_child(banner)
 	# head table on the dais at the north end
 	_box(s, "Dais", Vector3(-37, Y_GROUND + 0.15, -20), Vector3(34, 0.3, 6), _trim_mat())
 	_table(s, Vector3(-37, Y_GROUND + 0.3, -20), 6.0)
@@ -687,29 +727,33 @@ static func _build_furniture_great_hall(s: Node3D) -> void:
 	for x in [-52.0, -22.0]:
 		_kit(s, "armour_stand_2", Vector3(x, Y_GROUND + 0.3, -20.5), 0.0)
 	# floating candles (the world animates anything in this group with base_y)
-	for i in range(16):
-		var pos := Vector3(-52 + (i % 8) * 5.0, Y_GROUND + 7.6 + sin(float(i) * 2.1) * 0.4, -14 + float(i / 8) * 14.0)
-		var wax := CylinderMesh.new()
-		wax.top_radius = 0.05
-		wax.bottom_radius = 0.05
-		wax.height = 0.45
-		var candle := _mesh(s, "FloatingCandle", wax, pos, PBR.slot_material("wax"))
-		candle.set_meta("base_y", pos.y)
-		candle.set_meta("phase", float(i))
-		candle.add_to_group("floating_candles")
+	if not _collision_only:
+		for i in range(16):
+			var pos := Vector3(-52 + (i % 8) * 5.0, Y_GROUND + 7.6 + sin(float(i) * 2.1) * 0.4, -14 + float(i / 8) * 14.0)
+			var wax := CylinderMesh.new()
+			wax.top_radius = 0.05
+			wax.bottom_radius = 0.05
+			wax.height = 0.45
+			var candle := _mesh(s, "FloatingCandle", wax, pos, PBR.slot_material("wax"))
+			candle.set_meta("base_y", pos.y)
+			candle.set_meta("phase", float(i))
+			candle.add_to_group("floating_candles")
 
 ## A trestle table with benches and candles; collision matches Phase 8.
 static func _table(parent: Node3D, pos: Vector3, length: float, width: float = 1.7) -> void:
 	_collider(parent, "TableBody", pos + Vector3(0, 1.0, 0), Vector3(width, 0.2, length))
-	var table := PBR.kit_instance("long_table_8")
-	if table != null:
-		table.position = pos
-		table.rotation.y = PI * 0.5
-		table.scale = Vector3(length / 7.6, 1.0, width / 1.62)
-		parent.add_child(table)
+	if not _collision_only:
+		var table := PBR.kit_instance("long_table_8")
+		if table != null:
+			table.position = pos
+			table.rotation.y = PI * 0.5
+			table.scale = Vector3(length / 7.6, 1.0, width / 1.62)
+			parent.add_child(table)
 	for side in [-1, 1]:
 		_collider(parent, "BenchBody", pos + Vector3(side * (width * 0.5 + 0.5), 0.55, 0),
 			Vector3(0.5, 0.15, length))
+		if _collision_only:
+			continue
 		var bench := PBR.kit_instance("bench_4")
 		if bench != null:
 			bench.position = pos + Vector3(side * (width * 0.5 + 0.5), 0, 0)
@@ -814,6 +858,8 @@ static func _build_furniture_basement(s: Node3D) -> void:
 # =========================================================== signage and light
 
 static func _sign(parent: Node3D, text: String, pos: Vector3, size: int, color: Color) -> void:
+	if _collision_only:
+		return
 	var label := Label3D.new()
 	label.text = text
 	label.font_size = size
@@ -829,6 +875,8 @@ static func _sign(parent: Node3D, text: String, pos: Vector3, size: int, color: 
 ## non-shadow-casting light. Phase 10 keeps shadow-casting dynamic lights to
 ## zero inside; contrast comes from the fixtures plus the baked occlusion.
 static func _torch(parent: Node3D, pos: Vector3) -> void:
+	if _collision_only:
+		return
 	var t := Node3D.new()
 	t.position = pos
 	parent.add_child(t)

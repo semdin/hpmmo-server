@@ -19,9 +19,11 @@ extends Node
 const WORLD_SCENE = preload("res://scenes/world/game_world.tscn")
 const HPProtocol = preload("res://addons/hpmmo_sim/protocol.gd")
 const AdminApi = preload("res://addons/hpmmo_sim/admin.gd")
+const MapHost = preload("res://server/map_host.gd")
 
 var world: Node3D = null
 var admin: Node = null
+var map_host: Node = null
 
 func _ready() -> void:
 	print("=========================================================")
@@ -73,6 +75,15 @@ func _ready() -> void:
 
 	world = WORLD_SCENE.instantiate()
 	add_child(world)
+
+	# Map host (plan.md Phase 8): the authority consults it before it reserves a
+	# transfer into a map, so the destination's collision exists in this process
+	# before ownership moves. Without it, an authoritative body indoors has no
+	# floor and the per-map fall rescue bounces it (and every client with it).
+	map_host = MapHost.new()
+	map_host.name = "MapHost"
+	map_host.world = world
+	add_child(map_host)
 	# Roster transitions are logged immediately (not only on the 5 s status
 	# tick): operations and the Phase 8 map tests need to see joins, leaves and
 	# entity counts without waiting for a timer.

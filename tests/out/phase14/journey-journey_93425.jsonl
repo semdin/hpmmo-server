@@ -1,0 +1,26 @@
+{"event":"step","next":"register","step":"register","t":0.0}
+{"event":"register","message":"Account created.","step":"register","success":true,"t":0.2}
+{"detail":"session established","event":"pass","step":"register","t":0.3}
+{"detail":"created Journey93426","event":"pass","step":"register","t":0.5}
+{"event":"step","next":"join","step":"join","t":0.5}
+{"detail":"world accepted the session token","event":"pass","step":"join","t":0.6}
+{"character_id":1.0,"event":"join","step":"join","t":0.6,"uid":0}
+{"event":"step","next":"enter_world","step":"enter_world","t":0.6}
+{"detail":"map=grounds pos=(0.0, 0.0, 0.0)","event":"pass","step":"enter_world","t":0.8}
+{"event":"step","next":"courtyard","step":"courtyard","t":0.8}
+{"detail":"12 casts accepted in the protected courtyard","event":"pass","step":"courtyard","t":9.2}
+{"event":"step","next":"fight","step":"fight","t":9.2}
+{"event":"pack","members":5,"pack_id":3,"step":"fight","t":9.2}
+{"detail":"pack 3 killed, 5 reward(s), +365 exp","event":"pass","step":"fight","t":77.9}
+{"event":"step","next":"mount","step":"mount","t":77.9}
+{"detail":"mount request refused on open ground","event":"fail","step":"mount","t":82.9}
+{"event":"step","next":"castle","step":"castle","t":82.9}
+{"event":"transfer_request","reason":"sent","step":"castle","t":87.3}
+{"detail":"transfer committed to castle_interior at (0.0, 201.0, 30.0)","event":"pass","step":"castle","t":87.8}
+{"detail":"return transfer timed out","event":"fail","step":"castle","t":147.8}
+{"event":"step","next":"logout","step":"logout","t":147.8}
+{"event":"state_at_logout","exp":165,"level":2,"map":"castle_interior","pos":"(0.0, 200.0, 29.0)","step":"logout","t":147.8}
+{"event":"step","next":"verify_save","step":"verify_save","t":147.8}
+{"distance":202.473083496094,"event":"reload","exp":0,"expected":"(0.0, 200.0, 29.0)","pos":"(0.0, 0.0, 0.0)","step":"verify_save","t":151.9}
+{"detail":"reloaded exp 0 is below the session's 165","event":"fail","step":"verify_save","t":151.9}
+{"event":"final","failures":["mount: mount request refused on open ground","castle_exit: return transfer timed out","logout_state: reloaded exp 0 is below the session's 165"],"step":"verify_save","steps":10,"t":151.9}

@@ -16,6 +16,7 @@ var _dialog_text: Label = null
 var _vignette: ColorRect = null
 var _player: Node3D = null
 var _last_zone := ""
+var _binder: UIStateBinder = null
 
 func attach(player: Node3D) -> void:
 	_player = player
@@ -245,8 +246,24 @@ func zone_at(pos: Vector3) -> String:
 		return "Hogwarts Courtyard"
 	return "Hogwarts Grounds"
 
+## Phase 13: the banner announces the place the player actually is. Indoors the
+## outdoor zones do not apply, so the floor name from the map controller's
+## authored floor table is announced instead of a stale "Hogwarts Grounds".
+func location_for_banner() -> String:
+	var controller := _map_controller()
+	if controller != null and String(controller.get("current_map")) == "castle_interior" \
+			and controller.has_method("floor_display"):
+		return String(controller.call("floor_display", "castle_interior", _player.global_position.y))
+	return zone_at(_player.global_position)
+
+func _map_controller() -> Node:
+	var world := get_parent()
+	if world == null:
+		return null
+	return world.get_node_or_null("MapController")
+
 func _update_zone() -> void:
-	var z := zone_at(_player.global_position)
+	var z := location_for_banner()
 	if z != _last_zone:
 		_last_zone = z
 		_zone_label.text = z
@@ -266,10 +283,31 @@ func _update_boss() -> void:
 	if is_instance_valid(t) and (t.is_in_group("monoliths") or ("is_boss" in t and t.is_boss)) and t.current_hp > 0:
 		_boss_panel.show()
 		_boss_name.text = "DARK MONOLITH — Lv.35" if t.is_in_group("monoliths") else "%s • Lv.%d" % [t.mob_name, t.level]
-		_boss_bar.max_value = (t as Node3D).get("max_hp")
-		_boss_bar.value = (t as Node3D).get("current_hp")
+		# Phase 13: the authority's health delta for the target wins over the
+		# node's own copy (which is the snapshot mirror when the boss is a
+		# replicated view).
+		var binder := _resolve_binder()
+		if binder != null and binder.has_target_health():
+			_boss_bar.max_value = binder.target_max_hp()
+			_boss_bar.value = binder.target_hp()
+		else:
+			_boss_bar.max_value = (t as Node3D).get("max_hp")
+			_boss_bar.value = (t as Node3D).get("current_hp")
 	else:
 		_boss_panel.hide()
+
+## The HUD's authoritative binder, when the HUD is present (it is created before
+## the overlay). Kept optional so the overlay still runs in a bare test scene.
+func _resolve_binder() -> UIStateBinder:
+	if _binder != null and is_instance_valid(_binder):
+		return _binder
+	var world := get_parent()
+	if world == null:
+		return null
+	var hud := world.get_node_or_null("CanvasLayer/HUD")
+	if hud != null and "binder" in hud:
+		_binder = hud.binder
+	return _binder
 
 func _update_vignette() -> void:
 	var hp: int = int(_player.get("current_hp"))
