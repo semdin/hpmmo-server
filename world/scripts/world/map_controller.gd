@@ -167,6 +167,22 @@ func _bind_player() -> void:
 		local_player = world.get_node_or_null("Players/P1")
 	if is_instance_valid(local_player) and not local_player.mounted_changed.is_connected(_on_mounted_changed):
 		local_player.mounted_changed.connect(_on_mounted_changed)
+	# A character that logged out on a non-base map boots on it (the account
+	# service's sheet carries `map_id`, and the local body was placed at the
+	# saved position before this controller existed). Load that map once, at the
+	# saved spot: this is the client half of "logged out inside the castle, back
+	# in inside the castle".
+	if not _initial_map_done:
+		_initial_map_done = true
+		if current_map != MAP_GROUNDS and _map_available(current_map) and not _map_loaded(current_map):
+			call_deferred("_boot_into_map")
+
+func _boot_into_map() -> void:
+	if not is_instance_valid(local_player):
+		return
+	await _start_transfer(current_map, "default", 0, local_player.global_position)
+
+var _initial_map_done := false
 
 ## --------------------------------------------------------------- sim hooks
 

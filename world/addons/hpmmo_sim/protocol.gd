@@ -15,7 +15,12 @@ class_name HPProtocol
 ## v6: encounter lifecycle - mob AI state in the snapshot state byte and the
 ##     boss telegraph message (server-owned release tick, client-rendered
 ##     warning) from plan.md Phase 11.
-const PROTOCOL_VERSION := 6
+## v7: the session is bound to the character it plays - a character-bound
+##     session is validated and bound at join, and a `sim_bind_character`
+##     exchange lets a session that joined without one name the character it
+##     wants (the server proves ownership before binding). A v6 client would
+##     join unbound and never save, so the mismatch is refused like any other.
+const PROTOCOL_VERSION := 7
 
 ## Simulation / replication rates.
 const SIM_HZ := 20
@@ -79,6 +84,16 @@ const REJECT_MAP_UNAVAILABLE := "map_unavailable"
 const REJECT_MAP_FULL := "map_full"
 const REJECT_TRANSFER_TOKEN := "bad_transfer_token"
 const REJECT_ABORTED := "aborted"
+
+## Character binding outcomes (Phase 14 D14-1). `BIND_NOT_FOUND` is also the
+## answer for a character that exists but belongs to another account: the same
+## indistinguishable "not found" the Phase 4 character endpoints return, so a
+## session can learn nothing about another account's characters.
+const BIND_ALREADY := "already_bound"
+const BIND_NOT_FOUND := "character_not_found"
+const BIND_IN_SESSION := "character_in_session"
+const BIND_NO_BODY := "no_body"
+const BIND_NOT_JOINED := "not_joined"
 
 ## Combat state machine (plan Phase 5: idle -> windup -> release -> recovery -> idle).
 enum CastState { IDLE = 0, WINDUP = 1, RELEASE = 2, RECOVERY = 3, STUNNED = 4, DEAD = 5 }

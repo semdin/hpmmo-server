@@ -43,10 +43,18 @@ WORKSPACE = os.path.dirname(SERVER_DIR)
 CLIENT_DIR = os.environ.get("HPMMO_CLIENT_DIR", os.path.join(WORKSPACE, "client"))
 GODOT = os.environ.get("HPMMO_GODOT", "godot")
 
-# Where the dev hook places the staircase in the outdoor world (clear of the
-# courtyard, village, forest, lake and pitch) and where the probes spawn.
-STAIR_ORIGIN = "150,0,120"
-STAIR_SPAWN = "150,0.6,108"
+# Where the dev hook places the staircase in the outdoor world and where the
+# probes spawn. The site must sit inside the Phase 10 FLAT CORE
+# (outdoor_terrain.gd: x in [-110, 110], z in [-125, 70], the 6 m edge fade
+# included) and away from every encounter region, or the hill ring the Phase 10
+# terrain pass raises outside that core intersects the staircase: the old site
+# (150, 0, 120) is in the hill ring and the terrain there is ~8 m high, which
+# wedged the fallback walker between the flight and the hillside and left the
+# rider walking under the raised deck. (90, 0, -15) is on the flat core, clear
+# of the courtyard, village, forest, lake and pitch; a ray scan over the whole
+# footprint finds nothing but the y = 0 terrain.
+STAIR_ORIGIN = "90,0,-15"
+STAIR_SPAWN = "90,0.6,-27"
 # Shorten the server-owned timing so a full dock cycle fits in a test window.
 STAIR_SCALE = "0.25"
 

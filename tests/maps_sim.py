@@ -124,6 +124,10 @@ class StubService:
         with self.lock:
             cid = int(character["id"])
             character.setdefault("revision", 1)
+            # The real service returns the owning account on every character
+            # sheet (Phase 14 D14-1): the world server proves a bind belongs to
+            # the session's account by comparing it, so the stub must carry it.
+            character.setdefault("account_id", 1)
             self.characters[cid] = character
             self.tokens[token] = cid
             self.revisions[cid] = int(character["revision"])

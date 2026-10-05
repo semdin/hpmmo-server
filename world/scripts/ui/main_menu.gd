@@ -4,6 +4,16 @@ extends Control
 ## Authentication (PostgreSQL/SQLite), Character Selection, Character Creation, & Solo Mode
 
 # Panels
+## Account-service (HTTP API) port. Resolved once, in this order:
+##   1. an explicit `--api-port=N` on the command line;
+##   2. `HPMMO_API_URL` from the launcher handoff (the autoload already applied it,
+##      so its port is kept);
+##   3. `api_port` in client_config.json;
+##   4. the documented default, 8081.
+## It used to be the literal 8081 inside the `--ip` handling, which silently
+## ignored both the config key and the launcher's own URL.
+var api_port: int = 0
+
 @onready var auth_panel: Control = $AuthPanel
 @onready var char_select_panel: Control = $CharSelectPanel
 @onready var char_create_panel: Control = $CharCreatePanel
@@ -258,17 +268,36 @@ func _on_enter_world_pressed() -> void:
 	if selected_char_id <= 0:
 		select_status_label.text = "Please select a character first!"
 		return
-	
+
 	select_status_label.text = "Loading character into Hogwarts Valley..."
 	enter_world_btn.disabled = true
 	for c in characters_cache:
 		if int(c.get("id", 0)) == selected_char_id:
-			NetworkManager.local_character_data = c
-			NetworkManager.local_player_name = c.get("name", "Wizard")
-			NetworkManager.local_player_house = c.get("house", "Gryffindor")
+			# The world session is already joined (by `_enter_world_with_session`);
+			# this is what binds it to the chosen character server-side, with the
+			# server proving ownership through the account service (D14-1).
+			NetworkManager.select_character(c)
 			break
+	var result: Dictionary = await NetworkManager.bind_selected_character()
+	if not bool(result.get("ok", false)):
+		enter_world_btn.disabled = false
+		select_status_label.text = "Could not start that character: %s" % _bind_reason_text(String(result.get("reason", "")))
+		return
 	if is_inside_tree() and get_tree():
 		get_tree().change_scene_to_file("res://scenes/world/game_world.tscn")
+
+func _bind_reason_text(reason: String) -> String:
+	match reason:
+		"character_not_found":
+			return "that character was not found on this account."
+		"character_in_session":
+			return "that character is already in another session."
+		"already_bound":
+			return "this session is already bound to another character."
+		"not_joined", "timeout", "no_character_selected":
+			return "the world server did not answer. Try again."
+		_:
+			return reason
 
 func _on_character_select_result(success: bool, message: String, _char_data: Dictionary) -> void:
 	enter_world_btn.disabled = false
@@ -382,6 +411,31 @@ func _on_solo_pressed() -> void:
 	if is_inside_tree() and get_tree():
 		get_tree().change_scene_to_file("res://scenes/world/game_world.tscn")
 
+## The port carried by an account-service URL, or 0 when it does not carry one.
+func _api_port_from_url(url: String) -> int:
+	var trimmed := url.strip_edges()
+	if trimmed.is_empty():
+		return 0
+	var colon := trimmed.rfind(":")
+	if colon < 0:
+		return 0
+	var tail := trimmed.substr(colon + 1)
+	if not tail.is_valid_int():
+		return 0
+	return int(tail)
+
+
+## The account-service port, resolved with the documented default. The URL the
+## autoload already resolved (HPMMO_API_URL, set by the launcher) is the first
+## authority: it is the address the launcher actually authenticated against.
+func _resolve_api_port() -> int:
+	if api_port <= 0:
+		api_port = _api_port_from_url(DatabaseManager.api_base_url)
+	if api_port <= 0:
+		api_port = 8081
+	return api_port
+
+
 func _load_client_config() -> void:
 	var paths = ["res://client_config.json", "user://client_config.json"]
 	for p in paths:
@@ -392,7 +446,14 @@ func _load_client_config() -> void:
 				if json_res is Dictionary:
 					var s_ip: String = str(json_res.get("server_ip", "213.250.145.75"))
 					var a_port: int = int(json_res.get("api_port", 8081))
-					DatabaseManager.api_base_url = "http://%s:%d" % [s_ip, a_port]
+					# Precedence: an explicit --api-port, then the port of the URL
+					# the autoload resolved (the launcher handoff), then this
+					# file's api_port, then 8081.
+					if api_port == 0:
+						api_port = _api_port_from_url(DatabaseManager.api_base_url)
+					if api_port == 0:
+						api_port = a_port
+						DatabaseManager.api_base_url = "http://%s:%d" % [s_ip, api_port]
 					if json_res.has("server_ip") and ip_input:
 						ip_input.text = s_ip
 					if json_res.has("server_port") and port_input:
@@ -413,6 +474,12 @@ func _handle_cmdline_args() -> void:
 	var pass_val := ""
 	var should_autologin := false
 
+	# The account-service port first, so `--ip` anywhere on the line uses the
+	# value the caller asked for instead of the one resolved before it.
+	for arg in args:
+		if arg.begins_with("--api-port="):
+			api_port = int(arg.substr("--api-port=".length()))
+
 	for i in range(args.size()):
 		var arg = args[i]
 		if arg == "--user" and i + 1 < args.size():
@@ -422,7 +489,11 @@ func _handle_cmdline_args() -> void:
 		elif (arg == "--server" or arg == "--ip") and i + 1 < args.size():
 			if ip_input:
 				ip_input.text = args[i + 1]
-			DatabaseManager.api_base_url = "http://%s:8081" % args[i + 1]
+			# Only the host changes here: the port comes from --api-port, the
+			# launcher URL or the config (see api_port above), never a literal.
+			DatabaseManager.api_base_url = "http://%s:%d" % [args[i + 1], _resolve_api_port()]
+		elif arg.begins_with("--api-port="):
+			api_port = int(arg.substr("--api-port=".length()))
 		elif arg == "--port" and i + 1 < args.size():
 			if port_input:
 				port_input.text = args[i + 1]

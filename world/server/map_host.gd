@@ -56,6 +56,14 @@ func ensure_map_built(map_id: String) -> bool:
 	interior.name = "CastleInterior"
 	interior.set("collision_only", true)
 	world.add_child(interior)
+	# The map's movable furniture is instanced by the map, not by its builder:
+	# the grand staircase lives in the interior's StaircaseSlot. Without this the
+	# authority has no staircase at all - a rider's client replica receives no
+	# published state (it can never board), and the body's collision and the
+	# server's disagree at the stair hall. The client's map controller attaches
+	# it on load; the authority must do the same here.
+	if interior.has_method("attach_staircase"):
+		interior.call("attach_staircase")
 	_built[map_id] = interior
 	print("[MapHost] %s resident for the authority: collision-only build, %d static bodies" % [
 		map_id, _static_body_count(interior)])

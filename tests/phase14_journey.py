@@ -139,10 +139,16 @@ def main():
         return 2
 
     if run([pg_tool("pg_isready"), "-h", "127.0.0.1", "-p", str(PG_PORT)]).returncode != 0:
-        started = run([pg_tool("pg_ctl"), "-D", PG_DATA, "-l", os.path.join(PG_DATA, "pg.log"),
-                       "-o", "-p %d -c listen_addresses=127.0.0.1" % PG_PORT, "-w", "start"])
+        # Not through the capturing helper: pg_ctl leaves the postgres daemon
+        # holding the inherited pipe handles, so a captured-pipe run would block
+        # until the server exits (it hung forever when the cluster was down).
+        pg_log = open(os.path.join(PG_DATA, "pg.log"), "ab")
+        started = subprocess.run([pg_tool("pg_ctl"), "-D", PG_DATA, "-l", os.path.join(PG_DATA, "pg.log"),
+                                  "-o", "-p %d -c listen_addresses=127.0.0.1" % PG_PORT, "-w", "start"],
+                                 stdout=pg_log, stderr=pg_log, timeout=120)
+        pg_log.close()
         if started.returncode != 0:
-            print("JOURNEY SKIP: PostgreSQL did not start: %s" % started.stdout[-300:])
+            print("JOURNEY SKIP: PostgreSQL did not start (rc %d)" % started.returncode)
             return 2
 
     db_name = "hpmmo_journey_%d" % int(time.time())

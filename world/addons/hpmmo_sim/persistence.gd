@@ -135,6 +135,29 @@ func load_character(character_id: int) -> Dictionary:
 		return character
 	return {}
 
+## Load a character and prove it belongs to `account_id` before a session may be
+## bound to it (Phase 14 D14-1). The service token authenticates this process;
+## the account comparison against the sheet the service returns is the fact a
+## client cannot forge, because the client never sees or sends an account id.
+## Fails closed: a sheet without an account id (an older service) is refused
+## rather than trusted.
+func resolve_character(character_id: int, account_id: int) -> Dictionary:
+	if character_id <= 0:
+		return {"ok": false, "reason": "invalid_character"}
+	if account_id <= 0:
+		return {"ok": false, "reason": "no_account"}
+	var character := load_character(character_id)
+	if character.is_empty():
+		return {"ok": false, "reason": "character_not_found"}
+	var owner := int(character.get("account_id", 0))
+	if owner <= 0:
+		return {"ok": false, "reason": "ownership_unavailable"}
+	if owner != account_id:
+		# Same answer for "exists but foreign" and "does not exist": a client
+		# learns nothing about another account's characters.
+		return {"ok": false, "reason": "character_not_found"}
+	return {"ok": true, "character": character}
+
 func save_character(character_id: int, payload: Dictionary) -> void:
 	if character_id <= 0:
 		return
@@ -154,8 +177,12 @@ func save_character(character_id: int, payload: Dictionary) -> void:
 		else:
 			last_error = "save_%d" % status)
 
-## Exactly-once reward for things that must survive a crash (loot pickups),
-## through the Phase 4 operations ledger.
+## Reward through the Phase 4 operations ledger (exactly-once via `op_id`).
+##
+## NOT called by the live pickup path any more: a bound character's writes are
+## owned by this bridge's saves, and applying the ledger on top credited the
+## same loot twice (Phase 14 D14-1). Kept because the service contract
+## (`/api/reward`) is real and exercised by tests/integration_api.py.
 func queue_reward(op_id: String, character_id: int, exp: int, galleons: int, items: Array) -> void:
 	if character_id <= 0:
 		return

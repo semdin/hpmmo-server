@@ -119,6 +119,15 @@ func _spawn_local_player() -> void:
 		var px: float = float(c.get("pos_x", 0.0))
 		var py: float = float(c.get("pos_y", 0.5))
 		var pz: float = float(c.get("pos_z", 5.0))
+		# The account service's sheet (what a bound session receives) carries the
+		# position as `pos: [x, y, z]`; the offline save format uses pos_x/y/z.
+		# Either way the body starts where the character last was, which is what
+		# makes the map controller boot the interior for a castle logout.
+		if c.get("pos") is Array and (c["pos"] as Array).size() == 3:
+			var saved: Array = c["pos"]
+			px = float(saved[0])
+			py = float(saved[1])
+			pz = float(saved[2])
 		local_player.global_position = Vector3(px, py, pz)
 		local_player.visuals.rotation.y = float(c.get("rot_y", PI))
 		local_player.restore_character(c)

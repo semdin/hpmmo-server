@@ -108,13 +108,27 @@ def pg_start():
 
 def pg_stop():
     log = open(os.path.join(PG_LOG_DIR, "pg-ci.log"), "ab")
-    subprocess.Popen([os.path.join(PG_BIN, "pg_ctl.exe"), "-D", PG_DATA, "-m", "fast", "-w", "stop"],
-                     stdout=log, stderr=log)
+    proc = subprocess.Popen([os.path.join(PG_BIN, "pg_ctl.exe"), "-D", PG_DATA, "-m", "fast", "-w", "stop"],
+                            stdout=log, stderr=log)
+    stopped = False
     for _ in range(40):
         if not pg_ready():
-            return True
+            stopped = True
+            break
         time.sleep(0.5)
-    return False
+    if stopped:
+        # `pg_ready` goes false as soon as the postmaster stops accepting
+        # connections, while `pg_ctl -w` is still waiting for the process to
+        # exit. Returning there let the next start race the dying postmaster,
+        # whose inherited log-file handle made the new one fail with "the file
+        # is being used by another process" (measured, and reproducible).
+        # Waiting for the stop's pg_ctl is what makes the restart reliable.
+        try:
+            proc.wait(timeout=30)
+        except subprocess.TimeoutExpired:
+            pass
+    log.close()
+    return stopped
 
 
 def psql(db, sql):

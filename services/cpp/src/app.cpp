@@ -593,13 +593,19 @@ json character_snapshot(db::Conn& conn, const db::Row& row, bool include_items) 
             {get(0)});
         c["inventory"] = items.ok ? items_from_rows(items.rows) : json::array();
     }
+    // The owning account. The world server carries the service token, so it
+    // receives this field and uses it to prove a character belongs to the
+    // session's account before it binds the session to that character
+    // (Phase 14 D14-1). It is the same fact `owns_character` checks.
+    const std::string account = get(18);
+    c["account_id"] = account.empty() ? 0 : std::stoll(account);
     return c;
 }
 
 constexpr const char* kCharacterCols =
     "id::text, name, house, level::text, exp::text, max_hp::text, current_hp::text, "
     "max_mana::text, current_mana::text, galleons::text, wand_tier::text, revision::text, "
-    "pos_x::text, pos_y::text, pos_z::text, rot_y::text, map_id, quests::text";
+    "pos_x::text, pos_y::text, pos_z::text, rot_y::text, map_id, quests::text, account_id::text";
 
 void handle_character_list(const httplib::Request& req, httplib::Response& res, db::Pool& pool) {
     auto session = require_session(req, res, pool);

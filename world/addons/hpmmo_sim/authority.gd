@@ -267,10 +267,11 @@ func _kind(node: Node) -> int:
 
 # ------------------------------------------------------------------ lifecycle
 
-func register_player(node: Node3D, character_id: int, peer_id: int) -> int:
+func register_player(node: Node3D, character_id: int, peer_id: int, account_id: int = 0) -> int:
 	var start_map := HPMaps.map_for_point(node.global_position)
 	var uid := register(HPProtocol.Kind.PLAYER, node, {
 		"character_id": character_id,
+		"account_id": account_id,
 		"peer_id": peer_id,
 		"name": String(node.get("player_name")),
 		"house": String(node.get("house")),
@@ -313,6 +314,73 @@ func register_player(node: Node3D, character_id: int, peer_id: int) -> int:
 		node.set("sim_input", player_record["input"])
 	emit_signal("player_joined", uid, character_id, peer_id)
 	return uid
+
+## Bind a character sheet to a player that joined without one (Phase 14 D14-1).
+## The network layer has already proven the character belongs to this session's
+## account through the service, so this only decides whether the body may take
+## it: one character per session, one live session per character, and the saved
+## position decides the map. The record the simulation and the autosave read is
+## brought in step with the sheet, so from here the disconnect save and the
+## periodic autosave write real progress. Returns "" on success, or a refusal
+## reason from HPProtocol's BIND_* set.
+func apply_character_binding(record: Dictionary, character: Dictionary) -> String:
+	var character_id := int(character.get("id", 0))
+	if record.is_empty():
+		return HPProtocol.BIND_NOT_JOINED
+	if character_id <= 0:
+		return HPProtocol.BIND_NOT_FOUND
+	var current := int(record.get("character_id", 0))
+	if current == character_id:
+		return ""                          # idempotent: already this character
+	if current > 0:
+		return HPProtocol.BIND_ALREADY     # a session does not change character
+	if players_by_character.has(character_id):
+		return HPProtocol.BIND_IN_SESSION  # another live session owns the body
+	var node = record.get("node")
+	if node == null or not is_instance_valid(node):
+		return HPProtocol.BIND_NO_BODY
+	# Where the character logged out is where it wakes: the sheet's map and
+	# position win, and a map that is not resident yet is built before the body
+	# rests on it (the server map host builds indoor collision only).
+	var pos: Vector3 = (node as Node3D).global_position
+	if character.get("pos") is Array and (character["pos"] as Array).size() == 3:
+		var saved: Array = character["pos"]
+		pos = Vector3(float(saved[0]), float(saved[1]), float(saved[2]))
+	var saved_map := String(character.get("map_id", ""))
+	var map_id := saved_map if HPMaps.map_exists(saved_map) else HPMaps.map_for_point(pos)
+	map_provider_ready(map_id)
+	pos = HPMaps.valid_position(map_id, pos)
+	# The body's identity is the CHARACTER's, not the account username the
+	# unbound body joined under: the nameplate, chat and roster all read these.
+	if character.get("name") is String and String(character["name"]) != "":
+		node.set("player_name", String(character["name"]))
+		record["name"] = String(character["name"])
+	if character.get("house") is String and String(character["house"]) != "":
+		node.set("house", String(character["house"]))
+		record["house"] = String(character["house"])
+	node.call("restore_character", character)
+	(node as Node3D).global_position = pos
+	if "velocity" in node:
+		node.set("velocity", Vector3.ZERO)
+	# The record the sim reads: identity, position/map, and every stat the save
+	# payload and the HUD are built from.
+	record["character_id"] = character_id
+	record["map_id"] = map_id
+	record["zone_id"] = HPRules.zone_id_for_map(map_id, pos)
+	record["safe_spawn_map"] = map_id
+	record["safe_spawn"] = pos
+	record["level"] = int(node.get("level"))
+	record["exp"] = int(node.get("current_exp"))
+	record["max_hp"] = int(node.get("max_hp"))
+	record["hp"] = int(node.get("current_hp"))
+	record["max_mana"] = int(node.get("max_mana"))
+	record["mana"] = int(node.get("current_mana"))
+	record["galleons"] = int(node.get("galleons"))
+	record["wand_tier"] = int(node.get("wand_tier"))
+	players_by_character[character_id] = int(record.get("uid", 0))
+	touch(record)
+	_push_stats(record)
+	return ""
 
 func register_mob(node: Node3D, pack_id: int, zone_id: String) -> int:
 	var uid := register(HPProtocol.Kind.MOB, node, {
@@ -1798,9 +1866,15 @@ func _collect_loot(loot: Dictionary, player: Dictionary) -> void:
 			player["galleons"] = int(pnode.get("galleons"))
 		touch(player)
 		_push_stats(player)
-	if persistence != null:
-		persistence.queue_reward(op_id, character_id, 0, amount if item_id == "galleons" else 0,
-			[] if item_id == "galleons" else [{"id": item_id, "amount": amount, "tier": 0}])
+	# The world server is the single writer of a character during its session
+	# (persistence.gd): the loot is already in the body and in the record, so
+	# the periodic autosave and the disconnect save persist it. It must NOT also
+	# go through the reward ledger: the ledger's incremental /api/reward lands
+	# on top of the save that already carried the galleons, so the same pickup
+	# was credited twice whenever the ledger request outlived the session's last
+	# save (Phase 14 D14-1 measured 500 -> 554 in session, then 608 reloaded for
+	# a single 54-galleon drop). Unbound sessions (character_id <= 0) have no
+	# save path at all, and queue_reward is a no-op for them anyway.
 	emit_signal("loot_taken", loot_uid, character_id, item_id, amount)
 	emit_signal("entity_despawned", loot_uid)
 

@@ -243,6 +243,12 @@ func run_length() -> float:
 func half_width() -> float:
 	return float((spec.get("flight", {}) as Dictionary).get("width", 3.0)) * 0.5
 
+## The map this staircase occupies, from where it stands (the catalog's y-band
+## decides). Riders are only owned while they are on that map; the dev/test hook
+## places the same scene outdoors, so the spec's own `map_id` is not authority.
+func map_id() -> String:
+	return HPMaps.map_for_point(global_position)
+
 func slope() -> float:
 	var r := run_length()
 	return 0.0 if is_zero_approx(r) else rise() / r
@@ -487,6 +493,11 @@ func _carry_riders(tick: int) -> void:
 		var record: Dictionary = SimAuthority.entities.get(uid, {})
 		if record.is_empty() or bool(record.get("dead", false)):
 			continue
+		if String(record.get("map_id", HPProtocol.DEFAULT_MAP)) != map_id():
+			# The body left on a transfer: stop owning it. Otherwise the deck
+			# keeps dragging a body that is on another map back into this one.
+			_riders.erase(int(uid))
+			continue
 		var node = record.get("node")
 		if node == null or not is_instance_valid(node):
 			continue
@@ -512,6 +523,13 @@ func _carry_riders(tick: int) -> void:
 func resolve_departing_player(record: Dictionary, reason: String) -> Vector3:
 	var node = record.get("node")
 	if node == null or not is_instance_valid(node) or not _riders.has(int(record.get("uid", 0))):
+		return Vector3.ZERO
+	if String(record.get("map_id", HPProtocol.DEFAULT_MAP)) != map_id():
+		# A rider that already left on a transfer owns no landing here: moving
+		# it back into this map would corrupt the save the disconnect makes
+		# (measured: a journey that exited the castle was saved on the
+		# interior's landing while its record said grounds).
+		_riders.erase(int(record.get("uid", 0)))
 		return Vector3.ZERO
 	var tick := SimAuthority.sim_tick
 	if state == STATE_DOCKED and node is Node3D and on_deck((node as Node3D).global_position, tick):

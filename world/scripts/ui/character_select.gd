@@ -243,15 +243,39 @@ func _apply_rune_color(col: Color) -> void:
 func _on_enter_world_pressed() -> void:
 	if current_slot >= characters.size():
 		return
-	
+
 	var c = characters[current_slot]
+	var previous_text: String = enter_world_btn.text
 	enter_world_btn.disabled = true
 	enter_world_btn.text = "Dünya Yükleniyor..."
 
-	NetworkManager.local_character_data = c
-	NetworkManager.local_player_name = c.get("name", "Wizard")
-	NetworkManager.local_player_house = c.get("house", "Gryffindor")
+	# The world session is joined before a character exists (the menu does it),
+	# so the choice made here is what binds it: the server proves the character
+	# belongs to this session's account before it binds anything. A refusal
+	# (another account's character) keeps the player here instead of dropping
+	# them into a session that would never save.
+	NetworkManager.select_character(c)
+	var result: Dictionary = await NetworkManager.bind_selected_character()
+	if not bool(result.get("ok", false)):
+		enter_world_btn.disabled = false
+		enter_world_btn.text = previous_text
+		slot_label.text = "Hata: %s" % _bind_reason_text(String(result.get("reason", "")))
+		return
 	get_tree().change_scene_to_file("res://scenes/world/game_world.tscn")
+
+## A binding refusal must say what happened; these are the server's own reasons.
+func _bind_reason_text(reason: String) -> String:
+	match reason:
+		"character_not_found":
+			return "Bu karakter bulunamadı veya hesabınıza ait değil."
+		"character_in_session":
+			return "Bu karakter şu anda başka bir oturumda."
+		"already_bound":
+			return "Bu oturum zaten başka bir karaktere bağlı."
+		"not_joined", "timeout", "no_character_selected":
+			return "Dünya sunucusuna ulaşılamadı. Tekrar deneyin."
+		_:
+			return reason
 
 func _on_character_select_result(success: bool, message: String, _char_data: Dictionary) -> void:
 	enter_world_btn.disabled = false

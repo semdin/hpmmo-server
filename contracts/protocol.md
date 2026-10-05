@@ -12,6 +12,7 @@ its own state. `server_relay` is off, so clients cannot address each other.
 | RPC | Flags | Parameters |
 | --- | --- | --- |
 | `sim_join` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | token: String, protocol_version: int, client_version: String |
+| `sim_bind_character` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | character_id: int |
 | `sim_input` | `any_peer, call_remote, unreliable_ordered, HPProtocol.CH_INPUT` | seq: int, move: Vector2, yaw: float, jump: bool, descend: bool |
 | `sim_cast_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | spell_id: String, aim: Vector3, cast_seq: int |
 | `sim_mount_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | mounted: bool |
@@ -22,6 +23,7 @@ its own state. `server_relay` is off, so clients cannot address each other.
 | `sim_pickup_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | loot_uid: int |
 | `sim_chat_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | text: String |
 | `sim_join_result` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | ok: bool, reason: String, uid: int, character: Dictionary, tick: int, world_seed: int |
+| `sim_bind_result` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | ok: bool, reason: String, character: Dictionary |
 | `sim_cast_result` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | cast_seq: int, cast_id: int, ok: bool, reason: String |
 | `sim_cast_started` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | uid: int, cast_id: int, spell_id: String, aim: Vector3, release_tick: int |
 | `sim_cast_released` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | cast_id: int, caster_uid: int, spell_id: String, origin: Vector3, dir: Vector3 |
@@ -43,8 +45,10 @@ its own state. `server_relay` is off, so clients cannot address each other.
 | `sim_map_state` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | map_id: String, pos: Vector3, spawn_id: String |
 | `sim_snapshot` | `authority, call_remote, unreliable, HPProtocol.CH_SNAPSHOT` | tick: int, chunk: int, chunks: int, data: PackedByteArray |
 | `sim_despawn` | `authority, call_remote, reliable, HPProtocol.CH_SNAPSHOT` | uid: int |
+| `sim_telegraph` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | uid: int, data: Dictionary |
+| `sim_telegraph_end` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | uid: int |
 
-Surface entries: 32. Hash of this document is pinned in the workspace lock;
+Surface entries: 36. Hash of this document is pinned in the workspace lock;
 payload schemas for gameplay data live in `contracts/schemas/`.
 
-Surface hash: `d9fe143f064a1e2dd8b673df39f91b379d24584bb587882e1ce22fdfc952ba9f`
+Surface hash: `d191486e215a177b2b417a0622bdeb89f25455a090da5b19d6d5a0efb223f97c`

@@ -15,6 +15,8 @@ extends Node
 ## third party.
 
 signal joined(ok: bool, reason: String, character: Dictionary)
+## The server answered a character-binding request (`sim_bind_character`).
+signal character_bound(ok: bool, reason: String, character: Dictionary)
 signal disconnected(reason: String)
 signal server_ready(port: int)
 signal client_spawned(peer_id: int, character_id: int, name: String)
@@ -112,6 +114,15 @@ func join(address: String, port: int = DEFAULT_PORT, token: String = "") -> Erro
 	return OK
 
 var join_token: String = ""
+
+## Client -> server: ask to play `character_id` on this session (Phase 14
+## D14-1). The session must already be joined; the answer arrives as the
+## `character_bound` signal, and the server validates ownership through the
+## account service before it binds, so a foreign character is refused.
+func bind_character(character_id: int) -> void:
+	if not is_client or not joined_world or character_id <= 0:
+		return
+	sim_bind_character.rpc_id(1, character_id)
 
 ## Test/probe hook. When set, this intent is sent (and predicted locally) instead
 ## of reading the keyboard - a headless client has no input device.
@@ -218,6 +229,20 @@ func sim_join(token: String, protocol_version: int, client_version: String) -> v
 			sim_join_result.rpc_id(peer_id, false, String(resolved.get("reason", "auth_failed")), 0, {}, SimAuthority.sim_tick, 0)
 			return
 		identity = resolved
+		# A session may carry a character (a ticket redeemed with one). The server
+		# proves that binding itself through the service - load the sheet and
+		# compare account_id - instead of trusting the token, and refuses the join
+		# outright if the proof fails: a session that silently lands unbound would
+		# lose every number it earns (Phase 14 D14-1).
+		var bound_id := int(identity.get("character_id", 0))
+		if bound_id > 0:
+			var checked: Dictionary = SimAuthority.persistence.resolve_character(
+				bound_id, int(identity.get("account_id", 0)))
+			if not bool(checked.get("ok", false)):
+				sim_join_result.rpc_id(peer_id, false,
+					String(checked.get("reason", HPProtocol.BIND_NOT_FOUND)), 0, {}, SimAuthority.sim_tick, 0)
+				return
+			identity["character"] = checked["character"]
 	elif OS.get_environment("HPMMO_ALLOW_DEV_JOIN") == "1":
 		# Development/testing only: with no auth backend configured the join token
 		# is taken as a display name. Refused outright when the opt-in is absent.
@@ -255,7 +280,10 @@ func sim_spawn_player(peer_id: int, identity: Dictionary) -> void:
 	node.house = String(identity.get("house", "Gryffindor"))
 	players_container.add_child(node)
 	var character: Dictionary = {}
-	if SimAuthority.persistence != null:
+	if identity.get("character") is Dictionary and not (identity["character"] as Dictionary).is_empty():
+		# Already loaded and ownership-checked by sim_join: do not fetch it twice.
+		character = identity["character"]
+	elif SimAuthority.persistence != null:
 		character = SimAuthority.persistence.load_character(int(identity.get("character_id", 0)))
 	if not character.is_empty():
 		node.restore_character(character)
@@ -282,7 +310,8 @@ func sim_spawn_player(peer_id: int, identity: Dictionary) -> void:
 		node.global_position = Vector3(float(spawn[0]), float(spawn[1]), float(spawn[2]))
 		SimAuthority.map_provider_ready(HPMaps.map_for_point(node.global_position))
 	_avoid_spawn_overlap(node)
-	var uid := SimAuthority.register_player(node, int(identity.get("character_id", 0)), peer_id)
+	var uid := SimAuthority.register_player(node, int(identity.get("character_id", 0)), peer_id,
+		int(identity.get("account_id", 0)))
 	_known_by_peer[peer_id] = {}
 	sim_join_result.rpc_id(peer_id, true, "", uid, character, SimAuthority.sim_tick, SimAuthority.seed_value)
 	# The client needs its own numbers immediately: without this it would show
@@ -294,6 +323,48 @@ func sim_spawn_player(peer_id: int, identity: Dictionary) -> void:
 		node.global_position, "")
 	sim_chat_event.rpc("[Server] %s joined the realm." % node.player_name)
 	emit_signal("client_spawned", peer_id, int(identity.get("character_id", 0)), String(node.player_name))
+
+## Client -> server: name the character this session wants to play (Phase 14
+## D14-1). A session that joined without one (a plain login, or a launcher
+## ticket issued before a character was chosen) tells the server the choice the
+## player made in the menu; the server proves the character belongs to this
+## session's account through the service - introspect gives the account, the
+## load returns the sheet, the sheet's account_id is compared - before it binds
+## anything. A foreign character is refused and the session stays unbound, so it
+## can never be saved over. Idempotent for the same character, and a reconnect
+## re-asks so a fresh session is bound again.
+@rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
+func sim_bind_character(character_id: int) -> void:
+	if is_client:
+		return
+	var peer_id := multiplayer.get_remote_sender_id()
+	var record := SimAuthority.player_record(peer_id)
+	if record.is_empty():
+		sim_bind_result.rpc_id(peer_id, false, HPProtocol.BIND_NOT_JOINED, {})
+		return
+	if SimAuthority.persistence == null:
+		# No auth backend: a dev join has no account to validate against, and a
+		# dev join is never persisted anyway.
+		sim_bind_result.rpc_id(peer_id, false, "no_auth_backend", {})
+		return
+	var checked: Dictionary = SimAuthority.persistence.resolve_character(
+		character_id, int(record.get("account_id", 0)))
+	if not bool(checked.get("ok", false)):
+		sim_bind_result.rpc_id(peer_id, false,
+			String(checked.get("reason", HPProtocol.BIND_NOT_FOUND)), {})
+		return
+	var character: Dictionary = checked["character"]
+	var refusal := SimAuthority.apply_character_binding(record, character)
+	if refusal != "":
+		sim_bind_result.rpc_id(peer_id, false, refusal, {})
+		return
+	sim_bind_result.rpc_id(peer_id, true, "", character)
+	# The bound body's own numbers and map, immediately - exactly as at join.
+	sim_stats_event.rpc_id(peer_id, int(record.get("uid", 0)), SimAuthority.build_stats(record))
+	var node = record.get("node")
+	if node != null and is_instance_valid(node):
+		sim_map_state.rpc_id(peer_id, String(record.get("map_id", HPProtocol.DEFAULT_MAP)),
+			(node as Node3D).global_position, "")
 
 @rpc("any_peer", "call_remote", "unreliable_ordered", HPProtocol.CH_INPUT)
 func sim_input(seq: int, move: Vector2, yaw: float, jump: bool, descend: bool) -> void:
@@ -395,6 +466,20 @@ func sim_join_result(ok: bool, reason: String, uid: int, character: Dictionary, 
 		if SimAuthority.local_player_node() != null:
 			SimAuthority.register_local_player(uid, character)
 	emit_signal("joined", ok, reason, character)
+
+## Server -> client: the answer to `sim_bind_character` (Phase 14 D14-1). The
+## character sheet is the one the service returned, so the client's local body
+## takes the same numbers the authority bound.
+@rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
+func sim_bind_result(ok: bool, reason: String, character: Dictionary) -> void:
+	if ok:
+		pending_character = character
+		# A bind can land before the world scene exists (the selection UI binds
+		# before it changes scene) or after it does (a reconnect into a live
+		# world): handle both, the way sim_join_result does.
+		if SimAuthority.local_player_node() != null:
+			SimAuthority.register_local_player(local_uid, character)
+	emit_signal("character_bound", ok, reason, character)
 
 @rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
 func sim_cast_result(cast_seq: int, cast_id: int, ok: bool, reason: String) -> void:
@@ -535,9 +620,15 @@ func _process(delta: float) -> void:
 		_send_local_input()
 
 func _send_local_input() -> void:
-	var player = SimAuthority.local_player_node()
-	if player == null or not is_instance_valid(player):
-		return
+	# A client without a world scene (the headless smoke check) has no local
+	# body node, but a forced intent is still a valid intent to send: the server
+	# integrates it against the body IT spawned, and a client never decides its
+	# own position. Without a forced intent there is nothing to send, exactly as
+	# before.
+	if forced_intent.is_empty():
+		var player = SimAuthority.local_player_node()
+		if player == null or not is_instance_valid(player):
+			return
 	_input_seq += 1
 	var intent: Dictionary = _local_intent()
 	input_frames_sent += 1
