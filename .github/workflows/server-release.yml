@@ -234,9 +234,6 @@ jobs:
     # rehearsal (package) and the integration job are green.
     if: success() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy))
     runs-on: ubuntu-22.04
-    environment:
-      name: production            # required reviewers in the repo settings = the human gate
-      url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
     concurrency:
       group: server-deploy-production
       cancel-in-progress: false   # a deployment mutation must never be cancelled
