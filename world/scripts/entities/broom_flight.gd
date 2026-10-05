@@ -41,6 +41,10 @@ var _accel := 0.0
 var _flying := false
 var _trail_time := 0.0
 var model_root_ref: Node
+## Phase 12 hook: the layered broom-trail effect scene (spells/broom_trail.gd).
+## While it is present it owns the ribbon, wisps and sparks; the Phase 9
+## primitives stay in the tree as a fallback if the scene cannot be built.
+var trail: Node3D
 
 func setup(player_body: Node3D, visuals_node: Node3D, wisp_particles: CPUParticles3D,
 		model_root: Node3D = null) -> void:
@@ -64,6 +68,30 @@ func setup(player_body: Node3D, visuals_node: Node3D, wisp_particles: CPUParticl
 		particles.emitting = false
 	_build_sparks()
 	_build_ribbon()
+	_attach_phase12_trail(scope)
+
+
+## Phase 12 hook. The trail effect samples the authored trail_ribbon.glb taper
+## profile and the tail socket's own motion history; nothing about flight state
+## changes because the presentation is replaced.
+func _attach_phase12_trail(scope: Node) -> void:
+	var scene: PackedScene = load("res://scenes/spells/fx_broom_trail.tscn")
+	if scene == null:
+		return
+	var instance := scene.instantiate()
+	add_child(instance)
+	if not instance.has_method("setup"):
+		instance.queue_free()
+		return
+	instance.call("setup", player, scope)
+	trail = instance
+	if ribbon:
+		ribbon.visible = false
+	if particles:
+		particles.emitting = false
+	if sparks:
+		sparks.emitting = false
+	set_flying(_flying)
 
 ## ---------------------------------------------------------------- trail rig
 
@@ -126,6 +154,9 @@ func _build_ribbon() -> void:
 
 func set_flying(flying: bool) -> void:
 	_flying = flying
+	if trail != null and is_instance_valid(trail):
+		trail.call("set_flying", flying)
+		return
 	if particles:
 		particles.emitting = flying
 	if sparks:
@@ -151,6 +182,11 @@ func tick(delta: float) -> void:
 	_accel = (_speed - _prev_speed) / maxf(delta, 0.0001)
 	_prev_speed = _speed
 	_trail_time += delta
+	if trail != null and is_instance_valid(trail):
+		# Phase 12: the layered trail owns the per-frame ribbon and emission.
+		# Speed and acceleration are measured from the same body velocity.
+		trail.call("tick", delta)
+		return
 	if not _flying:
 		return
 	_scale_effects()

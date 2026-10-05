@@ -2,7 +2,7 @@ extends Area3D
 
 const SkillFX = preload("res://scripts/spells/skill_fx.gd")
 const Rules = preload("res://scripts/spells/combat_rules.gd")
-const ParticleKit = preload("res://scripts/assets/particle_kit.gd")
+const VFX = preload("res://scripts/spells/vfx_library.gd")
 @export var speed := 40.0
 @export var damage := 40
 @export var spell_id := "basic_cast"
@@ -18,7 +18,10 @@ var _base_scale := Vector3.ONE
 var _reflection_grace := 0.0
 @onready var mesh: MeshInstance3D = $MeshInstance3D
 @onready var light: OmniLight3D = $OmniLight3D
-@onready var particles: CPUParticles3D = $CPUParticles3D
+@onready var travel_slot: Node3D = get_node_or_null("TravelFx")
+## Phase 12: the travel stage (authored core mesh, tapered ribbon, wisps) is
+## built by the effect scene and parented here, so it dies with the bolt.
+var travel_effect: Node3D
 
 func _ready() -> void:
 	body_entered.connect(_on_body_entered)
@@ -35,16 +38,30 @@ func setup(source: Node3D, id: String, aim: Vector3, target: Node3D = null, bonu
 	speed = float(data.get("projectile_speed", 40))
 	max_lifetime = float(data.get("range", 36)) / speed
 	spell_color = data.get("color", Color.WHITE)
+	# Phase 12: the placeholder sphere is replaced by the authored carrier core;
+	# the layered travel stage (ribbon + wisps) rides along with it.
+	var core_scene := load(VFX.asset_path("vfx_projectile_mesh")) as PackedScene
+	if core_scene != null:
+		var core_node := core_scene.instantiate()
+		var found := _find_mesh(core_node)
+		if found != null:
+			mesh.mesh = found.mesh
+		core_node.free()
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	mat.emission_enabled = true
+	mat.emission = spell_color
+	mat.emission_energy_multiplier = 2.0
 	mat.albedo_color = spell_color
 	mesh.material_override = mat
-	_base_scale = Vector3(0.7, 0.7, 1.8) if id == "basic_cast" else Vector3(1.1, 1.1, 2.4)
+	_base_scale = Vector3(0.7, 0.7, 1.0) if id == "basic_cast" else Vector3(1.1, 1.1, 1.0)
 	light.light_color = spell_color
 	light.light_energy = 1.5
 	light.omni_range = 4.0
-	ParticleKit.configure(particles, id == "incendio")
-	particles.color = spell_color
+	travel_effect = SkillFX.spawn_stage(travel_slot if travel_slot != null else get_parent(),
+		id, "travel", global_position, direction, caster, {"follow_target": self})
 	SkillFX.play_cast(get_parent(), caster, id, global_position, direction)
 
 func _physics_process(delta: float) -> void:
@@ -56,6 +73,9 @@ func _physics_process(delta: float) -> void:
 		if spell_id in ["bombarda", "ultimate"]:
 			_handle_hit(null)
 		else:
+			# out of range: the travel stage is cancelled, never left running
+			if travel_effect != null and is_instance_valid(travel_effect):
+				travel_effect.call("cancel", "out_of_range")
 			queue_free()
 		return
 	var next := global_position + direction * speed * delta
@@ -80,7 +100,8 @@ func _physics_process(delta: float) -> void:
 	else:
 		global_position = next
 	look_at(global_position + direction, Rules.safe_up(direction))
-	mesh.scale = _base_scale * (1 + sin(lifetime * 25) * 0.1)
+	# a gentle pulse, never an abrupt on/off
+	mesh.scale = _base_scale * (1 + sin(lifetime * 18.0) * 0.06)
 
 func _on_body_entered(body: Node3D) -> void:
 	if spent or body == caster:
@@ -118,5 +139,17 @@ func _handle_hit(target: Node) -> void:
 			SimAuthority.spell_area_impact(caster, global_position, radius, spell_id, damage)
 		elif Rules.can_damage(caster, target):
 			SimAuthority.apply_damage(target, damage, spell_id, caster)
-	SkillFX.play_impact(get_parent(), global_position, spell_id)
+	SkillFX.play_impact(get_parent(), global_position, spell_id, target)
+	if travel_effect != null and is_instance_valid(travel_effect):
+		travel_effect.call("cancel", "spent")
 	queue_free()
+
+
+func _find_mesh(node: Node) -> MeshInstance3D:
+	if node is MeshInstance3D and (node as MeshInstance3D).mesh != null:
+		return node as MeshInstance3D
+	for child in node.get_children():
+		var found := _find_mesh(child)
+		if found != null:
+			return found
+	return null

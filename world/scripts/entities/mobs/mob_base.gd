@@ -281,6 +281,22 @@ func _physics_process(delta: float) -> void:
 		_update_puppet(delta)
 		_tick_corpse(delta)
 		return
+	# Phase 12 hook: an AUTHORITY body inside a client process (offline and
+	# listen-host play) draws the boss warning from the same replicated ticks a
+	# connected client uses, so single-player shows exactly what a client sees.
+	# The dedicated server draws nothing.
+	if is_boss and not NetworkManager.is_dedicated_server:
+		var authored_record := SimAuthority.record_for(self)
+		if not authored_record.is_empty():
+			_draw_telegraph(authored_record)
+	# Phase 12 hook: creature voices. Movement, bite and death cues come from the
+	# sound library by creature type. Presentation only - nothing here can
+	# change damage, AI or rewards.
+	if not is_boss and state == State.CHASE:
+		_voice_timer -= delta
+		if _voice_timer <= 0.0:
+			_voice_timer = randf_range(0.45, 0.9)
+			_play_voice("spider_move_%d" % (randi() % 3 + 1))
 	if state == State.DEAD:
 		_tick_corpse(delta)
 		return
@@ -418,6 +434,9 @@ func _release_attack() -> void:
 	_publish_state()
 	if is_boss and bool(plan.get("telegraph", false)) and SimAuthority.is_authority():
 		SimAuthority.end_mob_telegraph(self)
+	# Phase 12 hook: the release cue fires on the authoritative release tick.
+	if is_instance_valid(_warning_effect):
+		_warning_effect.call("release")
 	_resolve_attack(plan)
 
 ## Pick the next boss pattern (deterministic order, no RNG) or the ordinary
@@ -701,6 +720,21 @@ func _face_direction(direction: Vector3, delta: float) -> void:
 ## from the attack plan: a disc for an area attack, a stretched lune for a
 ## directional one. `_warning_fill` is the event horizon: it fills over the
 ## anticipation and is exactly full at the authoritative release tick.
+## Phase 12 hook: the layered boss-warning effect scene (spells/boss_warning.gd)
+## is attached to the ground mask. The mask itself must stay a MeshInstance3D
+## with a CylinderMesh: the multiplayer probe reads its `top_radius` to prove the
+## replicated warning matches the authoritative hit area.
+var _warning_effect: Node3D
+var _voice_timer := 0.0
+
+
+## Phase 12 audio hook: play a creature voice at this body's position.
+func _play_voice(key: String) -> void:
+	var audio := get_node_or_null("/root/AudioManager")
+	if audio == null:
+		return
+	audio.call("play_sound_at", key, global_position, self)
+
 func _show_warning(plan: Dictionary = {}) -> void:
 	if is_instance_valid(_warning):
 		_warning.queue_free()
@@ -721,6 +755,12 @@ func _show_warning(plan: Dictionary = {}) -> void:
 	mat.albedo_color = Color(1, 0.15, 0.06, 0.36)
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	# Phase 12: the hit-area mask carries the rune/ground-mark texture so the
+	# area itself reads as magic rather than as a flat red disc.
+	mat.albedo_texture = load("res://assets/vfx/atlases/rune_masks_2x2_1k.png")
+	# cell 0 of the 2x2 rune atlas (the telegraph circle)
+	mat.uv1_scale = Vector3(0.5, 0.5, 1.0)
+	mat.uv1_offset = Vector3(0.0, 0.0, 0.0)
 	mesh.material = mat
 	_warning = MeshInstance3D.new()
 	_warning.mesh = mesh
@@ -730,12 +770,39 @@ func _show_warning(plan: Dictionary = {}) -> void:
 	_warning.global_position = _attack_center + Vector3.UP * 0.08
 	if kind == "directional":
 		_warning.rotation.y = atan2(_attack_dir.x, _attack_dir.z)
+	_attach_warning_effect(plan, kind, radius, length, width)
+
+
+## Phase 12 hook: layer the warning effect (edge ring, countdown ring, rim
+## motes, pulse light, charge/release cues) on the authoritative mask. Its
+## timing comes from the telegraph's own start/release ticks.
+func _attach_warning_effect(plan: Dictionary, kind: String, radius: float, length: float, width: float) -> void:
+	if _warning == null or not is_instance_valid(_warning):
+		return
+	var scene: PackedScene = load("res://scenes/spells/fx_boss_warning.tscn")
+	if scene == null:
+		return
+	var effect := scene.instantiate()
+	_warning.add_child(effect)
+	if not effect.has_method("setup"):
+		effect.queue_free()
+		return
+	_warning_effect = effect
+	var data := plan.duplicate(true)
+	data["kind"] = kind
+	data["radius"] = radius
+	data["range"] = length
+	data["half_angle"] = float(plan.get("half_angle", 0.6))
+	data.erase("telegraph")
+	effect.call("setup", data)
+
 
 func _cancel_warning() -> void:
 	if is_instance_valid(_warning):
 		_warning.queue_free()
 	_warning = null
 	_warning_fill = null
+	_warning_effect = null
 
 # ---------------------------------------------------------------- resolution
 
@@ -764,6 +831,7 @@ func _resolve_attack(plan: Dictionary) -> void:
 			SimAuthority.mob_projectile(self, "stupefy", dir, power)
 	elif _valid_target() and Rules.has_line_of_sight(self, target_player):
 		if global_position.distance_to(target_player.global_position) <= attack_range + 0.4:
+			_play_voice("spider_bite")
 			SimAuthority.mob_melee(self, target_player, power)
 
 # ------------------------------------------------------------------- damage
@@ -802,6 +870,7 @@ func on_authoritative_damage(type: String, attacker: Node3D, stun_ms: int, weake
 ## Authority death notification: the engine already paid the rewards and dropped
 ## the loot, so this is the body's part only.
 func on_authoritative_death(killer: Node3D) -> void:
+	_play_voice("boss_death" if is_boss else "spider_death")
 	_cancel_attack()
 	_cancel_warning()
 	_set_state(State.DEAD)
@@ -968,3 +1037,7 @@ func _draw_telegraph(record: Dictionary) -> void:
 	var mat := (_warning.mesh as CylinderMesh).material as StandardMaterial3D
 	if mat:
 		mat.albedo_color = Color(1.0, 0.15 + 0.35 * progress, 0.06, 0.22 + 0.3 * progress)
+	# Phase 12 hook: the layered effect's countdown fill is driven by the same
+	# authority ticks this fill is - never by a client-side guess.
+	if is_instance_valid(_warning_effect) and _warning_effect.has_method("set_progress"):
+		_warning_effect.call("set_progress", progress)

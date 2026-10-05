@@ -941,6 +941,10 @@ func cast_spell(spell_id: String) -> void:
 	_play_cast_animation(anim_name)
 	if spell_id == "protego":
 		_activate_protego_preview()
+	# Phase 12 hook: predicted PRESENTATION only (wand flash + cast sound), keyed
+	# by cast_seq so a rejection removes exactly this and nothing else. It cannot
+	# produce damage, a hit or a reward: the authority already owns those.
+	preload("res://scripts/spells/skill_fx.gd").play_predicted_cast(self, spell_id, _cast_seq)
 
 	SimNet.submit_cast(self, spell_id, aim_hit, _cast_seq)
 
@@ -959,6 +963,8 @@ func on_cast_answer(cast_seq: int, _cast_id: int, ok: bool, reason: String) -> v
 			spell_cooldowns[spell_id] = cd
 		emit_signal("spell_cast_signal", spell_id, cd)
 		return
+	# Phase 12 hook: a rejected cast removes its predicted feedback.
+	preload("res://scripts/spells/skill_fx.gd").cancel_predicted(self, cast_seq)
 	if spell_id == "protego":
 		_clear_protego_preview()
 	_cast_generation += 1

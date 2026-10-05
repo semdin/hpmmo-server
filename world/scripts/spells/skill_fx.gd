@@ -1,270 +1,237 @@
 extends RefCounted
 
-## SkillFX — original MMORPG skill animation kit (Metin2-style feel, own art).
+## SkillFX - Phase 12 facade over the layered effect scenes.
+##
+## Public API is unchanged since the prototype (`play_cast`, `play_impact`,
+## `play_stun_stars`, `shake_camera`) so every existing call site - the
+## projectile, mob attacks, the world's authoritative cast/impact hooks and the
+## offline regression harness - keeps working, but every one of them now gets a
+## layered effect built from `vfx_library.gd` instead of the old sphere/ring/
+## cylinder kit.
+##
+## The rules this file enforces for every effect (plan.md 12.4):
+##   * emission origins sit on the ACTUAL animated wand socket when the caster
+##     has one, and are pulled out of geometry for near-wall launches;
+##   * zero-length directions and vertical aims are guarded (the collinear
+##     `look_at` crash class from the Phase 0 baseline);
+##   * effects are presentation: nothing here can produce a second hit;
+##   * predicted feedback is registered by cast sequence so a rejection can
+##     remove exactly what was predicted and nothing else.
 
+const VFX = preload("res://scripts/spells/vfx_library.gd")
+const SpellEffect = preload("res://scripts/spells/spell_effect.gd")
+const QualityPreset = preload("res://scripts/world/quality_preset.gd")
+
+const EFFECT_SCENES := {
+	"basic_cast": "res://scenes/spells/fx_basic_cast.tscn",
+	"stupefy": "res://scenes/spells/fx_stupefy.tscn",
+	"incendio": "res://scenes/spells/fx_incendio.tscn",
+	"bombarda": "res://scenes/spells/fx_bombarda.tscn",
+	"expelliarmus": "res://scenes/spells/fx_expelliarmus.tscn",
+	"protego": "res://scenes/spells/fx_protego.tscn",
+	"ultimate": "res://scenes/spells/fx_ultimate.tscn",
+}
+
+const WARNING_SCENE := "res://scenes/spells/fx_boss_warning.tscn"
+const TRAIL_SCENE := "res://scenes/spells/fx_broom_trail.tscn"
+
+## Predicted casts, keyed "instance_id:cast_seq" -> effect node. A rejected cast
+## removes its entry; nothing else is ever removed.
+static var _predicted: Dictionary = {}
+static var _active: Array = []
+
+
+static func quality() -> String:
+	return QualityPreset.current()
+
+
+## ---------------------------------------------------------------- origins
+
+## The wand socket of the animated rig, when the caster exposes one (player.gd
+## builds `Socket_Wand` from the documented bone map). Falls back to a body
+## offset so mobs and any rig without sockets still emit somewhere sane.
+static func emission_origin(caster: Node3D, fallback: Vector3, dir: Vector3) -> Vector3:
+	if caster == null or not is_instance_valid(caster):
+		return fallback
+	var origin := fallback
+	if caster.has_method("socket"):
+		var socket = caster.call("socket", "Socket_Wand")
+		if socket is Node3D and is_instance_valid(socket):
+			origin = (socket as Node3D).global_position + dir * 0.35
+	elif caster.has_node("Visuals/WandTipMarker"):
+		origin = (caster.get_node("Visuals/WandTipMarker") as Node3D).global_position
+	# Near-wall launches: if the emitter is inside geometry, step it back along
+	# the aim direction until it is clear. The effect must be visible even when
+	# the player casts while hugging a wall.
+	var space := caster.get_world_3d().direct_space_state
+	var chest := caster.global_position + Vector3.UP * 1.2
+	var query := PhysicsRayQueryParameters3D.create(chest, origin, 1)
+	query.exclude = [caster.get_rid()] if caster is CollisionObject3D else []
+	var hit := space.intersect_ray(query)
+	if not hit.is_empty():
+		origin = (hit["position"] as Vector3) - dir * 0.25
+	return origin
+
+
+## An aim direction that is never zero-length and never collinear with up.
+static func safe_direction(raw: Vector3, fallback: Vector3 = Vector3.FORWARD) -> Vector3:
+	var dir := raw
+	if dir.length_squared() < 0.0001:
+		dir = fallback
+	if dir.length_squared() < 0.0001:
+		dir = Vector3.FORWARD
+	return dir.normalized()
+
+
+## ---------------------------------------------------------------- spawning
+
+static func spawn_stage(world: Node3D, spell_id: String, stage: String, origin: Vector3,
+		dir: Vector3, caster: Node3D = null, opts: Dictionary = {}) -> Node3D:
+	if not is_instance_valid(world) or not VFX.SPELLS.has(spell_id):
+		return null
+	var effect: Node3D = SpellEffect.new()
+	world.add_child(effect)
+	effect.call("setup", spell_id, stage, quality(), origin, safe_direction(dir), caster, opts)
+	_track(effect)
+	return effect
+
+
+static func _track(effect: Node3D) -> void:
+	_active.append(effect)
+	if _active.size() > 128:
+		_active = _active.slice(_active.size() - 64)
+
+
+## Play the cast stage of a spell. Kept signature-compatible with the prototype.
 static func play_cast(world: Node3D, caster: Node3D, spell_id: String, spawn_pos: Vector3, dir: Vector3) -> void:
-	if not is_instance_valid(world):
+	if not VFX.SPELLS.has(spell_id):
 		return
-	var col := Color(1.0, 0.85, 0.4)
-	if GameData.SPELLS.has(spell_id):
-		col = (GameData.SPELLS[spell_id] as Dictionary).get("color", col)
-	_muzzle_flash(world, spawn_pos, dir, col)
-	match spell_id:
-		"incendio":
-			_fire_cone(world, spawn_pos, dir, col)
-		"bombarda":
-			_shockwave(world, spawn_pos, col, 8.0)
-			shake_camera(caster, 0.35)
-		"stupefy":
-			_bolt_ring(world, spawn_pos, col)
-		"expelliarmus":
-			_bolt_ring(world, spawn_pos, col)
-			_arc_slash(world, spawn_pos, dir, col)
-		"ultimate":
-			_sky_beam(world, spawn_pos, col)
-			_shockwave(world, spawn_pos, col, 14.0)
-			shake_camera(caster, 0.6)
-		"basic_cast":
-			_bolt_ring(world, spawn_pos, col)
-		"protego":
-			pass # shield scene handles it; muzzle flash is enough
+	var aim := safe_direction(dir, Vector3.FORWARD)
+	var origin := emission_origin(caster, spawn_pos, aim)
+	# Incendio is a short-range cone: the burst starts at the caster and points
+	# down the aim. Everything else is a cast flash at the emitter.
+	spawn_stage(world, spell_id, "cast", origin, aim, caster)
 
-static func play_impact(world: Node3D, pos: Vector3, spell_id: String) -> void:
-	if not is_instance_valid(world):
+
+## Play the impact stage. `victim` is optional: a burn sustain attaches to it.
+static func play_impact(world: Node3D, pos: Vector3, spell_id: String, victim: Node3D = null) -> void:
+	if not VFX.SPELLS.has(spell_id):
 		return
-	var col := Color(1.0, 0.6, 0.2)
-	if GameData.SPELLS.has(spell_id):
-		col = (GameData.SPELLS[spell_id] as Dictionary).get("color", col)
-	match spell_id:
-		"bombarda":
-			_shockwave(world, pos, col, 10.0)
-			_sparks(world, pos, col, 35)
-			_flash_light(world, pos, col, 6.0, 14.0, 0.45)
-		"ultimate":
-			_sky_beam(world, pos, col)
-			_shockwave(world, pos, col, 16.0)
-			_sparks(world, pos, col, 50)
-			_flash_light(world, pos, col, 8.0, 22.0, 0.6)
-		"incendio":
-			_shockwave(world, pos, col, 4.5)
-			_sparks(world, pos, col, 28)
-			_flash_light(world, pos, col, 4.0, 10.0, 0.4)
-		"stupefy":
-			_bolt_ring(world, pos, col)
-			_sparks(world, pos, col, 18)
-			_flash_light(world, pos, col, 3.5, 9.0, 0.3)
-		"expelliarmus":
-			_arc_slash(world, pos, Vector3.UP, col)
-			_sparks(world, pos, col, 20)
-			_flash_light(world, pos, col, 4.0, 10.0, 0.35)
-		_:
-			_sparks(world, pos, col, 14)
-			_bolt_ring(world, pos, col)
-			_flash_light(world, pos, col, 2.5, 6.0, 0.25)
+	var opts := {"target_position": pos}
+	if victim != null:
+		opts["follow_target"] = victim
+	var effect := spawn_stage(world, spell_id, "impact", pos, Vector3.UP, null, opts)
+	if effect == null:
+		return
+	if spell_id == "incendio" and victim != null:
+		# The burn is server-timed; the sustain runs for the authoritative burn
+		# duration (spells.json: 3 ticks x 1000 ms) and no longer.
+		play_burn(world, victim, 3.0)
 
+
+## Burn sustain on a victim for `seconds` (the authoritative status duration).
+static func play_burn(world: Node3D, victim: Node3D, seconds: float) -> Node3D:
+	if not is_instance_valid(victim):
+		return null
+	var effect := spawn_stage(world, "incendio", "sustain", victim.global_position, Vector3.UP, null,
+		{"follow_target": victim})
+	if effect == null:
+		return null
+	effect.set_meta("duration_override", seconds)
+	return effect
+
+
+## The stun indicator, kept for compatibility with the prototype's API.
 static func play_stun_stars(world: Node3D, target: Node3D) -> void:
 	if not is_instance_valid(world) or not is_instance_valid(target):
 		return
-	var rig := Node3D.new()
-	rig.name = "StunStars"
-	world.add_child(rig)
-	rig.global_position = target.global_position + Vector3(0, 2.0, 0)
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_color = Color(1.0, 0.85, 0.25)
-	for i in range(3):
-		var s := MeshInstance3D.new()
-		var sm := SphereMesh.new()
-		sm.radius = 0.09
-		sm.height = 0.18
-		sm.material = mat
-		s.mesh = sm
-		s.position = Vector3(cos(TAU * i / 3.0) * 0.55, 0, sin(TAU * i / 3.0) * 0.55)
-		rig.add_child(s)
-	var tw := rig.create_tween()
-	tw.set_parallel(true)
-	tw.tween_property(rig, "rotation:y", TAU * 2.0, 1.8).set_trans(Tween.TRANS_LINEAR)
-	tw.chain().tween_callback(rig.queue_free).set_delay(1.8)
+	spawn_stage(world, "stupefy", "sustain", target.global_position + Vector3.UP * 1.9,
+		Vector3.UP, null, {"follow_target": target})
 
-# ---------------------------------------------------------------- pieces
 
-static func _unshaded(c: Color) -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.albedo_color = c
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	return m
+## ---------------------------------------------------------------- prediction
 
-static func _flash_light(world: Node3D, pos: Vector3, col: Color, energy: float, range_r: float, life: float = 0.3) -> void:
-	var l := OmniLight3D.new()
-	l.light_color = col
-	l.light_energy = energy
-	l.omni_range = range_r
-	world.add_child(l)
-	l.global_position = pos
-	var tw := l.create_tween()
-	tw.tween_property(l, "light_energy", 0.0, life)
-	tw.tween_callback(l.queue_free)
+## Predicted cast presentation, played the moment the client sends the request.
+## Registered by cast sequence so `cancel_predicted` removes exactly this one.
+static func play_predicted_cast(caster: Node3D, spell_id: String, cast_seq: int) -> Node3D:
+	if not is_instance_valid(caster) or not VFX.SPELLS.has(spell_id):
+		return null
+	var world := caster.get_parent()
+	if world == null:
+		return null
+	var aim := safe_direction(caster.visuals.global_basis.z if "visuals" in caster else Vector3.FORWARD)
+	var origin := emission_origin(caster, caster.global_position + Vector3.UP * 1.25, aim)
+	var effect := spawn_stage(world, spell_id, "cast", origin, aim, caster)
+	if effect != null:
+		_predicted["%d:%d" % [caster.get_instance_id(), cast_seq]] = effect
+	var manager := audio_manager()
+	if manager != null:
+		manager.call("play_sound_at", "spell_%s_cast" % spell_id, origin, caster)
+	return effect
 
-static func _muzzle_flash(world: Node3D, pos: Vector3, dir: Vector3, col: Color) -> void:
-	if dir.length_squared() < 0.000001:
-		dir = Vector3.FORWARD
-	_flash_light(world, pos, col, 3.0, 7.0, 0.25)
-	var orb := MeshInstance3D.new()
-	var sm := SphereMesh.new()
-	sm.radius = 0.22
-	sm.height = 0.44
-	sm.material = _unshaded(Color(col.r, col.g, col.b, 0.9))
-	orb.mesh = sm
-	world.add_child(orb)
-	orb.global_position = pos
-	var tw := orb.create_tween()
-	tw.set_parallel(true)
-	tw.tween_property(orb, "scale", Vector3.ONE * 2.6, 0.22).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tw.tween_property(orb, "transparency", 1.0, 0.22)
-	tw.chain().tween_callback(orb.queue_free).set_delay(0.25)
-	# short directional streak
-	var streak := MeshInstance3D.new()
-	var cm := CylinderMesh.new()
-	cm.top_radius = 0.05
-	cm.bottom_radius = 0.12
-	cm.height = 1.4
-	cm.material = _unshaded(Color(col.r, col.g, col.b, 0.7))
-	streak.mesh = cm
-	world.add_child(streak)
-	streak.global_position = pos + dir * 0.8
-	streak.look_at_from_position(streak.global_position, pos + dir * 3.0, preload("res://scripts/spells/combat_rules.gd").safe_up(dir))
-	var tw2 := streak.create_tween()
-	tw2.set_parallel(true)
-	tw2.tween_property(streak, "scale", Vector3(1.6, 1.0, 1.6), 0.2)
-	tw2.tween_property(streak, "transparency", 1.0, 0.2)
-	tw2.chain().tween_callback(streak.queue_free).set_delay(0.22)
 
-static func _bolt_ring(world: Node3D, pos: Vector3, col: Color) -> void:
-	var ring := MeshInstance3D.new()
-	var tm := TorusMesh.new()
-	tm.inner_radius = 0.25
-	tm.outer_radius = 0.4
-	tm.material = _unshaded(Color(col.r, col.g, col.b, 0.85))
-	ring.mesh = tm
-	world.add_child(ring)
-	ring.global_position = pos
-	ring.look_at_from_position(pos, pos + Vector3.UP, Vector3.FORWARD)
-	var tw := ring.create_tween()
-	tw.set_parallel(true)
-	tw.tween_property(ring, "scale", Vector3.ONE * 3.2, 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tw.tween_property(ring, "transparency", 1.0, 0.3)
-	tw.chain().tween_callback(ring.queue_free).set_delay(0.32)
+## The AudioManager autoload, or null when there is none (headless unit use).
+static func audio_manager() -> Node:
+	var loop := Engine.get_main_loop()
+	if loop == null or not (loop is SceneTree):
+		return null
+	return (loop as SceneTree).root.get_node_or_null("AudioManager")
 
-static func _fire_cone(world: Node3D, pos: Vector3, dir: Vector3, col: Color) -> void:
-	if dir.length_squared() < 0.000001:
-		dir = Vector3.FORWARD
-	_flash_light(world, pos + dir * 2.0, col, 2.0, 10.0, 0.45)
-	var flame := CPUParticles3D.new()
-	preload("res://scripts/assets/particle_kit.gd").configure(flame, true)
-	flame.amount = 95
-	flame.lifetime = 0.55
-	flame.one_shot = true
-	flame.explosiveness = 0.3
-	flame.direction = dir
-	flame.spread = 24
-	flame.initial_velocity_min = 20
-	flame.initial_velocity_max = 32
-	flame.gravity = Vector3(0, 1.5, 0)
-	flame.scale_amount_min = 1.4
-	flame.scale_amount_max = 3.0
-	world.add_child(flame)
-	flame.global_position = pos
-	flame.emitting = true
-	flame.finished.connect(flame.queue_free)
 
-static func _arc_slash(world: Node3D, pos: Vector3, dir: Vector3, col: Color) -> void:
-	if dir.length_squared() < 0.000001:
-		dir = Vector3.FORWARD
-	var arc := MeshInstance3D.new()
-	var tm := TorusMesh.new()
-	tm.inner_radius = 0.9
-	tm.outer_radius = 1.1
-	tm.material = _unshaded(Color(col.r, col.g, col.b, 0.8))
-	arc.mesh = tm
-	world.add_child(arc)
-	arc.global_position = pos + dir * 1.2
-	arc.look_at_from_position(arc.global_position, arc.global_position + dir, preload("res://scripts/spells/combat_rules.gd").safe_up(dir))
-	var tw := arc.create_tween()
-	tw.set_parallel(true)
-	tw.tween_property(arc, "scale", Vector3.ONE * 2.2, 0.3)
-	tw.tween_property(arc, "transparency", 1.0, 0.3)
-	tw.chain().tween_callback(arc.queue_free).set_delay(0.32)
+## A rejected cast removes its predicted feedback - and only its own.
+static func cancel_predicted(caster: Node3D, cast_seq: int) -> void:
+	if not is_instance_valid(caster):
+		return
+	var key := "%d:%d" % [caster.get_instance_id(), cast_seq]
+	if not _predicted.has(key):
+		return
+	var effect = _predicted[key]
+	_predicted.erase(key)
+	if is_instance_valid(effect):
+		effect.call("cancel", "rejected")
 
-static func _shockwave(world: Node3D, pos: Vector3, col: Color, max_r: float) -> void:
-	_flash_light(world, pos, col, 5.0, 16.0, 0.4)
-	var ring := MeshInstance3D.new()
-	var tm := TorusMesh.new()
-	tm.inner_radius = 0.5
-	tm.outer_radius = 0.7
-	tm.material = _unshaded(Color(col.r, col.g, col.b, 0.9))
-	ring.mesh = tm
-	world.add_child(ring)
-	ring.global_position = pos + Vector3(0, 0.4, 0)
-	ring.rotation.x = 0.0
-	var tw := ring.create_tween()
-	tw.set_parallel(true)
-	tw.tween_property(ring, "scale", Vector3.ONE * (max_r / 1.2), 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tw.tween_property(ring, "transparency", 1.0, 0.5)
-	tw.chain().tween_callback(ring.queue_free).set_delay(0.55)
-	# rising dust pillar
-	var pillar := MeshInstance3D.new()
-	var cm := CylinderMesh.new()
-	cm.top_radius = 1.2
-	cm.bottom_radius = 2.0
-	cm.height = 3.0
-	cm.material = _unshaded(Color(col.r, col.g, col.b, 0.35))
-	pillar.mesh = cm
-	world.add_child(pillar)
-	pillar.global_position = pos + Vector3(0, 1.5, 0)
-	var tw2 := pillar.create_tween()
-	tw2.set_parallel(true)
-	tw2.tween_property(pillar, "scale", Vector3(1.6, 1.4, 1.6), 0.5)
-	tw2.tween_property(pillar, "transparency", 1.0, 0.5)
-	tw2.chain().tween_callback(pillar.queue_free).set_delay(0.55)
 
-static func _sky_beam(world: Node3D, pos: Vector3, col: Color) -> void:
-	var beam := MeshInstance3D.new()
-	var cm := CylinderMesh.new()
-	cm.top_radius = 1.0
-	cm.bottom_radius = 1.6
-	cm.height = 30.0
-	cm.material = _unshaded(Color(col.r, col.g, col.b, 0.5))
-	beam.mesh = cm
-	world.add_child(beam)
-	beam.global_position = pos + Vector3(0, 15.0, 0)
-	_flash_light(world, pos + Vector3(0, 2, 0), col, 6.0, 20.0, 0.6)
-	var tw := beam.create_tween()
-	tw.set_parallel(true)
-	tw.tween_property(beam, "scale", Vector3(2.2, 1.0, 2.2), 0.55).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tw.tween_property(beam, "transparency", 1.0, 0.6)
-	tw.chain().tween_callback(beam.queue_free).set_delay(0.65)
+static func predicted_count() -> int:
+	var live := 0
+	for key in _predicted:
+		if is_instance_valid(_predicted[key]):
+			live += 1
+	return live
 
-static func _sparks(world: Node3D, pos: Vector3, col: Color, count: int) -> void:
-	var parts := CPUParticles3D.new()
-	preload("res://scripts/assets/particle_kit.gd").configure(parts)
-	parts.amount = count
-	parts.lifetime = 0.5
-	parts.one_shot = true
-	parts.explosiveness = 0.9
-	parts.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
-	parts.emission_sphere_radius = 0.4
-	parts.direction = Vector3(0, 1, 0)
-	parts.spread = 60.0
-	parts.initial_velocity_min = 4.0
-	parts.initial_velocity_max = 9.0
-	parts.gravity = Vector3(0, -9, 0)
-	parts.color = col
-	world.add_child(parts)
-	parts.global_position = pos
-	parts.emitting = true
-	var t := world.get_tree().create_timer(1.2)
-	t.timeout.connect(parts.queue_free)
+
+## ---------------------------------------------------------------- lifecycle
+
+## Cancel every live effect owned by a node (death, map transfer, shutdown).
+static func cancel_all_of(owner: Node3D) -> int:
+	var cancelled := 0
+	for effect in _active:
+		if not is_instance_valid(effect):
+			continue
+		if effect.get("caster") == owner:
+			effect.call("cancel", "owner_gone")
+			cancelled += 1
+	return cancelled
+
+
+static func active_count() -> int:
+	var live := 0
+	for effect in _active:
+		if is_instance_valid(effect):
+			live += 1
+	return live
+
+
+## Broom trail scene, instanced by broom_flight (the documented Phase 12 hook).
+static func make_trail(owner: Node3D) -> Node3D:
+	if not ResourceLoader.exists(TRAIL_SCENE):
+		return null
+	var packed: PackedScene = load(TRAIL_SCENE)
+	var trail := packed.instantiate()
+	owner.add_child(trail)
+	if trail.has_method("setup"):
+		trail.call("setup", owner)
+	return trail
+
 
 static func shake_camera(caster: Node3D, strength: float) -> void:
 	if not is_instance_valid(caster):
@@ -272,6 +239,9 @@ static func shake_camera(caster: Node3D, strength: float) -> void:
 	var cam := caster.get_node_or_null("CameraPivot/SpringArm3D/Camera3D") as Camera3D
 	if cam == null:
 		return
+	if cam.has_meta("phase12_shake"):
+		return
+	cam.set_meta("phase12_shake", true)
 	var orig_h := cam.h_offset
 	var orig_v := cam.v_offset
 	cam.h_offset = randf_range(-strength, strength) * 0.4
@@ -279,3 +249,4 @@ static func shake_camera(caster: Node3D, strength: float) -> void:
 	var tw := cam.create_tween()
 	tw.tween_property(cam, "h_offset", orig_h, 0.3)
 	tw.parallel().tween_property(cam, "v_offset", orig_v, 0.3)
+	tw.tween_callback(func(): cam.remove_meta("phase12_shake"))

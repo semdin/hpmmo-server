@@ -1,27 +1,9 @@
-[gd_scene format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/spells/spell_projectile.gd" id="1_sp"]
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_1"]
 radius = 0.5
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1"]
-shading_mode = 0
-albedo_color = Color(1, 0.85, 0.4, 1)
-
-[sub_resource type="SphereMesh" id="SphereMesh_1"]
-material = SubResource("StandardMaterial3D_1")
-radius = 0.2
-height = 0.4
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_part"]
-shading_mode = 0
-albedo_color = Color(1, 0.85, 0.4, 1)
-
-[sub_resource type="SphereMesh" id="SphereMesh_part"]
-material = SubResource("StandardMaterial3D_part")
-radius = 0.08
-height = 0.16
 
 [node name="SpellProjectile" type="Area3D" groups=["projectiles"]]
 collision_layer = 4
@@ -32,20 +14,10 @@ script = ExtResource("1_sp")
 shape = SubResource("SphereShape3D_1")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
-mesh = SubResource("SphereMesh_1")
 
 [node name="OmniLight3D" type="OmniLight3D" parent="."]
 light_color = Color(1, 0.85, 0.4, 1)
-light_energy = 2.0
+light_energy = 1.6
 omni_range = 4.0
 
-[node name="CPUParticles3D" type="CPUParticles3D" parent="."]
-amount = 20
-lifetime = 0.3
-mesh = SubResource("SphereMesh_part")
-emission_shape = 1
-emission_sphere_radius = 0.2
-gravity = Vector3(0, 0, 0)
-scale_amount_min = 0.4
-scale_amount_max = 0.9
-color = Color(1, 0.85, 0.4, 1)
+[node name="TravelFx" type="Node3D" parent="."]
