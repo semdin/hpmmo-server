@@ -111,7 +111,33 @@ func collect(collector: Node3D) -> bool:
 		get_parent().add_child(ft)
 		ft.global_position = global_position + Vector3(0, 1.0, 0)
 		ft.setup("+ " + label.text, Color(1.0, 0.9, 0.3), 1.2)
+	if Engine.has_singleton("AudioManager"):
+		var am = Engine.get_singleton("AudioManager")
+		if am and am.has_method("play_loot"):
+			am.play_loot()
+	elif AudioManager and AudioManager.has_method("play_loot"):
+		AudioManager.play_loot()
+	despawn()
 	return true
+
+func despawn() -> void:
+	if is_queued_for_deletion():
+		return
+	is_collected = true
+	remove_from_group("loot")
+	set_deferred("monitoring", false)
+	set_deferred("monitorable", false)
+	var col := get_node_or_null("CollisionShape3D") as CollisionShape3D
+	if col:
+		col.set_deferred("disabled", true)
+	if label:
+		label.visible = false
+	if particles:
+		particles.emitting = false
+	var tween := create_tween().set_parallel(true)
+	tween.tween_property(self, "scale", Vector3.ZERO, 0.2).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_BACK)
+	tween.tween_property(self, "position:y", position.y + 0.6, 0.2)
+	tween.chain().tween_callback(queue_free)
 
 func _on_body_entered(body: Node3D) -> void:
 	if body.is_in_group("players"):

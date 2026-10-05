@@ -1,7 +1,7 @@
 {
  "generated": "2026-10-05",
  "source_repository": "hpmmo-client",
- "source_revision": "29371ab78e4055580af931f3a7662ab8cfd8faa9",
+ "source_revision": "c899975899af703a5437c5e107baa76b8f4c4de4",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/audio/sound_library.json": "957671afc206adad54082d4ed1c7204da740d62206671d8a908a453ee18c497b",
@@ -303,7 +303,7 @@
   "scripts/entities/broom_flight.gd": "9cc971086de110e10363a64c5acfa706de98b75d301826146d169576a10cbdc2",
   "scripts/entities/cast_layer_modifier.gd": "1078df4f58db6ee7a62ad1bffecd3c143f597c5c7f9b26160999c01396ef8fb0",
   "scripts/entities/hero_animation.gd": "3b5728e6782889a0e60e189c572240c0560d50e5c560a18182f321bd9b5b96ac",
-  "scripts/entities/loot/loot_drop.gd": "087c5f10877efb71d31abe4eb180c69cf1510c9b6a71b5110d47ca4b59769ed5",
+  "scripts/entities/loot/loot_drop.gd": "7be06853e364a237a306ca9591056d541e2dfa0373a7e2412c84d645eccc9a64",
   "scripts/entities/mobs/mob_base.gd": "5f72c6b4a2ee9430d11b5e4a27aaeb60608534458831874f13ddf15c6a35866a",
   "scripts/entities/monolith/dark_monolith.gd": "1f09a7a0bb1c115cfead0018ec8b67a01572058992fa0c85cdb35b93749eb968",
   "scripts/entities/player.gd": "9b3a6e450f9d6c3da670b3e5df2d98fee90eb64ad243831006d15ee5d250b17f",
@@ -343,7 +343,7 @@
   "scripts/world/castle_interior_builder.gd": "89e45f75b683b0ce06953f15414608dd36c6f55f51be0dbdece548be815fb992",
   "scripts/world/distant_ridges.gd": "c5e47fc979cc22ea362ece198aed5ef03fb9a07fcede3b5108757b305b9b7a8f",
   "scripts/world/encounter_director.gd": "a490fbcb42c7ddbf6e54f7f5e2bd9d984e96593220ff0c71f34847e070ae690d",
-  "scripts/world/game_world.gd": "e087779b2b02421d9af883e2f3d4b2c719ba4556028c9e39983f9b391ee58366",
+  "scripts/world/game_world.gd": "ba8d8aba1029808173bcbc1eb39b00975aeb77ae050f0ac98c5ca85be3cd59c3",
   "scripts/world/map_controller.gd": "49c5e66c5f171c0fcaf0510f0345c8a6c51c50b8c70f9475465af9b3d5779216",
   "scripts/world/npc.gd": "94252696b42af9f11797c229603ed523585875e744f6cfa23158901724cbd296",
   "scripts/world/outdoor_terrain.gd": "61e4401d8da61453961eb650c8572f164ebc995124272e97b1a55745fdae1ced",

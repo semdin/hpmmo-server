@@ -405,7 +405,10 @@ func _on_entity_despawned(uid: int) -> void:
 	var view = _views[uid]
 	_views.erase(uid)
 	if is_instance_valid(view):
-		view.queue_free()
+		if view.has_method("despawn"):
+			view.despawn()
+		else:
+			view.queue_free()
 
 func _on_entity_moved(uid: int, pos: Vector3, rot_y: float, flags: int) -> void:
 	if uid == SimAuthority.local_uid and is_instance_valid(local_player):
