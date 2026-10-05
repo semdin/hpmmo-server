@@ -1,7 +1,7 @@
 {
  "generated": "2026-10-05",
  "source_repository": "hpmmo-client",
- "source_revision": "58c559914607f073ebfc7fb4e364573a1df97789",
+ "source_revision": "c6c3c1528eb32634eafcd5781edcb1116940f070",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/audio/sound_library.json": "957671afc206adad54082d4ed1c7204da740d62206671d8a908a453ee18c497b",
