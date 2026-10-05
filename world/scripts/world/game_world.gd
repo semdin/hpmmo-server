@@ -385,10 +385,18 @@ func _on_entity_replicating(record: Dictionary) -> void:
 		view.sim_puppet = true
 		players_container.add_child(view)
 	_views[uid] = view
+	var spawn_pos: Vector3 = record.get("pos", view.global_position)
+	view.position = spawn_pos
 	if kind != HPProtocol.Kind.PLAYER:
 		add_child(view)
 	SimAuthority.attach_view_node(uid, view)
-	view.global_position = record.get("pos", view.global_position)
+	view.global_position = spawn_pos
+	if "sim_target_pos" in view:
+		view.sim_target_pos = spawn_pos
+	if "sim_target_rot" in view:
+		view.sim_target_rot = float(record.get("rot_y", 0.0))
+	if "visuals" in view and view.visuals:
+		view.visuals.rotation.y = float(record.get("rot_y", 0.0))
 
 func _on_entity_despawned(uid: int) -> void:
 	SimAuthority.drop_replica(uid)

@@ -279,7 +279,8 @@ func _physics_process(delta: float) -> void:
 	# start/release ticks.
 	if sim_puppet:
 		_update_puppet(delta)
-		_tick_corpse(delta)
+		if state == State.DEAD:
+			_tick_corpse(delta)
 		return
 	# Phase 12 hook: an AUTHORITY body inside a client process (offline and
 	# listen-host play) draws the boss warning from the same replicated ticks a
@@ -335,6 +336,9 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity.y = 0
 	move_and_slide()
+	if global_position.y < -10.0:
+		global_position = spawn_point
+		velocity = Vector3.ZERO
 
 func _set_state(next: State) -> void:
 	if state == next:
@@ -917,7 +921,13 @@ func _drop_mob_loot() -> void:
 ## collision and group membership - a respawned (or pooled) body must not
 ## remember who it was fighting.
 func _respawn() -> void:
-	global_position = spawn_point
+	if sim_puppet:
+		var rec := SimAuthority.record_for(self)
+		if not rec.is_empty():
+			global_position = rec.get("pos", global_position)
+			sim_target_pos = global_position
+	else:
+		global_position = spawn_point
 	current_hp = max_hp
 	attack_power = _base_attack
 	move_speed = _base_speed
@@ -978,6 +988,7 @@ func _update_puppet(delta: float) -> void:
 			_enter_puppet_death(record)
 		return
 	if state == State.DEAD:
+		_respawn()
 		return
 	if replicated != _puppet_state:
 		_puppet_state = replicated
