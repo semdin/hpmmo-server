@@ -34,6 +34,11 @@ signal entity_damaged(uid: int, amount: int, hp: int, spell_id: String, attacker
 signal entity_died(uid: int, killer_uid: int)
 signal entity_respawned(uid: int)
 signal loot_spawned(uid: int, item_id: String, amount: int, pos: Vector3)
+## Phase 11 encounter lifecycle: a boss telegraph opened/closed, and a pack that
+## leashed home reset its encounter (its pending reward credit was cancelled).
+signal mob_telegraph(uid: int, data: Dictionary)
+signal mob_telegraph_end(uid: int)
+signal encounter_reset(pack_id: int, reason: String)
 signal loot_taken(uid: int, character_id: int, item_id: String, amount: int)
 signal reward_granted(uid: int, character_id: int, exp: int, galleons: int, items: Array, op_id: String)
 signal level_changed(uid: int, level: int)
@@ -350,8 +355,98 @@ func refresh_mob(node: Node3D) -> void:
 	record["burn_next_tick"] = 0
 	record["stun_until_tick"] = 0
 	record["weak_until_tick"] = 0
+	# A respawned mob must not keep a stale boss telegraph (plan.md Phase 11:
+	# pooling/resets clear every trace of the previous life).
+	record.erase("telegraph")
+	record["is_enraged"] = bool(node.get("is_enraged")) if node.get("is_enraged") != null else false
 	record["damage_log"] = []
 	touch(record)
+
+# ------------------------------------------- Phase 11 encounter state & timing
+
+## Mob AI state, mirrored into the snapshot's state byte so a client drives its
+## presentation (anticipation pose, recovery, chase) from the authority's state
+## instead of guessing. Values are HPProtocol.MobState.
+func set_mob_state(node: Node3D, value: int) -> void:
+	var record := record_for(node)
+	if record.is_empty():
+		return
+	if int(record.get("state", 0)) == value:
+		return
+	record["state"] = value
+	touch(record)
+
+## Publishes a boss telegraph: start tick, release tick and the shape of the
+## area. Clients render the warning from this data; the damage is applied by the
+## authority when ITS OWN tick reaches `release_tick` (see mob_base), so the
+## visible warning and the hit cannot disagree - the server owns the timing.
+func begin_mob_telegraph(node: Node3D, pattern: Dictionary, release_tick: int,
+		direction: Vector3, center: Vector3) -> void:
+	var record := record_for(node)
+	if record.is_empty():
+		return
+	var forward := direction
+	forward.y = 0.0
+	if forward.length_squared() < 0.0001:
+		forward = Vector3.FORWARD
+	var recovery_ticks := int(ceil(float(pattern.get("recovery", 0.0)) * float(HPProtocol.SIM_HZ)))
+	var data := {
+		"kind": String(pattern.get("kind", "area")),
+		"clip": String(pattern.get("clip", "")),
+		"start_tick": sim_tick,
+		"release_tick": release_tick,
+		"recovery_until_tick": release_tick + recovery_ticks,
+		"center": center,
+		"dir": forward.normalized(),
+		"radius": float(pattern.get("radius", 0.0)),
+		"range": float(pattern.get("range", 0.0)),
+		"half_angle": float(pattern.get("half_angle", 0.0)),
+		"pack_id": int(record.get("pack_id", 0)),
+	}
+	record["telegraph"] = data
+	touch(record)
+	emit_signal("mob_telegraph", int(record["uid"]), data)
+
+func end_mob_telegraph(node: Node3D) -> void:
+	var record := record_for(node)
+	if record.is_empty() or not record.has("telegraph"):
+		return
+	record.erase("telegraph")
+	touch(record)
+	emit_signal("mob_telegraph_end", int(record["uid"]))
+
+func mob_telegraph_for(node: Node) -> Dictionary:
+	return record_for(node).get("telegraph", {})
+
+## Leash break / every valid target lost: the pack goes home and the encounter
+## resets. Reward credit its members accumulated is cancelled HERE, so a pull
+## that never ended in a kill cannot be paid out by a later kill, and any
+## lingering telegraph, burn or stun is cleared with it.
+func reset_encounter(pack_id: int, reason: String) -> void:
+	if pack_id <= 0:
+		return
+	var affected: Array = []
+	for uid in entities.keys():
+		var record: Dictionary = entities[uid]
+		if int(record.get("kind", 0)) != HPProtocol.Kind.MOB:
+			continue
+		if int(record.get("pack_id", 0)) != pack_id or bool(record.get("dead", false)):
+			continue
+		record["damage_log"] = []
+		record["burn_until_tick"] = 0
+		record["burn_next_tick"] = 0
+		record["burn_source_uid"] = 0
+		record["stun_until_tick"] = 0
+		record["weak_until_tick"] = 0
+		record["is_enraged"] = false
+		record.erase("telegraph")
+		touch(record)
+		affected.append(uid)
+	if affected.is_empty():
+		return
+	print("[Authority] encounter %d reset (%s): reward credit cancelled for %d mob(s)" % [
+		pack_id, reason, affected.size()])
+	emit_signal("encounter_reset", pack_id, reason)
 
 ## Training dummies never die; at zero HP they snap back to full so every client
 ## sees the same bar.
@@ -1257,6 +1352,51 @@ func mob_area_attack(attacker_node: Node, center: Vector3, radius: float, raw: i
 		if (node as Node3D).global_position.distance_to(center) > radius:
 			continue
 		if not attacker.is_empty() and not HPRules.has_line_of_sight(attacker_node as Node3D, node):
+			continue
+		var applied := _apply_damage(record, raw, spell_id, attacker)
+		if applied > 0:
+			hits.append({"uid": uid, "amount": applied})
+	return hits
+
+## Directional boss attack: every player inside the cone (distance + facing
+## angle + line of sight + protection gate) takes damage. The cone is described
+## by the same `dir`/`half_angle`/`range` the telegraph published, so what the
+## client warned about is exactly what the authority resolves.
+func mob_cone_attack(attacker_node: Node, dir: Vector3, half_angle: float, radius: float,
+		raw: int, spell_id: String) -> Array:
+	var hits: Array = []
+	if not is_authority():
+		return hits
+	var attacker := record_for(attacker_node)
+	if attacker.is_empty():
+		return hits
+	var attacker_map := String(attacker.get("map_id", ""))
+	var origin: Vector3 = (attacker_node as Node3D).global_position
+	var forward := dir
+	forward.y = 0.0
+	if forward.length_squared() < 0.0001:
+		return hits
+	forward = forward.normalized()
+	var cos_limit := cos(maxf(0.0, half_angle))
+	for uid in entities.keys():
+		var record: Dictionary = entities[uid]
+		if int(record.get("kind", 0)) != HPProtocol.Kind.PLAYER or bool(record.get("dead", false)):
+			continue
+		if attacker_map != "" and String(record.get("map_id", HPProtocol.DEFAULT_MAP)) != attacker_map:
+			continue
+		var node = record.get("node")
+		if node == null or not is_instance_valid(node):
+			continue
+		var to_target: Vector3 = (node as Node3D).global_position - origin
+		to_target.y = 0.0
+		var distance := to_target.length()
+		if distance > radius:
+			continue
+		if distance > 0.01 and to_target.normalized().dot(forward) < cos_limit:
+			continue
+		if not HPRules.can_damage(attacker_node, node):
+			continue
+		if not HPRules.has_line_of_sight(attacker_node as Node3D, node):
 			continue
 		var applied := _apply_damage(record, raw, spell_id, attacker)
 		if applied > 0:

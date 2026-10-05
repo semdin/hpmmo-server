@@ -1,25 +1,438 @@
 {
   "_comment": "Server-owned encounter content. The authority is the only process that samples these tables; clients receive the result.",
+  "_policy": "Phase 11: every encounter resolves through a template (pack size 3/5, boss solo, boss with exactly two escorts), carries a stable encounter id and a maximum alive count, and only becomes active when its region's pack_count allows it. Pack sizes and boss patterns are data; the AI, placement validation and the death/respawn lifecycle live in encounter_director.gd + mob_base.gd.",
   "map_id": "grounds",
+  "_debug_seed_note": "Reproducible encounter seed. Pass it as HPMMO_WORLD_SEED to replay an exact spawn layout; the world server uses it when the env var is unset.",
+  "debug_seed": 20261005,
+  "templates": {
+    "pack_three": {
+      "pack_size": 3,
+      "max_alive": 3,
+      "boss": false,
+      "escorts": 0,
+      "respawn": "pack"
+    },
+    "pack_five": {
+      "pack_size": 5,
+      "max_alive": 5,
+      "boss": false,
+      "escorts": 0,
+      "respawn": "pack"
+    },
+    "boss_solo": {
+      "pack_size": 1,
+      "max_alive": 1,
+      "boss": true,
+      "escorts": 0,
+      "respawn": "boss",
+      "arena_radius": 18.0,
+      "leash_distance": 40.0,
+      "attack_style": "spider"
+    },
+    "boss_escorted": {
+      "pack_size": 3,
+      "max_alive": 3,
+      "boss": true,
+      "escorts": 2,
+      "respawn": "boss",
+      "arena_radius": 16.0,
+      "leash_distance": 40.0,
+      "attack_style": "wizard"
+    }
+  },
+  "_pattern_note": "Boss attack patterns (Phase 11): anticipation -> release -> recovery. `anticipation` and `recovery` are seconds; the authority converts them to ticks and publishes the release tick with the telegraph, so the client-rendered warning is driven by the same clock that lands the damage.",
+  "boss_patterns": {
+    "spider": [
+      {
+        "kind": "directional",
+        "clip": "Spit",
+        "anticipation": 0.9,
+        "recovery": 1.3,
+        "range": 12.0,
+        "half_angle": 0.55,
+        "damage_multiplier": 1.15
+      },
+      {
+        "kind": "area",
+        "clip": "Slam",
+        "anticipation": 1.2,
+        "recovery": 1.6,
+        "radius": 5.5,
+        "damage_multiplier": 1.7
+      }
+    ],
+    "wizard": [
+      {
+        "kind": "directional",
+        "clip": "Cast_Directional",
+        "anticipation": 0.9,
+        "recovery": 1.2,
+        "range": 14.0,
+        "half_angle": 0.5,
+        "damage_multiplier": 1.15
+      },
+      {
+        "kind": "area",
+        "clip": "Cast_Area",
+        "anticipation": 1.2,
+        "recovery": 1.7,
+        "radius": 6.0,
+        "damage_multiplier": 1.6
+      }
+    ]
+  },
+  "_regions_note": "Regions carry the separate pack-count setting and a spawn_area rect used when an encounter's region is chosen by weight (zones + weights).",
   "regions": [
-    { "id": "courtyard", "center": [0.0, 0.0], "radius": 40.0 },
-    { "id": "castle", "center": [0.0, -80.0], "radius": 48.0 },
-    { "id": "village", "center": [35.0, 20.0], "radius": 28.0 },
-    { "id": "forest_sw", "center": [17.0, -25.0], "radius": 30.0 },
-    { "id": "forest_e", "center": [46.0, -57.0], "radius": 26.0 },
-    { "id": "forest_w", "center": [-37.0, -28.0], "radius": 30.0 },
-    { "id": "forest_deep", "center": [-69.0, -48.0], "radius": 30.0 },
-    { "id": "boss_w", "center": [-91.0, -74.0], "radius": 30.0 },
-    { "id": "boss_e", "center": [53.0, -91.0], "radius": 30.0 }
+    {
+      "id": "courtyard",
+      "center": [
+        0.0,
+        0.0
+      ],
+      "radius": 40.0,
+      "weight": 0.0,
+      "pack_count": 0,
+      "spawn_area": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": "castle",
+      "center": [
+        0.0,
+        -80.0
+      ],
+      "radius": 48.0,
+      "weight": 0.0,
+      "pack_count": 0,
+      "spawn_area": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": "village",
+      "center": [
+        35.0,
+        20.0
+      ],
+      "radius": 28.0,
+      "weight": 1.0,
+      "pack_count": 1,
+      "spawn_area": [
+        20.0,
+        9.0,
+        26.0,
+        22.0
+      ]
+    },
+    {
+      "id": "forest_sw",
+      "center": [
+        17.0,
+        -25.0
+      ],
+      "radius": 30.0,
+      "weight": 1.0,
+      "pack_count": 1,
+      "spawn_area": [
+        10.0,
+        -40.0,
+        28.0,
+        24.0
+      ]
+    },
+    {
+      "id": "forest_e",
+      "center": [
+        46.0,
+        -57.0
+      ],
+      "radius": 26.0,
+      "weight": 1.0,
+      "pack_count": 1,
+      "spawn_area": [
+        34.0,
+        -72.0,
+        24.0,
+        20.0
+      ]
+    },
+    {
+      "id": "forest_w",
+      "center": [
+        -37.0,
+        -28.0
+      ],
+      "radius": 30.0,
+      "weight": 1.0,
+      "pack_count": 1,
+      "spawn_area": [
+        -52.0,
+        -43.0,
+        26.0,
+        24.0
+      ]
+    },
+    {
+      "id": "forest_deep",
+      "center": [
+        -69.0,
+        -48.0
+      ],
+      "radius": 30.0,
+      "weight": 1.0,
+      "pack_count": 1,
+      "spawn_area": [
+        -84.0,
+        -64.0,
+        26.0,
+        24.0
+      ]
+    },
+    {
+      "id": "boss_w",
+      "center": [
+        -91.0,
+        -74.0
+      ],
+      "radius": 30.0,
+      "weight": 1.0,
+      "pack_count": 1,
+      "spawn_area": [
+        -104.0,
+        -88.0,
+        26.0,
+        26.0
+      ]
+    },
+    {
+      "id": "boss_e",
+      "center": [
+        53.0,
+        -91.0
+      ],
+      "radius": 30.0,
+      "weight": 1.0,
+      "pack_count": 1,
+      "spawn_area": [
+        40.0,
+        -104.0,
+        26.0,
+        26.0
+      ]
+    }
   ],
+  "_encounters_note": "The authored encounter list. Only the first `pack_count` encounters assigned to each region are active; the rest are authored content that waits for a pack-count change (and are reported by the director, never silently ignored). `zones` (id + weight) makes the region choice weighted; without it the fixed `zone` field is used.",
   "packs": [
-    { "id": 1, "zone": "forest_sw", "area": [17.0, -33.0, 15.0, 15.0], "mob": "inferi", "level": 3, "count": 3, "aggro_mode": "reactive", "assist_radius": 16.0, "leash_distance": 26.0 },
-    { "id": 2, "zone": "village", "area": [8.0, 31.0, 19.0, 15.0], "mob": "acromantula", "level": 4, "count": 3, "aggro_mode": "reactive", "assist_radius": 16.0, "leash_distance": 26.0 },
-    { "id": 3, "zone": "forest_w", "area": [-37.0, -28.0, 14.0, 16.0], "mob": "acromantula", "level": 8, "count": 5, "aggro_mode": "reactive", "assist_radius": 16.0, "leash_distance": 26.0 },
-    { "id": 4, "zone": "forest_e", "area": [46.0, -57.0, 17.0, 15.0], "mob": "darksnatcher", "level": 12, "count": 3, "aggro_mode": "reactive", "assist_radius": 16.0, "leash_distance": 26.0 },
-    { "id": 5, "zone": "forest_deep", "area": [-69.0, -48.0, 16.0, 19.0], "mob": "inferi", "level": 14, "count": 5, "aggro_mode": "reactive", "assist_radius": 16.0, "leash_distance": 26.0 },
-    { "id": 6, "zone": "boss_w", "area": [-91.0, -74.0, 16.0, 16.0], "mob": "acromantula", "level": 25, "count": 1, "boss": true, "aggro_mode": "reactive", "assist_radius": 20.0, "leash_distance": 40.0 },
-    { "id": 7, "zone": "boss_e", "area": [53.0, -91.0, 18.0, 15.0], "mob": "darksnatcher", "level": 20, "count": 3, "boss": true, "commander": true, "aggro_mode": "reactive", "assist_radius": 20.0, "leash_distance": 40.0 }
+    {
+      "id": 1,
+      "encounter_id": "enc_forest_sw_inferi_a",
+      "template": "pack_three",
+      "zone": "forest_sw",
+      "area": [
+        17.0,
+        -33.0,
+        15.0,
+        15.0
+      ],
+      "mob": "inferi",
+      "level": 3,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "reactive",
+      "assist_radius": 16.0,
+      "leash_distance": 26.0
+    },
+    {
+      "id": 2,
+      "encounter_id": "enc_village_acromantula_a",
+      "template": "pack_three",
+      "zone": "village",
+      "area": [
+        8.0,
+        31.0,
+        19.0,
+        15.0
+      ],
+      "mob": "acromantula",
+      "level": 4,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "reactive",
+      "assist_radius": 16.0,
+      "leash_distance": 26.0
+    },
+    {
+      "id": 3,
+      "encounter_id": "enc_forest_w_acromantula_a",
+      "template": "pack_five",
+      "zone": "forest_w",
+      "area": [
+        -37.0,
+        -28.0,
+        14.0,
+        16.0
+      ],
+      "mob": "acromantula",
+      "level": 8,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "reactive",
+      "assist_radius": 16.0,
+      "leash_distance": 26.0
+    },
+    {
+      "id": 4,
+      "encounter_id": "enc_forest_e_darksnatcher_a",
+      "template": "pack_three",
+      "zone": "forest_e",
+      "area": [
+        46.0,
+        -57.0,
+        17.0,
+        15.0
+      ],
+      "mob": "darksnatcher",
+      "level": 12,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "reactive",
+      "assist_radius": 16.0,
+      "leash_distance": 26.0
+    },
+    {
+      "id": 5,
+      "encounter_id": "enc_forest_deep_inferi_a",
+      "template": "pack_five",
+      "zone": "forest_deep",
+      "area": [
+        -69.0,
+        -48.0,
+        16.0,
+        19.0
+      ],
+      "mob": "inferi",
+      "level": 14,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "reactive",
+      "assist_radius": 16.0,
+      "leash_distance": 26.0
+    },
+    {
+      "id": 6,
+      "encounter_id": "enc_boss_w_matriarch",
+      "template": "boss_solo",
+      "zone": "boss_w",
+      "area": [
+        -91.0,
+        -74.0,
+        16.0,
+        16.0
+      ],
+      "mob": "acromantula",
+      "level": 25,
+      "count": 1,
+      "max_alive": 1,
+      "boss": true,
+      "aggro_mode": "reactive",
+      "assist_radius": 20.0,
+      "leash_distance": 40.0
+    },
+    {
+      "id": 7,
+      "encounter_id": "enc_boss_e_commander",
+      "template": "boss_escorted",
+      "zone": "boss_e",
+      "area": [
+        53.0,
+        -91.0,
+        18.0,
+        15.0
+      ],
+      "mob": "darksnatcher",
+      "level": 20,
+      "count": 3,
+      "max_alive": 3,
+      "boss": true,
+      "commander": true,
+      "escorts": 2,
+      "aggro_mode": "reactive",
+      "assist_radius": 20.0,
+      "leash_distance": 40.0
+    },
+    {
+      "id": 8,
+      "encounter_id": "enc_forest_w_acromantula_b",
+      "template": "pack_five",
+      "zone": "forest_w",
+      "zones": [
+        {
+          "id": "forest_w",
+          "weight": 3.0
+        },
+        {
+          "id": "forest_deep",
+          "weight": 1.0
+        }
+      ],
+      "area": [
+        -37.0,
+        -28.0,
+        14.0,
+        16.0
+      ],
+      "mob": "acromantula",
+      "level": 9,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "reactive",
+      "assist_radius": 16.0,
+      "leash_distance": 26.0,
+      "_dormant": true
+    }
+  ],
+  "_exclusions_note": "Volumes an encounter formation may never occupy (Phase 11 placement rule): water the mobs cannot stand in, and arrival pads fed by map portals. Safe zones and their buffer come from safe_zones.json.",
+  "exclusions": [
+    {
+      "id": "black_lake",
+      "kind": "water",
+      "shape": "cylinder",
+      "center": [
+        -38.0,
+        0.0,
+        30.0
+      ],
+      "radius": 21.0
+    },
+    {
+      "id": "courtyard_fountain",
+      "kind": "water",
+      "shape": "cylinder",
+      "center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "radius": 4.0
+    },
+    {
+      "id": "castle_door_arrival",
+      "kind": "portal_arrival",
+      "shape": "cylinder",
+      "center": [
+        0.0,
+        0.0,
+        -40.0
+      ],
+      "radius": 6.0
+    }
   ],
   "pack_tuning": {
     "hp_strength_base": 0.45,
@@ -30,34 +443,164 @@
     "exp_per_level": 6,
     "aggro_radius_low": 9.0,
     "aggro_radius_high": 12.0,
-    "aggro_radius_level": 8
+    "aggro_radius_level": 8,
+    "placement_attempts": 40,
+    "member_clearance": 1.0,
+    "respawn_clear_radius": 16.0,
+    "respawn_retry_seconds": 5.0,
+    "pack_spacing": 3.1,
+    "attack_slots": 3,
+    "attack_slot_ring": 3.4,
+    "separation_radius": 1.7,
+    "separation_weight": 1.35
   },
   "boss_overrides": {
-    "matriarch": { "hp": 3500, "attack_power": 65, "attack_range": 4.5, "exp_reward": 600, "scale": 2.0, "name": "Acromantula Matriarch" },
-    "commander": { "hp": 2400, "attack_power": 55, "attack_range": 4.5, "exp_reward": 600, "scale": 1.65, "name": "Dark Snatcher Commander" }
+    "matriarch": {
+      "hp": 3500,
+      "attack_power": 65,
+      "attack_range": 4.5,
+      "exp_reward": 600,
+      "scale": 1.0,
+      "name": "Acromantula Matriarch",
+      "move_speed": 3.0,
+      "walk_speed": 0.82
+    },
+    "commander": {
+      "hp": 2400,
+      "attack_power": 55,
+      "attack_range": 4.5,
+      "exp_reward": 600,
+      "scale": 1.0,
+      "name": "Dark Snatcher Commander",
+      "move_speed": 3.6,
+      "walk_speed": 1.5
+    }
   },
   "monoliths": [
-    { "id": 1, "pos": [44.0, 0.0, -76.0], "zone": "forest_e" },
-    { "id": 2, "pos": [45.0, 0.0, -25.0], "zone": "forest_sw" },
-    { "id": 3, "pos": [-45.0, 0.0, -28.0], "zone": "forest_w" },
-    { "id": 4, "pos": [-58.0, 0.0, -50.0], "zone": "forest_deep" }
+    {
+      "id": 1,
+      "pos": [
+        44.0,
+        0.0,
+        -76.0
+      ],
+      "zone": "forest_e"
+    },
+    {
+      "id": 2,
+      "pos": [
+        45.0,
+        0.0,
+        -25.0
+      ],
+      "zone": "forest_sw"
+    },
+    {
+      "id": 3,
+      "pos": [
+        -45.0,
+        0.0,
+        -28.0
+      ],
+      "zone": "forest_w"
+    },
+    {
+      "id": 4,
+      "pos": [
+        -58.0,
+        0.0,
+        -50.0
+      ],
+      "zone": "forest_deep"
+    }
   ],
   "monolith_config": {
     "max_hp": 3000,
     "respawn_ms": 30000,
     "exp_reward": 850,
     "wave_thresholds": [
-      { "ratio": 0.75, "wave": 1, "spawns": [ { "mob": "acromantula", "count": 3, "level": 12 }, { "mob": "inferi", "count": 2, "level": 12 } ] },
-      { "ratio": 0.5, "wave": 2, "spawns": [ { "mob": "inferi", "count": 4, "level": 14 }, { "mob": "darksnatcher", "count": 2, "level": 14 } ] },
-      { "ratio": 0.25, "wave": 3, "spawns": [ { "mob": "acromantula", "count": 4, "level": 16 }, { "mob": "inferi", "count": 4, "level": 16 }, { "mob": "darksnatcher", "count": 2, "level": 16 } ] }
+      {
+        "ratio": 0.75,
+        "wave": 1,
+        "spawns": [
+          {
+            "mob": "acromantula",
+            "count": 3,
+            "level": 12
+          },
+          {
+            "mob": "inferi",
+            "count": 2,
+            "level": 12
+          }
+        ]
+      },
+      {
+        "ratio": 0.5,
+        "wave": 2,
+        "spawns": [
+          {
+            "mob": "inferi",
+            "count": 4,
+            "level": 14
+          },
+          {
+            "mob": "darksnatcher",
+            "count": 2,
+            "level": 14
+          }
+        ]
+      },
+      {
+        "ratio": 0.25,
+        "wave": 3,
+        "spawns": [
+          {
+            "mob": "acromantula",
+            "count": 4,
+            "level": 16
+          },
+          {
+            "mob": "inferi",
+            "count": 4,
+            "level": 16
+          },
+          {
+            "mob": "darksnatcher",
+            "count": 2,
+            "level": 16
+          }
+        ]
+      }
     ],
     "spawn_distance_min": 4.0,
     "spawn_distance_max": 9.0
   },
   "dummies": [
-    { "id": 1, "pos": [-14.0, 0.0, -2.0] },
-    { "id": 2, "pos": [-11.0, 0.0, -2.0] },
-    { "id": 3, "pos": [-8.0, 0.0, -2.0] }
+    {
+      "id": 1,
+      "pos": [
+        -14.0,
+        0.0,
+        -2.0
+      ]
+    },
+    {
+      "id": 2,
+      "pos": [
+        -11.0,
+        0.0,
+        -2.0
+      ]
+    },
+    {
+      "id": 3,
+      "pos": [
+        -8.0,
+        0.0,
+        -2.0
+      ]
+    }
   ],
   "mob_scenes": {
     "inferi": "res://scenes/entities/mobs/mob_inferi.tscn",

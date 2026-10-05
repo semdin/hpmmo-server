@@ -33,7 +33,9 @@ func _ready() -> void:
 	NetworkManager.is_server = true
 	NetworkManager.is_connected_to_game = true
 	var port := int(_env("HPMMO_WORLD_PORT", str(SimNet.DEFAULT_PORT)))
-	var world_seed := int(_env("HPMMO_WORLD_SEED", "0"))
+	# Reproducible by default: the authored debug seed replays an exact spawn
+	# layout without anyone having to remember a number (plan.md Phase 11).
+	var world_seed := int(_env("HPMMO_WORLD_SEED", str(HPRules.debug_seed())))
 	SimAuthority.configure(SimAuthority.Role.DEDICATED, world_seed)
 
 	var api_url := _env("HPMMO_API_URL", "")

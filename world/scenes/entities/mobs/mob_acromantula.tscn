@@ -1,11 +1,16 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://scripts/entities/mobs/mob_base.gd" id="1_mb"]
+[ext_resource type="PackedScene" path="res://assets/models/monsters/acromantula.glb" id="2_spider"]
+[ext_resource type="PackedScene" path="res://assets/models/monsters/boss_matriarch.glb" id="3_matriarch"]
 
-[ext_resource type="Script" path="res://scripts/assets/spider_rig.gd" id="2_rig"]
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
+radius = 0.95
+height = 1.9
 
-[sub_resource type="SphereShape3D" id="SphereShape3D_1"]
-radius = 1.0
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_boss"]
+radius = 1.5
+height = 3.0
 
 [node name="MobAcromantula" type="CharacterBody3D" groups=["mobs", "targetable"]]
 collision_layer = 2
@@ -17,16 +22,25 @@ max_hp = 340
 attack_power = 32
 move_speed = 7.5
 aggro_radius = 14.0
+attack_range = 2.8
 exp_reward = 110
+anim_set = "spider"
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
-shape = SubResource("SphereShape3D_1")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, 0)
+shape = SubResource("CapsuleShape3D_1")
+
+[node name="CollisionShape3DBoss" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+shape = SubResource("CapsuleShape3D_boss")
+disabled = true
 
 [node name="Visuals" type="Node3D" parent="."]
 
-[node name="SpiderRig" type="Node3D" parent="Visuals"]
-script = ExtResource("2_rig")
+[node name="NormalVariant" parent="Visuals" instance=ExtResource("2_spider")]
+
+[node name="BossVariant" parent="Visuals" instance=ExtResource("3_matriarch")]
+visible = false
 
 [node name="Label3D" type="Label3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.1, 0)

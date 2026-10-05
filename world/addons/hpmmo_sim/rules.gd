@@ -74,6 +74,229 @@ static func spawn_tables() -> Dictionary:
 	ensure_loaded()
 	return _spawns
 
+# ----------------------------------------------------- encounter templates
+# Phase 11: encounters are data. These accessors are the ONE resolution path
+# both the director and the tests use, so "pack size 3 or 5", "exactly two
+# escorts" and "maximum alive" cannot drift between the two.
+
+static func encounter_templates() -> Dictionary:
+	ensure_loaded()
+	return _spawns.get("templates", {})
+
+static func encounter_template(template_id: String) -> Dictionary:
+	ensure_loaded()
+	return (encounter_templates() as Dictionary).get(template_id, {})
+
+## The template an authored encounter entry resolves to. An entry that names no
+## template resolves to the template whose pack_size matches its count, so older
+## data keeps working while the authored table stays the source of truth.
+static func template_for(pack: Dictionary) -> Dictionary:
+	ensure_loaded()
+	var named := encounter_template(String(pack.get("template", "")))
+	if not named.is_empty():
+		return named
+	for _id in encounter_templates().keys():
+		var candidate: Dictionary = encounter_templates()[_id]
+		if int(candidate.get("pack_size", -1)) == int(pack.get("count", 0)):
+			return candidate
+	return {}
+
+static func encounter_list() -> Array:
+	ensure_loaded()
+	return _spawns.get("packs", [])
+
+static func encounter_by_id(encounter_id: String) -> Dictionary:
+	ensure_loaded()
+	for entry in encounter_list():
+		if String(entry.get("encounter_id", "")) == encounter_id:
+			return entry
+	return {}
+
+static func encounter_max_alive(pack: Dictionary) -> int:
+	var template := template_for(pack)
+	return int(pack.get("max_alive", template.get("max_alive", pack.get("count", 1))))
+
+static func encounter_escorts(pack: Dictionary) -> int:
+	var template := template_for(pack)
+	return int(pack.get("escorts", template.get("escorts", 0)))
+
+static func is_boss_encounter(pack: Dictionary) -> bool:
+	var template := template_for(pack)
+	return bool(pack.get("boss", template.get("boss", false)))
+
+## Long respawn flag from the template ("boss" | "pack").
+static func encounter_respawn_kind(pack: Dictionary) -> String:
+	var template := template_for(pack)
+	return String(template.get("respawn", "boss" if is_boss_encounter(pack) else "pack"))
+
+static func boss_patterns() -> Dictionary:
+	ensure_loaded()
+	return _spawns.get("boss_patterns", {})
+
+static func attack_patterns_for(style: String) -> Array:
+	var table := boss_patterns()
+	return table.get(style, table.get("spider", []))
+
+# ------------------------------------------------------------------ regions
+
+static func regions() -> Array:
+	ensure_loaded()
+	return _spawns.get("regions", [])
+
+static func region_by_id(zone_id: String) -> Dictionary:
+	ensure_loaded()
+	for region in regions():
+		if String(region.get("id", "")) == zone_id:
+			return region
+	return {}
+
+## The separate "number of packs in this region" setting (plan.md Phase 11).
+static func region_pack_count(zone_id: String) -> int:
+	var region := region_by_id(zone_id)
+	return int(region.get("pack_count", 0))
+
+static func region_weight(zone_id: String) -> float:
+	return float(region_by_id(zone_id).get("weight", 1.0))
+
+## Weighted region choice: an encounter that lists `zones` (id + weight) has its
+## region drawn from that distribution with the authority RNG; one that lists a
+## fixed `zone` keeps it. The draw is part of the seeded spawn sequence, so a
+## recorded debug seed replays the same placement.
+static func resolve_encounter_zone(pack: Dictionary, rng: RandomNumberGenerator) -> String:
+	var fixed := String(pack.get("zone", ""))
+	var zones: Array = pack.get("zones", [])
+	if zones.is_empty():
+		return fixed
+	var total := 0.0
+	for entry in zones:
+		total += maxf(0.0, float((entry as Dictionary).get("weight", 0.0)))
+	if total <= 0.0:
+		return fixed
+	var roll := rng.randf() * total
+	for entry in zones:
+		roll -= maxf(0.0, float((entry as Dictionary).get("weight", 0.0)))
+		if roll <= 0.0:
+			return String((entry as Dictionary).get("id", fixed))
+	return String((zones[zones.size() - 1] as Dictionary).get("id", fixed))
+
+## The rect an encounter samples inside, resolved for the zone that was chosen:
+## a fixed-zone encounter keeps its authored `area`, a weighted one samples the
+## chosen region's `spawn_area` (falling back to `area` when a region has none).
+static func encounter_area(pack: Dictionary, zone_id: String) -> Array:
+	var fallback: Array = pack.get("area", [0.0, 0.0, 1.0, 1.0])
+	if zone_id == String(pack.get("zone", "")):
+		return fallback
+	var region := region_by_id(zone_id)
+	var area: Array = region.get("spawn_area", [])
+	if area.size() != 4 or absf(float(area[2])) < 0.01:
+		return fallback
+	return area
+
+static func debug_seed() -> int:
+	ensure_loaded()
+	return int(_spawns.get("debug_seed", 0))
+
+static func pack_tuning(key: String, fallback: float) -> float:
+	ensure_loaded()
+	return float((_spawns.get("pack_tuning", {}) as Dictionary).get(key, fallback))
+
+# --------------------------------------------------- spawn turn-down volumes
+
+static func exclusions() -> Array:
+	ensure_loaded()
+	return _spawns.get("exclusions", [])
+
+## Id of the exclusion volume containing `point` ("" when it is clear). Water
+## and portal arrival pads are turn-down volumes for encounter placement.
+static func exclusion_at(point: Vector3) -> String:
+	for entry in exclusions():
+		var volume: Dictionary = entry
+		var center: Array = volume.get("center", [0.0, 0.0, 0.0])
+		if center.size() != 3:
+			continue
+		var dx := point.x - float(center[0])
+		var dz := point.z - float(center[2])
+		if String(volume.get("shape", "cylinder")) == "box":
+			var half: Array = volume.get("half_extents", [1.0, 1.0, 1.0])
+			if absf(dx) <= float(half[0]) and absf(point.y - float(center[1])) <= float(half[1]) and absf(dz) <= float(half[2]):
+				return String(volume.get("id", ""))
+			continue
+		var radius := float(volume.get("radius", 0.0))
+		if (dx * dx + dz * dz) <= radius * radius:
+			return String(volume.get("id", ""))
+	return ""
+
+## Bounded formation offsets for a pack of `count` members around its anchor.
+## One member is the anchor; an escorted boss keeps the boss on the anchor with
+## its escorts flanking it.
+static func formation_offsets(count: int, escorts: int = 0) -> Array:
+	var spacing := pack_tuning("pack_spacing", 3.1)
+	var out: Array = []
+	if count <= 1:
+		out.append(Vector3.ZERO)
+		return out
+	if escorts > 0:
+		out.append(Vector3.ZERO)
+		for i in range(escorts):
+			var angle := -0.35 * PI + float(i) * (0.7 * PI / maxf(1.0, float(escorts - 1)))
+			out.append(Vector3(cos(angle), 0.0, sin(angle)) * spacing)
+		while out.size() < count:
+			out.append(Vector3.ZERO)
+		return out
+	for i in range(count):
+		out.append(Vector3(cos(i * TAU / count), 0.0, sin(i * TAU / count)) * spacing)
+	return out
+
+## Data integrity report for the authored encounter table (used by the director
+## at boot and asserted by encounters_sim.py). An entry that claims a template
+## of another size, an escorted boss without exactly two escorts, a pack over
+## its maximum alive count, or a region that wants more packs than are authored
+## is a data error, not a runtime surprise.
+static func validate_encounters() -> Dictionary:
+	ensure_loaded()
+	var problems: Array = []
+	var per_region: Dictionary = {}
+	for entry in encounter_list():
+		var pack: Dictionary = entry
+		var encounter_id := String(pack.get("encounter_id", "pack#%s" % str(pack.get("id", "?"))))
+		var template := template_for(pack)
+		if template.is_empty():
+			problems.append("%s: no template resolves" % encounter_id)
+			continue
+		if int(pack.get("count", 0)) != int(template.get("pack_size", -1)):
+			problems.append("%s: count %d != template pack_size %d" % [
+				encounter_id, int(pack.get("count", 0)), int(template.get("pack_size", -1))])
+		if encounter_max_alive(pack) > int(pack.get("count", 0)):
+			problems.append("%s: max_alive %d exceeds pack size %d" % [
+				encounter_id, encounter_max_alive(pack), int(pack.get("count", 0))])
+		if is_boss_encounter(pack) and bool(template.get("boss", false)) == false:
+			problems.append("%s: boss flag without a boss template" % encounter_id)
+		if encounter_escorts(pack) not in [0, 2]:
+			problems.append("%s: escort count must be 0 or exactly 2" % encounter_id)
+		var zone := String(pack.get("zone", ""))
+		per_region[zone] = int(per_region.get(zone, 0)) + 1
+	for region in regions():
+		var id := String(region.get("id", ""))
+		var authored := int(per_region.get(id, 0))
+		var wanted := int(region.get("pack_count", 0))
+		if wanted > authored:
+			problems.append("region %s: pack_count %d but only %d encounters authored" % [id, wanted, authored])
+	return {"ok": problems.is_empty(), "problems": problems, "authored_per_region": per_region}
+
+## Active encounters for a region: the first `pack_count` authored entries, in
+## authored order. The rest stay dormant (authored content waiting for a tuning
+## change) and are reported rather than silently dropped.
+static func active_encounters_for(zone_id: String) -> Array:
+	var out: Array = []
+	var count := region_pack_count(zone_id)
+	for entry in encounter_list():
+		if String((entry as Dictionary).get("zone", "")) != zone_id:
+			continue
+		if out.size() >= count:
+			break
+		out.append(entry)
+	return out
+
 static func loot_tables() -> Dictionary:
 	ensure_loaded()
 	return _loot

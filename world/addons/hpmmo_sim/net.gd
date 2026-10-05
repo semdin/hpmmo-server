@@ -493,6 +493,24 @@ func sim_snapshot(tick: int, chunk: int, chunks: int, data: PackedByteArray) -> 
 func sim_despawn(uid: int) -> void:
 	SimAuthority.emit_signal("entity_despawned", uid)
 
+## Boss telegraph (plan.md Phase 11). The record keeps the shape and the
+## authoritative start/release ticks; presentation (mob_base) renders the
+## warning from them, so what a player sees cannot disagree with when the
+## damage lands.
+@rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
+func sim_telegraph(uid: int, data: Dictionary) -> void:
+	var record: Dictionary = SimAuthority.entities.get(uid, {})
+	if not record.is_empty():
+		record["telegraph"] = data
+	SimAuthority.emit_signal("mob_telegraph", uid, data)
+
+@rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
+func sim_telegraph_end(uid: int) -> void:
+	var record: Dictionary = SimAuthority.entities.get(uid, {})
+	if not record.is_empty():
+		record.erase("telegraph")
+	SimAuthority.emit_signal("mob_telegraph_end", uid)
+
 # ------------------------------------------------------------ outbound sends
 
 func _process(delta: float) -> void:
@@ -624,6 +642,8 @@ func bridge_authority() -> void:
 	SimAuthority.stats_changed.connect(broadcast_stats)
 	SimAuthority.loot_spawned.connect(broadcast_loot)
 	SimAuthority.loot_taken.connect(broadcast_loot_taken)
+	SimAuthority.mob_telegraph.connect(broadcast_telegraph)
+	SimAuthority.mob_telegraph_end.connect(broadcast_telegraph_end)
 	SimAuthority.maintenance_event.connect(broadcast_maintenance)
 	SimAuthority.transfer_granted.connect(broadcast_transfer_granted)
 	SimAuthority.transfer_committed.connect(broadcast_transfer_committed)
@@ -756,6 +776,23 @@ func broadcast_reward(uid: int, character_id: int, exp: int, galleons: int, item
 		var record := SimAuthority.player_record(peer_id)
 		if not record.is_empty() and int(record.get("uid", 0)) == uid:
 			sim_reward_event.rpc_id(peer_id, character_id, exp, galleons, items, op_id)
+
+## Boss telegraph fan-out (plan.md Phase 11). Reliable, to every peer that can
+## see the mob inside its interest set; the timing inside is authoritative, not
+## a client-side estimate.
+func broadcast_telegraph(uid: int, data: Dictionary) -> void:
+	if not has_peers():
+		return
+	for peer_id in multiplayer.get_peers():
+		if _peer_can_see(peer_id, uid):
+			sim_telegraph.rpc_id(peer_id, uid, data)
+
+func broadcast_telegraph_end(uid: int) -> void:
+	if not has_peers():
+		return
+	for peer_id in multiplayer.get_peers():
+		if _peer_can_see(peer_id, uid):
+			sim_telegraph_end.rpc_id(peer_id, uid)
 
 func broadcast_chat(text: String) -> void:
 	if not has_peers():

@@ -12,7 +12,10 @@ class_name HPProtocol
 ## that makes older clients disagree. Clients whose version differs are refused
 ## at join instead of silently desyncing.
 ## v5: per-map state and the server-authorized map-transfer exchange.
-const PROTOCOL_VERSION := 5
+## v6: encounter lifecycle - mob AI state in the snapshot state byte and the
+##     boss telegraph message (server-owned release tick, client-rendered
+##     warning) from plan.md Phase 11.
+const PROTOCOL_VERSION := 6
 
 ## Simulation / replication rates.
 const SIM_HZ := 20
@@ -79,6 +82,21 @@ const REJECT_ABORTED := "aborted"
 
 ## Combat state machine (plan Phase 5: idle -> windup -> release -> recovery -> idle).
 enum CastState { IDLE = 0, WINDUP = 1, RELEASE = 2, RECOVERY = 3, STUNNED = 4, DEAD = 5 }
+
+## Mob AI state (plan.md Phase 11), carried in a MOB entity's `state` byte so a
+## client renders the authority's phase - anticipation, release, recovery, chase
+## - instead of guessing it from movement. Values are append-only.
+enum MobState {
+	IDLE = 0,
+	WANDER = 1,
+	CHASE = 2,
+	ATTACK = 3,
+	ANTICIPATION = 4,
+	RECOVERY = 5,
+	STUNNED = 6,
+	DEAD = 7,
+	RETURN = 8,
+}
 
 ## Entity kinds replicated to clients.
 enum Kind { PLAYER = 1, MOB = 2, DUMMY = 3, MONOLITH = 4, LOOT = 5, NPC = 6 }
@@ -185,6 +203,11 @@ const MSG_TRANSFER_EXPIRED := "transfer_expired"
 const MSG_MAP_STATE := "map_state"
 const MSG_SNAPSHOT := "snapshot"
 const MSG_DESPAWN := "despawn"
+## Boss telegraph (plan.md Phase 11). Reliable, server -> client: the warning a
+## player sees is driven by the authority's start/release ticks, and the damage
+## is applied by the authority at the release tick.
+const MSG_TELEGRAPH := "telegraph"
+const MSG_TELEGRAPH_END := "telegraph_end"
 const MSG_STATS := "stats"
 const MSG_STAT_DELTA := "stat_delta"
 const MSG_ENTITY_EVENT := "entity_event"
