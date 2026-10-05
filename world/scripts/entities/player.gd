@@ -1246,9 +1246,9 @@ func add_loot(item_id: String, amount: int) -> void:
 func pickup_nearest_loot() -> void:
 	var loot_nodes = get_tree().get_nodes_in_group("loot")
 	var nearest_loot: Area3D = null
-	var min_dist: float = PICKUP_RADIUS
+	var min_dist: float = maxf(PICKUP_RADIUS, 6.0)
 	for loot in loot_nodes:
-		if is_instance_valid(loot):
+		if is_instance_valid(loot) and not bool(loot.get("is_collected")):
 			var dist = global_position.distance_to(loot.global_position)
 			if dist < min_dist:
 				min_dist = dist

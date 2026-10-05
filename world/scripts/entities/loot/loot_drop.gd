@@ -21,7 +21,24 @@ func _ready() -> void:
 	base_y = global_position.y
 	float_offset = randf() * TAU
 	body_entered.connect(_on_body_entered)
+	input_event.connect(_on_input_event)
+	add_to_group("loot")
 	_update_display()
+	call_deferred("_check_initial_overlap")
+
+func _check_initial_overlap() -> void:
+	if is_collected:
+		return
+	for body in get_overlapping_bodies():
+		if body.is_in_group("players"):
+			collect(body)
+			break
+
+func _on_input_event(_camera: Camera3D, event: InputEvent, _position: Vector3, _normal: Vector3, _shape_idx: int) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		var local_player = SimAuthority.local_player_node()
+		if local_player and global_position.distance_to(local_player.global_position) <= 7.0:
+			collect(local_player)
 
 func setup(p_item_id: String, p_amount: int = 1) -> void:
 	item_id = p_item_id
@@ -85,6 +102,8 @@ func collect(collector: Node3D) -> bool:
 	if not bool(result.get("ok", false)):
 		return false
 	is_collected = true
+	if not SimAuthority.is_authority():
+		collector.add_loot(item_id, amount)
 	# Pickup feedback (the credit itself is authoritative).
 	var ft_scene = load("res://scenes/ui/floating_text.tscn")
 	if ft_scene:

@@ -384,13 +384,12 @@ func _on_entity_replicating(record: Dictionary) -> void:
 		# and never reads this client's keyboard.
 		view.sim_puppet = true
 		players_container.add_child(view)
-	_views[uid] = view
-	var spawn_pos: Vector3 = record.get("pos", view.global_position)
-	view.position = spawn_pos
-	if kind != HPProtocol.Kind.PLAYER:
+	else:
 		add_child(view)
-	SimAuthority.attach_view_node(uid, view)
+	_views[uid] = view
+	var spawn_pos: Vector3 = record.get("pos", Vector3.ZERO)
 	view.global_position = spawn_pos
+	SimAuthority.attach_view_node(uid, view)
 	if "sim_target_pos" in view:
 		view.sim_target_pos = spawn_pos
 	if "sim_target_rot" in view:
@@ -477,6 +476,7 @@ func _on_loot_spawned(uid: int, item_id: String, amount: int, pos: Vector3) -> v
 	add_child(node)
 	node.global_position = pos
 	node.setup(item_id, amount)
+	node.set_meta("sim_uid", uid)
 	SimAuthority.attach_view_node(uid, node)
 	_views[uid] = node
 

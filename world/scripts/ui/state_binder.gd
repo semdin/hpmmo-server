@@ -279,7 +279,7 @@ func _on_reward_granted(uid: int, _character_id: int, exp: int, galleons: int, i
 		return
 	reward_granted.emit(exp, galleons, items)
 
-func _on_loot_taken(_uid: int, character_id: int, item_id: String, amount: int) -> void:
+func _on_loot_taken(_uid: int, character_id: int, item_id: String, amount: int, _collector_peer_id: int = 0) -> void:
 	# Loot pickups are broadcast for every player on the map; only the local
 	# character's own pickup is UI feedback.
 	if character_id != local_character_id():

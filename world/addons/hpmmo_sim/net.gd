@@ -515,7 +515,7 @@ func sim_stats_event(uid: int, stats: Dictionary) -> void:
 
 @rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
 func sim_loot_event(uid: int, item_id: String, amount: int, pos: Vector3) -> void:
-	SimAuthority.emit_signal("loot_spawned", uid, item_id, amount, pos)
+	SimAuthority.on_loot_event(uid, item_id, amount, pos)
 
 @rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
 func sim_loot_despawn(uid: int) -> void:
@@ -852,7 +852,7 @@ func broadcast_loot(uid: int, item_id: String, amount: int, pos: Vector3) -> voi
 			continue
 		sim_loot_event.rpc_id(peer_id, uid, item_id, amount, pos)
 
-func broadcast_loot_taken(uid: int, character_id: int, _item_id: String, _amount: int) -> void:
+func broadcast_loot_taken(uid: int, character_id: int, item_id: String, amount: int, collector_peer_id: int = 0) -> void:
 	if not has_peers():
 		return
 	var loot_map := String(SimAuthority.entities.get(uid, {}).get("map_id", HPProtocol.DEFAULT_MAP))
@@ -860,8 +860,19 @@ func broadcast_loot_taken(uid: int, character_id: int, _item_id: String, _amount
 		var record := SimAuthority.player_record(peer_id)
 		if record.is_empty() or String(record.get("map_id", HPProtocol.DEFAULT_MAP)) != loot_map:
 			continue
-		if int(record.get("character_id", 0)) == character_id:
-			sim_reward_event.rpc_id(peer_id, character_id, 0, 0, [], "loot")
+		var is_collector := false
+		if collector_peer_id != 0:
+			is_collector = (peer_id == collector_peer_id)
+		elif character_id > 0:
+			is_collector = (int(record.get("character_id", 0)) == character_id)
+		if is_collector:
+			var items: Array = []
+			var galleons := 0
+			if item_id == "galleons":
+				galleons = amount
+			else:
+				items = [{"id": item_id, "amount": amount}]
+			sim_reward_event.rpc_id(peer_id, character_id, 0, galleons, items, "loot:%d:%d" % [uid, character_id])
 		sim_loot_despawn.rpc_id(peer_id, uid)
 
 func broadcast_reward(uid: int, character_id: int, exp: int, galleons: int, items: Array, op_id: String) -> void:

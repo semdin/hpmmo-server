@@ -39,7 +39,7 @@ signal loot_spawned(uid: int, item_id: String, amount: int, pos: Vector3)
 signal mob_telegraph(uid: int, data: Dictionary)
 signal mob_telegraph_end(uid: int)
 signal encounter_reset(pack_id: int, reason: String)
-signal loot_taken(uid: int, character_id: int, item_id: String, amount: int)
+signal loot_taken(uid: int, character_id: int, item_id: String, amount: int, collector_peer_id: int)
 signal reward_granted(uid: int, character_id: int, exp: int, galleons: int, items: Array, op_id: String)
 signal level_changed(uid: int, level: int)
 signal player_joined(uid: int, character_id: int, peer_id: int)
@@ -1847,16 +1847,16 @@ func _collect_loot(loot: Dictionary, player: Dictionary) -> void:
 	var loot_uid := int(loot["uid"])
 	var item_id := String(loot["item_id"])
 	var amount := int(loot["amount"])
-	entities.erase(loot_uid)
+	var character_id := int(player.get("character_id", 0))
+	var op_id := "loot:%d:%d" % [loot_uid, character_id]
+	if _reward_already_granted(op_id):
+		entities.erase(loot_uid)
+		emit_signal("entity_despawned", loot_uid)
+		return
 	var node = loot.get("node")
 	if node != null and is_instance_valid(node):
 		by_node.erase((node as Node).get_instance_id())
 		node.queue_free()
-	var character_id := int(player.get("character_id", 0))
-	var op_id := "loot:%d:%d" % [loot_uid, character_id]
-	if _reward_already_granted(op_id):
-		emit_signal("entity_despawned", loot_uid)
-		return
 	var pnode = player.get("node")
 	if pnode != null and is_instance_valid(pnode) and pnode.has_method("add_loot"):
 		pnode.call("add_loot", item_id, amount)
@@ -1875,8 +1875,9 @@ func _collect_loot(loot: Dictionary, player: Dictionary) -> void:
 	# save (Phase 14 D14-1 measured 500 -> 554 in session, then 608 reloaded for
 	# a single 54-galleon drop). Unbound sessions (character_id <= 0) have no
 	# save path at all, and queue_reward is a no-op for them anyway.
-	emit_signal("loot_taken", loot_uid, character_id, item_id, amount)
+	emit_signal("loot_taken", loot_uid, character_id, item_id, amount, int(player.get("peer_id", 0)))
 	emit_signal("entity_despawned", loot_uid)
+	entities.erase(loot_uid)
 
 func _schedule_player_respawn(record: Dictionary) -> void:
 	# Death is final until the respawn request (or the automatic timer when the
@@ -2204,12 +2205,27 @@ func drop_replica(uid: int) -> void:
 	entities.erase(uid)
 
 func attach_view_node(uid: int, node: Node3D) -> void:
-	var record: Dictionary = entities.get(uid, {})
-	if record.is_empty() or node == null:
+	if node == null:
 		return
-	record["node"] = node
+	var record: Dictionary = entities.get(uid, {})
+	if not record.is_empty():
+		record["node"] = node
 	by_node[node.get_instance_id()] = uid
 	node.set_meta("sim_uid", uid)
+
+func on_loot_event(uid: int, item_id: String, amount: int, pos: Vector3) -> void:
+	entities[uid] = {
+		"uid": uid,
+		"kind": HPProtocol.Kind.LOOT,
+		"node": null,
+		"replica": true,
+		"map_id": local_map,
+		"item_id": item_id,
+		"amount": amount,
+		"pos": pos,
+		"dead": false,
+	}
+	emit_signal("loot_spawned", uid, item_id, amount, pos)
 
 func on_cast_result(cast_seq: int, cast_id: int, ok: bool, reason: String) -> void:
 	emit_signal("cast_ack", cast_seq, cast_id, ok, reason)

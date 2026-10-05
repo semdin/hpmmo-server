@@ -268,8 +268,10 @@ def test_agreement(out_dir, profile):
     ops_b = [r["op_id"] for r in fb.get("rewards", [])]
     check(len(ops_a) == len(set(ops_a)) and len(ops_b) == len(set(ops_b)),
           "[%s] no player was rewarded twice for one death" % profile)
-    kills_a = len({op.split(":")[1] for op in ops_a})
-    kills_b = len({op.split(":")[1] for op in ops_b})
+    kill_ops_a = [r["op_id"] for r in fa.get("rewards", []) if str(r.get("op_id", "")).startswith("kill:")]
+    kill_ops_b = [r["op_id"] for r in fb.get("rewards", []) if str(r.get("op_id", "")).startswith("kill:")]
+    kills_a = len({op.split(":")[1] for op in kill_ops_a})
+    kills_b = len({op.split(":")[1] for op in kill_ops_b})
     check(kills_a == kills_b and kills_a > 0,
           "[%s] both clients were credited for the same %d kill(s)" % (profile, kills_a))
     granted_a = sum(int(r.get("exp", 0)) for r in fa.get("rewards", []))
