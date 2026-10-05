@@ -822,15 +822,24 @@ stage_from_source() {  # artifact id generate_manifest
         esac
     fi
 
-    # Freeze: nothing may write into the release once it is visible.
-    chmod -R a-w "$tmp" 2>/dev/null || warn "could not remove write permission from the staged tree"
     tree_hash="$(file_tree_hash "$tmp")"
     mkdir -p "${HPMMO_STATE_DIR%/}/releases"
     printf '{"id":"%s","staged_at":"%s","tree_hash":"%s","post_stage_mutated":%s,"manifest_source":"%s","schema_level":%s}\n' \
         "$id" "$(now_iso)" "$tree_hash" "$( [ "$mutated" = "1" ] && printf 1 || printf 0 )" \
         "$( [ "$gen_manifest" = "1" ] && printf local || printf artifact )" "${level:-0}" \
         > "$(release_meta "$id")"
-    mv "$tmp" "$(release_dir "$id")"
+    # Move the tree into place BEFORE freezing it: `chmod -R a-w` also strips
+    # write permission from the tree root, and Linux refuses to rename(2) a
+    # directory the caller cannot write to. Freezing first made every staging
+    # run by a non-root user die here with EACCES (the CI runner is not root;
+    # root and Windows - where chmod is a no-op - masked it). The recorded hash
+    # is content-based, so moving first does not change what is verified.
+    if ! mv "$tmp" "$(release_dir "$id")"; then
+        rm -rf "$tmp" "$(release_meta "$id")"
+        die 3 "cannot move the staged tree into $(release_dir "$id") (is ${HPMMO_RELEASES_DIR%/} writable?)"
+    fi
+    # Freeze: nothing may write into the release once it is visible.
+    chmod -R a-w "$(release_dir "$id")" 2>/dev/null || warn "could not remove write permission from the staged tree"
     STAGED_ID="$id"
     say "staged release '$id' at $(release_dir "$id") (schema level ${level:-?}, tree ${tree_hash})"
     return 0

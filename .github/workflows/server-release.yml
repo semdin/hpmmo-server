@@ -1,7 +1,10 @@
 # HPMMO server release (plan.md Phase 6).
 #
-#   push to the release branch  -> build + test + package an immutable artifact
-#   manual dispatch             -> optionally deploy that artifact (gated)
+#   push to the release branch  -> build + test + package an immutable
+#                                  artifact, then deploy it to the box behind
+#                                  the `production` environment approval
+#   manual dispatch             -> optionally deploy an artifact (gated; may
+#                                  pin an earlier release_id/run_id)
 #
 # Rules encoded here (plan.md Phase 6):
 #   * a merge to the designated release branch builds/tests automatically, and
@@ -40,6 +43,9 @@ on:
 
 permissions:
   contents: read
+  # actions/download-artifact@v4 with an explicit github-token + run-id goes
+  # through the Actions REST API, which needs Actions: read on the token.
+  actions: read
 
 env:
   GODOT_VERSION: '4.7.2'
@@ -162,10 +168,27 @@ jobs:
       - name: Build the service (cmake + ninja + clang++, as documented)
         shell: pwsh
         run: |
-          $compiler = if (Get-Command clang++ -ErrorAction SilentlyContinue) { 'clang++' } else { 'g++' }
-          cmake -S services/cpp -B services/cpp/build -G Ninja -DCMAKE_CXX_COMPILER=$compiler `
-                -DCMAKE_BUILD_TYPE=Release -DPG_ROOT="$env:HPMMO_PG_ROOT"
+          # Resolve the compiler to a full path. Two traps were found here:
+          #   * a token like -DCMAKE_CXX_COMPILER=$compiler is a *parameter*
+          #     token to PowerShell, so the variable is NOT expanded and the
+          #     literal string "$compiler" reaches CMake ("The CXX compiler
+          #     identification is unknown");
+          #   * a bare name is not always enough either (shims/aliases), so
+          #     hand CMake the .Source path of the resolved executable, quoted.
+          $compiler = $null
+          foreach ($candidate in @('clang++', 'g++')) {
+            $cmd = Get-Command $candidate -CommandType Application -ErrorAction SilentlyContinue
+            if ($cmd) { $compiler = $cmd.Source; break }
+          }
+          if (-not $compiler) {
+            throw "neither clang++ nor g++ is on PATH; install the documented toolchain (see server/README.md) and re-run"
+          }
+          Write-Host "CXX compiler: $compiler"
+          cmake -S services/cpp -B services/cpp/build -G Ninja "-DCMAKE_CXX_COMPILER=$compiler" `
+                "-DCMAKE_BUILD_TYPE=Release" "-DPG_ROOT=$env:HPMMO_PG_ROOT"
+          if ($LASTEXITCODE -ne 0) { throw "cmake configure failed (exit $LASTEXITCODE)" }
           ninja -C services/cpp/build
+          if ($LASTEXITCODE -ne 0) { throw "ninja build failed (exit $LASTEXITCODE)" }
 
       - name: Run the integration suite
         shell: pwsh
@@ -180,20 +203,75 @@ jobs:
   # -------------------------------------------------------------------------
   # Production deployment: a separate, explicitly-gated job that consumes the
   # artifact built above and pins its exact identifier. It never rebuilds.
+  #
+  # Triggers (and why this is still safe):
+  #   * push to the designated release branch (main): a release actually
+  #     updates the server - the owner's request. The `production`
+  #     environment's required reviewers are the human gate, so the job parks
+  #     at "Waiting for approval" until a person approves it;
+  #   * workflow_dispatch with deploy=true, optionally pinning release_id /
+  #     run_id to ship an artifact built by an earlier, already-green run.
+  # In both cases the job needs the package job (build + tests + deployment
+  # rehearsal) and the integration job to have succeeded first, and it
+  # re-checks the ref so a dispatch run on a feature branch can never reach
+  # the box.
+  #
+  # Manual setup required (exact names):
+  #   1. repository secrets: HPMMO_DEPLOY_HOST, HPMMO_DEPLOY_USER,
+  #      HPMMO_DEPLOY_SSH_KEY, HPMMO_DEPLOY_KNOWN_HOSTS;
+  #   2. environment `production` with required reviewers (Settings ->
+  #      Environments);
+  #   3. on the box: the public half of HPMMO_DEPLOY_SSH_KEY in the deploy
+  #      user's ~/.ssh/authorized_keys, and that user able to run
+  #      /opt/hpmmo/bin/hpmmo_deploy.sh as root (root login, or a NOPASSWD
+  #      sudo rule for exactly that command);
+  #   4. the release branch is `main` and matches `on.push.branches` above.
   # -------------------------------------------------------------------------
   deploy:
     name: deploy to production
     needs: [package, integration]
-    if: github.event_name == 'workflow_dispatch' && inputs.deploy
+    # success() is explicit: the box is only touched after build + tests +
+    # rehearsal (package) and the integration job are green.
+    if: success() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy))
     runs-on: ubuntu-22.04
     environment:
-      name: production            # add required reviewers in the repo settings
+      name: production            # required reviewers in the repo settings = the human gate
       url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
     concurrency:
       group: server-deploy-production
       cancel-in-progress: false   # a deployment mutation must never be cancelled
     steps:
+      - name: Only the release branch may deploy
+        run: |
+          [ "$GITHUB_REF_NAME" = "main" ] || {
+            echo "refusal: $GITHUB_REF_NAME is not the designated release branch (main)" >&2
+            exit 1
+          }
+
       - uses: actions/checkout@v4
+
+      - name: Refuse a half-configured deployment (fail closed)
+        # Secrets come from the environment, never interpolated into the
+        # script text, and an absent secret stops the job before it touches
+        # anything. Values are never printed.
+        env:
+          DEPLOY_HOST: ${{ secrets.HPMMO_DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.HPMMO_DEPLOY_USER }}
+          DEPLOY_KEY: ${{ secrets.HPMMO_DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.HPMMO_DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -eu
+          missing=""
+          [ -n "$DEPLOY_HOST" ]        || missing="$missing HPMMO_DEPLOY_HOST"
+          [ -n "$DEPLOY_USER" ]        || missing="$missing HPMMO_DEPLOY_USER"
+          [ -n "$DEPLOY_KEY" ]         || missing="$missing HPMMO_DEPLOY_SSH_KEY"
+          [ -n "$DEPLOY_KNOWN_HOSTS" ] || missing="$missing HPMMO_DEPLOY_KNOWN_HOSTS"
+          if [ -n "$missing" ]; then
+            echo "::error::refusing to deploy: missing repository secret(s):$missing"
+            echo "Create them (see the deploy job's checklist in this workflow) and re-run." >&2
+            exit 1
+          fi
+          echo "deploy configuration complete (host, user, key, known_hosts present; values never printed)"
 
       - name: Resolve the pinned artifact identifier
         id: id
@@ -221,33 +299,64 @@ jobs:
           ( cd /tmp/verify && sha256sum -c --strict --quiet SHA256SUMS )
           test -x /tmp/verify/services/cpp/build/hpmmo_service
 
-      - name: Install the deploy key
+      - name: Install the deploy key (never printed)
+        env:
+          DEPLOY_KEY: ${{ secrets.HPMMO_DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.HPMMO_DEPLOY_KNOWN_HOSTS }}
         run: |
+          umask 077
           mkdir -p ~/.ssh
-          printf '%s\n' "${{ secrets.HPMMO_DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          printf '%s\n' "${{ secrets.HPMMO_DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
 
-      - name: Copy the artifact to the server
+      - name: Ship the artifact and deploy through the release controller
+        # The controller on the box is the only thing that mutates the
+        # deployment: it verifies SHA256SUMS, announces maintenance, drains,
+        # saves, stops, migrates with the new binary, switches `current`
+        # atomically, restarts, verifies (health, ready, schema, version,
+        # ONLINE, synthetic login) and rolls back on any failure. --deploy is
+        # --stage + --release. A non-zero exit fails this job - it is the
+        # controller's own verdict, not a script reinvention of it.
+        env:
+          DEPLOY_HOST: ${{ secrets.HPMMO_DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.HPMMO_DEPLOY_USER }}
+          RELEASE_ID: ${{ steps.id.outputs.release_id }}
         run: |
-          scp -i ~/.ssh/id_ed25519 \
-            "dist/hpmmo-server-${{ steps.id.outputs.release_id }}.tar.gz" \
-            "${{ secrets.HPMMO_DEPLOY_USER }}@${{ secrets.HPMMO_DEPLOY_HOST }}:/tmp/hpmmo-server-${{ steps.id.outputs.release_id }}.tar.gz"
+          set -eu
+          archive="dist/hpmmo-server-$RELEASE_ID.tar.gz"
+          scp -i ~/.ssh/id_ed25519 -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$archive" "$DEPLOY_USER@$DEPLOY_HOST:/tmp/hpmmo-server-$RELEASE_ID.tar.gz"
+          ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            "sudo /opt/hpmmo/bin/hpmmo_deploy.sh --deploy /tmp/hpmmo-server-$RELEASE_ID.tar.gz \
+               --id $RELEASE_ID --reason 'ci:${{ github.run_id }}'"
 
-      - name: Deploy through the release controller
-        # The controller verifies the artifact checksums, announces maintenance,
-        # drains, saves, migrates, switches atomically, verifies (health, ready,
-        # version, ONLINE, synthetic login) and rolls back on any failure.
+      - name: Assert the box reports the deployed release ONLINE
+        # Belt and braces on top of the controller's exit code: read the
+        # existing status/journal path (never a parallel one) and require the
+        # exact release id to be the one advertised.
+        env:
+          DEPLOY_HOST: ${{ secrets.HPMMO_DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.HPMMO_DEPLOY_USER }}
+          RELEASE_ID: ${{ steps.id.outputs.release_id }}
         run: |
-          ssh -i ~/.ssh/id_ed25519 "${{ secrets.HPMMO_DEPLOY_USER }}@${{ secrets.HPMMO_DEPLOY_HOST }}" \
-            "sudo /opt/hpmmo/bin/hpmmo_deploy.sh --deploy /tmp/hpmmo-server-${{ steps.id.outputs.release_id }}.tar.gz \
-               --id ${{ steps.id.outputs.release_id }} --reason 'ci:${{ github.run_id }}'"
+          set -eu
+          status="$(ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" 'sudo /opt/hpmmo/bin/hpmmo_deploy.sh --status')"
+          printf '%s\n' "$status"
+          printf '%s\n' "$status" | grep -Eq '^state:[[:space:]]+ONLINE$' || {
+            echo "::error::the controller reports the deployment is not ONLINE" >&2; exit 1; }
+          printf '%s\n' "$status" | grep -Eq "^release:[[:space:]]+$RELEASE_ID$" || {
+            echo "::error::the box does not report release $RELEASE_ID" >&2; exit 1; }
 
       - name: Publish the deployment record
         if: always()
         run: |
-          echo "### Server release" >> "$GITHUB_STEP_SUMMARY"
-          echo "- release id: \`${{ steps.id.outputs.release_id }}\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- artifact: \`hpmmo-server-${{ steps.id.outputs.release_id }}.tar.gz\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- deploy job: \`${{ job.status }}\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- rollback: see server/docs/runbook-rollback.md" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "### Server release"
+            echo "- release id: \`${{ steps.id.outputs.release_id }}\`"
+            echo "- artifact: \`hpmmo-server-${{ steps.id.outputs.release_id }}.tar.gz\`"
+            echo "- deploy job: \`${{ job.status }}\`"
+            echo "- rollback: see server/docs/runbook-rollback.md"
+          } >> "$GITHUB_STEP_SUMMARY"
