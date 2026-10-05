@@ -1,0 +1,23 @@
+{"event":"step","next":"register","step":"register","t":0.0}
+{"event":"register","message":"Account created.","step":"register","success":true,"t":0.2}
+{"detail":"session established","event":"pass","step":"register","t":0.2}
+{"detail":"created Journey99436","event":"pass","step":"register","t":0.3}
+{"event":"step","next":"join","step":"join","t":0.3}
+{"detail":"world accepted the session token","event":"pass","step":"join","t":0.4}
+{"character_id":1.0,"event":"join","step":"join","t":0.4,"uid":0}
+{"event":"step","next":"enter_world","step":"enter_world","t":0.4}
+{"detail":"map=grounds pos=(-31.0, 2.0, -25.0)","event":"pass","step":"enter_world","t":0.6}
+{"event":"step","next":"courtyard","step":"courtyard","t":0.6}
+{"detail":"12 casts accepted in the protected courtyard","event":"pass","step":"courtyard","t":11.8}
+{"event":"step","next":"fight","step":"fight","t":11.8}
+{"event":"pack","members":3,"pack_id":1,"step":"fight","t":11.8}
+{"detail":"pack 1 killed, 3 reward(s), +129 exp","event":"pass","step":"fight","t":31.2}
+{"event":"step","next":"mount","step":"mount","t":31.2}
+{"event":"mounted","step":"mount","t":35.3}
+{"detail":"mounted, flew, landed and dismounted","event":"pass","step":"mount","t":54.4}
+{"event":"step","next":"castle","step":"castle","t":54.4}
+{"event":"transfer_request","reason":"sent","step":"castle","t":60.2}
+{"detail":"transfer committed to castle_interior at (0.0, 201.0, 30.0)","event":"pass","step":"castle","t":60.7}
+{"controller":true,"event":"staircase_missing","interior":false,"map":"castle_interior","step":"castle","t":124.7}
+{"detail":"journey exceeded 900 s at step castle","event":"fail","step":"castle","t":900.0}
+{"event":"final","failures":["timeout: journey exceeded 900 s at step castle"],"step":"castle","steps":9,"t":900.0}
