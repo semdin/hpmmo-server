@@ -450,9 +450,10 @@ func _load_client_config() -> void:
 					# the autoload resolved (the launcher handoff), then this
 					# file's api_port, then 8081.
 					if api_port == 0:
-						api_port = _api_port_from_url(DatabaseManager.api_base_url)
-					if api_port == 0:
 						api_port = a_port
+					if OS.has_environment("HPMMO_API_URL"):
+						DatabaseManager.api_base_url = OS.get_environment("HPMMO_API_URL")
+					else:
 						DatabaseManager.api_base_url = "http://%s:%d" % [s_ip, api_port]
 					if json_res.has("server_ip") and ip_input:
 						ip_input.text = s_ip

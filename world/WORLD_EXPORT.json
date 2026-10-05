@@ -1,7 +1,7 @@
 {
  "generated": "2026-10-05",
  "source_repository": "hpmmo-client",
- "source_revision": "5b071edb3d015c5449a20432702a6fb286bd6e9e",
+ "source_revision": "58c559914607f073ebfc7fb4e364573a1df97789",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/audio/sound_library.json": "957671afc206adad54082d4ed1c7204da740d62206671d8a908a453ee18c497b",
@@ -306,7 +306,7 @@
   "scripts/entities/loot/loot_drop.gd": "0db814055c700764de208f096cf12187c8e1a1cef6816b85aa498fc86d0758b8",
   "scripts/entities/mobs/mob_base.gd": "3aebe231c3cc9011ed29bef35621dff79ede4cf3902ef4e30ec66d67c4d62495",
   "scripts/entities/monolith/dark_monolith.gd": "1f09a7a0bb1c115cfead0018ec8b67a01572058992fa0c85cdb35b93749eb968",
-  "scripts/entities/player.gd": "91de7d028b99ff379c2d93c7ad0b2dd5d24d392a9867b58573487d7d803111ab",
+  "scripts/entities/player.gd": "de8b2e88249431d3b95300cfdc08184b362beb838ded8496a6ac87d1d304b260",
   "scripts/server/db_manager.gd": "cc2c103a708acc7b19ace82845e6e2eed84dcd3e146cd806cd4db38bc49cd7fe",
   "scripts/server/dedicated_server.gd": "ee2705051c561f632df353031f6589e54a7a1f7ccff57b4ed60b45b8e8e8d2d5",
   "scripts/spells/bombarda_blast.gd": "b07f93853fa234b77e09b3e0798f2173a1017370cf4b62771955ac67032f1406",
@@ -326,7 +326,7 @@
   "scripts/ui/game_settings.gd": "05503581b27b9df51c1f7daac59a7fea98cd97362f1a8ee7749fe6c728f96c9a",
   "scripts/ui/hud.gd": "017e60765dab7453e600a4f6783f321e29fda5e86c6418da3f076a1904978bae",
   "scripts/ui/inventory_ui.gd": "6e790a20dd3f39cefc3c88ec1552db9264a2c55077f238bb0c42ce8939d8285f",
-  "scripts/ui/main_menu.gd": "03fe7c35730663ed43b596ac1135d5f9c8b3c45d4e221bfadb8098809eba0809",
+  "scripts/ui/main_menu.gd": "153811e13a5cf420ccb17374eb9fbcbdbc29e9a0245f6c2467e9fb816a21850e",
   "scripts/ui/maintenance_ui.gd": "c6709d1292d7c5e9190541375e0038979d711246afd11cfca91fd82c81a1d375",
   "scripts/ui/mmorpg_overlay.gd": "0108292c686e083cbbd2df61069928dff4fe49c5544c45c51aefd7a6f0eea6e5",
   "scripts/ui/ollivander_ui.gd": "311656e318412c1e6575a66fa6167e90d80cfeaae22500d07caee90fb61879cf",

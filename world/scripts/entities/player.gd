@@ -104,6 +104,10 @@ var _committed_until := 0.0
 ## Spells whose recovery commits the caster in place.
 const COMMITTED_SPELLS := {"bombarda": 0.35, "ultimate": 0.5}
 const COMMITTED_MELEE := 0.45
+## Rolling history of local positions used for latency-tolerant reconciliation.
+var _pos_history: Array[Vector3] = []
+const MAX_POS_HISTORY := 90
+
 var _cast_seq := 0
 var _predicted_casts: Dictionary = {}   # cast_seq -> {spell_id, aim}
 var _predicted_ward := false
@@ -369,6 +373,7 @@ func _process(delta: float) -> void:
 			basic_combo_index = 0
 	
 	_cast_lock = maxf(0.0, _cast_lock - delta)
+	_committed_until = maxf(0.0, _committed_until - delta)
 	_hit_recovery = maxf(0.0, _hit_recovery - delta)
 	_mount_lock = maxf(0.0, _mount_lock - delta)
 	_mount_notice_cd = maxf(0.0, _mount_notice_cd - delta)
@@ -488,6 +493,10 @@ func _physics_process(delta: float) -> void:
 			visuals.rotation.y = lerp_angle(visuals.rotation.y, cam_yaw, 10.0 * delta)
 
 	move_and_slide()
+	if is_local_player:
+		_pos_history.append(global_position)
+		if _pos_history.size() > MAX_POS_HISTORY:
+			_pos_history.pop_front()
 	_update_animation_state()
 
 ## The state machine half of the animation graph: it selects the clip, the graph
@@ -978,6 +987,7 @@ func on_cast_answer(cast_seq: int, _cast_id: int, ok: bool, reason: String) -> v
 		_clear_protego_preview()
 	_cast_generation += 1
 	is_casting_anim = false
+	_committed_until = 0.0
 	_reject_feedback(reason)
 
 func _reject_feedback(reason: String) -> void:
@@ -1066,19 +1076,72 @@ func on_authoritative_damage(spell_type: String, attacker: Node3D, _stun_ms: int
 		_hit_recovery = 0.22
 	emit_stats()
 
-## Reconciliation. The client predicts its own movement; when the server's
-## answer disagrees by more than a hair, the authoritative position wins (and the
-## body is snapped, not blended, so a tampered client cannot slide around a
-## correction). Small disagreements are absorbed smoothly.
+## Reconciliation. Absorbs network propagation delay: server snapshots reflect
+## where the client was RTT/2 in the past. We compare against recent trajectory
+## history so normal movement never rubberbands, while true discrepancies,
+## teleports, and wall collisions are authoritatively enforced.
 func apply_authoritative_position(pos: Vector3, rot_y: float) -> void:
-	var error := global_position.distance_to(pos)
-	if error > 1.0:
+	if not is_local_player:
+		return
+
+	if is_dead:
 		global_position = pos
 		velocity = Vector3.ZERO
-	elif error > 0.05:
-		global_position = global_position.lerp(pos, 0.35)
-	if visuals:
-		visuals.rotation.y = rot_y
+		_pos_history.clear()
+		return
+
+	var direct_dist := global_position.distance_to(pos)
+
+	# Massive displacement (teleport, respawn, map transfer, infinite fall rescue):
+	# Snap immediately and clear trajectory history.
+	if direct_dist > 6.0 or _pos_history.is_empty():
+		global_position = pos
+		velocity = Vector3.ZERO
+		_pos_history.clear()
+		if visuals:
+			visuals.rotation.y = rot_y
+		return
+
+	# Find closest point along recent client trajectory to the authoritative position.
+	# Because of network round-trip latency, `pos` naturally corresponds to where the
+	# server simulated us tens to hundreds of milliseconds ago.
+	var min_path_dist := 999999.0
+	var closest_pt := global_position
+	for pt in _pos_history:
+		var d := pt.distance_to(pos)
+		if d < min_path_dist:
+			min_path_dist = d
+			closest_pt = pt
+
+	if direct_dist < min_path_dist:
+		min_path_dist = direct_dist
+		closest_pt = global_position
+
+	var is_standing := velocity.length_squared() < 0.04 and _intent_move().length_squared() < 0.01
+
+	if is_standing:
+		# When standing still, client and server converge to the same point.
+		if direct_dist > 2.0:
+			global_position = pos
+			velocity = Vector3.ZERO
+			_pos_history.clear()
+		elif direct_dist > 0.05:
+			global_position = global_position.lerp(pos, 0.25)
+	else:
+		# When moving:
+		# If the server's snapshot position is along our recent path (within tolerance),
+		# it is merely trailing due to network RTT latency. DO NOT pull the player backwards!
+		if min_path_dist > 2.5:
+			# Off-path discrepancy (e.g. server blocked by wall/obstacle or server-side knockback)
+			global_position = pos
+			velocity = Vector3.ZERO
+			_pos_history.clear()
+			if visuals:
+				visuals.rotation.y = rot_y
+		elif min_path_dist > 0.4:
+			# Mild trajectory drift (sliding against slopes/edges): gently nudge without stalling velocity
+			var drift := pos - closest_pt
+			global_position += drift * 0.15
 
 ## Authority death notification: presentation only - the engine schedules the
 ## respawn and calls `on_authoritative_respawn` when it fires.
@@ -1093,6 +1156,8 @@ func on_authoritative_death(_killer: Node3D) -> void:
 	_predicted_casts.clear()
 	_clear_protego_preview()
 	_apply_mount_state(false)
+	_committed_until = 0.0
+	_pos_history.clear()
 	velocity = Vector3.ZERO
 	if hero_anim:
 		hero_anim.set_locomotion("dead", "Death_A", true)
@@ -1104,6 +1169,8 @@ func on_authoritative_death(_killer: Node3D) -> void:
 func on_authoritative_respawn() -> void:
 	global_position = HPRules.respawn_position()
 	velocity = Vector3.ZERO
+	_committed_until = 0.0
+	_pos_history.clear()
 	is_dead = false
 	is_casting_anim = false
 	if hero_anim:
