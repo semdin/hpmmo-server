@@ -265,6 +265,10 @@ func _play_anim(name_hint: String, blend: float = 0.18) -> void:
 		anim_player.play(clip, blend)
 
 func _update_label() -> void:
+	if label == null:
+		label = get_node_or_null("Label3D")
+	if label == null:
+		return
 	label.text = "[Lv.%d] %s%s\n%d / %d" % [level, mob_name, " • ENRAGED" if is_enraged else "", current_hp, max_hp]
 	label.modulate = Color(1, 0.72, 0.25) if is_boss else Color(1, 0.6, 0.5)
 	label.font_size = 26 if is_boss else 21

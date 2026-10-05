@@ -378,6 +378,7 @@ func _on_entity_replicating(record: Dictionary) -> void:
 			var label := view.get_node_or_null("Label3D")
 			if label:
 				label.position.y = 4.2
+		mobs_container.add_child(view)
 	elif kind == HPProtocol.Kind.PLAYER:
 		view.is_local_player = false
 		# Another player's body is a VIEW here: it follows the replicated state

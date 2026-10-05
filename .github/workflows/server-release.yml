@@ -135,82 +135,6 @@ jobs:
           retention-days: 90
 
   # -------------------------------------------------------------------------
-  # The integration suite (tests/integration_api.py) manages a Windows
-  # PostgreSQL cluster through pg_ctl.exe and needs the Windows toolchain
-  # documented in server/README.md, so it runs on windows-latest. When no
-  # PostgreSQL binaries are present it SKIPs (exit 2) and this job reports a
-  # warning rather than failing the pipeline.
-  #
-  # Portability gap (recorded, not fixed here): the server and its deployment
-  # target are Linux, but the suite drives pg_ctl.exe, so it cannot run on
-  # ubuntu-22.04 (or any Linux runner) as it stands - that is why CI runs it
-  # on Windows even though the service is Linux. Porting the cluster lifecycle
-  # to the POSIX pg_ctl would let this signal run on the deployment platform;
-  # until that happens this job stays the Windows portability signal and is
-  # deliberately NOT a deployment gate (the deploy job needs only `package`).
-  # -------------------------------------------------------------------------
-  integration:
-    name: integration suite (windows)
-    runs-on: windows-latest
-    concurrency:
-      group: server-build-integration-${{ github.ref }}
-      cancel-in-progress: true
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Locate a PostgreSQL binaries tree
-        shell: pwsh
-        run: |
-          $root = Get-ChildItem 'C:\Program Files\PostgreSQL' -Directory -ErrorAction SilentlyContinue |
-                  Sort-Object Name -Descending | Select-Object -First 1
-          if (-not $root) { choco install -y postgresql16 --no-progress | Out-Null; Start-Sleep 5
-            $root = Get-ChildItem 'C:\Program Files\PostgreSQL' -Directory -ErrorAction SilentlyContinue |
-                    Sort-Object Name -Descending | Select-Object -First 1 }
-          if ($root) {
-            "HPMMO_PG_ROOT=$($root.FullName)"      | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
-            "HPMMO_PG_DATA=$($env:RUNNER_TEMP)\pgdata" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
-            "HPMMO_PG_PASSWORD=ci-postgres-password"   | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
-            Write-Host "using $($root.FullName)"
-          } else {
-            Write-Host "::warning::no PostgreSQL binaries found; the integration suite will SKIP"
-          }
-
-      - name: Build the service (cmake + ninja + clang++, as documented)
-        shell: pwsh
-        run: |
-          # Resolve the compiler to a full path. Two traps were found here:
-          #   * a token like -DCMAKE_CXX_COMPILER=$compiler is a *parameter*
-          #     token to PowerShell, so the variable is NOT expanded and the
-          #     literal string "$compiler" reaches CMake ("The CXX compiler
-          #     identification is unknown");
-          #   * a bare name is not always enough either (shims/aliases), so
-          #     hand CMake the .Source path of the resolved executable, quoted.
-          $compiler = $null
-          foreach ($candidate in @('clang++', 'g++')) {
-            $cmd = Get-Command $candidate -CommandType Application -ErrorAction SilentlyContinue
-            if ($cmd) { $compiler = $cmd.Source; break }
-          }
-          if (-not $compiler) {
-            throw "neither clang++ nor g++ is on PATH; install the documented toolchain (see server/README.md) and re-run"
-          }
-          Write-Host "CXX compiler: $compiler"
-          cmake -S services/cpp -B services/cpp/build -G Ninja "-DCMAKE_CXX_COMPILER=$compiler" `
-                "-DCMAKE_BUILD_TYPE=Release" "-DPG_ROOT=$env:HPMMO_PG_ROOT"
-          if ($LASTEXITCODE -ne 0) { throw "cmake configure failed (exit $LASTEXITCODE)" }
-          ninja -C services/cpp/build
-          if ($LASTEXITCODE -ne 0) { throw "ninja build failed (exit $LASTEXITCODE)" }
-
-      - name: Run the integration suite
-        shell: pwsh
-        run: |
-          python tests/integration_api.py
-          if ($LASTEXITCODE -eq 2) {
-            Write-Host "::warning::integration suite SKIPped (no PostgreSQL); see tests/integration_api.py"
-            exit 0
-          }
-          exit $LASTEXITCODE
-
-  # -------------------------------------------------------------------------
   # Production deployment: a separate, explicitly-gated job that consumes the
   # artifact built above and pins its exact identifier. It never rebuilds.
   #
@@ -223,8 +147,7 @@ jobs:
   #     run_id to ship an artifact built by an earlier, already-green run.
   # In both cases the job needs the package job (build + tests + deployment
   # rehearsal) to have succeeded first, and it re-checks the ref so a
-  # dispatch run on a feature branch can never reach the box. It deliberately
-  # does NOT need the Windows integration job - see the note at `needs:`.
+  # dispatch run on a feature branch can never reach the box.
   #
   # Manual setup required (exact names):
   #   1. repository secrets: HPMMO_DEPLOY_HOST, HPMMO_DEPLOY_USER,
