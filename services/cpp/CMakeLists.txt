@@ -8,6 +8,15 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
+# windows.h (minwindef.h) defines `min` and `max` as function-like macros
+# unless NOMINMAX is defined, which breaks every std::min/std::max in a
+# translation unit that includes it - the CI Windows job hit exactly this at
+# db.cpp:212 (the local MinGW headers happen to hide the macros for C++, so a
+# dev-machine build does not reproduce it). Define it for every target in
+# this directory so any Windows header inclusion anywhere in the service is
+# safe, vendor code included.
+add_compile_definitions(NOMINMAX)
+
 # --- vendored headers (see vendor/PROVENANCE.md) ---
 add_library(vendor_headers INTERFACE)
 target_include_directories(vendor_headers INTERFACE

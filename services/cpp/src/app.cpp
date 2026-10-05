@@ -952,8 +952,8 @@ void handle_trade(const httplib::Request& req, httplib::Response& res, const Con
         return;
     }
     // Consistent lock order: lock the lower character id first.
-    const long long lo = std::min(from_id, to_id);
-    const long long hi = std::max(from_id, to_id);
+    const long long lo = (std::min)(from_id, to_id);
+    const long long hi = (std::max)(from_id, to_id);
     db::Result lock_lo = lease.exec("SELECT id::text, galleons::text FROM characters WHERE id = $1 FOR UPDATE",
                                      {std::to_string(lo)});
     db::Result lock_hi = lease.exec("SELECT id::text, galleons::text FROM characters WHERE id = $1 FOR UPDATE",

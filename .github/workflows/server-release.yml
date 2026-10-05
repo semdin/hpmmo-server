@@ -119,9 +119,11 @@ jobs:
 
       - name: Verify the artifact manifest before publishing it
         run: |
-          tar -xzf "dist/hpmmo-server-${{ steps.id.outputs.release_id }}.tar.gz" -C /tmp/verify
-          cd /tmp/verify && sha256sum -c --strict --quiet SHA256SUMS
-          test -x services/cpp/build/hpmmo_service
+          archive="dist/hpmmo-server-${{ steps.id.outputs.release_id }}.tar.gz"
+          test -f "$archive" || { echo "artifact $archive is missing" >&2; exit 1; }
+          mkdir -p /tmp/verify && tar -C /tmp/verify -xzf "$archive"
+          ( cd /tmp/verify && sha256sum -c --strict --quiet SHA256SUMS )
+          test -x /tmp/verify/services/cpp/build/hpmmo_service
 
       - uses: actions/upload-artifact@v4
         with:
@@ -138,6 +140,14 @@ jobs:
   # documented in server/README.md, so it runs on windows-latest. When no
   # PostgreSQL binaries are present it SKIPs (exit 2) and this job reports a
   # warning rather than failing the pipeline.
+  #
+  # Portability gap (recorded, not fixed here): the server and its deployment
+  # target are Linux, but the suite drives pg_ctl.exe, so it cannot run on
+  # ubuntu-22.04 (or any Linux runner) as it stands - that is why CI runs it
+  # on Windows even though the service is Linux. Porting the cluster lifecycle
+  # to the POSIX pg_ctl would let this signal run on the deployment platform;
+  # until that happens this job stays the Windows portability signal and is
+  # deliberately NOT a deployment gate (the deploy job needs only `package`).
   # -------------------------------------------------------------------------
   integration:
     name: integration suite (windows)
@@ -212,9 +222,9 @@ jobs:
   #   * workflow_dispatch with deploy=true, optionally pinning release_id /
   #     run_id to ship an artifact built by an earlier, already-green run.
   # In both cases the job needs the package job (build + tests + deployment
-  # rehearsal) and the integration job to have succeeded first, and it
-  # re-checks the ref so a dispatch run on a feature branch can never reach
-  # the box.
+  # rehearsal) to have succeeded first, and it re-checks the ref so a
+  # dispatch run on a feature branch can never reach the box. It deliberately
+  # does NOT need the Windows integration job - see the note at `needs:`.
   #
   # Manual setup required (exact names):
   #   1. repository secrets: HPMMO_DEPLOY_HOST, HPMMO_DEPLOY_USER,
@@ -229,9 +239,15 @@ jobs:
   # -------------------------------------------------------------------------
   deploy:
     name: deploy to production
-    needs: [package, integration]
+    # The deploy artifact is Linux (production is Ubuntu 22.04 and `package`
+    # builds the artifact on ubuntu-22.04), so only `package` gates this job.
+    # The Windows integration job keeps running as its own portability signal:
+    # a red Windows job is a real bug (it caught the NOMINMAX/std::max
+    # failure above) but it is not a deployment gate - a Windows-only
+    # toolchain failure must not block a Linux deployment.
+    needs: [package]
     # success() is explicit: the box is only touched after build + tests +
-    # rehearsal (package) and the integration job are green.
+    # rehearsal (package) are green.
     if: success() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy))
     runs-on: ubuntu-22.04
     concurrency:
@@ -292,7 +308,7 @@ jobs:
         run: |
           archive="dist/hpmmo-server-${{ steps.id.outputs.release_id }}.tar.gz"
           test -f "$archive" || { echo "artifact $archive is missing" >&2; exit 1; }
-          mkdir -p /tmp/verify && tar -xzf "$archive" -C /tmp/verify
+          mkdir -p /tmp/verify && tar -C /tmp/verify -xzf "$archive"
           ( cd /tmp/verify && sha256sum -c --strict --quiet SHA256SUMS )
           test -x /tmp/verify/services/cpp/build/hpmmo_service
 

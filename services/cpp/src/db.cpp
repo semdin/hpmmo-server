@@ -209,7 +209,7 @@ void Conn::rollback() {
 }
 
 Pool::Pool(const std::string& dsn, int size) {
-    for (int i = 0; i < std::max(1, size); ++i) {
+    for (int i = 0; i < (std::max)(1, size); ++i) {
         conns_.push_back(std::make_unique<Conn>(dsn));
         locks_.push_back(std::make_unique<std::mutex>());
     }
@@ -362,7 +362,7 @@ int highest_migration_on_disk(const std::string& dir) {
         if (name.size() < 4 || !std::isdigit(static_cast<unsigned char>(name[0]))) continue;
         try {
             const int version = std::stoi(name.substr(0, 4));
-            highest = std::max(highest, version);
+            highest = (std::max)(highest, version);
         } catch (...) {
         }
     }
