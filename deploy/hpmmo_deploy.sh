@@ -72,7 +72,7 @@ PROG="$(basename "$0")"
 : "${HPMMO_STATUS_HOST:=127.0.0.1}"
 : "${HPMMO_STATUS_PORT:=8083}"
 : "${HPMMO_ADMIN_PORT:=8082}"
-: "${HPMMO_MAINTENANCE_COUNTDOWN:=300}"
+: "${HPMMO_MAINTENANCE_COUNTDOWN:=30}"
 : "${HPMMO_DRAIN_TIMEOUT:=600}"
 : "${HPMMO_VERIFY_TIMEOUT:=90}"
 : "${HPMMO_HTTP_TIMEOUT:=10}"
@@ -493,10 +493,11 @@ WAIT_REASON=""
 # early because the world server itself refused to continue (FAILED) or because
 # the maintenance cycle was cancelled and the world is ONLINE again.
 wait_world_state() {  # state timeout -> 0/1 ; journals observed transitions
-    local target="$1" timeout="$2" deadline out st reason
+    local target="$1" timeout="$2" deadline out st reason last_log
     out="${HPMMO_STATE_DIR%/}/logs/.world-state.json"
     WAIT_REASON=""
     deadline=$(( "$(now_epoch)" + timeout ))
+    last_log=0
     while :; do
         admin_request GET "${HPMMO_ADMIN_URL%/}/admin/state" "" "$out"
         if [ "$HTTP_CODE" = "200" ]; then
@@ -527,7 +528,15 @@ wait_world_state() {  # state timeout -> 0/1 ; journals observed transitions
                 fi
             fi
         fi
-        [ "$(now_epoch)" -ge "$deadline" ] && break
+        local now
+        now="$(now_epoch)"
+        if [ $(( now - last_log )) -ge 5 ]; then
+            last_log="$now"
+            local remaining=$(( deadline - now ))
+            [ "$remaining" -lt 0 ] && remaining=0
+            say "waiting for state $target (current: ${st:-unknown}, remaining: ${remaining}s)"
+        fi
+        [ "$now" -ge "$deadline" ] && break
         sleep "$HPMMO_POLL_INTERVAL"
     done
     rm -f "$out"
@@ -965,7 +974,7 @@ cmd_deploy() {  # id [reason] [cold]
 
     out="${HPMMO_STATE_DIR%/}/logs/.begin.json"
     begin_body="$(printf '{"reason":"server update %s","countdown_seconds":%s}' \
-        "$(printf '%s' "$id" | tr -d '"\\')" "${HPMMO_MAINTENANCE_COUNTDOWN:-300}")"
+        "$(printf '%s' "$id" | tr -d '"\\')" "${HPMMO_MAINTENANCE_COUNTDOWN:-30}")"
     admin_request POST "${HPMMO_ADMIN_URL%/}/admin/maintenance/begin" "$begin_body" "$out"
     code="$HTTP_CODE"
     local begin_state
@@ -1222,14 +1231,14 @@ Usage:
   $PROG --stage <artifact.tar.gz|directory> [--id ID] [--generate-manifest]
         Verify, build (if needed) and freeze an immutable release. No player
         impact: the running world is untouched.
-  $PROG --release <id> [--reason TEXT]
+  $PROG --release <id> [--reason TEXT] [--countdown SECONDS]
         Deploy a staged release: announce, drain, final save, migrate, switch,
         restart, verify - rolling back automatically on failure.
   $PROG --release <id> --cold-start
         The same, but skip the announce/drain/save barrier. Refused unless the
         world service is verifiably stopped: it exists for the one-time move
         onto this layout and for recovery while the world is already down.
-  $PROG --deploy <artifact> [--id ID] [--reason TEXT]
+  $PROG --deploy <artifact> [--id ID] [--reason TEXT] [--countdown SECONDS]
         --stage followed by --release.
   $PROG --recover
         Finish or undo a deployment interrupted by a controller restart.
@@ -1253,7 +1262,7 @@ EOF
 
 # --- main --------------------------------------------------------------------
 main() {
-    local command="" artifact="" id="" reason="" gen_manifest=0 cold=0 arg
+    local command="" artifact="" id="" reason="" gen_manifest=0 cold=0 arg cmd_countdown=""
 
     while [ $# -gt 0 ]; do
         case "$1" in
@@ -1265,6 +1274,7 @@ main() {
             --status) command=status; shift ;;
             --id) id="${2:-}"; shift 2 ;;
             --reason) reason="${2:-}"; shift 2 ;;
+            --countdown) cmd_countdown="${2:-}"; shift 2 ;;
             --journal) HPMMO_STATUS_LINES="${2:-10}"; shift 2 ;;
             --cold-start) cold=1; shift ;;
             --generate-manifest) gen_manifest=1; shift ;;
@@ -1282,6 +1292,7 @@ main() {
         set +a
     fi
     restore_caller_env
+    [ -n "$cmd_countdown" ] && HPMMO_MAINTENANCE_COUNTDOWN="$cmd_countdown"
 
     : "${HPMMO_ADMIN_URL:=http://127.0.0.1:${HPMMO_ADMIN_PORT:-8082}}"
     : "${HPMMO_API_URL:=http://127.0.0.1:8081}"

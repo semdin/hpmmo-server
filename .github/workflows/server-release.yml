@@ -321,7 +321,13 @@ jobs:
           mkdir -p ~/.ssh
           printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/id_ed25519
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+          cat <<'EOF' > ~/.ssh/config
+          Host *
+            ServerAliveInterval 15
+            ServerAliveCountMax 4
+            TCPKeepAlive yes
+          EOF
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts ~/.ssh/config
 
       - name: Ship the artifact and deploy through the release controller
         # The controller on the box is the only thing that mutates the
@@ -343,7 +349,7 @@ jobs:
           ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes -o StrictHostKeyChecking=yes \
             "$DEPLOY_USER@$DEPLOY_HOST" \
             "sudo /opt/hpmmo/bin/hpmmo_deploy.sh --deploy /tmp/hpmmo-server-$RELEASE_ID.tar.gz \
-               --id $RELEASE_ID --reason 'ci:${{ github.run_id }}'"
+               --id $RELEASE_ID --reason 'ci:${{ github.run_id }}' --countdown 30"
 
       - name: Assert the box reports the deployed release ONLINE
         # Belt and braces on top of the controller's exit code: read the
