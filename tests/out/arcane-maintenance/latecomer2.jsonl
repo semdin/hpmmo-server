@@ -1,0 +1,5 @@
+{"admin_port":64600,"event":"maintenance_probe","t":0.133333333333333,"tick":0,"token_present":true}
+{"event":"started","mode":"maintenance","name":"latecomer2","port":61391,"protocol":8,"t":0.133333333333333,"tick":0}
+{"event":"joined","ok":false,"reason":"maintenance","t":0.216666666666667,"tick":0,"uid":0}
+{"event":"join_refused","reason":"maintenance","t":0.216666666666667,"tick":0}
+{"admin_port":64600,"admin_unreachable":0,"casts":[],"disconnect_reason":"","duration":0.216666666666667,"event":"final","events":[],"join_reason":"maintenance","joined":false,"last_status":{},"mana_at_finish":300,"states":[],"t":0.216666666666667,"tick":0,"token_present":true,"uid":0}

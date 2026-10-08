@@ -871,7 +871,9 @@ func restore_character(data: Dictionary) -> void:
 	if data.get("inventory") is Array:
 		inventory.clear()
 		for entry in data.inventory:
-			if entry is Dictionary and entry.get("id") is String and GameData.ITEMS.has(entry.id):
+			# Retired/unknown catalog entries are still owned. Preserve them across
+			# load/save; the equipment catalog decides whether they can be equipped.
+			if entry is Dictionary and entry.get("id") is String and not String(entry.id).is_empty() and typeof(entry.get("amount")) in [TYPE_INT,TYPE_FLOAT] and int(entry.amount) > 0:
 				inventory.append({"id": entry.id, "amount": maxi(1, int(entry.get("amount", 1))), "tier": clampi(int(entry.get("tier", 0)), 0, 9)})
 	base_max_hp = int(data.get("base_max_hp", max_hp))
 	base_max_mana = int(data.get("base_max_mana", max_mana))

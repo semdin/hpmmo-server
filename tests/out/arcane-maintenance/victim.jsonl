@@ -1,0 +1,7 @@
+{"admin_port":64600,"event":"maintenance_probe","t":0.133333333333333,"tick":0,"token_present":true}
+{"event":"started","mode":"maintenance","name":"victim","port":61391,"protocol":8,"t":0.133333333333333,"tick":0}
+{"event":"joined","ok":true,"reason":"","t":0.233333333333333,"tick":74,"uid":31}
+{"event":"maintenance_event","reason":"","seconds_remaining":0,"state":"DISCONNECTING","t":0.25,"tick":74}
+{"deadline_ms":0.0,"event":"admin_state","players":1.0,"reason":"","state":"ONLINE","t":0.3,"tick":75}
+{"event":"disconnected","reason":"server_closed","t":0.766666666666667,"tick":83}
+{"admin_port":64600,"admin_unreachable":0,"casts":[{"mana_after":275,"mana_before":300,"ok":true,"reason":"","seq":900001,"spell":"stupefy","state":"ONLINE","state_at_ack":"ONLINE","t":0.750000000000001}],"disconnect_reason":"server_closed","duration":2.28333333333333,"event":"final","events":[{"reason":"","seconds_remaining":0,"state":"DISCONNECTING","t":0.25,"tick":74}],"join_reason":"","joined":true,"last_status":{"deadline_ms":0.0,"frozen":false,"ok":true,"players":0.0,"protocol":8.0,"reason":"","release":"maintenance-test","simulation_paused":false,"state":"ONLINE","tick":115.0,"uptime_ms":6738.0},"mana_at_finish":275,"states":[{"deadline_ms":0,"players":1,"server_tick":76,"state":"ONLINE","t":0.3,"tick":75}],"t":2.28333333333333,"tick":83,"token_present":true,"uid":31}

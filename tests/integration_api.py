@@ -425,7 +425,7 @@ def main():
         schema_level = max(int(f[:4]) for f in os.listdir(MIGRATIONS) if f.endswith(".sql"))
         status, body = http(port, "GET", "/api/ready")
         check(status == 200 and body.get("schema") == schema_level,
-              f"readiness reports schema level {schema_level} (0004 session-character applied)")
+              f"readiness reports schema level {schema_level} (all required migrations applied)")
 
         status, body = http(port, "POST", "/api/login", {"username": "alice", "password": "alicepass1"})
         check(status == 200 and body.get("token"), "launcher logs in again for introspection")

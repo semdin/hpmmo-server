@@ -35,6 +35,4 @@ anti_aliasing/quality/screen_space_aa=1
 
 [gui]
 
-theme/custom_font="res://assets/fonts/AlegreyaSans-Regular.ttf"
 theme/custom_font_size=15
-theme/custom_theme="res://assets/ui/hpmmo.tres"

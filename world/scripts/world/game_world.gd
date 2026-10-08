@@ -7,9 +7,9 @@ extends Node3D
 @onready var players_container: Node3D = $Players
 @onready var mobs_container: Node3D = $Mobs
 @onready var monoliths_container: Node3D = $Monoliths
-@onready var hud: Control = $CanvasLayer/HUD
-@onready var inventory_ui: Control = $CanvasLayer/InventoryUI
-@onready var ollivander_ui: Control = $CanvasLayer/OllivanderUI
+@onready var hud: Control = get_node_or_null("CanvasLayer/HUD")
+@onready var inventory_ui: Control = get_node_or_null("CanvasLayer/InventoryUI")
+@onready var ollivander_ui: Control = get_node_or_null("CanvasLayer/OllivanderUI")
 
 const PLAYER_SCENE = preload("res://scenes/entities/player/player.tscn")
 const MONOLITH_SCENE = preload("res://scenes/entities/monolith/dark_monolith.tscn")
@@ -34,6 +34,15 @@ var _views: Dictionary = {}          # sim uid -> view node (client role)
 var _view_scenes: Dictionary = {}
 
 const LOOT_SCENE = preload("res://scenes/entities/loot/loot_drop.tscn")
+
+func _enter_tree() -> void:
+	# Remove presentation before child _ready callbacks. Freeing it in our
+	# _ready was too late: the headless world had already built all UI assets.
+	if NetworkManager.is_dedicated_server:
+		var canvas := get_node_or_null("CanvasLayer")
+		if canvas:
+			remove_child(canvas)
+			canvas.free()
 
 func _ready() -> void:
 	var old_front := get_node_or_null("CastleFront")

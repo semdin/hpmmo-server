@@ -227,7 +227,15 @@ def seeded_character(cid, token, pos, map_id):
         "pos": list(pos),
         "rot_y": 0.0,
         "map_id": map_id,
+        # Explicit ownership: an empty bag no longer implicitly seeds a new character.
         "inventory": [],
+        "base_max_hp": 550,
+        "base_max_mana": 400,
+        "equipment_version": 1,
+        "inventory_revision": 1,
+        "equipment": {"main_hand": {"id": "wand_hawthorn", "tier": 1},
+                      "chest": {"id": "robe_apprentice", "tier": 0},
+                      "broom": {"id": "broom_nimbus2000", "tier": 0}},
     }
 
 

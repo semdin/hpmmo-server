@@ -55,6 +55,9 @@ static func surface() -> StyleBoxFlat:
 	return box
 
 static func install(theme: Theme) -> void:
+	# The dedicated export and minimal-theme fallback may omit presentation art.
+	for kind in ["window","button","slot","minimap"]:
+		if not ResourceLoader.exists("res://assets/ui/arcane/%s.png" % kind): return
 	for role in ["ArcaneCard", "ArcaneWindow"]:
 		theme.set_type_variation(role, "Panel")
 		theme.set_stylebox("panel", role, surface())

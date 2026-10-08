@@ -13,7 +13,7 @@ def main():
     for project, name in [(harness.CLIENT_DIR,"client"),(os.path.join(harness.SERVER_DIR,"world"),"world")]:
         with open(out / f"{name}-import.log","wb") as log:
             imported = subprocess.run([harness.marker_cmd(),"--headless","--path",project,"--editor","--import","--quit"],stdout=log,stderr=subprocess.STDOUT)
-        if imported.returncode: return 1
+        if imported.returncode or "ERROR:" in (out / f"{name}-import.log").read_text(encoding="utf-8",errors="replace"): return 1
     stub = harness.StubService().start()
     sheet = harness.seeded_character(901,"arcane",[0,0.6,5],"grounds")
     sheet.update(base_max_hp=500,base_max_mana=300,max_hp=550,max_mana=300,current_hp=500,current_mana=300,
@@ -37,6 +37,8 @@ def main():
             deadline = time.monotonic()+8
             while time.monotonic() < deadline and not stub.saved(901): time.sleep(.1)
             time.sleep(.4)
+        world_log = Path(server.log_path).read_text(encoding="utf-8",errors="replace")
+        assert "SCRIPT ERROR:" not in world_log and "ERROR:" not in world_log, "Dedicated world logged an error; inspect its transcript"
         saved = stub.saved(901)
         assert saved and saved[-1]["equipment"]["main_hand"]["tier"] == 1
         print("EQUIPMENT SESSION RESULT: equip, refine, duplicate request, disconnect save and rejoin passed")

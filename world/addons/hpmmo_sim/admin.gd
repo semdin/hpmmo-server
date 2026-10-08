@@ -643,7 +643,8 @@ func _kick_everyone() -> int:
 	if peer is ENetMultiplayerPeer:
 		var enet := peer as ENetMultiplayerPeer
 		for peer_id in ids:
-			enet.disconnect_peer(int(peer_id), true)
+			# Keep the disconnect signal so SceneMultiplayer clears its peer roster.
+			enet.disconnect_peer(int(peer_id), false)
 	for peer_id in SimAuthority.players_by_peer.keys():
 		SimAuthority.remove_player(int(peer_id))
 	return sessions

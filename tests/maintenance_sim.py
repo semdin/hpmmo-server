@@ -529,7 +529,7 @@ def main():
         print("client simulation package not found - run dev.ps1 sync-sim first")
         return 2
 
-    out_dir = args.out_dir or tempfile.mkdtemp(prefix="hpmmo-maint-")
+    out_dir = os.path.abspath(args.out_dir) if args.out_dir else tempfile.mkdtemp(prefix="hpmmo-maint-")
     os.makedirs(out_dir, exist_ok=True)
     print("artifacts: %s" % out_dir)
 
