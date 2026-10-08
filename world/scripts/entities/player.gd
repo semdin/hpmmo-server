@@ -9,6 +9,8 @@ signal spell_cast_signal(spell_id: String, cooldown: float)
 signal loot_collected_signal(item_id: String, amount: int)
 signal mounted_changed(is_mounted: bool)
 signal inventory_changed
+signal equipment_changed
+signal equipment_answer(result: Dictionary)
 ## Animation events (`footstep:<surface>`, `fx:wand_release`, ...) that
 ## Spell effects consumes for audio. Emitted from measured contact, never from a
 ## hardcoded frame number.
@@ -64,6 +66,14 @@ var max_mana: int = 300
 var current_mana: int = 300
 var galleons: int = 500
 var inventory: Array[Dictionary] = []
+var equipment: Dictionary = {}
+var inventory_revision: int = 0
+var base_max_hp: int = 500
+var base_max_mana: int = 300
+var equipment_version: int = 0
+var derived_stats: Dictionary = {}
+var _character_restored := false
+var _wand_visual_key := ""
 
 # Movement & Speeds
 var walk_speed: float = 8.5
@@ -206,8 +216,9 @@ func _ready() -> void:
 	_apply_house_customization()
 	_apply_wand_aura()
 	_update_nameplate()
-	if inventory.is_empty():
+	if not _character_restored:
 		_init_starter_inventory()
+		_initialize_equipment()
 	
 	if not is_local_player:
 		if camera:
@@ -280,30 +291,16 @@ func _align_broom_to_hips() -> void:
 	broom_mesh.position = target_local - broom.seat_offset()
 
 ## House variation is material-only (no duplicated rig): the robe family takes a
-## darkened house tone and the trim family the house primary colour.
+## darkened house tone and the trim family the house primary colour. The rule
+## itself lives in `HeroAppearance`, which the character-select preview also
+## calls, so the podium and the body cannot drift apart.
 func _apply_house_customization() -> void:
 	if not GameData.HOUSES.has(house):
 		return
-	var h_data = GameData.HOUSES[house]
-	var primary_col: Color = h_data.primary_color
-	var body := visuals.find_child("Hero_Body", true, false)
-	if body is MeshInstance3D:
-		var mesh: Mesh = (body as MeshInstance3D).mesh
-		for i in range(mesh.get_surface_count()):
-			var mat := mesh.surface_get_material(i)
-			if mat is StandardMaterial3D:
-				var named := (mat as StandardMaterial3D).resource_name
-				if named == "Hero_Trim":
-					var trim := (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
-					trim.albedo_color = primary_col
-					trim.metallic = 0.35
-					trim.roughness = 0.45
-					(body as MeshInstance3D).set_surface_override_material(i, trim)
-				elif named == "Hero_Robe":
-					var robe := (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
-					robe.albedo_color = primary_col.darkened(0.72)
-					(body as MeshInstance3D).set_surface_override_material(i, robe)
+	HeroAppearance.apply_house_tint(visuals, GameData.HOUSES[house].primary_color)
 
+	if _character_restored:
+		return
 	if house == "Hufflepuff":
 		max_hp = 625
 		current_hp = 625
@@ -858,6 +855,7 @@ func _update_flight_pose(delta: float) -> void:
 		camera_pivot.rotation_degrees.z = lerpf(camera_pivot.rotation_degrees.z, roll_deg, minf(1, delta * 3))
 
 func restore_character(data: Dictionary) -> void:
+	_character_restored = true
 	level = clampi(int(data.get("level", 1)), 1, 100)
 	max_exp = 200
 	for _i in range(level - 1):
@@ -875,6 +873,12 @@ func restore_character(data: Dictionary) -> void:
 		for entry in data.inventory:
 			if entry is Dictionary and entry.get("id") is String and GameData.ITEMS.has(entry.id):
 				inventory.append({"id": entry.id, "amount": maxi(1, int(entry.get("amount", 1))), "tier": clampi(int(entry.get("tier", 0)), 0, 9)})
+	base_max_hp = int(data.get("base_max_hp", max_hp))
+	base_max_mana = int(data.get("base_max_mana", max_mana))
+	equipment_version = int(data.get("equipment_version", 0))
+	equipment = (data.get("equipment", {}) as Dictionary).duplicate(true)
+	inventory_revision = int(data.get("inventory_revision", 0))
+	_initialize_equipment()
 	_apply_wand_aura()
 	_update_nameplate()
 	inventory_changed.emit()
@@ -1197,6 +1201,8 @@ func apply_level(new_level: int, new_max_hp: int, new_max_mana: int) -> void:
 
 ## Authority stat mirror: the engine owns these numbers, the node displays them.
 func apply_authoritative_stats(stats: Dictionary) -> void:
+	if stats.has("equipment") and int(stats.get("inventory_revision", -1)) < inventory_revision:
+		return
 	current_hp = clampi(int(stats.get("hp", current_hp)), 0, maxi(1, int(stats.get("max_hp", max_hp))))
 	max_hp = maxi(1, int(stats.get("max_hp", max_hp)))
 	current_mana = clampi(int(stats.get("mana", current_mana)), 0, maxi(1, int(stats.get("max_mana", max_mana))))
@@ -1205,6 +1211,8 @@ func apply_authoritative_stats(stats: Dictionary) -> void:
 	max_exp = int(stats.get("max_exp", max_exp))
 	level = int(stats.get("level", level))
 	galleons = int(stats.get("galleons", galleons))
+	if stats.has("equipment"):
+		apply_equipment_snapshot(stats)
 	var was_mounted := is_mounted
 	var now_mounted := bool(stats.get("mounted", is_mounted))
 	if was_mounted != now_mounted:
@@ -1225,23 +1233,25 @@ func add_exp(amount: int) -> void:
 	SimAuthority.grant_exp(self, amount)
 	_spawn_floating_text("+%d EXP" % amount, Color(0.3, 1.0, 0.5), 1.2)
 
-func add_loot(item_id: String, amount: int) -> void:
+func add_loot(item_id: String, amount: int, tier: int = 0) -> void:
 	if amount <= 0:
 		return
 	if item_id == "galleons":
 		galleons += amount
+		inventory_revision += 1
 		emit_signal("loot_collected_signal", "galleons", amount)
 		inventory_changed.emit()
 		return
 	
 	var found := false
 	for item in inventory:
-		if item.id == item_id:
+		if item.id == item_id and int(item.get("tier", 0)) == tier:
 			item.amount += amount
 			found = true
 			break
 	if not found:
-		inventory.append({"id": item_id, "amount": amount, "tier": 0})
+		inventory.append({"id": item_id, "amount": amount, "tier": tier})
+	inventory_revision += 1
 	
 	emit_signal("loot_collected_signal", item_id, amount)
 	inventory_changed.emit()
@@ -1291,16 +1301,16 @@ func _try_click_target() -> bool:
 	set_target(null)
 	return false
 
-func upgrade_wand(new_tier: int) -> void:
-	wand_tier = clamp(new_tier, 0, 9)
-	for item in inventory:
-		if str(item.id).begins_with("wand_"):
-			item.tier = wand_tier
-	_apply_wand_aura()
-	_spawn_floating_text("WAND REFINED TO +%d!" % wand_tier, Color(1.0, 0.9, 0.2), 1.6)
-	inventory_changed.emit()
+func upgrade_wand(_new_tier: int) -> void:
+	# Compatibility entry point: the authority determines the resulting tier.
+	SimNet.submit_equipment(self, "refine", "main_hand")
 
 func _apply_wand_aura() -> void:
+	if is_instance_valid(visuals):
+		var key := str(equipment.get("main_hand",{}))
+		if key != _wand_visual_key:
+			_wand_visual_key = key
+			HeroAppearance.show_equipped_wand(visuals,equipment.get("main_hand",{}))
 	if not wand_aura_particles:
 		return
 	var up_info = GameData.UPGRADE_TABLE.get(wand_tier, {})
@@ -1325,3 +1335,40 @@ func show_floating_text(text: String, col: Color, scale_mult: float = 1.0) -> vo
 
 func emit_stats() -> void:
 	emit_signal("stats_changed", current_hp, max_hp, current_mana, max_mana, current_exp, max_exp, level)
+
+func _initialize_equipment() -> void:
+	if equipment_version == 0:
+		base_max_hp = max_hp
+		base_max_mana = max_mana
+		var migrated := HPEquipment.migrate(inventory, wand_tier)
+		inventory.assign(migrated.inventory)
+		equipment = migrated.equipment
+		equipment_version = 1
+	_recalculate_equipment()
+
+func _recalculate_equipment() -> void:
+	derived_stats = HPEquipment.stats(base_max_hp, base_max_mana, equipment)
+	max_hp = int(derived_stats.max_hp)
+	max_mana = int(derived_stats.max_mana)
+	current_hp = mini(current_hp, max_hp)
+	current_mana = mini(current_mana, max_mana)
+	wand_tier = int(derived_stats.wand_tier)
+	mounted_speed = maxf(0.1, float(derived_stats.mount_speed))
+	_apply_wand_aura()
+
+func apply_equipment_snapshot(snapshot: Dictionary) -> void:
+	var revision := int(snapshot.get("inventory_revision", -1))
+	if revision < inventory_revision:
+		return
+	var changed: bool = equipment != snapshot.get("equipment", equipment) or inventory != snapshot.get("inventory", inventory)
+	inventory_revision = revision
+	equipment = (snapshot.get("equipment", equipment) as Dictionary).duplicate(true)
+	if snapshot.get("inventory") is Array:
+		inventory.assign(snapshot.inventory)
+	base_max_hp = int(snapshot.get("base_max_hp", base_max_hp))
+	base_max_mana = int(snapshot.get("base_max_mana", base_max_mana))
+	equipment_version = 1
+	_recalculate_equipment()
+	if changed:
+		inventory_changed.emit()
+		equipment_changed.emit()

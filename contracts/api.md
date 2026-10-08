@@ -32,10 +32,9 @@ revision), 410 consumed/expired ticket, 503 database unavailable (no fallback ba
 | Endpoint | Body -> Response |
 | --- | --- |
 | `POST /api/game-ticket` | `{character_id?}` -> `{ticket, expires_in_seconds}`; the launcher handoff (see below); character ownership checked when supplied |
-| `POST /api/characters/create` | `{name, house}` -> `{character:{id,name,house}}`; max 2 per account; starter items seeded as ownership rows |
+| `POST /api/characters/create` | `{name, house}` -> `{character:{id,name,house}}`; max 2 per account; starter wand, robe and broom equipped, other starter items in bag, in one transaction |
 | `POST /api/characters/list` | `{}` -> `{characters:[snapshot]}` scoped to the session account |
 | `POST /api/characters/load` | `{character_id}` -> `{character: snapshot + inventory[]}`; 404 for foreign ids; also accepts `X-Service-Token` (world server: any character, no session - see below) |
-| `POST /api/characters/save` | `{character_id, base_revision?, level?, exp?, max_hp?, current_hp?, max_mana?, current_mana?, galleons?, wand_tier?, pos?[3], rot_y?, map_id?, quests?, inventory?}` -> `{revision}`; **absent fields keep their stored values**; `inventory` present = validated full replacement of the ownership rows (capacity-limited to 40 item kinds, stacks <= 9999); `base_revision` mismatch -> 409 with the current revision; also accepts `X-Service-Token` (world server: any character, no session - see below). **the server integration gate:** progression fields accepted here are client-authoritative until the authority moves authority to the world server - do not expose this endpoint to untrusted clients before then |
 
 ## Service-token endpoints (world server authority)
 
@@ -44,7 +43,10 @@ revision), 410 consumed/expired ticket, 503 database unavailable (no fallback ba
 | `POST /api/session/introspect` | `{token}` -> `{success, account_id, username, character_id, expires_in_seconds}`; maps a session token to its account and the character bound at ticket redemption (`character_id: 0` when unbound). 400 missing/malformed token, 404 unknown/expired/revoked (indistinguishable). Never returns the token or its hash |
 | `POST /api/reward` | `{op_id, character_id, exp?, galleons?, items?[{id,amount,tier}]}` -> `{result}` or `{replayed:true, result}`; exactly-once per `op_id` (operations ledger) |
 | `POST /api/trade` | `{op_id, from_id, to_id, offer:{galleons,items?}, request:{galleons,items?}}` -> `{result}` or replay; validates distinct ids, non-negative galleons, sender ownership of every offered item, destination capacity (40 item kinds), and moves items + currency in ONE transaction (row locks in ascending character-id order); replays are no-ops |
-| `POST /api/characters/load` / `POST /api/characters/save` | same bodies as the session versions, but with `X-Service-Token` and no bearer session; **the per-account ownership restriction is skipped** - the trusted world server may load/save any character by id. With a bearer session the behaviour is unchanged (foreign character ids still return 404) |
+| `POST /api/characters/load` | `{character_id}`; trusted world server may load any character, including inventory and equipment. Bearer loads remain ownership-scoped (foreign id: 404). |
+| `POST /api/characters/save` | **Service token required. All bearer sessions receive 403.** `{character_id, base_revision?, level?, exp?, base_max_hp?, base_max_mana?, max_hp?, current_hp?, max_mana?, current_mana?, galleons?, wand_tier?, pos?[3], rot_y?, map_id?, quests?, inventory?, equipment?, equipment_version?, inventory_revision?}` -> `{revision}`. Missing fields retain stored values. Bag, equipment, currency and progression commit in one transaction. Revision mismatch: 409, reload and reconcile; never blindly retry a stale full state with the new revision. |
+
+Equipment snapshot: `equipment` maps the ten slot names to `{id,tier}`; each slot owns one copy removed from `inventory`. Bag stacks are keyed by `(id,tier)`, capped at 40 item kinds and 9999 copies per stack. Equipment replacement requires an accompanying inventory replacement. Equipped copies are not tradeable. Schema migration 5 transfers owned legacy starter gear exactly once and records explicit base HP/mana and equipment version 1.
 
 ## Launcher handoff (ticket flow)
 
@@ -55,7 +57,7 @@ revision), 410 consumed/expired ticket, 503 database unavailable (no fallback ba
    `--pass` argv handoff is tracked as the remaining the server integration launcher item; the service side
    and the redemption endpoint are live and tested.)
 4. The game calls `POST /api/ticket/redeem` once, receives its own session, and uses
-   `Authorization: Bearer` for character load/save. The ticket is consumed on first use
+   `Authorization: Bearer` for character reads. Gameplay writes come only from the authoritative world server. The ticket is consumed on first use
    (replay -> 410).
 
 ## Environments

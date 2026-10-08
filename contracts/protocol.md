@@ -47,8 +47,10 @@ its own state. `server_relay` is off, so clients cannot address each other.
 | `sim_despawn` | `authority, call_remote, reliable, HPProtocol.CH_SNAPSHOT` | uid: int |
 | `sim_telegraph` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | uid: int, data: Dictionary |
 | `sim_telegraph_end` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | uid: int |
+| `sim_equipment_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | request_id: int, revision: int, operation: String, slot: String, item_id: String, tier: int |
+| `sim_equipment_result` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | answer: Dictionary |
 
-Surface entries: 36. Hash of this document is pinned in the workspace lock;
-payload schemas for gameplay data live in `contracts/schemas/`.
+Surface entries: 38. Hash of this document is pinned in the workspace lock;
+Canonical gameplay catalogs live in `world/addons/hpmmo_sim/data/`; client content schemas live in `contracts/schemas/`.
 
-Surface hash: `d191486e215a177b2b417a0622bdeb89f25455a090da5b19d6d5a0efb223f97c`
+Surface hash: `6785ed74ff1eca99172c02b88ed8a269101f233efcf1b4477a9599f12b44cbdd`

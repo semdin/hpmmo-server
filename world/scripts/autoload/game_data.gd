@@ -129,107 +129,11 @@ var SPELLS: Dictionary = {
 
 # Ollivander +0 to +9 Upgrade Table
 # Success rates, Galleon cost, required items, damage multipliers, and aura visual styles
-const UPGRADE_TABLE = {
-	0: {"next": 1, "chance": 100, "cost": 100, "material": "Phoenix Ash x1", "multiplier": 1.00, "aura": Color(0.7, 0.7, 0.7, 0.0)},
-	1: {"next": 2, "chance": 100, "cost": 250, "material": "Phoenix Ash x1", "multiplier": 1.12, "aura": Color(0.7, 0.7, 0.7, 0.0)},
-	2: {"next": 3, "chance": 95, "cost": 500, "material": "Phoenix Ash x2", "multiplier": 1.25, "aura": Color(0.7, 0.7, 0.7, 0.0)},
-	3: {"next": 4, "chance": 85, "cost": 1000, "material": "Phoenix Ash x3", "multiplier": 1.40, "aura": Color(0.3, 0.7, 1.0, 0.4)}, # Subtle blue
-	4: {"next": 5, "chance": 75, "cost": 2000, "material": "Dragon Heartstring x1", "multiplier": 1.60, "aura": Color(0.2, 0.8, 1.0, 0.6)},
-	5: {"next": 6, "chance": 60, "cost": 4000, "material": "Dragon Heartstring x2", "multiplier": 1.85, "aura": Color(0.1, 0.9, 1.0, 0.8)},
-	6: {"next": 7, "chance": 45, "cost": 8000, "material": "Thestral Hair x1", "multiplier": 2.15, "aura": Color(1.0, 0.85, 0.2, 0.9)}, # Golden Lightning
-	7: {"next": 8, "chance": 30, "cost": 15000, "material": "Thestral Hair x2", "multiplier": 2.50, "aura": Color(1.0, 0.6, 0.1, 1.0)}, # Flame sparks
-	8: {"next": 9, "chance": 15, "cost": 30000, "material": "Elder Wood Core x1", "multiplier": 3.00, "aura": Color(0.9, 0.2, 1.0, 1.0)}, # Legendary Phoenix/Elder Aura
-	9: {"next": 9, "chance": 0, "cost": 0, "material": "MAX TIER", "multiplier": 3.50, "aura": Color(1.0, 0.9, 0.4, 1.0)}
-}
-
-# Items Database
-var ITEMS: Dictionary = {
-	"wand_hawthorn": {
-		"id": "wand_hawthorn",
-		"name": "Hawthorn Wand",
-		"type": "weapon",
-		"base_damage": 30,
-		"level": 0,
-		"icon_color": Color(0.65, 0.45, 0.25),
-		"desc": "A supple wand made of hawthorn with unicorn hair core."
-	},
-	"wand_elder": {
-		"id": "wand_elder",
-		"name": "Elder Wand Replica",
-		"type": "weapon",
-		"base_damage": 55,
-		"level": 0,
-		"icon_color": Color(0.85, 0.75, 0.35),
-		"desc": "Carved from ancient elder wood, thrumming with arcane energy."
-	},
-	"robe_apprentice": {
-		"id": "robe_apprentice",
-		"name": "Hogwarts Student Robes",
-		"type": "armor",
-		"defense": 15,
-		"level": 0,
-		"icon_color": Color(0.2, 0.2, 0.25),
-		"desc": "Standard enchanted robes offering basic spell deflection."
-	},
-	"broom_nimbus2000": {
-		"id": "broom_nimbus2000",
-		"name": "Nimbus 2000",
-		"type": "mount",
-		"speed_bonus": 1.8,
-		"icon_color": Color(0.8, 0.4, 0.1),
-		"desc": "Sleek mahogany racing broom. Press Shift to mount or dismount (Ctrl descends while flying)."
-	},
-	"mat_phoenix_ash": {
-		"id": "mat_phoenix_ash",
-		"name": "Phoenix Ash",
-		"type": "material",
-		"stack": 1,
-		"icon_color": Color(1.0, 0.4, 0.1),
-		"desc": "Warm glowing ash required by Ollivander to refine items up to +4."
-	},
-	"mat_dragon_heartstring": {
-		"id": "mat_dragon_heartstring",
-		"name": "Dragon Heartstring",
-		"type": "material",
-		"stack": 1,
-		"icon_color": Color(0.9, 0.1, 0.3),
-		"desc": "Vibrant dragon essence used for +5 to +6 Ollivander wand upgrades."
-	},
-	"mat_thestral_hair": {
-		"id": "mat_thestral_hair",
-		"name": "Thestral Hair",
-		"type": "material",
-		"stack": 1,
-		"icon_color": Color(0.6, 0.6, 0.8),
-		"desc": "Ethereal core fiber required for high tier (+7 to +8) wand forging."
-	},
-	"mat_elder_core": {
-		"id": "mat_elder_core",
-		"name": "Elder Wood Core",
-		"type": "material",
-		"stack": 1,
-		"icon_color": Color(1.0, 0.85, 0.2),
-		"desc": "The rarest catalyst in the wizarding world. Forges +9 mastercraft."
-	},
-	"potion_health": {
-		"id": "potion_health",
-		"name": "Wiggenweld Potion",
-		"type": "consumable",
-		"heal_amount": 150,
-		"stack": 1,
-		"icon_color": Color(0.2, 0.8, 0.3),
-		"desc": "Healing draught that restores 150 Health instantly."
-	},
-	"potion_mana": {
-		"id": "potion_mana",
-		"name": "Pepperup Potion",
-		"type": "consumable",
-		"mana_amount": 120,
-		"stack": 1,
-		"icon_color": Color(0.1, 0.4, 0.95),
-		"desc": "Steaming potion that restores 120 Mana."
-	}
-}
+# Aura colors are presentation data; all gameplay refinement values come from
+# the canonical simulation catalog.
+const WAND_AURAS := [Color(0.7,0.7,0.7,0),Color(0.7,0.7,0.7,0),Color(0.7,0.7,0.7,0),Color(0.3,0.7,1,0.4),Color(0.2,0.8,1,0.6),Color(0.1,0.9,1,0.8),Color(1,0.85,0.2,0.9),Color(1,0.6,0.1,1),Color(0.9,0.2,1,1),Color(1,0.9,0.4,1)]
+var UPGRADE_TABLE: Dictionary = {}
+var ITEMS: Dictionary = {}
 
 var QUESTS: Dictionary = {}
 
@@ -239,11 +143,15 @@ var SAFE_ZONES: Dictionary = {}
 
 func _ready() -> void:
 	_load_json_data()
+	for spec in HPRules.combat().wand_tiers:
+		var tier := int(spec.tier)
+		UPGRADE_TABLE[tier] = spec.duplicate(true)
+		UPGRADE_TABLE[tier]["aura"] = WAND_AURAS[tier]
 	_register_input_actions()
 
 ## Gameplay contracts (spells, safe zones) are server-owned since the authority handover and
-## consumed from the synced simulation package; items/houses/quests stay client
-## content.
+## consumed from the synced simulation package, together with items/refinement.
+## Houses and quests retain their existing client presentation data.
 const SIM_DATA_DIR := "res://addons/hpmmo_sim/data/"
 
 func _load_json_data() -> void:
@@ -255,7 +163,7 @@ func _load_json_data() -> void:
 				s["color"] = Color.from_string(s["color"], Color.WHITE)
 			SPELLS[k] = s
 	
-	var items_json = _read_json_file("res://data/json/items.json")
+	var items_json = _read_json_file(SIM_DATA_DIR + "items.json")
 	if items_json is Dictionary and not items_json.is_empty():
 		for k in items_json:
 			ITEMS[k] = items_json[k]

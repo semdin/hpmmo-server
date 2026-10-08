@@ -62,6 +62,8 @@ func setup(p_player: Node3D, p_world: Node3D) -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_build()
 	_consolidate_location_labels()
+	get_viewport().size_changed.connect(_arcane_layout)
+	_arcane_layout()
 
 ## Interface presentation consolidation: the map transfer map controller already owns
 ## a top-centre location label with the same text this panel shows (plus the
@@ -104,8 +106,9 @@ func _build() -> void:
 	# frame, which used to reach up into it.
 	_location_label = _make_label("", UITheme.FS_LABEL, UITheme.c("gold_lt"))
 	_location_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	UILayout.place_centred(_location_label, Vector2(480, 22), Vector2(0, 55))
-	_location_label.custom_minimum_size = Vector2(480, 22)
+	UILayout.place_centred(_location_label, Vector2(320, 24), Vector2(0, 20))
+	_location_label.custom_minimum_size = Vector2.ZERO
+	_location_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	_location_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(_location_label)
 
@@ -119,8 +122,12 @@ func _build() -> void:
 	_portal_panel.theme = UITheme.get_theme()
 	_portal_panel.theme_type_variation = UITheme.V_CARD
 	_portal_label = _make_label("Loading...", UITheme.FS_BODY, UITheme.c("parchment"))
-	_portal_label.position = Vector2(10, 6)
+	_portal_label.position = Vector2(36, 6)
 	_portal_panel.add_child(_portal_label)
+	var portal_icon := UITheme.icon_rect("ui_portal", 20.0)
+	portal_icon.name = "PortalIcon"
+	portal_icon.position = Vector2(10, 5)
+	_portal_panel.add_child(portal_icon)
 	_portal_bar = ProgressBar.new()
 	_portal_bar.name = "PortalBar"
 	_portal_bar.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
@@ -163,10 +170,14 @@ func _build() -> void:
 	_mounted_panel.theme = UITheme.get_theme()
 	_mounted_panel.theme_type_variation = UITheme.V_CARD
 	_mounted_label = _make_label("", UITheme.FS_SMALL, UITheme.c("parchment"))
-	_mounted_label.position = Vector2(9, 6)
-	_mounted_label.custom_minimum_size = Vector2(UITheme.LEFT_COL_W - 18, 66)
+	_mounted_label.position = Vector2(32, 6)
+	_mounted_label.custom_minimum_size = Vector2(UITheme.LEFT_COL_W - 41, 66)
 	_mounted_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_mounted_panel.add_child(_mounted_label)
+	var mounted_icon := UITheme.icon_rect("ui_mount", 20.0)
+	mounted_icon.name = "MountedIcon"
+	mounted_icon.position = Vector2(9, 6)
+	_mounted_panel.add_child(mounted_icon)
 	_mounted_panel.hide()
 	add_child(_mounted_panel)
 
@@ -199,10 +210,25 @@ func location_text() -> String:
 				return floor_text
 	if map_id == "castle_interior":
 		return "Hogwarts Castle"
+	return _outdoor_place_name(map_id)
+
+## The place the player is standing in, outside the castle.
+##
+## The overlay's `zone_at` is the project's one authored place table, so the
+## persistent line and the transient zone banner can never disagree. The
+## authored region ids (`forest_sw`, `boss_w`) are entity-grouping keys rather
+## than place names, so they are the fallback, not the source.
+func _outdoor_place_name(map_id: String) -> String:
+	if world != null and is_instance_valid(world):
+		var overlay := world.get_node_or_null("MMOOverlay")
+		if overlay != null and overlay.has_method("zone_at"):
+			var named := String(overlay.call("zone_at", player.global_position))
+			if named != "":
+				return named
 	var region := HPRules.zone_id_for_map(map_id, player.global_position)
 	if region == "":
 		return "Hogwarts Grounds"
-	return "Hogwarts Grounds - %s" % region
+	return region.capitalize()
 
 func _update_location() -> void:
 	var text := location_text()
@@ -331,7 +357,7 @@ func mounted_text() -> String:
 	else:
 		landing = "Cannot land here: %s" % reason
 	last_landing_reason = reason
-	return "Nimbus - Space rise / Ctrl descend / Shift dismount\nAltitude %.1f m - speed %.1f m/s\n%s" % [altitude, speed, landing]
+	return "Broom - Space rise / Ctrl descend / Shift dismount\nAltitude %.1f m - speed %.1f m/s\n%s" % [altitude, speed, landing]
 
 func _update_mounted() -> void:
 	if player == null or not is_instance_valid(player) or not bool(player.get("is_mounted")):
@@ -387,3 +413,18 @@ func describe() -> Dictionary:
 		"invalid_landings": invalid_landing_warnings,
 		"portals_seen": portals_seen,
 	}
+
+func _arcane_layout() -> void:
+	var canvas := get_viewport().get_visible_rect().size
+	var compact := canvas.x < 1000 or canvas.y < 560
+	UILayout.place_centred(_location_label, Vector2(240 if compact else 320,24), Vector2(0,20))
+	_location_label.add_theme_font_size_override("font_size",15 if compact else 16)
+	_stairs_panel.custom_minimum_size = Vector2.ZERO
+	UILayout.place_centred(_stairs_panel,Vector2(240 if compact else 360,48),Vector2(0,172))
+	_stairs_panel.clip_contents = true
+	_stairs_label.size = Vector2(220 if compact else 340,38)
+	_stairs_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_mounted_panel.custom_minimum_size = Vector2.ZERO
+	UILayout.place(_mounted_panel,Vector2(16,214 if compact else 284),Vector2(210 if compact else 280,92))
+	_mounted_label.custom_minimum_size = Vector2.ZERO
+	_mounted_label.size = Vector2(169 if compact else 239,80)

@@ -54,6 +54,7 @@ var pending_auth: Dictionary = {} # {"action": "login"|"register", "user": "", "
 
 func _ready() -> void:
 	_apply_menu_theme()
+	_apply_menu_icons()
 	# Auth Buttons
 	login_btn.pressed.connect(_on_login_pressed)
 	register_btn.pressed.connect(_on_register_pressed)
@@ -663,6 +664,22 @@ func _apply_menu_theme() -> void:
 
 	_add_ribbon()
 	_add_corner_medallions()
+
+
+## The crests and the marks the menu's buttons carry - the same icon set the
+## world uses, so the menu and the game read as one client.
+func _apply_menu_icons() -> void:
+	var crests := {
+		gryf_btn: "house_gryffindor",
+		slyth_btn: "house_slytherin",
+		raven_btn: "house_ravenclaw",
+		huff_btn: "house_hufflepuff",
+	}
+	for button in crests:
+		UITheme.set_button_icon(button, crests[button], 20.0)
+	UITheme.set_button_icon(enter_world_btn, "ui_portal", 20.0)
+	UITheme.set_button_icon(new_char_btn, "minimap_zoom_in", 18.0)
+	UITheme.set_button_icon(logout_btn, "ui_close", 18.0)
 
 
 func _add_ribbon() -> void:

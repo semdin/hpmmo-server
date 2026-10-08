@@ -1,0 +1,218 @@
+{
+  "wand_hawthorn": {
+    "id": "wand_hawthorn",
+    "name": "Hawthorn Wand",
+    "type": "weapon",
+    "desc": "10-inch Hawthorn wood with unicorn hair core. Highly suited for healing and curses.",
+    "rarity": "uncommon",
+    "upgrade_tier": 0,
+    "base_multiplier": 1.0,
+    "icon": "wand",
+    "slots": [
+      "main_hand"
+    ]
+  },
+  "wand_elder": {
+    "id": "wand_elder",
+    "name": "Elder Wand Replica",
+    "type": "weapon",
+    "desc": "15-inch Elder wood with thestral tail hair core. Unlocks immense raw destructive power.",
+    "rarity": "legendary",
+    "upgrade_tier": 0,
+    "base_multiplier": 1.35,
+    "icon": "wand",
+    "slots": [
+      "main_hand"
+    ]
+  },
+  "robe_apprentice": {
+    "id": "robe_apprentice",
+    "name": "Apprentice Robe",
+    "type": "armor",
+    "desc": "Sturdy woolen school robes tailored with silk house linings. +50 Max HP.",
+    "rarity": "common",
+    "bonus_hp": 50,
+    "icon": "robe",
+    "slots": [
+      "chest"
+    ]
+  },
+  "robe_auror": {
+    "id": "robe_auror",
+    "name": "Auror Battle Cloak",
+    "type": "armor",
+    "desc": "Enchanted heavy dragonhide battle cloak. +150 Max HP and 15% Magic Armor.",
+    "rarity": "epic",
+    "bonus_hp": 150,
+    "bonus_defense": 15,
+    "icon": "robe",
+    "slots": [
+      "chest"
+    ]
+  },
+  "broom_nimbus2000": {
+    "id": "broom_nimbus2000",
+    "name": "Nimbus 2000",
+    "type": "mount",
+    "desc": "Sleek mahogany handle with tail twigs of select birch. Fly across Hogwarts Valley with speed.",
+    "rarity": "rare",
+    "mount_speed": 16.0,
+    "icon": "broom",
+    "slots": [
+      "broom"
+    ]
+  },
+  "broom_firebolt": {
+    "id": "broom_firebolt",
+    "name": "Firebolt Supreme",
+    "type": "mount",
+    "desc": "Ash handle with aerodynamic ash finish and goblin-forged ironwork. Supreme 22.0 speed.",
+    "rarity": "legendary",
+    "mount_speed": 22.0,
+    "icon": "broom",
+    "slots": [
+      "broom"
+    ]
+  },
+  "potion_health": {
+    "id": "potion_health",
+    "name": "Wiggenweld Potion",
+    "type": "consumable",
+    "desc": "Restores 150 HP.",
+    "heal_hp": 150,
+    "rarity": "common",
+    "icon": "potion_red",
+    "slots": []
+  },
+  "potion_mana": {
+    "id": "potion_mana",
+    "name": "Mana Draught",
+    "type": "consumable",
+    "desc": "Refreshing cerulean elixir. Restores 120 Mana instantly.",
+    "heal_mana": 120,
+    "rarity": "common",
+    "icon": "potion_blue",
+    "slots": []
+  },
+  "mat_phoenix_ash": {
+    "id": "mat_phoenix_ash",
+    "name": "Phoenix Ash",
+    "type": "material",
+    "desc": "Smoldering fiery ash gathered from a burning day. Used to refine wands from +0 to +4 at Ollivander.",
+    "rarity": "uncommon",
+    "icon": "ash",
+    "slots": []
+  },
+  "mat_dragon_heartstring": {
+    "id": "mat_dragon_heartstring",
+    "name": "Dragon Heartstring",
+    "type": "material",
+    "desc": "Vibrant magical core tissue from an Antipodean Opaleye. Needed to refine wands to +5 - +7.",
+    "rarity": "rare",
+    "icon": "heartstring",
+    "slots": []
+  },
+  "mat_thestral_hair": {
+    "id": "mat_thestral_hair",
+    "name": "Thestral Tail Hair",
+    "type": "material",
+    "desc": "Spectral invisible hair of rare thestrals. Required for legendary +8 and +9 wand transmutations.",
+    "rarity": "epic",
+    "icon": "hair",
+    "slots": []
+  },
+  "mat_elder_core": {
+    "id": "mat_elder_core",
+    "name": "Elder Wood Core",
+    "type": "material",
+    "rarity": "legendary",
+    "slots": [],
+    "desc": "A catalyst for masterwork refinement."
+  },
+  "hat_apprentice": {
+    "id": "hat_apprentice",
+    "name": "Apprentice Hat",
+    "type": "accessory",
+    "slots": [
+      "head"
+    ],
+    "bonus_hp": 0,
+    "bonus_mana": 20,
+    "rarity": "common",
+    "desc": "Enchanted apprentice gear. +0 maximum HP, +20 maximum mana."
+  },
+  "gloves_apprentice": {
+    "id": "gloves_apprentice",
+    "name": "Apprentice Gloves",
+    "type": "accessory",
+    "slots": [
+      "hands"
+    ],
+    "bonus_hp": 0,
+    "bonus_mana": 15,
+    "rarity": "common",
+    "desc": "Enchanted apprentice gear. +0 maximum HP, +15 maximum mana."
+  },
+  "boots_apprentice": {
+    "id": "boots_apprentice",
+    "name": "Apprentice Boots",
+    "type": "accessory",
+    "slots": [
+      "feet"
+    ],
+    "bonus_hp": 25,
+    "bonus_mana": 0,
+    "rarity": "common",
+    "desc": "Enchanted apprentice gear. +25 maximum HP, +0 maximum mana."
+  },
+  "focus_apprentice": {
+    "id": "focus_apprentice",
+    "name": "Apprentice Focus",
+    "type": "accessory",
+    "slots": [
+      "off_hand"
+    ],
+    "bonus_hp": 0,
+    "bonus_mana": 25,
+    "rarity": "common",
+    "desc": "Enchanted apprentice gear. +0 maximum HP, +25 maximum mana."
+  },
+  "pendant_apprentice": {
+    "id": "pendant_apprentice",
+    "name": "Apprentice Pendant",
+    "type": "accessory",
+    "slots": [
+      "neck"
+    ],
+    "bonus_hp": 25,
+    "bonus_mana": 0,
+    "rarity": "common",
+    "desc": "Enchanted apprentice gear. +25 maximum HP, +0 maximum mana."
+  },
+  "ring_apprentice": {
+    "id": "ring_apprentice",
+    "name": "Apprentice Ring",
+    "type": "accessory",
+    "slots": [
+      "ring_left",
+      "ring_right"
+    ],
+    "bonus_hp": 0,
+    "bonus_mana": 10,
+    "rarity": "common",
+    "desc": "Enchanted apprentice gear. +0 maximum HP, +10 maximum mana."
+  },
+  "ring_adept": {
+    "id": "ring_adept",
+    "name": "Adept Ring",
+    "type": "accessory",
+    "slots": [
+      "ring_left",
+      "ring_right"
+    ],
+    "bonus_hp": 0,
+    "bonus_mana": 20,
+    "rarity": "uncommon",
+    "desc": "Enchanted apprentice gear. +0 maximum HP, +20 maximum mana."
+  }
+}

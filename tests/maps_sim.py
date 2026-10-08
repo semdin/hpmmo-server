@@ -187,7 +187,8 @@ class StubService:
                                                     "revision": current})
                         service.saves.append(dict(body))
                         for key in ("map_id", "pos", "rot_y", "level", "exp", "current_hp", "max_hp",
-                                    "current_mana", "max_mana", "galleons", "wand_tier"):
+                                    "current_mana", "max_mana", "galleons", "wand_tier", "inventory", "equipment",
+                                    "base_max_hp", "base_max_mana", "equipment_version", "inventory_revision"):
                             if key in body:
                                 character[key] = body[key]
                         service.revisions[cid] = current + 1

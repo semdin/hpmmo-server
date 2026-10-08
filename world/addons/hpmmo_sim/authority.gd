@@ -303,6 +303,7 @@ func register_player(node: Node3D, character_id: int, peer_id: int, account_id: 
 		"transfer_count": 0,
 		"input": {"move": Vector2.ZERO, "yaw": 0.0, "jump": false, "descend": false, "seq": -1},
 	})
+	refresh_equipment(entities[uid])
 	players_by_peer[peer_id] = uid
 	if character_id > 0:
 		players_by_character[character_id] = uid
@@ -359,6 +360,7 @@ func apply_character_binding(record: Dictionary, character: Dictionary) -> Strin
 		node.set("house", String(character["house"]))
 		record["house"] = String(character["house"])
 	node.call("restore_character", character)
+	refresh_equipment(record)
 	(node as Node3D).global_position = pos
 	if "velocity" in node:
 		node.set("velocity", Vector3.ZERO)
@@ -622,6 +624,8 @@ func cast_for_record(record: Dictionary, spell_id: String, aim: Vector3, cast_se
 	var node: Node3D = record.get("node")
 	if node == null or not is_instance_valid(node):
 		return _reject_cast(record, cast_seq, HPProtocol.REJECT_STATE)
+	if spell_id != "protego" and not node.equipment.has("main_hand"):
+		return _reject_cast(record, cast_seq, "no_wand")
 	if bool(record.get("mounted", false)) and spell_id != "protego":
 		return _reject_cast(record, cast_seq, HPProtocol.REJECT_MOUNTED)
 	if sim_tick < int(record.get("stunned_until_tick", 0)):
@@ -688,6 +692,7 @@ func _begin_cast(record: Dictionary, spell_id: String, aim: Vector3, combo_mult:
 		dir = Vector3(0, 0, 1)
 	dir = dir.normalized()
 	var cast := {
+		"damage": int(HPRules.spell_damage(spell_id, int(record.get("wand_tier", 0)), String(record.get("house", "")), combo_mult) * float(record.get("weapon_multiplier", 1.0))),
 		"cast_id": cast_id,
 		"caster_uid": record["uid"],
 		"spell_id": spell_id,
@@ -726,6 +731,8 @@ func submit_mount(peer_id: int, mounted: bool) -> Dictionary:
 	var node: Node3D = record.get("node")
 	if node == null or not is_instance_valid(node):
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	if mounted and not node.equipment.has("broom"):
+		return HPProtocol.reject("no_broom")
 	if mounted:
 		# Broom flight is prohibited inside the castle slice.
 		# The authority decides it from the map catalog: a client's own check is
@@ -1207,8 +1214,7 @@ func _resolve_cone(caster: Dictionary, cast: Dictionary, origin: Vector3, dir: V
 			continue
 		if not HPRules.has_line_of_sight(caster["node"], node):
 			continue
-		var raw := HPRules.spell_damage(spell_id, int(caster.get("wand_tier", 0)),
-			String(caster.get("house", "")), float(cast["combo_mult"]))
+		var raw := int(cast["damage"])
 		var applied := _apply_damage(record, raw, spell_id, caster)
 		if applied > 0:
 			hits.append({"uid": target_uid, "amount": applied})
@@ -1231,6 +1237,7 @@ func _spawn_projectile(caster: Dictionary, cast: Dictionary, origin: Vector3, di
 		"aoe": aoe,
 		"radius": float(data.get("radius", 0.0)),
 		"combo_mult": float(cast["combo_mult"]),
+		"flat_damage": int(cast["damage"]),
 		"hit_uid": 0,
 	})
 
@@ -1343,6 +1350,7 @@ func apply_spell_hit(target: Node, spell_id: String, caster: Node) -> int:
 	var caster_record := record_for(caster)
 	var raw := HPRules.spell_damage(spell_id, int(caster_record.get("wand_tier", 0)),
 		String(caster_record.get("house", "")), 1.0)
+	raw = int(raw * float(caster_record.get("weapon_multiplier", 1.0)))
 	var applied := _apply_damage(target_record, raw, spell_id, caster_record)
 	if applied > 0:
 		_apply_burn(target_record, spell_id, caster_record)
@@ -1556,6 +1564,11 @@ func _apply_damage(target: Dictionary, raw: int, spell_id: String, attacker: Dic
 	if int(target.get("ward_until_tick", 0)) > sim_tick and not _is_projectile_spell(spell_id):
 		amount = int(float(amount) * HPRules.ward_other_multiplier("protego"))
 
+	if not attacker.is_empty():
+		amount = maxi(0, int(amount * (1.0 - clampf(float(target.get("defense", 0)), 0, 50) / 100.0)))
+		if amount > 0:
+			attacker["last_combat_tick"] = sim_tick
+	if amount > 0: target["last_combat_tick"] = sim_tick
 	target["hp"] = maxi(0, int(target.get("hp", 0)) - amount)
 	target["last_damage"] = amount
 	touch(target)
@@ -1758,6 +1771,9 @@ func _grant_exp(player: Dictionary, exp: int) -> void:
 	while level < HPRules.max_level() and current >= HPRules.exp_threshold(level):
 		current -= HPRules.exp_threshold(level)
 		level += 1
+		if live:
+			node.base_max_hp += int(gains.get("level_hp_gain", 40))
+			node.base_max_mana += int(gains.get("level_mana_gain", 25))
 		var new_max_hp := int(player.get("max_hp", 0) if not live else node.get("max_hp")) + int(gains.get("level_hp_gain", 40))
 		var new_max_mana := int(player.get("max_mana", 0) if not live else node.get("max_mana")) + int(gains.get("level_mana_gain", 25))
 		player["max_hp"] = new_max_hp
@@ -1783,6 +1799,10 @@ func _drop_loot(target: Dictionary) -> void:
 		drops = HPRules.monolith_loot(rng)
 	else:
 		drops = HPRules.mob_loot(is_boss, rng)
+	if int(target.get("kind", 0)) == HPProtocol.Kind.MONOLITH:
+		if rng.randf() < 0.25: drops.append({"id": "ring_adept", "amount": 1})
+	elif is_boss or rng.randf() < 0.2:
+		drops.append({"id": HPEquipment.BASIC_ACCESSORIES[rng.randi_range(0, 5)], "amount": 1})
 	var node = target.get("node")
 	var origin: Vector3 = node.global_position if node != null and is_instance_valid(node) else Vector3.ZERO
 	var map_id := String(target.get("map_id", HPMaps.map_for_point(origin)))
@@ -1830,6 +1850,8 @@ func request_pickup(peer_id: int, loot_uid: int) -> Dictionary:
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
 	if int(player.get("pending_transfer", 0)) != 0:
 		return HPProtocol.reject(HPProtocol.REJECT_TRANSFER_PENDING)
+	if bool(player.get("persistence_conflict", false)) or bool(player.get("dead", false)):
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
 	var loot: Dictionary = entities.get(loot_uid, {})
 	if loot.is_empty() or int(loot.get("kind", 0)) != HPProtocol.Kind.LOOT:
 		return HPProtocol.reject(HPProtocol.REJECT_NO_TARGET)
@@ -1838,6 +1860,10 @@ func request_pickup(peer_id: int, loot_uid: int) -> Dictionary:
 	var node: Node3D = player["node"]
 	if node.global_position.distance_to(loot["pos"]) > LOOT_PICKUP_RANGE:
 		return HPProtocol.reject(HPProtocol.REJECT_RANGE)
+	var bag: Array = node.inventory.duplicate(true)
+	if String(loot.item_id) != "galleons":
+		HPEquipment.add(bag, String(loot.item_id), 0, int(loot.amount))
+		if not HPEquipment.capacity_ok(bag): return HPProtocol.reject("bag_full")
 	_collect_loot(loot, player)
 	return HPProtocol.accept()
 
@@ -2000,7 +2026,7 @@ func _push_stats(record: Dictionary) -> void:
 	emit_signal("stats_changed", int(record["uid"]), stats)
 
 func build_stats(record: Dictionary) -> Dictionary:
-	return {
+	var result := {
 		"uid": int(record.get("uid", 0)),
 		"hp": int(record.get("hp", 0)),
 		"max_hp": int(record.get("max_hp", 0)),
@@ -2013,6 +2039,9 @@ func build_stats(record: Dictionary) -> Dictionary:
 		"dead": bool(record.get("dead", false)),
 		"mounted": bool(record.get("mounted", false)),
 	}
+
+	result.merge(equipment_snapshot(record))
+	return result
 
 func flags_for(record: Dictionary) -> int:
 	var flags := 0
@@ -2040,10 +2069,17 @@ func apply_stats_payload(uid: int, stats: Dictionary) -> void:
 	var record: Dictionary = entities.get(uid, {})
 	if record.is_empty():
 		return
+	var node = record.get("node")
+	if is_instance_valid(node) and stats.has("equipment") and int(stats.get("inventory_revision",-1)) < node.inventory_revision:
+		return
 	for key in stats.keys():
 		record[key] = stats[key]
 	_sync_node_health(record)
-	_push_stats(record)
+	# Replica state must come directly from the received snapshot. Rebuilding
+	# through build_stats() here would merge the client's old bag back over it.
+	if is_instance_valid(node) and node.has_method("apply_authoritative_stats"):
+		node.apply_authoritative_stats(stats)
+	emit_signal("stats_changed",uid,stats)
 
 # ------------------------------------------------------------ spawn helpers
 
@@ -2069,6 +2105,7 @@ func register_local_player(uid: int, character: Dictionary) -> void:
 	var node := local_player_node()
 	if node == null:
 		return
+	if not character.is_empty(): node.restore_character(character)
 	record_local_player(uid, node, character)
 
 func record_local_player(uid: int, node: Node3D, character: Dictionary) -> void:
@@ -2258,3 +2295,94 @@ func on_respawn_event(uid: int) -> void:
 	if node != null and is_instance_valid(node) and node.has_method("on_authoritative_respawn"):
 		node.call("on_authoritative_respawn")
 	emit_signal("entity_respawned", uid)
+
+func equipment_snapshot(record: Dictionary) -> Dictionary:
+	var node = record.get("node")
+	if not is_instance_valid(node): return {}
+	return {"inventory": node.inventory.duplicate(true), "equipment": node.equipment.duplicate(true),
+		"inventory_revision": node.inventory_revision, "base_max_hp": node.base_max_hp,
+		"base_max_mana": node.base_max_mana, "derived_stats": node.derived_stats.duplicate(true)}
+
+func refresh_equipment(record: Dictionary) -> void:
+	var node = record.get("node")
+	if not is_instance_valid(node): return
+	node._recalculate_equipment()
+	for key in ["max_hp", "max_mana", "wand_tier", "galleons"]:
+		record[key] = node.get(key)
+	record["hp"] = node.current_hp
+	record["mana"] = node.current_mana
+	record["defense"] = node.derived_stats.defense
+	record["weapon_multiplier"] = node.derived_stats.weapon_multiplier
+
+func request_equipment(peer_id: int, request_id: int, revision: int, operation: String, slot: String, item_id: String, tier: int) -> Dictionary:
+	var record := player_record(peer_id)
+	if not is_authority() or record.is_empty(): return {"ok": false, "reason": "invalid_state", "request_id": request_id}
+	var node = record.get("node")
+	if not is_instance_valid(node): return {"ok": false, "reason": "invalid_state", "request_id": request_id}
+	var previous: Dictionary = record.get("equipment_reply", {})
+	if request_id == int(previous.get("request_id", -1)): return previous
+	if request_id <= int(record.get("equipment_seq", -1)):
+		return {"ok": false, "reason": "stale_request", "request_id": request_id, "snapshot": build_stats(record)}
+	var reason := ""
+	if mutations_frozen() or bool(record.get("persistence_conflict", false)): reason = "invalid_state"
+	elif revision != node.inventory_revision: reason = "stale_inventory"
+	elif bool(record.get("dead", false)): reason = "dead"
+	elif int(record.get("pending_transfer", 0)) != 0: reason = "transfer_pending"
+	elif int(record.get("cast_id", 0)) != 0 or sim_tick < int(record.get("cast_lock_until_tick", 0)): reason = "casting"
+	elif operation != "consume" and sim_tick - int(record.get("last_combat_tick", -100000)) < 5 * HPProtocol.SIM_HZ: reason = "in_combat"
+	elif slot == "broom" and bool(record.get("mounted", false)): reason = "mounted"
+	var result := {"ok": false, "reason": reason}
+	if reason == "":
+		if operation in ["equip", "unequip"]:
+			result = HPEquipment.swap(node.inventory, node.equipment, slot, item_id if operation == "equip" else "", tier)
+		elif operation == "refine":
+			result = _refine_equipped(node)
+		elif operation == "consume":
+			result = _consume_item(node, item_id, tier)
+		else:
+			result.reason = "invalid_operation"
+		if bool(result.ok):
+			if result.has("inventory"): node.inventory.assign(result.inventory)
+			if result.has("equipment"): node.equipment = result.equipment
+			node.inventory_revision += 1
+			refresh_equipment(record)
+			touch(record)
+			node.inventory_changed.emit()
+			node.equipment_changed.emit()
+			_push_stats(record)
+			if persistence != null: persistence.save_player(record)
+	result["request_id"] = request_id
+	result["snapshot"] = build_stats(record)
+	record["equipment_seq"] = maxi(request_id, int(record.get("equipment_seq", -1)))
+	record["equipment_reply"] = result.duplicate(true)
+	return result
+
+func _consume_item(node: Node, item_id: String, tier: int) -> Dictionary:
+	if item_id not in ["potion_health", "potion_mana"]:
+		return {"ok": false, "reason": "invalid_operation"}
+	var hp := item_id == "potion_health"
+	var current := int(node.current_hp if hp else node.current_mana)
+	var maximum := int(node.max_hp if hp else node.max_mana)
+	if current >= maximum: return {"ok": false, "reason": "resource_full"}
+	var bag: Array = node.inventory.duplicate(true)
+	if not HPEquipment.take(bag, item_id, tier): return {"ok": false, "reason": "item_missing"}
+	var restored := mini(maximum - current, int(HPEquipment.item(item_id).get("heal_hp" if hp else "heal_mana", 150 if hp else 120)))
+	if hp: node.current_hp += restored
+	else: node.current_mana += restored
+	return {"ok": true, "reason": "consumed", "inventory": bag, "restored": restored}
+
+func _refine_equipped(node: Node) -> Dictionary:
+	var wand: Dictionary = node.equipment.get("main_hand", {})
+	if wand.is_empty(): return {"ok": false, "reason": "no_wand"}
+	var tier := int(wand.get("tier", 0))
+	if tier >= 9: return {"ok": false, "reason": "max_tier"}
+	var spec: Dictionary = HPRules.combat().wand_tiers[tier]
+	if node.galleons < int(spec.cost): return {"ok": false, "reason": "no_gold"}
+	var bag: Array = node.inventory.duplicate(true)
+	if not HPEquipment.take(bag, spec.material_id, 0, int(spec.material_amount)):
+		return {"ok": false, "reason": "no_material"}
+	var gear: Dictionary = node.equipment.duplicate(true)
+	var success := rng.randf() * 100.0 < float(spec.chance)
+	gear.main_hand.tier = tier + 1 if success else (tier - 1 if tier >= 4 else tier)
+	node.galleons -= int(spec.cost)
+	return {"ok": true, "reason": "refined" if success else "refinement_failed", "inventory": bag, "equipment": gear}

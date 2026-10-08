@@ -974,3 +974,38 @@ func _flush_delayed() -> void:
 		else:
 			keep.append(entry)
 	_delayed = keep
+
+var _equipment_request_id := 0
+
+func submit_equipment(player_node: Node, operation: String, slot: String, item_id: String = "", tier: int = 0) -> int:
+	_equipment_request_id += 1
+	var request_id := _equipment_request_id
+	if is_client:
+		sim_equipment_request.rpc_id(1, request_id, player_node.inventory_revision, operation, slot, item_id, tier)
+	else:
+		var record := SimAuthority.record_for(player_node)
+		var answer := SimAuthority.request_equipment(int(record.get("peer_id", 1)), request_id, player_node.inventory_revision, operation, slot, item_id, tier)
+		_deliver_equipment.call_deferred(player_node, answer)
+	return request_id
+
+func _deliver_equipment(player_node: Node, answer: Dictionary) -> void:
+	if not is_instance_valid(player_node): return
+	if answer.get("snapshot") is Dictionary:
+		player_node.apply_authoritative_stats(answer.snapshot)
+	player_node.equipment_answer.emit(answer)
+
+@rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
+func sim_equipment_request(request_id: int, revision: int, operation: String, slot: String, item_id: String, tier: int) -> void:
+	if not SimAuthority.is_authority(): return
+	var peer_id := multiplayer.get_remote_sender_id()
+	if request_id < 0 or operation.length() > 16 or slot.length() > 20 or item_id.length() > 64 or tier < 0 or tier > 9: return
+	var answer := SimAuthority.request_equipment(peer_id, request_id, revision, operation, slot, item_id, tier)
+	sim_equipment_result.rpc_id(peer_id, answer)
+
+@rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
+func sim_equipment_result(answer: Dictionary) -> void:
+	var player_node := get_tree().get_first_node_in_group("local_player")
+	if player_node == null:
+		for candidate in get_tree().get_nodes_in_group("players"):
+			if candidate.get("is_local_player") == true: player_node = candidate
+	if player_node != null: _deliver_equipment(player_node, answer)

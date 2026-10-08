@@ -546,6 +546,7 @@ void handle_character_create(const httplib::Request& req, httplib::Response& res
     if (std::stoi(count.rows[0][0].second.value_or("0")) >= 2) {
         return send_error(res, 400, "Maximum 2 characters per account.");
     }
+    if (!lease.begin()) return send_error(res, 503, "Service unavailable: database unreachable.");
     const char* starter = R"([{"id":"wand_hawthorn","amount":1,"tier":0},)"
                           R"({"id":"robe_apprentice","amount":1,"tier":0},)"
                           R"({"id":"broom_nimbus2000","amount":1,"tier":0},)"
@@ -557,6 +558,7 @@ void handle_character_create(const httplib::Request& req, httplib::Response& res
         "INSERT INTO characters (account_id, name, house) VALUES ($1,$2,$3) RETURNING id::text",
         {std::to_string(session->account_id), name, house});
     if (!ins.ok) {
+        lease.rollback();
         if (ins.kind == ErrorKind::Constraint) return send_error(res, 409, "Character name already taken.");
         return send_db_error(res, ins, "character create");
     }
@@ -567,7 +569,11 @@ void handle_character_create(const httplib::Request& req, httplib::Response& res
         "SELECT $1, x.id, x.amount, x.tier FROM jsonb_to_recordset($2::jsonb) "
         "AS x(id text, amount integer, tier integer)",
         {std::to_string(char_id), starter});
-    if (!seed.ok) return send_db_error(res, seed, "starter inventory");
+    if (!seed.ok) { lease.rollback(); return send_db_error(res, seed, "starter inventory"); }
+    auto gear = lease.exec("SELECT initialize_character_equipment($1)", {std::to_string(char_id)});
+    if (!gear.ok) { lease.rollback(); return send_db_error(res, gear, "starter equipment"); }
+    db::Result starter_commit;
+    if (!lease.commit_checked(starter_commit)) return send_error(res, 503, "Service unavailable: starter transaction failed.");
     send_json(res, 200, {{"success", true}, {"message", "Character created."},
                          {"character", {{"id", char_id}, {"name", name}, {"house", house}}}});
 }
@@ -591,7 +597,8 @@ json character_snapshot(db::Conn& conn, const db::Row& row, bool include_items) 
             "SELECT item_id, SUM(amount)::text, tier::text FROM character_items "
             "WHERE character_id = $1 GROUP BY item_id, tier ORDER BY item_id, tier",
             {get(0)});
-        c["inventory"] = items.ok ? items_from_rows(items.rows) : json::array();
+        if (!items.ok) return nullptr;
+        c["inventory"] = items_from_rows(items.rows);
     }
     // The owning account. The world server carries the service token, so it
     // receives this field and uses it to prove a character belongs to the
@@ -599,13 +606,23 @@ json character_snapshot(db::Conn& conn, const db::Row& row, bool include_items) 
     // (the character-bind fix). It is the same fact `owns_character` checks.
     const std::string account = get(18);
     c["account_id"] = account.empty() ? 0 : std::stoll(account);
+    c["base_max_hp"] = std::stoi(get(19));
+    c["base_max_mana"] = std::stoi(get(20));
+    c["equipment_version"] = std::stoi(get(21));
+    c["inventory_revision"] = std::stoll(get(22));
+    c["equipment"] = json::object();
+    auto gear = conn.exec("SELECT slot,item_id,tier::text FROM character_equipment WHERE character_id=$1 ORDER BY slot", {get(0)});
+    if (!gear.ok) return nullptr;
+    for (const auto& e : gear.rows) {
+        c["equipment"][e[0].second.value_or("")] = {{"id", e[1].second.value_or("")}, {"tier", std::stoi(e[2].second.value_or("0"))}};
+    }
     return c;
 }
 
 constexpr const char* kCharacterCols =
     "id::text, name, house, level::text, exp::text, max_hp::text, current_hp::text, "
     "max_mana::text, current_mana::text, galleons::text, wand_tier::text, revision::text, "
-    "pos_x::text, pos_y::text, pos_z::text, rot_y::text, map_id, quests::text, account_id::text";
+    "pos_x::text, pos_y::text, pos_z::text, rot_y::text, map_id, quests::text, account_id::text, base_max_hp::text, base_max_mana::text, equipment_version::text, inventory_revision::text";
 
 void handle_character_list(const httplib::Request& req, httplib::Response& res, db::Pool& pool) {
     auto session = require_session(req, res, pool);
@@ -616,7 +633,11 @@ void handle_character_list(const httplib::Request& req, httplib::Response& res, 
         {std::to_string(session->account_id)});
     if (!r.ok) return send_db_error(res, r, "character list");
     json list = json::array();
-    for (const auto& row : r.rows) list.push_back(character_snapshot(*lease.conn(), row, false));
+    for (const auto& row : r.rows) {
+        auto snapshot = character_snapshot(*lease.conn(), row, false);
+        if (snapshot.is_null()) return send_error(res,503,"Character snapshot unavailable.");
+        list.push_back(snapshot);
+    }
     send_json(res, 200, {{"success", true}, {"characters", list}});
 }
 
@@ -637,11 +658,18 @@ void handle_character_load(const httplib::Request& req, httplib::Response& res, 
         scope = " AND account_id = $2";  // a session stays scoped to its own account
         params.push_back(std::to_string(auth->account_id));
     }
+    // Save/trade/reward writers lock this same row. Hold a shared lock until
+    // all ownership rows have been read, so a load cannot mix two revisions.
+    if (!lease.begin()) return send_error(res,503,"Character snapshot unavailable.");
     db::Result r = lease.exec(
-        std::string("SELECT ") + kCharacterCols + " FROM characters WHERE id = $1" + scope, params);
-    if (!r.ok) return send_db_error(res, r, "character load");
-    if (r.rows.empty()) return send_error(res, 404, "Character not found.");  // same answer for foreign ids
-    send_json(res, 200, {{"success", true}, {"character", character_snapshot(*lease.conn(), r.rows[0], true)}});
+        std::string("SELECT ") + kCharacterCols + " FROM characters WHERE id = $1" + scope + " FOR SHARE", params);
+    if (!r.ok) { lease.rollback(); return send_db_error(res, r, "character load"); }
+    if (r.rows.empty()) { lease.rollback(); return send_error(res, 404, "Character not found."); }
+    auto snapshot = character_snapshot(*lease.conn(), r.rows[0], true);
+    if (snapshot.is_null()) { lease.rollback(); return send_error(res,503,"Character snapshot unavailable."); }
+    db::Result committed;
+    if (!lease.commit_checked(committed)) return send_error(res,503,"Character snapshot unavailable.");
+    send_json(res, 200, {{"success", true}, {"character", snapshot}});
 }
 
 void handle_character_save(const httplib::Request& req, httplib::Response& res, const Config& cfg,
@@ -655,6 +683,28 @@ void handle_character_save(const httplib::Request& req, httplib::Response& res, 
     }
     const long long char_id = (*body)["character_id"].get<long long>();
 
+    // The world is the only writer of progression and item ownership.
+    if (!auth->service) return send_error(res, 403, "Character saves require the world server.");
+    json equipment;
+    if (body->contains("equipment")) {
+        equipment = (*body)["equipment"];
+        if (!equipment.is_object() || equipment.size() > 10 || !body->contains("inventory"))
+            return send_error(res,400,"Equipment requires an atomic inventory snapshot.");
+        const std::set<std::string> slots = {"head","chest","hands","feet","main_hand","off_hand","neck","ring_left","ring_right","broom"};
+        for (auto it=equipment.begin(); it!=equipment.end(); ++it) {
+            if (!slots.count(it.key()) || !it.value().is_object()) return send_error(res,400,"Invalid equipment slot.");
+            json line=it.value(); line["amount"]=1;
+            if (!parse_item(line)) return send_error(res,400,"Invalid equipped item.");
+        }
+    }
+    for (const auto* key : {"base_max_hp", "base_max_mana", "inventory_revision", "equipment_version"}) {
+        if (body->contains(key) && (!(*body)[key].is_number_integer() || (*body)[key].get<long long>() < 0 || (*body)[key].get<long long>() > 2000000000))
+            return send_error(res,400,"Invalid equipment state.");
+    }
+    for (const auto* key : {"base_max_hp", "base_max_mana"}) {
+        if (body->contains(key) && ((*body)[key].get<long long>() < 1 || (*body)[key].get<long long>() > 1000000))
+            return send_error(res,400,"Invalid base resource maximum.");
+    }
     // Numeric state with bounds (server-side validation; rejects garbage).
     auto int_field = [&](const char* key, long long def, long long lo, long long hi,
                          std::optional<long long>& out) -> bool {
@@ -813,6 +863,22 @@ void handle_character_save(const httplib::Request& req, httplib::Response& res, 
                 return send_db_error(res, ins, "inventory replace");
             }
         }
+    }
+    if (!equipment.is_null()) {
+        auto del = lease.exec("DELETE FROM character_equipment WHERE character_id=$1", {std::to_string(char_id)});
+        if (!del.ok) { lease.rollback(); return send_db_error(res,del,"equipment replace"); }
+        for (auto it=equipment.begin(); it!=equipment.end(); ++it) {
+            auto ins = lease.exec("INSERT INTO character_equipment(character_id,slot,item_id,tier) VALUES($1,$2,$3,$4)",
+                {std::to_string(char_id),it.key(),it.value()["id"].get<std::string>(),std::to_string(it.value().value("tier",0))});
+            if (!ins.ok) { lease.rollback(); return send_db_error(res,ins,"equipment replace"); }
+        }
+    }
+    for (const auto* key : {"base_max_hp", "base_max_mana", "inventory_revision", "equipment_version"}) {
+        if (!body->contains(key)) continue;
+        // key is selected only from the fixed list above.
+        auto upd_gear = lease.exec(std::string("UPDATE characters SET ")+key+"=$2 WHERE id=$1",
+            {std::to_string(char_id),std::to_string((*body)[key].get<long long>())});
+        if (!upd_gear.ok) { lease.rollback(); return send_db_error(res,upd_gear,"equipment state"); }
     }
     db::Result commit_res;
     if (!lease.commit_checked(commit_res)) {

@@ -16,14 +16,24 @@ signal wand_upgraded(new_tier: int)
 @onready var close_button: Button = $Panel/CloseButton
 
 var player: Node3D = null
+var _pending_id := -1
 
 func _ready() -> void:
+	theme = UITheme.get_theme()
+	refine_button.theme_type_variation = &"ArcaneButton"
+	UITheme.set_button_icon(refine_button, "ui_ollivander", 18.0)
+	UITheme.set_button_icon(close_button, "ui_close")
 	refine_button.pressed.connect(_on_refine_pressed)
 	close_button.pressed.connect(hide)
 	hide()
 
 func open_for_player(p_player: Node3D) -> void:
+	if is_instance_valid(player) and player != p_player and player.equipment_answer.is_connected(_equipment_answer):
+		player.equipment_answer.disconnect(_equipment_answer)
+		if player.equipment_changed.is_connected(_refresh_display): player.equipment_changed.disconnect(_refresh_display)
 	player = p_player
+	if not player.equipment_answer.is_connected(_equipment_answer): player.equipment_answer.connect(_equipment_answer)
+	if not player.equipment_changed.is_connected(_refresh_display): player.equipment_changed.connect(_refresh_display)
 	_refresh_display()
 	show()
 
@@ -33,10 +43,10 @@ func _refresh_display() -> void:
 	
 	var tier: int = player.wand_tier
 	var next_tier := tier + 1
-	var up_info: Dictionary = GameData.UPGRADE_TABLE.get(tier, {})
+	var up_info: Dictionary = HPRules.combat().wand_tiers[tier]
 	
-	item_name_label.text = "Ollivander's Wand Crafting"
-	current_tier_label.text = "Current: Hawthorn Wand +%d" % tier
+	item_name_label.text = String(HPEquipment.item(String(player.equipment.get("main_hand", {}).get("id", ""))).get("name", "Equip a wand"))
+	current_tier_label.text = "Current: %s +%d" % [item_name_label.text, tier]
 	
 	if tier >= 9:
 		next_tier_label.text = "Target: [MAX TIER ACHIEVED]"
@@ -46,7 +56,7 @@ func _refresh_display() -> void:
 		refine_button.disabled = true
 		return
 	
-	next_tier_label.text = "Target: Hawthorn Wand +%d (+%d%% Magic Power)" % [next_tier, int((GameData.UPGRADE_TABLE[next_tier].multiplier - 1.0) * 100)]
+	next_tier_label.text = "Target: Wand +%d (+%d%% Magic Power)" % [next_tier, int((HPRules.wand_multiplier(next_tier) - 1.0) * 100)]
 	var chance: int = up_info.chance
 	success_chance_label.text = "Success Rate: %d%%" % chance
 	
@@ -60,48 +70,23 @@ func _refresh_display() -> void:
 		success_chance_label.modulate = Color(1.0, 0.2, 0.2)
 	
 	cost_label.text = "Cost: %d Galleons (You have: %d)" % [up_info.cost, player.galleons]
-	material_label.text = "Required: %s" % up_info.material
+	material_label.text = "Required: %s ×%d" % [HPEquipment.item(up_info.material_id).get("name", "Material"), up_info.material_amount]
 	
 	# Check affordability
-	refine_button.disabled = (player.galleons < up_info.cost)
+	refine_button.disabled = (_pending_id != -1 or player.galleons < up_info.cost or not player.equipment.has("main_hand"))
 
 func _on_refine_pressed() -> void:
-	if not is_instance_valid(player) or player.wand_tier >= 9:
-		return
-	
-	var tier: int = player.wand_tier
-	var up_info: Dictionary = GameData.UPGRADE_TABLE.get(tier, {})
-	
-	# Deduct Galleons
-	if player.galleons < up_info.cost:
-		result_label.text = "Not enough Galleons to refine!"
-		result_label.modulate = Color(1.0, 0.2, 0.2)
-		return
-	
-	player.galleons -= up_info.cost
-	
-	# Roll success
-	var roll := randf() * 100.0
-	var audio := get_node_or_null("/root/AudioManager")
-	if roll <= up_info.chance:
-		# SUCCESS!
-		player.upgrade_wand(tier + 1)
+	if not is_instance_valid(player): return
+	refine_button.disabled = true
+	result_label.text = "Refining…"
+	_pending_id = SimNet.submit_equipment(player, "refine", "main_hand")
+
+func _equipment_answer(result: Dictionary) -> void:
+	if int(result.get("request_id", -1)) != _pending_id: return
+	_pending_id = -1
+	var reason := String(result.get("reason", ""))
+	result_label.text = String(preload("res://scripts/ui/inventory_arcane.gd").REASONS.get(reason, "Equipment updated."))
+	if reason == "refined":
 		QuestManager.add_refine()
-		result_label.text = "REFINING SUCCEEDED! Your wand surges with arcane power!"
-		result_label.modulate = Color(0.2, 1.0, 0.4)
-		if audio:
-			audio.play_upgrade_success()
-	else:
-		# FAILURE (Classic Metin2 risk!)
-		if audio:
-			audio.play_upgrade_fail()
-		if tier >= 4:
-			# Tier drop penalty
-			player.upgrade_wand(tier - 1)
-			result_label.text = "REFINING FAILED! The wood fractured, dropping to +%d!" % (tier - 1)
-			result_label.modulate = Color(1.0, 0.2, 0.2)
-		else:
-			result_label.text = "REFINING FAILED! The refinement sputtered, but tier remains +%d." % tier
-			result_label.modulate = Color(1.0, 0.6, 0.1)
-	
+		wand_upgraded.emit(player.wand_tier)
 	_refresh_display()

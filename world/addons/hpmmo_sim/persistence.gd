@@ -86,6 +86,9 @@ func _post_sync(path: String, body: Dictionary) -> Dictionary:
 	var status := client.get_response_code()
 	var chunks := PackedByteArray()
 	while client.get_status() == HTTPClient.STATUS_BODY:
+		if Time.get_ticks_msec() > deadline:
+			last_error = "body_timeout"
+			return {}
 		client.poll()
 		var chunk := client.read_response_body_chunk()
 		if chunk.size() > 0:
@@ -142,6 +145,8 @@ func load_character(character_id: int) -> Dictionary:
 ## Fails closed: a sheet without an account id (an older service) is refused
 ## rather than trusted.
 func resolve_character(character_id: int, account_id: int) -> Dictionary:
+	if _pending_saves.has(character_id) or _saving.has(character_id) or _reconciling.has(character_id):
+		return {"ok": false, "reason": "save_pending"}
 	if character_id <= 0:
 		return {"ok": false, "reason": "invalid_character"}
 	if account_id <= 0:
@@ -158,24 +163,79 @@ func resolve_character(character_id: int, account_id: int) -> Dictionary:
 		return {"ok": false, "reason": "character_not_found"}
 	return {"ok": true, "character": character}
 
+var _pending_saves: Dictionary = {}
+var _saving: Dictionary = {}
+var _reconciling: Dictionary = {}
+var _retry_elapsed := 0.0
+
 func save_character(character_id: int, payload: Dictionary) -> void:
-	if character_id <= 0:
-		return
-	var body := payload.duplicate(true)
-	if revisions.has(character_id):
-		body["base_revision"] = int(revisions[character_id])
-	# Fire-and-forget: a failed save is reported and retried on the next tick of
-	# the autosave timer rather than stalling the simulation.
+	if character_id <= 0: return
+	if _reconciling.has(character_id): return
+	_pending_saves[character_id] = payload.duplicate(true)
+	_flush_character(character_id)
+
+func _process(delta: float) -> void:
+	_retry_elapsed += delta
+	if _retry_elapsed < 5.0: return
+	_retry_elapsed = 0.0
+	for cid in _reconciling.keys():
+		if not _saving.has(cid): _reconcile_character(int(cid), _reconciling[cid])
+	for cid in _pending_saves.keys(): _flush_character(int(cid))
+
+func pending_count() -> int:
+	var dirty := _pending_saves.duplicate()
+	dirty.merge(_saving, true)
+	dirty.merge(_reconciling, true)
+	return dirty.size()
+
+func _flush_character(character_id: int) -> void:
+	if _saving.has(character_id) or _reconciling.has(character_id) or not _pending_saves.has(character_id): return
+	var body: Dictionary = _pending_saves[character_id]
+	_pending_saves.erase(character_id)
+	body["base_revision"] = int(revisions.get(character_id, -1))
+	_saving[character_id] = true
 	_post_async("/api/characters/save", body, func(response: Dictionary):
+		_saving.erase(character_id)
 		var status := int(response.get("_status", 0))
 		if status == 200:
-			revisions[character_id] = int(response.get("revision", revisions.get(character_id, 0)))
+			revisions[character_id] = int(response.get("revision", 0))
+			_flush_character(character_id)
 		elif status == 409:
-			# Someone else wrote first: adopt their revision and try again later.
-			revisions[character_id] = int(response.get("revision", revisions.get(character_id, 0)))
-			push_warning("[Persistence] stale revision for character %d; resynced" % character_id)
+			# A concurrent writer won. Adopt its inventory; never replay a stale full bag.
+			_reconcile_character(character_id, body)
 		else:
-			last_error = "save_%d" % status)
+			last_error = "save_%d" % status
+			if not _pending_saves.has(character_id): _pending_saves[character_id] = body)
+
+func _reconcile_character(character_id: int, rejected: Dictionary) -> void:
+	_reconciling[character_id] = rejected
+	_saving[character_id] = true
+	var uid := int(SimAuthority.players_by_character.get(character_id, 0))
+	var record: Dictionary = SimAuthority.record_by_uid(uid)
+	if not record.is_empty(): record["persistence_conflict"] = true
+	_post_async("/api/characters/load", {"character_id": character_id}, func(response: Dictionary):
+		_saving.erase(character_id)
+		if int(response.get("_status", 0)) != 200:
+			return
+		var sheet: Dictionary = response.get("character", {})
+		revisions[character_id] = int(sheet.get("revision", 0))
+		_pending_saves.erase(character_id)
+		_reconciling.erase(character_id)
+		var node = record.get("node")
+		if is_instance_valid(node):
+			# Keep live location/combat HP; reconcile durable ownership and base progression.
+			sheet["inventory_revision"] = maxi(int(sheet.get("inventory_revision", 0)), node.inventory_revision + 1)
+			node.apply_equipment_snapshot(sheet)
+			node.galleons = int(sheet.get("galleons", node.galleons))
+			node.level = int(sheet.get("level", node.level))
+			node.current_exp = int(sheet.get("exp", node.current_exp))
+			node.max_exp = HPRules.exp_threshold(node.level)
+			record["level"] = node.level
+			record["exp"] = node.current_exp
+			SimAuthority.refresh_equipment(record)
+			SimAuthority._push_stats(record)
+			node.equipment_answer.emit({"ok": false, "reason": "save_conflict", "request_id": -1})
+		if not record.is_empty(): record["persistence_conflict"] = false)
 
 ## Reward through the operations ledger (exactly-once via `op_id`).
 ##
@@ -246,6 +306,11 @@ func character_payload(node: Node, record: Dictionary) -> Dictionary:
 		"rot_y": float(node.get("visuals").rotation.y) if node.get("visuals") != null else 0.0,
 		"map_id": String(record.get("map_id", HPProtocol.DEFAULT_MAP)),
 		"inventory": inventory,
+		"equipment": node.equipment.duplicate(true),
+		"equipment_version": 1,
+		"inventory_revision": node.inventory_revision,
+		"base_max_hp": node.base_max_hp,
+		"base_max_mana": node.base_max_mana,
 	}
 
 func _post_async(path: String, body: Dictionary, callback: Callable) -> void:

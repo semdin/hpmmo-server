@@ -1,17 +1,14 @@
 extends Panel
 class_name UIWindow
 
-## A framed, draggable game window: a red ribbon carrying the title, a round
+## A framed, draggable game window: a title strip, a round
 ## close button, and a body.
 ##
 ## Built in code rather than as a .tscn so every window in the game (bag,
 ## Ollivander, settings, journal) shares one construction and one look. A panel
 ## only has to set `title` and add its content to `body`.
 ##
-## The ribbon is the title bar. It is sized to its own texture's aspect ratio
-## and overhangs the top edge of the frame, which is what makes the header read
-## as a banner pinned over the window rather than as another row inside it. It
-## is also the drag handle, for the same reason a title bar usually is.
+## The theme styles the title strip; it also acts as the drag handle.
 ##
 ## Dragging writes `offset_*`, never `position`. `UILayout` documents why: a
 ## Control's `position` is measured from its parent's top-left, so assigning it
@@ -22,7 +19,7 @@ class_name UIWindow
 signal closed
 signal moved
 
-## A ribbon is a fixed-height band drawn as a nine-patch, so its rounded ends
+## The title strip is a fixed-height themed panel, so its rounded ends
 ## stay crisp at any window width. It overhangs the top edge of the frame so the
 ## header reads as a banner pinned over the window rather than another row.
 const RIBBON_H := 40.0
@@ -34,6 +31,10 @@ var title: String = "":
 		title = value
 		if _title_label != null:
 			_title_label.text = value
+
+## The window's own mark, drawn at the left end of the ribbon. Set before the
+## window enters the tree - `_ready` builds the ribbon once.
+var header_icon: String = ""
 
 var close_button_visible: bool = true
 var draggable: bool = true
@@ -116,14 +117,19 @@ func _build_ribbon() -> void:
 	_title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_ribbon.add_child(_title_label)
 
+	if header_icon != "":
+		var mark := UITheme.icon_rect(header_icon, 22.0)
+		mark.name = "HeaderIcon"
+		mark.set_anchors_preset(Control.PRESET_CENTER_LEFT)
+		mark.position = Vector2(12.0, -11.0)
+		_ribbon.add_child(mark)
+
 	_close_button = Button.new()
 	_close_button.name = "Close"
-	_close_button.text = "✕"
+	_close_button.icon = UITheme.chrome_at("ui_close", 16.0)
 	_close_button.custom_minimum_size = Vector2(26, 26)
 	_close_button.focus_mode = Control.FOCUS_NONE
 	UITheme.role(_close_button, UITheme.V_ICON_BTN)
-	_close_button.add_theme_font_size_override("font_size", UITheme.FS_BODY)
-	_close_button.add_theme_color_override("font_color", UITheme.c("gold_lt"))
 	_close_button.tooltip_text = "Close"
 	_close_button.pressed.connect(close)
 	_close_button.visible = close_button_visible

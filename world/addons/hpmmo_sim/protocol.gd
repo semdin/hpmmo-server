@@ -20,7 +20,7 @@ class_name HPProtocol
 ##     exchange lets a session that joined without one name the character it
 ##     wants (the server proves ownership before binding). A v6 client would
 ##     join unbound and never save, so the mismatch is refused like any other.
-const PROTOCOL_VERSION := 7
+const PROTOCOL_VERSION := 8
 
 ## Simulation / replication rates.
 const SIM_HZ := 20

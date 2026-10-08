@@ -263,17 +263,27 @@ def main():
         check(status == 404, "bob cannot load alice's character (404, no disclosure)")
         status, body = http(port, "POST", "/api/characters/save",
                             {"character_id": alice_char, "level": 99}, token=bob_tok)
-        check(status == 404, "bob cannot save alice's character")
+        check(status == 403, "bob cannot save alice's character")
         status, body = http(port, "POST", "/api/characters/load", {"character_id": alice_char})
         check(status == 401, "no session token -> 401")
+
+        status, body = http(port, "POST", "/api/characters/save", {"character_id": alice_char, "galleons": 99999}, token=alice_tok)
+        check(status == 403, "even the owning session cannot bypass world equipment validation")
+        status, body = http(port, "POST", "/api/characters/load", {"character_id": alice_char}, token=alice_tok)
+        starter = body["character"]
+        check(len(starter["equipment"]) == 3 and starter["equipment_version"] == 1 and
+              not any(i["id"] in ["wand_hawthorn", "robe_apprentice", "broom_nimbus2000"] for i in starter["inventory"]),
+              "new characters start with a wand, robe and broom equipped once")
 
         # --- save / restart / load back (state survives) -------------------------
         status, body = http(port, "POST", "/api/characters/save",
                             {"character_id": alice_char, "level": 3, "exp": 120, "galleons": 777,
+                             "equipment": {"main_hand":{"id":"wand_elder","tier":5}, "ring_left":{"id":"ring_apprentice","tier":0}, "ring_right":{"id":"ring_apprentice","tier":0}},
+                             "equipment_version":1, "inventory_revision":8, "base_max_hp":580, "base_max_mana":350,
                              "current_hp": 421, "pos": [1.5, 0.5, -8.25], "map_id": "grounds",
                              "inventory": [{"id": "potion_health", "amount": 3, "tier": 0},
                                            {"id": "wand_hawthorn", "amount": 1, "tier": 2}]},
-                            token=alice_tok)
+                            service_token=SERVICE_TOKEN)
         check(status == 200 and body.get("revision", 0) >= 2, "save accepts a validated full state")
         rev = body.get("revision")
 
@@ -285,14 +295,45 @@ def main():
               and abs(char.get("pos", [0, 0, 0])[2] + 8.25) < 0.001
               and any(i["id"] == "wand_hawthorn" and i["tier"] == 2 for i in char.get("inventory", [])),
               "state survives the service restart (level, galleons, pos, tiered item)")
+        check(char["equipment"]["main_hand"] == {"id":"wand_elder","tier":5} and
+              char["equipment"]["ring_left"] == char["equipment"]["ring_right"] and
+              char["base_max_hp"] == 580 and char["base_max_mana"] == 350 and char["inventory_revision"] == 8,
+              "equipment, two identical rings, base progression and inventory revision survive restart")
 
         status, body = http(port, "POST", "/api/characters/save",
                             {"character_id": alice_char, "base_revision": rev - 2, "level": 3},
-                            token=alice_tok)
+                            service_token=SERVICE_TOKEN)
         check(status == 409, "stale base_revision is rejected (409)")
         status, body = http(port, "POST", "/api/characters/save",
-                            {"character_id": alice_char, "base_revision": rev, "level": 4}, token=alice_tok)
+                            {"character_id": alice_char, "base_revision": rev, "level": 4}, service_token=SERVICE_TOKEN)
         check(status == 200, "current base_revision accepted")
+
+        # Equipment validation rejects the entire replacement, including currency.
+        status, invalid = http(port, "POST", "/api/characters/save",
+                              {"character_id":alice_char,"galleons":1,"equipment":{"feet":{"id":"boots_apprentice","tier":0}}},
+                              service_token=SERVICE_TOKEN)
+        check(status == 400, "equipment replacement without its bag is rejected")
+        status, loaded = http(port,"POST","/api/characters/load",{"character_id":alice_char},token=alice_tok)
+        check(loaded["character"]["galleons"] == 777 and loaded["character"]["equipment"] == char["equipment"],
+              "rejected equipment save changes neither currency nor ownership")
+        status, invalid = http(port,"POST","/api/trade",
+                              {"op_id":"ci-equipped-"+secrets.token_hex(4),"from_id":alice_char,"to_id":bob_char,
+                               "offer":{"items":[{"id":"wand_elder","amount":1,"tier":5}]},"request":{}},service_token=SERVICE_TOKEN)
+        check(status == 400,"equipped wand is unavailable to trades")
+
+        # A legacy sheet is migrated transactionally and the migration is replay-safe.
+        legacy = psql(db_name, f"INSERT INTO characters(account_id,name,house,max_hp,max_mana,wand_tier) SELECT account_id,'Legacy CI','Gryffindor',660,400,5 FROM characters WHERE id={alice_char} RETURNING id")
+        legacy_id = int(legacy.stdout.strip().splitlines()[0])
+        seeded = psql(db_name, f"INSERT INTO character_items(character_id,item_id,amount,tier) VALUES ({legacy_id},'wand_hawthorn',2,2),({legacy_id},'wand_elder',1,7),({legacy_id},'robe_apprentice',1,0); SELECT initialize_character_equipment({legacy_id}); SELECT initialize_character_equipment({legacy_id});")
+        check(seeded.returncode == 0,"legacy migration and replay execute successfully")
+        status, legacy_sheet = http(port,"POST","/api/characters/load",{"character_id":legacy_id},service_token=SERVICE_TOKEN)
+        legacy_char = legacy_sheet["character"]
+        check(legacy_char["base_max_hp"] == 660 and legacy_char["max_hp"] == 710 and legacy_char["base_max_mana"] == 400,
+              "migration records base resources once without bonus accumulation")
+        check(legacy_char["equipment"] == {"main_hand":{"id":"wand_hawthorn","tier":5},"chest":{"id":"robe_apprentice","tier":0}}
+              and sum(i["amount"] for i in legacy_char["inventory"]) == 2
+              and any(i["id"] == "wand_elder" and i["tier"] == 7 for i in legacy_char["inventory"]),
+              "migration preserves spare tiers and never invents a missing broom")
 
         # --- rewards: exactly-once -------------------------------------------------
         op = "ci-reward-" + secrets.token_hex(4)
@@ -345,11 +386,11 @@ def main():
         # --- inventory capacity is enforced on the save path too --------------------
         many = [{"id": f"ci_kind_{i}", "amount": 1, "tier": 0} for i in range(41)]
         status, body = http(port, "POST", "/api/characters/save",
-                            {"character_id": bob_char, "inventory": many}, token=bob_tok)
+                            {"character_id": bob_char, "inventory": many}, service_token=SERVICE_TOKEN)
         check(status == 400, "save rejecting a 41-kind inventory (capacity enforced on save, not just trade)")
         forty = many[:40]
         status, body = http(port, "POST", "/api/characters/save",
-                            {"character_id": bob_char, "inventory": forty}, token=bob_tok)
+                            {"character_id": bob_char, "inventory": forty}, service_token=SERVICE_TOKEN)
         check(status == 200, "save accepts a 40-kind inventory at the cap")
 
         # --- tickets: one-time handoff --------------------------------------------
@@ -432,7 +473,7 @@ def main():
 
         status, body = http(port, "POST", "/api/characters/save", {"character_id": bob_char, "level": 7},
                             token=alice_tok)
-        check(status == 404, "bearer save of a foreign character still returns 404")
+        check(status == 403, "bearer sessions cannot save character gameplay state")
         status, body = http(port, "POST", "/api/characters/load", {"character_id": bob_char},
                             service_token=SERVICE_TOKEN)
         base_rev = body.get("character", {}).get("revision")
@@ -442,7 +483,7 @@ def main():
                             service_token=SERVICE_TOKEN)
         check(status == 200 and body.get("revision") == base_rev + 1,
               "service-token save updates a foreign character and bumps its revision")
-        status, body = http(port, "POST", "/api/characters/load", {"character_id": bob_char}, token=bob_tok)
+        status, body = http(port, "POST", "/api/characters/load", {"character_id": bob_char}, service_token=SERVICE_TOKEN)
         check(status == 200 and body.get("character", {}).get("level") == 7
               and body.get("character", {}).get("galleons") == 1234,
               "the foreign-character save is visible to its owner")
@@ -460,7 +501,7 @@ def main():
         status, body = http(port, "GET", "/api/ready")
         check(status == 503 and body.get("status") == "unavailable",
               "readiness reports unavailable during the outage")
-        status, body = http(port, "POST", "/api/characters/load", {"character_id": alice_char}, token=alice_tok)
+        status, body = http(port, "POST", "/api/characters/load", {"character_id": alice_char}, service_token=SERVICE_TOKEN)
         check(status == 503, "data endpoint returns 503 during the outage (no fallback backend)")
         check(pg_start(), "PostgreSQL restarted")
         recovered = False

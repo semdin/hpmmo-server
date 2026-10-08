@@ -70,8 +70,12 @@ func _build() -> void:
 	panel.add_theme_stylebox_override("panel", style)
 	add_child(panel)
 
-	var title := _label(panel, "Settings", 20, Color(1.0, 0.88, 0.55), Vector2(16, 10))
+	var title := _label(panel, "Settings", 20, Color(1.0, 0.88, 0.55), Vector2(44, 10))
 	title.name = "Title"
+	var title_icon := UITheme.icon_rect("ui_settings", 22.0)
+	title_icon.name = "TitleIcon"
+	title_icon.position = Vector2(14, 12)
+	panel.add_child(title_icon)
 
 	# --- display and input ---
 	var y := 46.0
@@ -87,11 +91,11 @@ func _build() -> void:
 	_label(panel, "Volume", 15, Color(0.95, 0.92, 0.8), Vector2(16, y))
 	y += 24
 	for bus_name in GameSettings.BUSES:
-		_add_slider(panel, "vol_%s" % bus_name, "%s volume" % bus_name, 0.0, 1.0, 0.05, y)
+		_add_slider(panel, "vol_%s" % bus_name, "%s volume" % bus_name, 0.0, 1.0, 0.05, y, "audio_%s" % String(bus_name).to_lower())
 		y += 28
 	y += 8
 
-	_label(panel, "Key bindings", 15, Color(0.95, 0.92, 0.8), Vector2(16, y))
+	_label(panel, "Key bindings", 15, Color(0.95, 0.92, 0.8), Vector2(40, y), "ui_help")
 	y += 22
 
 	var scroll := ScrollContainer.new()
@@ -129,13 +133,21 @@ func _build() -> void:
 	var close_button := Button.new()
 	close_button.text = "Close (F1)"
 	close_button.focus_mode = Control.FOCUS_NONE
-	close_button.position = Vector2(456, 440)
-	close_button.custom_minimum_size = Vector2(90, 26)
+	close_button.position = Vector2(446, 440)
+	close_button.custom_minimum_size = Vector2(100, 26)
+	close_button.tooltip_text = "Close the settings (F1)"
+	UITheme.set_button_icon(close_button, "ui_close")
 	close_button.pressed.connect(_on_close_pressed)
 	panel.add_child(close_button)
 	panel.hide()
 
-func _label(parent: Node, text: String, size: int, color: Color, at: Vector2) -> Label:
+## A caption, optionally with an icon in front of it. `at` is the caption's own
+## position, so an icon shifts it (never the other way around).
+func _label(parent: Node, text: String, size: int, color: Color, at: Vector2, icon_id: String = "") -> Label:
+	if icon_id != "":
+		var icon := UITheme.icon_rect(icon_id, float(size) + 4.0)
+		icon.position = at - Vector2(float(size) + 6.0, 1.0)
+		parent.add_child(icon)
 	var label := Label.new()
 	label.text = text
 	label.position = at
@@ -147,9 +159,14 @@ func _label(parent: Node, text: String, size: int, color: Color, at: Vector2) ->
 	parent.add_child(label)
 	return label
 
-func _add_slider(parent: Node, key: String, title: String, minimum: float, maximum: float, step: float, y: float) -> void:
-	var label := _label(parent, title, 13, Color(0.9, 0.92, 0.96), Vector2(16, y))
-	label.custom_minimum_size = Vector2(170, 20)
+func _add_slider(parent: Node, key: String, title: String, minimum: float, maximum: float, step: float, y: float, icon_id: String = "") -> void:
+	var label_at := Vector2(38, y) if icon_id != "" else Vector2(16, y)
+	var label := _label(parent, title, 13, Color(0.9, 0.92, 0.96), label_at)
+	label.custom_minimum_size = Vector2(148, 20)
+	if icon_id != "":
+		var icon := UITheme.icon_rect(icon_id, 16.0)
+		icon.position = Vector2(16, y + 1)
+		parent.add_child(icon)
 	var value_label := _label(parent, "", 12, Color(1.0, 0.9, 0.6), Vector2(486, y))
 	value_label.custom_minimum_size = Vector2(56, 20)
 	var slider := HSlider.new()

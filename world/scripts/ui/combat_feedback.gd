@@ -24,6 +24,8 @@ const TOAST_H := 120.0
 
 ## The authority's refusal vocabulary -> the words the player reads.
 const REASONS := {
+	"no_wand": "Equip a wand first",
+	"no_broom": "Equip a broom first",
 	HPProtocol.REJECT_NO_MANA: "Not enough Mana",
 	HPProtocol.REJECT_RANGE: "Out of range - move closer",
 	HPProtocol.REJECT_NO_TARGET: "No target selected",
@@ -44,16 +46,32 @@ var binder: UIStateBinder = null
 var player: Node3D = null
 
 var _cast_panel: Panel = null
+var _cast_icon: TextureRect = null
 var _cast_label: Label = null
 var _cast_bar: ProgressBar = null
 var _feedback_label: Label = null
+var _status_row: HBoxContainer = null
+var _status_icons: Dictionary = {}
 var _status_label: Label = null
+var _safe_row: HBoxContainer = null
+var _safe_icon: TextureRect = null
 var _safe_label: Label = null
 var _toast_box: VBoxContainer = null
 var _toast_panel: Panel = null
 var _death_panel: ColorRect = null
 var _death_label: Label = null
+var _death_icon: TextureRect = null
 var _flash_rect: ColorRect = null
+
+## The effects the local body can carry, in the order the row shows them: the
+## icon id, and the word `status_text()` reports for that effect.
+const STATUS_EFFECTS := [
+	{"id": "status_dead", "token": "[DEFEATED]"},
+	{"id": "status_ward", "token": "[WARD]"},
+	{"id": "status_stun", "token": "[STUNNED]"},
+	{"id": "status_burn", "token": "[BURNING]"},
+	{"id": "status_mounted", "token": "[MOUNTED]"},
+]
 
 ## Live cast, in simulation-clock terms.
 var cast_spell := ""
@@ -106,8 +124,14 @@ func _build() -> void:
 	_cast_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_cast_panel.theme = UITheme.get_theme()
 	_cast_panel.theme_type_variation = UITheme.V_CARD
+	# The hourglass, because this card is where the authority's windup and the
+	# recovery tail are counted out.
+	_cast_icon = UITheme.icon_rect("cooldown", 15.0)
+	_cast_icon.name = "CastIcon"
+	_cast_icon.position = Vector2(7, 3)
+	_cast_panel.add_child(_cast_icon)
 	_cast_label = _make_label("Casting", UITheme.FS_SMALL, UITheme.c("parchment"))
-	_cast_label.position = Vector2(8, 4)
+	_cast_label.position = Vector2(27, 4)
 	_cast_panel.add_child(_cast_label)
 	_cast_bar = ProgressBar.new()
 	_cast_bar.name = "CastBar"
@@ -131,20 +155,44 @@ func _build() -> void:
 	_feedback_label.hide()
 	add_child(_feedback_label)
 
-	# Status icons (ward / burn / stun / mounted / protected).
+	# Status effects (ward / burn / stun / mounted / defeated). Each one is its
+	# icon the moment that file exists; the words `status_text()` reports stay the
+	# fallback, so a checkout without the icons shows the row as it always did.
+	_status_row = HBoxContainer.new()
+	_status_row.name = "StatusRow"
+	_status_row.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_status_row.position = Vector2(20, 38)
+	_status_row.add_theme_constant_override("separation", 4)
+	_status_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_status_row)
+	for effect in STATUS_EFFECTS:
+		var icon := UITheme.icon_rect(String(effect["id"]), 20.0)
+		icon.name = String(effect["token"])
+		icon.visible = false
+		_status_row.add_child(icon)
+		_status_icons[String(effect["id"])] = icon
 	_status_label = _make_label("", UITheme.FS_SMALL, UITheme.c("parchment"))
-	_status_label.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	_status_label.position = Vector2(20, 38)
-	_status_label.custom_minimum_size = Vector2(420, 22)
-	add_child(_status_label)
+	_status_label.custom_minimum_size = Vector2(0, 20)
+	_status_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_status_row.add_child(_status_label)
 
 	# Safe-area indication.
+	_safe_row = HBoxContainer.new()
+	_safe_row.name = "SafeRow"
+	_safe_row.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	UILayout.place_centred(_safe_row, Vector2(400, 22), Vector2(0, -286))
+	_safe_row.add_theme_constant_override("separation", 5)
+	_safe_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_safe_row)
+	_safe_icon = UITheme.icon_rect("ui_safe_zone", 16.0)
+	_safe_icon.name = "SafeIcon"
+	_safe_icon.visible = false
+	_safe_row.add_child(_safe_icon)
 	_safe_label = _make_label("", UITheme.FS_SMALL, UITheme.c("good"))
-	_safe_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	UILayout.place_centred(_safe_label, Vector2(400, 22), Vector2(0, -286))
 	_safe_label.custom_minimum_size = Vector2(400, 22)
+	_safe_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_safe_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	add_child(_safe_label)
+	_safe_row.add_child(_safe_label)
 
 	# Loot / XP / level toasts. The lowest card in the right rail: same width, same
 	# right edge and same inset as the quest tracker and the controls card above
@@ -193,6 +241,11 @@ func _build() -> void:
 	_death_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_death_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_death_panel.add_child(_death_label)
+	_death_icon = UITheme.icon_rect("status_dead", 72.0)
+	_death_icon.name = "DeathIcon"
+	_death_icon.set_anchors_preset(Control.PRESET_CENTER)
+	UILayout.place_centred(_death_icon, Vector2(72, 72), Vector2(0, -104))
+	_death_panel.add_child(_death_icon)
 	add_child(_death_panel)
 
 func _make_label(text: String, size: int, color: Color) -> Label:
@@ -291,7 +344,7 @@ func _on_death_changed(is_dead: bool) -> void:
 	else:
 		_death_panel.hide()
 		show_feedback("Back on your feet.", Color(0.5, 1.0, 0.6))
-		_toast("Respawned", Color(0.5, 1.0, 0.6))
+		_toast("Respawned", Color(0.5, 1.0, 0.6), "stat_health")
 
 ## Prefer the authority's own schedule; fall back to the authored respawn delay.
 func _respawn_seconds() -> float:
@@ -305,39 +358,55 @@ func _respawn_seconds() -> float:
 
 func _on_loot_taken(item_id: String, amount: int) -> void:
 	if item_id == "galleons":
-		_toast("+%d Galleons" % amount, Color(1.0, 0.85, 0.35))
+		_toast("+%d Galleons" % amount, Color(1.0, 0.85, 0.35), "galleons")
 	elif GameData.ITEMS.has(item_id):
-		_toast("+%s x%d" % [GameData.ITEMS[item_id].name, amount], Color(0.75, 0.95, 0.75))
+		_toast("+%s x%d" % [GameData.ITEMS[item_id].name, amount], Color(0.75, 0.95, 0.75), item_id)
 	else:
-		_toast("+%s x%d" % [item_id, amount], Color(0.75, 0.95, 0.75))
+		_toast("+%s x%d" % [item_id, amount], Color(0.75, 0.95, 0.75), "ui_pickup")
 	_play_ui("ui_loot")
 
 func _on_reward_granted(exp: int, galleons: int, items: Array) -> void:
 	if exp > 0:
-		_toast("+%d EXP" % exp, Color(0.5, 1.0, 0.6))
+		_toast("+%d EXP" % exp, Color(0.5, 1.0, 0.6), "stat_exp")
 	if galleons > 0:
-		_toast("+%d Galleons" % galleons, Color(1.0, 0.85, 0.35))
+		_toast("+%d Galleons" % galleons, Color(1.0, 0.85, 0.35), "galleons")
 	for entry in items:
 		if entry is Dictionary:
-			_toast("+%s x%d" % [String(entry.get("id", "item")), int(entry.get("amount", 1))], Color(0.75, 0.95, 0.75))
+			var item_id := String(entry.get("id", "item"))
+			_toast("+%s x%d" % [GameData.ITEMS.get(item_id,{}).get("name",item_id), int(entry.get("amount", 1))], Color(0.75, 0.95, 0.75), item_id)
 
 func _on_level_changed(level: int) -> void:
-	_toast("LEVEL %d!" % level, Color(1.0, 0.9, 0.3))
+	_toast("LEVEL %d!" % level, Color(1.0, 0.9, 0.3), "stat_level")
 	show_feedback("Level up - you are now level %d" % level, Color(1.0, 0.9, 0.3))
 	_play_ui("ui_levelup")
 
-func _toast(text: String, color: Color) -> void:
+## A notification line. The icon is the loot itself when there is one (an item
+## id resolves through the same namespace a bag cell uses), so "+Wiggenweld
+## Potion x3" shows the bottle it means.
+func _toast(text: String, color: Color, icon_id: String = "ui_pickup") -> void:
 	toasts_shown += 1
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 5)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var icon := UITheme.icon_rect(icon_id, 16.0)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(icon)
 	var label := _make_label(text, UITheme.FS_SMALL, color)
+	label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_toast_box.add_child(label)
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(label)
+	_toast_box.add_child(row)
 	if _toast_panel != null:
 		_toast_panel.show()
-	_toasts.append({"label": label, "until": _now() + 4.0})
-	while _toasts.size() > TOASTS_MAX:
+	_toasts.append({"label": label, "row": row, "until": _now() + 4.0})
+	var canvas := get_viewport().get_visible_rect().size
+	var capacity := 2 if canvas.x < 1000 or canvas.y < 560 else TOASTS_MAX
+	while _toasts.size() > capacity:
 		var oldest: Dictionary = _toasts.pop_front()
-		if is_instance_valid(oldest["label"]):
-			oldest["label"].queue_free()
+		if is_instance_valid(oldest["row"]):
+			(oldest["row"] as Node).queue_free()
 
 ## -------------------------------------------------------- screen effects
 
@@ -357,22 +426,42 @@ func _on_target_changed(_target: Object) -> void:
 ## ------------------------------------------------------------- status icons
 
 func status_text() -> String:
-	var icons: Array = []
+	return " ".join(status_tokens())
+
+## The words for the effects the local body carries, in display order. This is
+## the evidence the checks read; the status row renders the same list as icons.
+func status_tokens() -> Array[String]:
+	var tokens: Array[String] = []
 	if player == null or not is_instance_valid(player):
-		return ""
+		return tokens
 	var record := binder.record_for_local() if binder != null else {}
 	var tick := int(SimAuthority.sim_tick)
 	if bool(record.get("dead", false)) or bool(player.get("is_dead")):
-		icons.append("[DEFEATED]")
+		tokens.append("[DEFEATED]")
 	if int(record.get("ward_until_tick", 0)) > tick or bool(player.get("is_protego_active")):
-		icons.append("[WARD]")
+		tokens.append("[WARD]")
 	if int(record.get("stun_until_tick", 0)) > tick or float(player.get("_hit_recovery")) > 0.0:
-		icons.append("[STUNNED]")
+		tokens.append("[STUNNED]")
 	if int(record.get("burn_until_tick", 0)) > tick:
-		icons.append("[BURNING]")
+		tokens.append("[BURNING]")
 	if bool(player.get("is_mounted")):
-		icons.append("[MOUNTED]")
-	return " ".join(icons)
+		tokens.append("[MOUNTED]")
+	return tokens
+
+
+## One icon per active effect, and the words only for the effects whose icon file
+## is missing - a new row that never blanks a status the player needs to see.
+func _status_fallback_text() -> String:
+	var active := status_tokens()
+	var missing: Array[String] = []
+	for effect in STATUS_EFFECTS:
+		var token := String(effect["token"])
+		var icon: TextureRect = _status_icons.get(String(effect["id"]))
+		var on := active.has(token)
+		icon.visible = on and icon.texture != null
+		if on and icon.texture == null:
+			missing.append(token)
+	return " ".join(missing)
 
 func safe_area_text() -> String:
 	if player == null or not is_instance_valid(player):
@@ -388,8 +477,9 @@ func safe_area_text() -> String:
 	return "\n".join(lines)
 
 func _update_status() -> void:
-	_status_label.text = status_text()
-	_safe_label.text = safe_area_text()
+	_status_label.text = _status_fallback_text()
+	_safe_label.text = "Safe area · Combat disabled" if safe_area_text() != "" else ""
+	_safe_icon.visible = _safe_label.text != ""
 
 ## ------------------------------------------------------------------ process
 
@@ -427,7 +517,7 @@ func _process(delta: float) -> void:
 		if not is_instance_valid(toast["label"]):
 			_toasts.erase(toast)
 		elif now > float(toast["until"]):
-			(toast["label"] as Label).queue_free()
+			(toast["row"] as Node).queue_free()
 			_toasts.erase(toast)
 	if _toast_panel != null and _toasts.is_empty() and _toast_panel.visible:
 		_toast_panel.hide()

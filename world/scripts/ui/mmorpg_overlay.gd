@@ -108,17 +108,12 @@ func _build() -> void:
 	_map_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_map.add_child(_map_overlay)
 
-	# The bezel was a sprite; a fully rounded StyleBoxFlat is the same circle with
-	# nothing to import, and its thickness is a number rather than a pixel count
-	# baked into art.
-	var ring := Panel.new()
+	# Fixed-aspect artwork sits over the existing circular map mask.
+	var ring := TextureRect.new()
 	ring.name = "Ring"
-	var bezel := StyleBoxFlat.new()
-	bezel.draw_center = false
-	bezel.set_border_width_all(3)
-	bezel.border_color = UITheme.c("gold_dk")
-	bezel.set_corner_radius_all(int(MAP_PX * 0.5))
-	ring.add_theme_stylebox_override("panel", bezel)
+	ring.texture = ArcaneSkin.texture("minimap")
+	ring.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	ring.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	ring.set_anchors_preset(Control.PRESET_FULL_RECT)
 	ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_map.add_child(ring)
@@ -161,7 +156,7 @@ func _build() -> void:
 	# The caption is a caption, not the first line of the body: it gets the
 	# title face while the objective keeps the reading face.
 	_quest_title = UITheme.heading("QUEST", UITheme.FS_SMALL)
-	quest_column.add_child(_quest_title)
+	quest_column.add_child(UITheme.icon_row("ui_quest", _quest_title, 18.0))
 	quest_column.add_child(UITheme.divider())
 	_quest_label = UITheme.body("", UITheme.FS_SMALL, UITheme.c("parchment"))
 	_quest_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -183,6 +178,8 @@ func _build() -> void:
 	_zone_label.add_theme_color_override("font_outline_color", UITheme.c("shadow"))
 	_zone_label.add_theme_constant_override("outline_size", 5)
 	_zone_label.modulate.a = 0.0
+	# TravelFeedback owns the single persistent location row.
+	_zone_label.hide()
 	add_child(_zone_label)
 
 	# --- boss bar (top center under banner) ---
@@ -201,6 +198,12 @@ func _build() -> void:
 	_boss_name.add_theme_color_override("font_color", UITheme.c("magic"))
 	_boss_name.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	_boss_panel.add_child(_boss_name)
+	# The crown, at the left of the bar: the boss bar is the one place the game
+	# says "world boss" without the target frame.
+	var boss_icon := UITheme.icon_rect("ui_boss", 16.0)
+	boss_icon.name = "BossIcon"
+	boss_icon.position = Vector2(8, 3)
+	_boss_panel.add_child(boss_icon)
 	_boss_bar = ProgressBar.new()
 	_boss_bar.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	_boss_bar.offset_top = -16
@@ -222,12 +225,16 @@ func _build() -> void:
 	_dialog_panel.theme_type_variation = UITheme.V_WINDOW
 	_dialog_text = Label.new()
 	_dialog_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_dialog_text.custom_minimum_size = Vector2(500, 80)
-	_dialog_text.position = Vector2(10, 10)
+	_dialog_text.custom_minimum_size = Vector2(470, 80)
+	_dialog_text.position = Vector2(36, 10)
 	_dialog_text.add_theme_color_override("font_color", UITheme.c("parchment"))
 	_dialog_text.add_theme_font_size_override("font_size", UITheme.FS_BODY)
 	add_child(_dialog_panel)
 	_dialog_panel.add_child(_dialog_text)
+	var dialog_icon := UITheme.icon_rect("ui_chat", 18.0)
+	dialog_icon.name = "DialogIcon"
+	dialog_icon.position = Vector2(11, 9)
+	_dialog_panel.add_child(dialog_icon)
 
 	# --- low hp vignette ---
 	_vignette = ColorRect.new()
@@ -256,10 +263,12 @@ func _build() -> void:
 		+ "Z loot · I bag · O Ollivander · J guide · F1 settings",
 		UITheme.FS_SMALL,
 		UITheme.c("text"))
-	help_label.position = Vector2(9, 5)
-	help_label.custom_minimum_size = Vector2(UITheme.RIGHT_COL_W - 18, HELP_H - 10)
 	help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_help_panel.add_child(help_label)
+	help_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var help_row := UITheme.icon_row("ui_help", help_label, 18.0)
+	help_row.position = Vector2(9, 5)
+	help_row.custom_minimum_size = Vector2(UITheme.RIGHT_COL_W - 18, HELP_H - 10)
+	_help_panel.add_child(help_row)
 	add_child(_help_panel)
 
 ## The circular clip. A shader is the only way to cut a Control to a circle;
@@ -285,6 +294,7 @@ void fragment() {
 
 
 ## The three round buttons under the reference's map: zoom out, recentre, zoom in.
+## The three round buttons under the reference's map: zoom out, recentre, zoom in.
 func _build_map_buttons() -> void:
 	var row := HBoxContainer.new()
 	row.name = "MapButtons"
@@ -297,12 +307,11 @@ func _build_map_buttons() -> void:
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	_map.add_child(row)
 
-	for spec in [["−", -1], ["⚙", 0], ["+", 1]]:
-		var b := Button.new()
-		b.text = String(spec[0])
-		b.custom_minimum_size = Vector2(28, 28)
-		b.focus_mode = Control.FOCUS_NONE
-		UITheme.role(b, UITheme.V_ICON_BTN)
+	# The three round buttons under the reference's map: zoom out, recentre, zoom in.
+	# Each is its icon - the round chrome button has no room for a caption, and an
+	# arrow says "zoom" better than a minus sign does.
+	for spec in [["minimap_zoom_out", -1, "Zoom out"], ["minimap_player", 0, "Recentre on me"], ["minimap_zoom_in", 1, "Zoom in"]]:
+		var b := UITheme.icon_button(String(spec[0]), String(spec[2]), 28.0)
 		var dir: int = spec[1]
 		b.pressed.connect(func(): _map_zoom_step(dir))
 		row.add_child(b)
@@ -332,6 +341,11 @@ func _refresh_quest() -> void:
 
 ## The controls card yields to the notification stack when the canvas shrinks.
 func _sync_help_visibility() -> void:
+	if _help_panel != null: _help_panel.hide()
+	_arcane_overlay_layout()
+	return
+
+func _legacy_help_visibility() -> void:
 	if _help_panel == null:
 		return
 	var canvas := get_viewport().get_visible_rect().size
@@ -378,54 +392,61 @@ func _world_to_map(pos: Vector3) -> Vector2:
 		half + (pos.z - centre.z) / span * MAP_PX
 	)
 
-## A map marker: a flat disc, or a hollow ring for the player. It used to be a
-## sprite; a StyleBoxFlat circle is the same shape with nothing to import, and it
-## tints through `modulate` exactly as the sprite did.
-func _dot(key: String, color: Color, size: float = 6.0, tex_name: String = "dot") -> Control:
+## A map marker: one of the minimap icons in a fixed box. The player is the
+## arrow, a mob the red shard, a boss the crown, an NPC the figure and a monolith
+## the purple spike, so the map says what a marker is and not only where it is.
+func _dot(key: String, icon_id: String, size: float) -> Control:
 	if not _dots.has(key):
-		var disc := Panel.new()
-		var sb := StyleBoxFlat.new()
-		sb.set_corner_radius_all(int(maxf(1.0, size)))
-		if tex_name == "dot_ring":
-			sb.draw_center = false
-			sb.set_border_width_all(2)
-			sb.border_color = Color.WHITE
-		else:
-			sb.bg_color = Color.WHITE
-		disc.add_theme_stylebox_override("panel", sb)
-		disc.custom_minimum_size = Vector2(size, size)
-		disc.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_map_overlay.add_child(disc)
-		_dots[key] = disc
+		var marker := TextureRect.new()
+		marker.name = key
+		marker.texture = UITheme.chrome(icon_id)
+		marker.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		marker.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_map_overlay.add_child(marker)
+		_dots[key] = marker
 	var d: Control = _dots[key]
+	d.custom_minimum_size = Vector2(size, size)
 	d.size = Vector2(size, size)
-	d.modulate = color
 	return d
 
 func _update_minimap() -> void:
 	if _map == null:
 		return
-	var pd := _dot("__player", Color(0.3, 1.0, 0.4), 11.0, "dot_ring")
-	pd.position = _world_to_map(_player.global_position) - Vector2(5.5, 5.5)
-	# mobs red
+	var player_size := 16.0
+	var pd := _dot("__player", "minimap_player", player_size)
+	pd.position = _world_to_map(_player.global_position) - Vector2(player_size, player_size) * 0.5
+	# mobs: the crown for a world boss, the shard for the rest
 	for m in get_tree().get_nodes_in_group("mobs"):
 		if not is_instance_valid(m):
 			continue
-		var d := _dot("mob_%d" % m.get_instance_id(), Color(1, 0.25, 0.25), 5.0)
+		var boss: bool = "is_boss" in m and bool(m.is_boss)
+		var size := 14.0 if boss else 10.0
+		var d := _dot("mob_%d" % m.get_instance_id(), "minimap_boss" if boss else "minimap_mob", size)
 		d.visible = m.state != 5
-		d.position = _world_to_map(m.global_position) - Vector2(2.5, 2.5)
-	# monoliths purple
+		d.position = _world_to_map(m.global_position) - Vector2(size, size) * 0.5
+	# monoliths
 	for mo in get_tree().get_nodes_in_group("monoliths"):
 		if not is_instance_valid(mo):
 			continue
-		var d := _dot("mon_%d" % mo.get_instance_id(), Color(0.75, 0.3, 1.0), 9.0)
-		d.position = _world_to_map(mo.global_position) - Vector2(4.5, 4.5)
-	# npcs gold
+		var size := 14.0
+		var d := _dot("mon_%d" % mo.get_instance_id(), "minimap_monolith", size)
+		d.position = _world_to_map(mo.global_position) - Vector2(size, size) * 0.5
+	# npcs
 	for n in get_tree().get_nodes_in_group("npcs"):
 		if not is_instance_valid(n):
 			continue
-		var d := _dot("npc_%d" % n.get_instance_id(), Color(1.0, 0.85, 0.25), 7.0)
-		d.position = _world_to_map(n.global_position) - Vector2(3.5, 3.5)
+		var size := 12.0
+		var d := _dot("npc_%d" % n.get_instance_id(), "minimap_npc", size)
+		d.position = _world_to_map(n.global_position) - Vector2(size, size) * 0.5
+	# Clip icon extents to the disc, not merely to its rectangular Control.
+	for key in _dots:
+		var dot: Control = _dots[key]
+		var radius := MAP_PX * 0.5 - dot.size.length() * 0.5 - 4.0
+		var inside := (dot.position + dot.size*0.5 - Vector2.ONE*MAP_PX*0.5).length() <= radius
+		if key.begins_with("mob_"):
+			dot.visible = dot.visible and inside
+		else: dot.visible = inside
 	# cleanup dead dots (cheap: every frame ok for <200 dots)
 	for key in _dots.keys():
 		if key.begins_with("mob_") or key.begins_with("mon_") or key.begins_with("npc_"):
@@ -519,3 +540,23 @@ func _update_vignette() -> void:
 		var missing: float = 1.0 - float(hp) / float(max_hp)
 		var target_a: float = clamp((missing - 0.55) * 1.2, 0.0, 0.45)
 		_vignette.color.a = lerpf(_vignette.color.a, target_a, 0.1)
+
+func _arcane_overlay_layout() -> void:
+	if _map == null: return
+	var canvas := get_viewport().get_visible_rect().size
+	var compact := canvas.x < 1000 or canvas.y < 560
+	var scale_factor := 0.70 if compact else 1.0
+	_map.scale = Vector2.ONE * scale_factor
+	_map.offset_left = -16 - MAP_PX * scale_factor
+	_map.offset_right = _map.offset_left + MAP_PX
+	if _quest_panel != null:
+		_quest_panel.custom_minimum_size = Vector2.ZERO
+		UILayout.place(_quest_panel, Vector2(-226 if compact else -276,182 if compact else 250), Vector2(210 if compact else 260,84 if compact else 126))
+		_quest_panel.theme_type_variation = &"ArcaneCard"
+		_quest_label.custom_minimum_size = Vector2(186 if compact else 236,0)
+		_quest_label.max_lines_visible = 2 if compact else 4
+		_quest_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		_quest_panel.clip_contents = true
+	if _boss_panel != null:
+		_boss_panel.custom_minimum_size = Vector2.ZERO
+		UILayout.place(_boss_panel, Vector2(-120 if compact else -180,102), Vector2(240 if compact else 360,40))

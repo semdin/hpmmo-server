@@ -5,8 +5,8 @@ class_name ItemTooltip
 ##
 ## Every number here comes from the running game, never from a mock-up:
 ## `GameData.ITEMS` supplies `type`, `rarity` and the type-specific fields, the
-## player's wand tier comes from `player.wand_tier`, and the upgrade multiplier
-## from `GameData.UPGRADE_TABLE`. If a field is absent for an item, its row is
+## wand tier comes from the individual bag or equipment entry, and the upgrade multiplier
+## from `HPRules.combat()`. If a field is absent for an item, its row is
 ## simply not built - the card never shows a placeholder dash.
 ##
 ## Style follows the reference: the name is tinted by rarity, the kind and rarity
@@ -84,7 +84,7 @@ func show_item(item_id: String, entry: Dictionary = {}) -> void:
 	var rarity := rarity_of(item_id)
 	var tint: Color = RARITY_COLOUR.get(rarity, RARITY_COLOUR["common"])
 
-	_add_name_row(String(data.get("name", item_id)), tint, rarity_label(item_id))
+	_add_name_row(String(data.get("name", item_id)), tint, rarity_label(item_id), item_id)
 	_add_divider()
 	_add_kind_row(item_id, data)
 
@@ -134,6 +134,8 @@ func follow_cursor() -> void:
 		at.x = mouse.x - size.x - 18.0
 	if at.y + size.y > view.y - 6.0:
 		at.y = maxf(6.0, view.y - size.y - 6.0)
+	at.x = clampf(at.x, 6.0, maxf(6.0, view.x-size.x-6.0))
+	at.y = clampf(at.y, 6.0, maxf(6.0, view.y-size.y-6.0))
 	var delta := at - global_position
 	offset_left += delta.x
 	offset_right += delta.x
@@ -151,15 +153,16 @@ func _stat_rows(item_id: String, data: Dictionary, entry: Dictionary) -> Array:
 	if _is_wand(item_id):
 		var mult := float(data.get("base_multiplier", 1.0))
 		var tier := int(entry.get("tier", 0))
-		if GameData.UPGRADE_TABLE.has(tier):
-			mult *= float(GameData.UPGRADE_TABLE[tier].get("multiplier", 1.0))
+		mult *= HPRules.wand_multiplier(tier)
 		rows.append(["+ %d%% Spell power" % int(round((mult - 1.0) * 100.0)), 1])
-		if tier > 0 and GameData.UPGRADE_TABLE.has(tier):
-			var chance := int(GameData.UPGRADE_TABLE[tier].get("chance", 0))
+		if tier > 0 and tier < 9:
+			var chance := int(HPRules.combat().wand_tiers[tier].get("chance", 0))
 			if chance > 0:
 				rows.append(["+ %d%% next refine chance" % chance, 1])
 	if data.has("bonus_hp"):
 		rows.append(["+ %d Max Health" % int(data["bonus_hp"]), 1])
+	if data.has("bonus_mana"):
+		rows.append(["+ %d Max Mana" % int(data["bonus_mana"]), 1])
 	if data.has("bonus_defense"):
 		rows.append(["+ %d%% Magic Armour" % int(data["bonus_defense"]), 1])
 	if data.has("mount_speed"):
@@ -183,8 +186,14 @@ func _row() -> HBoxContainer:
 	return h
 
 
-func _add_name_row(text: String, colour: Color, right: String) -> void:
+func _add_name_row(text: String, colour: Color, right: String, icon_id: String = "") -> void:
 	var h := _row()
+	if icon_id != "":
+		# The same picture the bag cell shows, so the card is unmistakably about
+		# the thing under the cursor.
+		var icon := UITheme.icon_rect(icon_id, 26.0)
+		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		h.add_child(icon)
 	var name_label := Label.new()
 	name_label.text = text
 	name_label.add_theme_font_override("font", UITheme.font_title())
@@ -208,6 +217,8 @@ func _add_name_row(text: String, colour: Color, right: String) -> void:
 func _add_kind_row(item_id: String, data: Dictionary) -> void:
 	var kind := String(data.get("type", ""))
 	var text: String = KIND_LABEL.get(kind, kind.capitalize())
+	if kind == "armor":
+		text = String(data.get("slots",["armor"])[0]).replace("_", " ").capitalize()
 	_add_kv(kind.capitalize(), text, UITheme.c("text_dim"))
 
 

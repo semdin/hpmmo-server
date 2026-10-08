@@ -38,8 +38,6 @@ extends Node3D
 @onready var raven_btn: Button = $CanvasLayer/CreateModal/Margin/VBox/HouseRow/RavenBtn
 @onready var huff_btn: Button = $CanvasLayer/CreateModal/Margin/VBox/HouseRow/HuffBtn
 
-const WIZARD_MODEL_SCENE = preload("res://assets/models/characters/wizard.glb")
-
 var characters: Array = []
 var current_slot: int = 0 # 0 or 1 (max 2 characters)
 var selected_house: String = "Gryffindor"
@@ -49,6 +47,7 @@ var is_switching: bool = false
 
 func _ready() -> void:
 	# Connect UI buttons
+	_apply_icons()
 	enter_world_btn.pressed.connect(_on_enter_world_pressed)
 	new_char_btn.pressed.connect(_on_new_char_pressed)
 	prev_slot_btn.pressed.connect(func(): _switch_slot((current_slot - 1 + 2) % 2))
@@ -77,6 +76,20 @@ func _exit_tree() -> void:
 		NetworkManager.character_create_result.disconnect(_on_character_create_result)
 	if NetworkManager.character_select_result.is_connected(_on_character_select_result):
 		NetworkManager.character_select_result.disconnect(_on_character_select_result)
+
+## The house crests on the create-character buttons, and the glyph the plus sign
+## used to be. The captions stay: the crest says which house, the caption names it.
+func _apply_icons() -> void:
+	var crests := {
+		gryf_btn: "house_gryffindor",
+		slyth_btn: "house_slytherin",
+		raven_btn: "house_ravenclaw",
+		huff_btn: "house_hufflepuff",
+	}
+	for button in crests:
+		UITheme.set_button_icon(button, crests[button], 18.0)
+	new_char_btn.text = "Yeni Büyücü Oluştur"
+	UITheme.set_button_icon(new_char_btn, "minimap_zoom_in", 16.0)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if create_modal.visible:
@@ -135,7 +148,7 @@ func _update_slot_display(_animated: bool = true) -> void:
 		new_char_btn.text = "Maksimum Karakter (2/2)"
 	else:
 		new_char_btn.disabled = false
-		new_char_btn.text = "➕ Yeni Büyücü Oluştur"
+		new_char_btn.text = "Yeni Büyücü Oluştur"
 
 	if has_character:
 		var c = characters[current_slot]
@@ -158,12 +171,13 @@ func _update_slot_display(_animated: bool = true) -> void:
 		
 		char_stats_label.text = "Seviye: %d  |  Can: %d/%d  |  Mana: %d/%d" % [c_level, c_hp, c_max_hp, c_mana, c_max_mana]
 		char_wand_label.text = "Asa: +%d Büyü Gücü" % c_wand
-		char_galleons_label.text = "Servet: %d Galleon 💰" % c_galleons
+		char_galleons_label.text = "Servet: %d Galleon" % c_galleons
 		char_location_label.text = "Konum: Hogwarts Avlusu"
 
 		enter_world_btn.visible = true
 		enter_world_btn.disabled = false
-		enter_world_btn.text = "⚔️ '%s' İLE DÜNYAYA GİR" % c_name
+		enter_world_btn.text = "'%s' İLE DÜNYAYA GİR" % c_name
+		UITheme.set_button_icon(enter_world_btn, "ui_portal", 20.0)
 
 		_spawn_podium_character(c)
 	else:
@@ -182,30 +196,17 @@ func _update_slot_display(_animated: bool = true) -> void:
 func _spawn_podium_character(c_data: Dictionary) -> void:
 	_clear_podium_character()
 
-	var wiz = WIZARD_MODEL_SCENE.instantiate()
-	model_anchor.add_child(wiz)
-	current_char_node = wiz
-	wiz.position = Vector3.ZERO
-	wiz.rotation = Vector3.ZERO
-
-	# Hide staff/spellbook, show 1H wand
-	var staff = wiz.get_node_or_null("Rig/Skeleton3D/handslot_r/2H_Staff")
-	if staff: staff.hide()
-	var book1 = wiz.get_node_or_null("Rig/Skeleton3D/handslot_l/Spellbook")
-	if book1: book1.hide()
-	var book2 = wiz.get_node_or_null("Rig/Skeleton3D/handslot_l/Spellbook_open")
-	if book2: book2.hide()
-
-	# Tint cape with house colors
 	var c_house: String = c_data.get("house", "Gryffindor")
+	var primary := Color(0.6, 0.6, 0.6)
 	if GameData.HOUSES.has(c_house):
-		var primary_col = GameData.HOUSES[c_house].primary_color
-		var cape = wiz.get_node_or_null("Rig/Skeleton3D/chest/Mage_Cape")
-		if cape and cape is MeshInstance3D:
-			var mat = StandardMaterial3D.new()
-			mat.albedo_color = primary_col
-			mat.roughness = 0.4
-			cape.set_surface_override_material(0, mat)
+		primary = GameData.HOUSES[c_house].primary_color
+
+	# The same body and the same house tint the world uses, so the wizard on the
+	# podium is the wizard the player is about to play.
+	current_char_node = HeroAppearance.spawn(model_anchor, primary)
+	if current_char_node == null:
+		return
+	current_anim_player = HeroAppearance.find_anim_player(current_char_node)
 
 	# Wand aura particles
 	var wand_tier: int = c_data.get("wand_tier", 0)
@@ -215,13 +216,6 @@ func _spawn_podium_character(c_data: Dictionary) -> void:
 		wand_aura.color = up_info.get("aura", Color.TRANSPARENT)
 	elif wand_aura:
 		wand_aura.emitting = false
-
-	# Play Idle breathing animation
-	var anim = wiz.find_child("AnimationPlayer", true, false)
-	if anim and anim is AnimationPlayer:
-		current_anim_player = anim
-		if anim.has_animation("Idle"):
-			anim.play("Idle")
 
 func _clear_podium_character() -> void:
 	if is_instance_valid(current_char_node):

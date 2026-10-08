@@ -3,8 +3,7 @@ class_name UISlot
 
 ## One framed cell in a grid or an equipment doll.
 ##
-## A `Button` so it is clickable and focusable for free, with the generated
-## nine-patch `slot_cell` art as its three states. The bag grid, the equipment
+## A Button with shared theme states and optional equipment gestures. The bag grid, the equipment
 ## doll and the spell hotbar all use this one widget, so a cell looks the same
 ## wherever it appears.
 ##
@@ -14,6 +13,16 @@ class_name UISlot
 
 signal slot_entered(slot: UISlot)
 signal slot_exited(slot: UISlot)
+signal activated(slot: UISlot)
+signal dropped(destination: UISlot, payload: Dictionary)
+var equipment_slot := ""
+var equipment_interaction := false
+var drop_check: Callable
+var _accent: Panel
+var selected := false:
+	set(value):
+		selected = value
+		_update_accent()
 
 ## Item id this cell holds, or "" when empty.
 var item_id := ""
@@ -53,6 +62,15 @@ func _ready() -> void:
 	theme = UITheme.get_theme()
 	theme_type_variation = UITheme.V_SLOT
 	text = ""
+	var inset := ColorRect.new()
+	inset.color = Color("0b1423")
+	inset.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	inset.offset_left = 5
+	inset.offset_top = 5
+	inset.offset_right = -5
+	inset.offset_bottom = -5
+	inset.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(inset)
 
 	_icon = TextureRect.new()
 	_icon.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -130,6 +148,10 @@ func _ready() -> void:
 	_caption_label.visible = caption != ""
 	add_child(_caption_label)
 
+	_accent = Panel.new()
+	_accent.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_accent.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_accent)
 	mouse_entered.connect(func(): slot_entered.emit(self))
 	mouse_exited.connect(func(): slot_exited.emit(self))
 
@@ -152,6 +174,7 @@ func set_item(p_id: String, p_entry: Dictionary = {}) -> void:
 
 
 func _apply_item() -> void:
+	_update_accent()
 	var p_id := item_id
 	var p_entry := entry
 	var tex: Texture2D = null
@@ -187,3 +210,37 @@ func set_cooldown(remaining: float, fraction: float) -> void:
 
 func clear() -> void:
 	set_item("", {})
+
+func _gui_input(event: InputEvent) -> void:
+	if not equipment_interaction or disabled: return
+	if event is InputEventMouseButton and event.pressed:
+		if event.button_index == MOUSE_BUTTON_RIGHT or (event.button_index == MOUSE_BUTTON_LEFT and event.double_click):
+			activated.emit(self)
+			accept_event()
+
+func _get_drag_data(_at: Vector2) -> Variant:
+	if not equipment_interaction or disabled or item_id == "": return null
+	var payload := {"arcane_item": true, "id": item_id, "tier": int(entry.get("tier", 0)), "source_slot": equipment_slot}
+	var preview := TextureRect.new()
+	preview.texture = UITheme.icon_for(item_id)
+	preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	preview.custom_minimum_size = Vector2(44,44)
+	set_drag_preview(preview)
+	return payload
+
+func _can_drop_data(_at: Vector2, payload: Variant) -> bool:
+	return equipment_interaction and not disabled and payload is Dictionary and payload.get("arcane_item", false) and drop_check.is_valid() and drop_check.call(self, payload)
+
+func _drop_data(_at: Vector2, payload: Variant) -> void:
+	if _can_drop_data(_at, payload): dropped.emit(self, payload)
+
+func _update_accent() -> void:
+	if _accent == null: return
+	var border := StyleBoxFlat.new()
+	border.bg_color = Color.TRANSPARENT
+	border.set_corner_radius_all(4)
+	var rarity: String = HPEquipment.item(item_id).get("rarity", "common")
+	border.border_color = Color("6bcde0") if selected else ItemTooltip.RARITY_COLOUR.get(rarity,Color.WHITE) * Color(1,1,1,0.55)
+	border.set_border_width_all(2 if selected else 0)
+	if not selected and item_id != "" and not HPEquipment.item(item_id).is_empty(): border.border_width_bottom = 2
+	_accent.add_theme_stylebox_override("panel", border)

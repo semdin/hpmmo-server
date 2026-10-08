@@ -1,22 +1,112 @@
 {
   "_comment": "Server-owned combat constants. The authority reads these; the client uses them only for prediction and tooltips. GDDATA_UPGRADE_TABLE in client/scripts/autoload/game_data.gd must stay equal to wand_tiers (a harness check enforces it).",
   "wand_tiers": [
-    { "tier": 0, "multiplier": 1.0, "chance": 100, "cost": 100 },
-    { "tier": 1, "multiplier": 1.12, "chance": 100, "cost": 400 },
-    { "tier": 2, "multiplier": 1.25, "chance": 95, "cost": 1200 },
-    { "tier": 3, "multiplier": 1.4, "chance": 85, "cost": 2600 },
-    { "tier": 4, "multiplier": 1.6, "chance": 75, "cost": 5000 },
-    { "tier": 5, "multiplier": 1.85, "chance": 60, "cost": 9000 },
-    { "tier": 6, "multiplier": 2.15, "chance": 45, "cost": 15000 },
-    { "tier": 7, "multiplier": 2.5, "chance": 30, "cost": 22000 },
-    { "tier": 8, "multiplier": 3.0, "chance": 15, "cost": 30000 },
-    { "tier": 9, "multiplier": 3.5, "chance": 0, "cost": 0 }
+    {
+      "tier": 0,
+      "multiplier": 1.0,
+      "chance": 100,
+      "cost": 100,
+      "material_id": "mat_phoenix_ash",
+      "material_amount": 1
+    },
+    {
+      "tier": 1,
+      "multiplier": 1.12,
+      "chance": 100,
+      "cost": 400,
+      "material_id": "mat_phoenix_ash",
+      "material_amount": 1
+    },
+    {
+      "tier": 2,
+      "multiplier": 1.25,
+      "chance": 95,
+      "cost": 1200,
+      "material_id": "mat_phoenix_ash",
+      "material_amount": 2
+    },
+    {
+      "tier": 3,
+      "multiplier": 1.4,
+      "chance": 85,
+      "cost": 2600,
+      "material_id": "mat_phoenix_ash",
+      "material_amount": 3
+    },
+    {
+      "tier": 4,
+      "multiplier": 1.6,
+      "chance": 75,
+      "cost": 5000,
+      "material_id": "mat_dragon_heartstring",
+      "material_amount": 1
+    },
+    {
+      "tier": 5,
+      "multiplier": 1.85,
+      "chance": 60,
+      "cost": 9000,
+      "material_id": "mat_dragon_heartstring",
+      "material_amount": 2
+    },
+    {
+      "tier": 6,
+      "multiplier": 2.15,
+      "chance": 45,
+      "cost": 15000,
+      "material_id": "mat_thestral_hair",
+      "material_amount": 1
+    },
+    {
+      "tier": 7,
+      "multiplier": 2.5,
+      "chance": 30,
+      "cost": 22000,
+      "material_id": "mat_thestral_hair",
+      "material_amount": 2
+    },
+    {
+      "tier": 8,
+      "multiplier": 3.0,
+      "chance": 15,
+      "cost": 30000,
+      "material_id": "mat_elder_core",
+      "material_amount": 1
+    },
+    {
+      "tier": 9,
+      "multiplier": 3.5,
+      "chance": 0,
+      "cost": 0,
+      "material_id": "",
+      "material_amount": 0
+    }
   ],
   "houses": {
-    "Gryffindor": { "hp_multiplier": 1.0, "mana_multiplier": 1.0, "spell_damage": { "incendio": 1.15 } },
-    "Slytherin":  { "hp_multiplier": 1.0, "mana_multiplier": 1.0, "spell_damage": { "ultimate": 1.2, "expelliarmus": 1.2 } },
-    "Ravenclaw":  { "hp_multiplier": 1.0, "mana_multiplier": 1.25, "cooldown_multiplier": 0.8 },
-    "Hufflepuff": { "hp_multiplier": 1.25, "mana_multiplier": 1.0 }
+    "Gryffindor": {
+      "hp_multiplier": 1.0,
+      "mana_multiplier": 1.0,
+      "spell_damage": {
+        "incendio": 1.15
+      }
+    },
+    "Slytherin": {
+      "hp_multiplier": 1.0,
+      "mana_multiplier": 1.0,
+      "spell_damage": {
+        "ultimate": 1.2,
+        "expelliarmus": 1.2
+      }
+    },
+    "Ravenclaw": {
+      "hp_multiplier": 1.0,
+      "mana_multiplier": 1.25,
+      "cooldown_multiplier": 0.8
+    },
+    "Hufflepuff": {
+      "hp_multiplier": 1.25,
+      "mana_multiplier": 1.0
+    }
   },
   "base_stats": {
     "max_hp": 500,
@@ -42,6 +132,10 @@
   },
   "death": {
     "respawn_ms": 2500,
-    "respawn_position": [0.0, 0.5, 5.0]
+    "respawn_position": [
+      0.0,
+      0.5,
+      5.0
+    ]
   }
 }

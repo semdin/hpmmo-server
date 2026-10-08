@@ -47,6 +47,8 @@ var world: Node3D = null
 var done: Array = []
 var current_index: int = 0
 var visible_panel := true
+var expanded_guide := false
+var _body_scroll: ScrollContainer
 
 var _panel: Panel = null
 var _title: Label = null
@@ -132,6 +134,7 @@ func _build() -> void:
 	for side in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 10)
 	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_panel.add_child(margin)
 
 	var column := VBoxContainer.new()
@@ -141,13 +144,18 @@ func _build() -> void:
 	margin.add_child(column)
 
 	_title = UITheme.heading("Getting started", UITheme.FS_HEADER)
-	column.add_child(_title)
+	column.add_child(UITheme.icon_row("ui_interact", _title, 22.0))
 	column.add_child(UITheme.divider())
 
 	_body = UITheme.body("", UITheme.FS_SMALL, UITheme.c("parchment"))
 	_body.custom_minimum_size = Vector2(UITheme.LEFT_COL_W - 20, 100)
 	_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	column.add_child(_body)
+	_body_scroll = ScrollContainer.new()
+	_body_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_body_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	column.add_child(_body_scroll)
+	_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_body_scroll.add_child(_body)
 
 	var footer := HBoxContainer.new()
 	footer.name = "Footer"
@@ -161,13 +169,15 @@ func _build() -> void:
 	_hide_button.focus_mode = Control.FOCUS_NONE
 	_hide_button.custom_minimum_size = Vector2(84, 26)
 	_hide_button.add_theme_font_size_override("font_size", UITheme.FS_SMALL)
+	UITheme.set_button_icon(_hide_button, "ui_close", 14.0)
 	_hide_button.pressed.connect(toggle_panel)
 	footer.add_child(_hide_button)
 
 	add_child(_panel)
+	get_viewport().size_changed.connect(_refresh)
 
 func toggle_panel() -> void:
-	visible_panel = not visible_panel
+	expanded_guide = not expanded_guide
 	_refresh()
 
 func _refresh() -> void:
@@ -177,20 +187,30 @@ func _refresh() -> void:
 		_panel.hide()
 		return
 	_panel.show()
-	if is_complete():
-		_title.text = "Training complete"
-		_body.text = "You know the basics: dummies, safe ground, packs, the broom and the castle door.\nThe grounds are yours."
-		return
-	var step: Dictionary = STEPS[current_index]
-	_title.text = "Getting started (%d/%d)" % [current_index, STEPS.size()]
-	var lines: Array = []
+	var canvas := get_viewport().get_visible_rect().size
+	var compact := canvas.x < 1000 or canvas.y < 560
+	var lines: Array[String] = []
 	for index in range(STEPS.size()):
 		var entry: Dictionary = STEPS[index]
-		var mark := "[x]" if index < current_index else ("[>]" if index == current_index else "[ ]")
-		lines.append("%s %s" % [mark, entry["title"]])
-	lines.append("")
-	lines.append(String(step["hint"]))
-	_body.text = "\n".join(lines)
+		var mark := "Done" if index < current_index else ("Next" if index == current_index else "Later")
+		lines.append("%s: %s" % [mark, entry.title])
+	if not is_complete(): lines.append("\n" + String(STEPS[current_index].hint))
+	lines.append("\nCONTROLS\nWASD move · Right-drag camera · Wheel zoom\nLMB attack · 1–4 / Q / E spells · Tab target\nShift mount · Space rise · Ctrl descend\nF talk · Z loot · I inventory · O forge\nJ guide · F1 settings · Enter chat\n\nEQUIPMENT\nSelect to compare. Right-click, double-click, or drag to equip. Changes require five seconds out of combat. Dismount to change brooms.")
+	_body.text = "\n".join(lines) if expanded_guide else ("Training complete" if is_complete() else String(STEPS[current_index].title))
+	_title.text = "GUIDE (%d/%d)" % [current_index, STEPS.size()]
+	var width := minf(420, canvas.x - 32) if expanded_guide else 210.0
+	_body.custom_minimum_size = Vector2(width-32, 0)
+	_body.add_theme_font_size_override("font_size", 15 if expanded_guide else 13)
+	_panel.custom_minimum_size = Vector2.ZERO
+	_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	var height := minf(440,canvas.y-40) if expanded_guide else (48.0 if compact else 112.0)
+	UILayout.place(_panel, (canvas-Vector2(width,height))*0.5 if expanded_guide else Vector2(16,156), Vector2(width,height))
+	_title.get_parent().visible = expanded_guide or not compact
+	var column := _body_scroll.get_parent()
+	column.get_child(1).visible = expanded_guide or not compact
+	_hide_button.get_parent().visible = expanded_guide or not compact
+	_hide_button.text = "Collapse (J)" if expanded_guide else "Guide (J)"
+	_panel.theme_type_variation = &"ArcaneCard"
 
 ## --------------------------------------------------------------- progress
 
@@ -240,6 +260,8 @@ func load_progress() -> void:
 
 func reset() -> void:
 	current_index = 0
+	authoritative_progress = 0
+	packets_observed = 0
 	done.clear()
 	_witnessed.clear()
 	_mounted_once = false

@@ -727,6 +727,8 @@ func _finish_flush(saved: int, failed: int) -> void:
 func _bridge_inflight(bridge: Node) -> int:
 	if bridge == null or not is_instance_valid(bridge):
 		return 0
+	if bridge.has_method("pending_count"):
+		return int(bridge.pending_count())
 	var count := 0
 	for child in bridge.get_children():
 		if child is HTTPRequest:
