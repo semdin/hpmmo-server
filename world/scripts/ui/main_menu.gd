@@ -53,6 +53,7 @@ var characters_cache: Array = []
 var pending_auth: Dictionary = {} # {"action": "login"|"register", "user": "", "pass": ""}
 
 func _ready() -> void:
+	_apply_menu_theme()
 	# Auth Buttons
 	login_btn.pressed.connect(_on_login_pressed)
 	register_btn.pressed.connect(_on_register_pressed)
@@ -275,7 +276,7 @@ func _on_enter_world_pressed() -> void:
 		if int(c.get("id", 0)) == selected_char_id:
 			# The world session is already joined (by `_enter_world_with_session`);
 			# this is what binds it to the chosen character server-side, with the
-			# server proving ownership through the account service (D14-1).
+			# server proving ownership through the account service (character-bind).
 			NetworkManager.select_character(c)
 			break
 	var result: Dictionary = await NetworkManager.bind_selected_character()
@@ -594,3 +595,122 @@ func _await_game_connection(timeout_seconds: float) -> bool:
 		await get_tree().create_timer(0.1).timeout
 		waited += 0.1
 	return NetworkManager.is_connected_to_game
+
+
+## ---------------------------------------------------------------- presentation
+##
+## The menu is the first thing a player sees and it had no styling beyond the
+## engine defaults: a plain label, a flat panel, grey buttons. Everything now
+## comes from `UITheme`, and the title sits on the generated ribbon, which is
+## the same crimson-and-brass language the HUD and the bag use.
+func _apply_menu_theme() -> void:
+	theme = UITheme.get_theme()
+
+	# The scene ships a `theme_override_styles/panel` on every panel and button,
+	# and a scene override beats the Theme - so the new kit only shows up once
+	# those are dropped.
+	for node_name in ["AuthPanel", "CharSelectPanel", "CharCreatePanel"]:
+		var panel := get_node_or_null(node_name) as Control
+		if panel != null:
+			panel.remove_theme_stylebox_override("panel")
+	for path in ["AuthPanel/Margin/VBox/ButtonsRow/LoginButton",
+			"AuthPanel/Margin/VBox/ButtonsRow/RegisterButton",
+			"AuthPanel/Margin/VBox/SoloButton",
+			"CharSelectPanel/Margin/VBox/ButtonsRow/EnterWorldButton",
+			"CharSelectPanel/Margin/VBox/ButtonsRow/NewCharButton",
+			"CharSelectPanel/Margin/VBox/ButtonsRow/LogoutButton",
+			"CharCreatePanel/Margin/VBox/ButtonsRow/ConfirmCreateBtn",
+			"CharCreatePanel/Margin/VBox/ButtonsRow/CancelCreateBtn"]:
+		var button := get_node_or_null(path) as Button
+		if button != null:
+			for state in ["normal", "hover", "pressed", "disabled", "focus"]:
+				button.remove_theme_stylebox_override(state)
+			# The painted plate needs room: a 26 px button reads as a sliver.
+			button.custom_minimum_size = Vector2(maxf(button.custom_minimum_size.x, 128), 44)
+	for edit_name in ["AuthPanel/Margin/VBox/UserRow/UsernameInput",
+			"AuthPanel/Margin/VBox/PassRow/PasswordInput",
+			"AuthPanel/Margin/VBox/ServerRow/IpInput",
+			"AuthPanel/Margin/VBox/ServerRow/PortInput",
+			"CharCreatePanel/Margin/VBox/NameRow/NewCharNameInput"]:
+		var edit := get_node_or_null(edit_name) as LineEdit
+		if edit != null:
+			for state in ["normal", "focus", "read_only"]:
+				edit.remove_theme_stylebox_override(state)
+			edit.custom_minimum_size = Vector2(edit.custom_minimum_size.x, 34)
+
+	var header := get_node_or_null("HeaderBox") as Control
+	var title := get_node_or_null("HeaderBox/TitleLabel") as Label
+	var subtitle := get_node_or_null("HeaderBox/SubtitleLabel") as Label
+
+	if header != null:
+		# The ribbon's band runs across the middle of the banner, so the header
+		# is nudged down to sit inside it rather than above it.
+		header.offset_top = 80.0
+		header.offset_bottom = 166.0
+
+	if title != null:
+		title.add_theme_font_override("font", UITheme.font_title())
+		title.add_theme_font_size_override("font_size", UITheme.FS_BANNER)
+		title.add_theme_color_override("font_color", UITheme.c("parchment"))
+		title.add_theme_color_override("font_outline_color", Color(0.16, 0.02, 0.03))
+		title.add_theme_constant_override("outline_size", 8)
+
+	if subtitle != null:
+		subtitle.add_theme_font_size_override("font_size", UITheme.FS_SMALL)
+		subtitle.add_theme_color_override("font_color", UITheme.c("gold_lt"))
+		subtitle.add_theme_color_override("font_outline_color", UITheme.c("shadow"))
+		subtitle.add_theme_constant_override("outline_size", 5)
+
+	_add_ribbon()
+	_add_corner_medallions()
+
+
+func _add_ribbon() -> void:
+	if get_node_or_null("Ribbon") != null:
+		return
+	var ribbon := Panel.new()
+	ribbon.name = "Ribbon"
+	ribbon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ribbon.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	ribbon.offset_left = -390.0
+	ribbon.offset_top = 10.0
+	ribbon.offset_right = 390.0
+	ribbon.offset_bottom = 205.0
+	# A translucent band behind the header text. It has to stretch from a narrow
+	# window to a wide one, which art can only do as a nine-patch; a flat box does
+	# it for free and cannot smear its corners.
+	var band := StyleBoxFlat.new()
+	band.bg_color = UITheme.alpha("night", 0.72)
+	band.border_color = UITheme.alpha("gold_dk", 0.9)
+	band.set_border_width_all(1)
+	band.set_corner_radius_all(10)
+	ribbon.add_theme_stylebox_override("panel", band)
+	add_child(ribbon)
+	# Behind the header text, but still in front of the backdrop.
+	var header := get_node_or_null("HeaderBox")
+	move_child(ribbon, header.get_index() if header != null else 1)
+
+
+## A gold disc in each top corner, the way the reference menu frames its title.
+## Purely decorative - the real controls stay in the panels.
+func _add_corner_medallions() -> void:
+	if get_node_or_null("MedallionLeft") != null:
+		return
+	for side in ["Left", "Right"]:
+		var disc := Panel.new()
+		disc.name = "Medallion" + side
+		var disc_style := StyleBoxFlat.new()
+		disc_style.bg_color = UITheme.alpha("gold_dk", 0.35)
+		disc_style.border_color = UITheme.c("gold")
+		disc_style.set_border_width_all(2)
+		disc_style.set_corner_radius_all(40)
+		disc.add_theme_stylebox_override("panel", disc_style)
+		disc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		disc.set_anchors_preset(
+			Control.PRESET_TOP_LEFT if side == "Left" else Control.PRESET_TOP_RIGHT)
+		var inset := 26.0 if side == "Left" else -26.0
+		disc.offset_left = inset if side == "Left" else -94.0
+		disc.offset_right = inset + 68.0 if side == "Left" else -26.0
+		disc.offset_top = 22.0
+		disc.offset_bottom = 90.0
+		add_child(disc)

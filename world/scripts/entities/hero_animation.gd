@@ -1,7 +1,7 @@
 extends Node
 class_name HeroAnimation
 
-## Phase 9 animation graph (plan.md: "Build an animation graph for idle, walk,
+## Rig animation graph("Build an animation graph for idle, walk,
 ## run, strafe, turn, jump, fall, land, cast variants, hit, stun, death, revive,
 ## interact and mounted states. Use upper-body casting blends where appropriate,
 ## with explicit movement restrictions for committed attacks. Footsteps and wand

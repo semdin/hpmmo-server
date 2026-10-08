@@ -2,10 +2,10 @@
 """
 HPMMO - Server Database Service
 Handles account authentication and character persistence (SQLite; the
-PostgreSQL connection setup is unused until the Phase 4 rewrite).
+PostgreSQL connection setup is unused until the persistence rewrite).
 Listens on 0.0.0.0:8081 - this API has no authentication yet and must not be
-exposed to the public internet (plan.md defect B3).
-The trade route is disabled (503) until the Phase 4 rewrite.
+exposed to the public internet (defect B3).
+The trade route is disabled (503) until the persistence rewrite.
 """
 
 import sys
@@ -174,9 +174,9 @@ class DBRequestHandler(BaseHTTPRequestHandler):
         elif parsed.path == "/api/characters/save":
             self.handle_character_save(req_data)
         elif parsed.path == "/api/trade":
-            # Disabled for Phase 1 (plan.md): handle_trade appends offered items
+            # Disabled in the core: handle_trade appends offered items
             # to recipients without debiting senders, so it mints items and
-            # galleons. Phase 4 replaces it with validated, transactional
+            # galleons. The persistence service replaces it with validated, transactional
             # transfers and re-enables the route.
             self._send_json(503, {"success": False, "message": "Trade is temporarily disabled."})
         else:

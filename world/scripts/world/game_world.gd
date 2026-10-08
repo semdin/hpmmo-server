@@ -25,7 +25,7 @@ const DummyScript = preload("res://scripts/world/training_dummy.gd")
 
 var local_player: Node3D = null
 var overlay: CanvasLayer = null
-## Client half of map transfer (plan.md Phase 8): portal interaction, fade and
+## Client half of map transfer: portal interaction, fade and
 ## loading UI, loading the castle interior and unloading the outdoor world.
 var map_controller: Node = null
 var _candle_t: float = 0.0
@@ -423,7 +423,7 @@ func _on_entity_moved(uid: int, pos: Vector3, rot_y: float, flags: int) -> void:
 	if "sim_target_pos" in view:
 		view.sim_target_pos = pos
 		view.sim_target_rot = rot_y
-		# Phase 9: the replicated flight phase rides in the record's `state` byte,
+		# The replicated flight phase rides in the record's `state` byte,
 		# so a remote rider animates the phase the authority chose, not a guess.
 		if "sim_mount_phase" in view:
 			view.sim_mount_phase = int(SimAuthority.entities.get(uid, {}).get("state", 0))

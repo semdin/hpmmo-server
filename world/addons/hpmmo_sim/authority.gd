@@ -34,7 +34,7 @@ signal entity_damaged(uid: int, amount: int, hp: int, spell_id: String, attacker
 signal entity_died(uid: int, killer_uid: int)
 signal entity_respawned(uid: int)
 signal loot_spawned(uid: int, item_id: String, amount: int, pos: Vector3)
-## Phase 11 encounter lifecycle: a boss telegraph opened/closed, and a pack that
+## encounter lifecycle: a boss telegraph opened/closed, and a pack that
 ## leashed home reset its encounter (its pending reward credit was cancelled).
 signal mob_telegraph(uid: int, data: Dictionary)
 signal mob_telegraph_end(uid: int)
@@ -44,13 +44,13 @@ signal reward_granted(uid: int, character_id: int, exp: int, galleons: int, item
 signal level_changed(uid: int, level: int)
 signal player_joined(uid: int, character_id: int, peer_id: int)
 signal player_left(uid: int, character_id: int)
-## Maintenance lifecycle (plan.md Phase 6). The dedicated server's admin
+## Maintenance lifecycle. The dedicated server's admin
 ## controller emits this locally; clients receive it from the network layer
 ## (SimNet.sim_maintenance_event) and re-emit it here, so game code has one
 ## signal to listen to in every role.
 signal maintenance_event(state: String, reason: String, seconds_remaining: int)
 
-## Map transfer lifecycle (plan.md Phase 8). The authority is the only process
+## Map transfer lifecycle. The authority is the only process
 ## that grants, commits or expires a transfer; every signal names the peer so the
 ## network layer can answer exactly one client. The shapes are the contract the
 ## client's map controller is written against:
@@ -93,7 +93,7 @@ var casts: Dictionary = {}           # cast_id -> cast record
 var projectiles: Array = []          # data-only swept projectiles (authoritative)
 var casts_by_node: Dictionary = {}   # instance_id -> cast_id (casting entity)
 
-## Map transfer reservations (plan.md Phase 8): token -> reservation record.
+## Map transfer reservations: token -> reservation record.
 ## Nothing about a transfer is client-owned: the token references a server-side
 ## reservation that expires on the sim clock.
 var transfers: Dictionary = {}
@@ -122,7 +122,7 @@ const PERSISTENCE_PENDING := "pending"
 ## entry point; the engine degrades to in-memory play when it is absent.
 var persistence: Node = null
 
-## Maintenance gate (plan.md Phase 6). The dedicated world server's admin
+## Maintenance gate. The dedicated world server's admin
 ## controller (addons/hpmmo_sim/admin.gd) assigns itself here. Every other role
 ## - clients, offline play, a LAN host - leaves it null, which makes each check
 ## below inert and costs one null comparison per call.
@@ -315,7 +315,7 @@ func register_player(node: Node3D, character_id: int, peer_id: int, account_id: 
 	emit_signal("player_joined", uid, character_id, peer_id)
 	return uid
 
-## Bind a character sheet to a player that joined without one (Phase 14 D14-1).
+## Bind a character sheet to a player that joined without one (the character-bind fix).
 ## The network layer has already proven the character belongs to this session's
 ## account through the service, so this only decides whether the body may take
 ## it: one character per session, one live session per character, and the saved
@@ -423,14 +423,14 @@ func refresh_mob(node: Node3D) -> void:
 	record["burn_next_tick"] = 0
 	record["stun_until_tick"] = 0
 	record["weak_until_tick"] = 0
-	# A respawned mob must not keep a stale boss telegraph (plan.md Phase 11:
+	# A respawned mob must not keep a stale boss telegraph (Creature pass:
 	# pooling/resets clear every trace of the previous life).
 	record.erase("telegraph")
 	record["is_enraged"] = bool(node.get("is_enraged")) if node.get("is_enraged") != null else false
 	record["damage_log"] = []
 	touch(record)
 
-# ------------------------------------------- Phase 11 encounter state & timing
+# ------------------------------------------- encounter state & timing
 
 ## Mob AI state, mirrored into the snapshot's state byte so a client drives its
 ## presentation (anticipation pose, recovery, chase) from the authority's state
@@ -548,7 +548,7 @@ func remove_player(peer_id: int) -> void:
 			cancel_transfer_for_uid(uid, "disconnect")
 			_settle_to_safe_spawn(record)
 			touch(record)
-		# [Phase 8 staircase - ADDITIVE hook] world objects (the magical staircase)
+		# [staircase - ADDITIVE hook] world objects (the magical staircase)
 		# resolve a body that is leaving mid-travel to a valid landing before the
 		# final save, so a relog never resumes between floors. A no-op while the
 		# group is empty.
@@ -647,7 +647,7 @@ func cast_for_record(record: Dictionary, spell_id: String, aim: Vector3, cast_se
 		return _reject_cast(record, cast_seq, HPProtocol.REJECT_NO_MANA)
 
 	# Protection is NOT decided here: a caster inside a protected volume may still
-	# cast (training dummies stay practiceable, and the Phase 1 rule is enforced
+	# cast (training dummies stay practiceable, and the core rule is enforced
 	# per victim in `can_damage` at resolution time). Deciding it at cast time
 	# would forbid attacking the courtyard dummies.
 
@@ -727,7 +727,7 @@ func submit_mount(peer_id: int, mounted: bool) -> Dictionary:
 	if node == null or not is_instance_valid(node):
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
 	if mounted:
-		# Broom flight is prohibited inside the castle slice (plan.md Phase 8).
+		# Broom flight is prohibited inside the castle slice.
 		# The authority decides it from the map catalog: a client's own check is
 		# presentation, never the rule.
 		if not HPMaps.flight_allowed(String(record.get("map_id", HPProtocol.DEFAULT_MAP))):
@@ -755,7 +755,7 @@ func submit_respawn(peer_id: int) -> Dictionary:
 
 # ------------------------------------------------------------- map transfer
 ##
-## Server-authorized map transfer (plan.md Phase 8). The sequence is fixed:
+## Server-authorized map transfer. The sequence is fixed:
 ##
 ##   request -> validate -> reserve destination -> mark transfer pending
 ##   grant   -> the client loads the destination map
@@ -1067,7 +1067,7 @@ func _step() -> void:
 
 # ------------------------------------------------------------- mount phase
 ##
-## Plan Phase 9: "Replicate mount state and animation phase to remote clients."
+##  "Replicate mount state and animation phase to remote clients."
 ## The mount *state* already travels as FLAG_MOUNTED in every snapshot; this
 ## fills the same snapshot's unused `state` byte on PLAYER entities with the
 ## flight phase, derived here from authoritative input and the body's own speed,
@@ -1544,7 +1544,7 @@ func _apply_damage(target: Dictionary, raw: int, spell_id: String, attacker: Dic
 	# protected-attacker rule is NOT applied here: attack paths ask
 	# `HPRules.can_damage` before they ever reach this function, and applying it
 	# here would also forbid direct damage (tools, tests, environmental effects)
-	# from a protected position, which Phase 1 never intended.
+	# from a protected position, which the core design never intended.
 	if not attacker.is_empty():
 		var attacker_node2: Node = attacker.get("node")
 		if attacker_node2 != null and is_instance_valid(attacker_node2) and not HPRules.faction_ok(attacker_node2, target_node):
@@ -1654,7 +1654,7 @@ func _advance_effects() -> void:
 				# Burn ticks stay scheduled on the servant clock; protection is
 				# re-checked inside _apply_damage, so a tick that lands after the
 				# victim reached a safe volume deals nothing (the burn itself keeps
-				# running, matching the Phase 1 rule).
+				# running, matching the core rule).
 				record["burn_next_tick"] = sim_tick + interval_ticks
 				var source: Dictionary = entities.get(int(record.get("burn_source_uid", 0)), {})
 				_apply_damage(record, int(record.get("burn_damage", 0)), "burn", source)
@@ -1872,7 +1872,7 @@ func _collect_loot(loot: Dictionary, player: Dictionary) -> void:
 	# go through the reward ledger: the ledger's incremental /api/reward lands
 	# on top of the save that already carried the galleons, so the same pickup
 	# was credited twice whenever the ledger request outlived the session's last
-	# save (Phase 14 D14-1 measured 500 -> 554 in session, then 608 reloaded for
+	# save (the character-bind fix measured 500 -> 554 in session, then 608 reloaded for
 	# a single 54-galleon drop). Unbound sessions (character_id <= 0) have no
 	# save path at all, and queue_reward is a no-op for them anyway.
 	emit_signal("loot_taken", loot_uid, character_id, item_id, amount, int(player.get("peer_id", 0)))
@@ -1949,7 +1949,7 @@ func _check_respawns() -> void:
 ## The kill-plane rule belongs to the authority: a body that falls out of its
 ## map is returned to that map's respawn point by the same process that owns
 ## every other position, so it can never be a client-side rescue that other
-## players never see. The floor is per map (plan.md Phase 8), which is also what
+## players never see. The floor is per map, which is also what
 ## keeps a body inside an empty greybox map at a valid location.
 func _check_fall_protection() -> void:
 	for uid in entities.keys():

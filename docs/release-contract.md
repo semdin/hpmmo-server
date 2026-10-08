@@ -1,4 +1,4 @@
-# HPMMO client release contract (plan.md Phase 7)
+# HPMMO client release contract
 
 **Status:** implemented and rehearsed locally (`server/tests/release_pipeline_test.py`, `RELEASE RESULT: N checks, M failures`).
 The launcher (separate workstream, `client/launcher_cpp/`) is written against the document below; the
@@ -229,9 +229,9 @@ umask 077; openssl genpkey -algorithm ed25519 -out /root/hpmmo-keys/release.key
 bash deploy/tls/make_cert.sh --host 213.250.145.75 --out /etc/hpmmo/tls
 install -d -m 755 /srv/hpmmo/client-releases/channels/{dev,beta,release}
 
-# 3. the Phase 7 status/release script replaces the Phase 6 one at the
+# 3. the release pipeline status/release script replaces the maintenance surface one at the
 #    controller's stable path (same CLI, same env; the old copy is kept at
-#    /root/hpmmo-keys/hpmmo_status.py.phase6.bak)
+#    /root/hpmmo-keys/hpmmo_status.py.bak)
 install -m 0755 deploy/hpmmo_status.py /opt/hpmmo/bin/hpmmo_status.py
 
 # 4. the public TLS listener is a SECOND unit, not a rewrite of the loopback
@@ -288,7 +288,7 @@ python3 /opt/hpmmo/bin/hpmmo_status.py --print-pin --tls-cert /etc/hpmmo/tls/rel
 
 The deployment state stays loopback-only on 8083 for the controller's own use; 8443 is the only new public
 port, it serves nothing but `/status`, `/health`, `/tls/spki` and read-only files, and it must not be added
-before the certificate exists (the service refuses the bind otherwise). Closing the Phase 6 item
+before the certificate exists (the service refuses the bind otherwise). Closing the maintenance surface item
 (the API exposed on 8081) remains a separate change, and it is blocked on more than this certificate:
 the game client must trust the pin through Godot's `TLSOptions`, the launcher's WinHTTP calls must pin it
 too, and a client build carrying both must be installed before 8081 can close. See `docs/vps-inventory.md`.
@@ -300,7 +300,7 @@ too, and a client build carrying both must be installed before 8081 can close. S
 Implemented: full packages, deterministic zip, signed manifest, channel pointer, immutability check on
 publish, HTTPS serving, fail-closed CI key handling, and the manual channel gate.
 
-Not implemented yet (Phase 7 remainder, tracked against the plan):
+Not implemented yet (Release pipeline remainder, tracked against the plan):
 
 * **delta artifacts** — the contract reserves `kind: "delta"` + `from_version`, and `gen_manifest.py`
   accepts them, but the pipeline publishes `full` until full updates and recovery are proven on real

@@ -1,7 +1,7 @@
 extends Control
 class_name CombatFeedback
 
-## Phase 13 combat feedback (plan.md Phase 13, task 2 and task 3's screen
+## Interface combat feedback (and 's screen
 ## effects): cast progress and recovery, the authority's refusal reasons,
 ## safe-area indication, loot/XP feedback, and a clear death/respawn state.
 ##
@@ -18,6 +18,9 @@ class_name CombatFeedback
 const BAR_WIDTH := 260.0
 const TOASTS_MAX := 6
 const STATUS_POLL := 0.2
+## Height of the notification card, in canvas pixels. See `_build` for why it is
+## pinned above the control deck rather than to a fixed y.
+const TOAST_H := 120.0
 
 ## The authority's refusal vocabulary -> the words the player reads.
 const REASONS := {
@@ -101,13 +104,9 @@ func _build() -> void:
 	UILayout.place(_cast_panel, Vector2(-BAR_WIDTH * 0.5 - 10, -196), Vector2(BAR_WIDTH + 20, 46))
 	_cast_panel.custom_minimum_size = Vector2(BAR_WIDTH + 20, 46)
 	_cast_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.03, 0.04, 0.07, 0.88)
-	style.border_color = Color(0.55, 0.65, 0.95, 0.9)
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(6)
-	_cast_panel.add_theme_stylebox_override("panel", style)
-	_cast_label = _make_label("Casting", 12, Color(0.85, 0.92, 1.0))
+	_cast_panel.theme = UITheme.get_theme()
+	_cast_panel.theme_type_variation = UITheme.V_CARD
+	_cast_label = _make_label("Casting", UITheme.FS_SMALL, UITheme.c("parchment"))
 	_cast_label.position = Vector2(8, 4)
 	_cast_panel.add_child(_cast_label)
 	_cast_bar = ProgressBar.new()
@@ -119,14 +118,12 @@ func _build() -> void:
 	_cast_bar.offset_bottom = -6
 	_cast_bar.show_percentage = false
 	_cast_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var fill := StyleBoxFlat.new()
-	fill.bg_color = Color(0.45, 0.65, 1.0)
-	_cast_bar.add_theme_stylebox_override("fill", fill)
+	UITheme.role(_cast_bar, UITheme.V_MANA)
 	_cast_panel.add_child(_cast_bar)
 	_cast_panel.hide()
 	add_child(_cast_panel)
 
-	_feedback_label = _make_label("", 15, Color(1.0, 0.78, 0.35))
+	_feedback_label = _make_label("", UITheme.FS_LABEL, UITheme.c("gold_lt"))
 	_feedback_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	UILayout.place_centred(_feedback_label, Vector2(520, 26), Vector2(0, -246))
 	_feedback_label.custom_minimum_size = Vector2(520, 26)
@@ -135,37 +132,39 @@ func _build() -> void:
 	add_child(_feedback_label)
 
 	# Status icons (ward / burn / stun / mounted / protected).
-	_status_label = _make_label("", 13, Color(0.85, 0.95, 1.0))
+	_status_label = _make_label("", UITheme.FS_SMALL, UITheme.c("parchment"))
 	_status_label.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	_status_label.position = Vector2(20, 38)
 	_status_label.custom_minimum_size = Vector2(420, 22)
 	add_child(_status_label)
 
 	# Safe-area indication.
-	_safe_label = _make_label("", 13, Color(0.5, 0.95, 0.7))
+	_safe_label = _make_label("", UITheme.FS_SMALL, UITheme.c("good"))
 	_safe_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	UILayout.place_centred(_safe_label, Vector2(400, 22), Vector2(0, -286))
 	_safe_label.custom_minimum_size = Vector2(400, 22)
 	_safe_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(_safe_label)
 
-	# Loot / XP / level toasts.
+	# Loot / XP / level toasts. The lowest card in the right rail: same width, same
+	# right edge and same inset as the quest tracker and the controls card above
+	# it, and pinned above the control deck rather than to a fixed y, so it clears
+	# the deck at every canvas height.
 	var toast_panel := Panel.new()
 	toast_panel.name = "ToastPanel"
-	toast_panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	UILayout.place(toast_panel, Vector2(-232, 440), Vector2(216, 120))
-	toast_panel.custom_minimum_size = Vector2(216, 120)
+	toast_panel.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	UILayout.place(toast_panel,
+		Vector2(-(UITheme.RIGHT_COL_W + UITheme.EDGE),
+			-(UITheme.DECK_BOTTOM + UITheme.DECK_H + 8 + TOAST_H)),
+		Vector2(UITheme.RIGHT_COL_W, TOAST_H))
+	toast_panel.custom_minimum_size = Vector2(UITheme.RIGHT_COL_W, TOAST_H)
 	toast_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var toast_style := StyleBoxFlat.new()
-	toast_style.bg_color = Color(0.04, 0.05, 0.08, 0.62)
-	toast_style.border_color = Color(0.7, 0.62, 0.35, 0.7)
-	toast_style.set_border_width_all(1)
-	toast_style.set_corner_radius_all(6)
-	toast_panel.add_theme_stylebox_override("panel", toast_style)
+	toast_panel.theme = UITheme.get_theme()
+	toast_panel.theme_type_variation = UITheme.V_CARD
 	_toast_box = VBoxContainer.new()
 	_toast_box.name = "Toasts"
-	_toast_box.position = Vector2(8, 6)
-	_toast_box.custom_minimum_size = Vector2(200, 108)
+	_toast_box.position = Vector2(9, 6)
+	_toast_box.custom_minimum_size = Vector2(UITheme.RIGHT_COL_W - 18, TOAST_H - 12)
 	_toast_box.add_theme_constant_override("separation", 2)
 	toast_panel.add_child(_toast_box)
 	toast_panel.hide()
@@ -187,7 +186,7 @@ func _build() -> void:
 	_death_panel.color = Color(0.12, 0.0, 0.0, 0.55)
 	_death_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_death_panel.hide()
-	_death_label = _make_label("", 38, Color(1.0, 0.55, 0.5))
+	_death_label = _make_label("", UITheme.FS_BANNER, UITheme.c("blood_lt"))
 	_death_label.set_anchors_preset(Control.PRESET_CENTER)
 	UILayout.place_centred(_death_label, Vector2(640, 120))
 	_death_label.custom_minimum_size = Vector2(640, 120)
@@ -200,10 +199,14 @@ func _make_label(text: String, size: int, color: Color) -> Label:
 	var label := Label.new()
 	label.text = text
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# These labels float over the world rather than sitting on a panel, so they do
+	# need an edge - but 5 px of outline around 13 px glyphs is what made them read
+	# as smudges. The bold cut carries the weight instead.
+	label.add_theme_font_override("font", UITheme.font_body_bold())
 	label.add_theme_font_size_override("font_size", size)
 	label.add_theme_color_override("font_color", color)
-	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
-	label.add_theme_constant_override("outline_size", 5)
+	label.add_theme_color_override("font_outline_color", UITheme.c("shadow"))
+	label.add_theme_constant_override("outline_size", 3)
 	return label
 
 ## ------------------------------------------------------------ cast progress
@@ -325,7 +328,7 @@ func _on_level_changed(level: int) -> void:
 
 func _toast(text: String, color: Color) -> void:
 	toasts_shown += 1
-	var label := _make_label(text, 12, color)
+	var label := _make_label(text, UITheme.FS_SMALL, color)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_toast_box.add_child(label)
 	if _toast_panel != null:

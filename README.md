@@ -1,13 +1,13 @@
 # HPMMO Server
 
-Server-side repository for HPMMO (see `docs/../client/docs/plan.md` in the workspace for the roadmap; the canonical copy of `plan.md` lives in the client repository after the Phase 3 migration).
+Server-side repository for HPMMO
 
 ## Layout
 
 | Path | Purpose |
 | --- | --- |
-| `world/` | Authoritative Godot world project (exported, hash-pinned snapshot of the client project until Phase 5 inverts ownership - see `world/WORLD_EXPORT.json`) |
-| `services/` | Python account/persistence service (`db_service.py`) - replaced by the C++ service in Phase 4 |
+| `world/` | Authoritative Godot world project (exported, hash-pinned snapshot of the client project until the authority inverts ownership - see `world/WORLD_EXPORT.json`) |
+| `services/` | Python account/persistence service (`db_service.py`) - replaced by the C++ service in the server integration |
 | `db/migrations/` | SQL schema migrations (PostgreSQL target) |
 | `contracts/` | Protocol + gameplay schema contracts owned by the server; pinned in `workspace.lock.json` |
 | `deploy/` | Provisioning, deployment, and packaging scripts; environment template |
@@ -17,7 +17,7 @@ Server-side repository for HPMMO (see `docs/../client/docs/plan.md` in the works
 
 | Service | Status | Notes |
 | --- | --- | --- |
-| `services/cpp/` | **Primary (Phase 4/5)** | C++17 service: argon2id, sessions (carrying the ticket-bound character), ownership checks, one-time game tickets, idempotent rewards/trades, service-token session introspection and character access for the Phase 5 world server, numbered PostgreSQL migrations, readiness that verifies the schema level. Vendored deps are hash-pinned in `services/cpp/vendor/PROVENANCE.md`; API contract in `contracts/api.md`. |
+| `services/cpp/` | **Primary (Server integration/5)** | C++17 service: argon2id, sessions (carrying the ticket-bound character), ownership checks, one-time game tickets, idempotent rewards/trades, service-token session introspection and character access for the authority world server, numbered PostgreSQL migrations, readiness that verifies the schema level. Vendored deps are hash-pinned in `services/cpp/vendor/PROVENANCE.md`; API contract in `contracts/api.md`. |
 | `services/db_service.py` | Legacy fallback | The original stdlib-Python service (unauthenticated; trade disabled). Kept for reference while the client adopts the new API; do not expose publicly. |
 
 ### Building the C++ service (Windows, from a fresh checkout)
@@ -52,13 +52,13 @@ instructions: `HPMMO_PG_ROOT` (a PostgreSQL 17 binaries tree; default: the works
 From the workspace root:
 
 ```powershell
-.\dev.ps1 test          # client harness + C++ service build + Phase 4 integration tests + world boot
+.\dev.ps1 test          # client harness + C++ service build + persistence integration tests + world boot
 .\dev.ps1 build         # build the service, then package a deployable release into server\dist
 .\dev.ps1 sync-world    # re-export world/ from the client project
 .\dev.ps1 verify-contracts
 ```
 
-## World server (Phase 5)
+## World server (Authority)
 
 `world/server/world_server.tscn` is the headless authoritative server. It boots the
 exported world, owns every gameplay decision, and is the only process that talks to
@@ -83,7 +83,7 @@ godot --headless --path world res://server/world_server.tscn
 | `HPMMO_DEV_SPAWN="x,y,z"` | places dev joins at a fixed point (used by the multiplayer tests) |
 | `HPMMO_DEV_FAST_RESPAWN=<ms>` | compresses respawn timers so tests can observe respawns |
 
-## Security posture (Phase 4)
+## Security posture (Server integration)
 
 - The **C++ service** enforces argon2id passwords, expiring sessions, per-account ownership on
   every character endpoint, validated/atomic/idempotent trades and rewards, and refuses to run
@@ -94,9 +94,9 @@ godot --headless --path world res://server/world_server.tscn
   reach a client (launcher/game build) or a log; a holder can read and write every character.
 - The **legacy Python service** (`services/db_service.py`) still exists for reference and has
   **none of these protections** - it must not be deployed alongside the new service.
-- The **world server** (Phase 5) is the only holder of the service token; the game client only
+- The **world server** (Authority) is the only holder of the service token; the game client only
   redeems a one-time ticket and never sees a database credential. Clients send intents that the
-  server validates (`docs/phase5-authority.md`); clients cannot address each other
+  server validates; clients cannot address each other
   (`server_relay` is off) and cannot mint server-authority messages.
 - Database credentials and the service token come from the environment
   (`deploy/hpmmo.env.example`); no secrets live in this repository or its history.

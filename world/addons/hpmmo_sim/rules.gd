@@ -75,7 +75,7 @@ static func spawn_tables() -> Dictionary:
 	return _spawns
 
 # ----------------------------------------------------- encounter templates
-# Phase 11: encounters are data. These accessors are the ONE resolution path
+# Encounters are data. These accessors are the ONE resolution path
 # both the director and the tests use, so "pack size 3 or 5", "exactly two
 # escorts" and "maximum alive" cannot drift between the two.
 
@@ -150,7 +150,7 @@ static func region_by_id(zone_id: String) -> Dictionary:
 			return region
 	return {}
 
-## The separate "number of packs in this region" setting (plan.md Phase 11).
+## The separate "number of packs in this region" setting.
 static func region_pack_count(zone_id: String) -> int:
 	var region := region_by_id(zone_id)
 	return int(region.get("pack_count", 0))
@@ -465,7 +465,7 @@ static func combo_window(spell_id: String) -> float:
 
 # --------------------------------------------------------- combat gating
 
-## Faction + protection gate. Identical semantics to the Phase 1 client rule,
+## Faction + protection gate. Identical semantics to the core client rule,
 ## now executed by the authority at resolution time and mirrored for prediction.
 static func can_damage(caster: Node, target: Node) -> bool:
 	if not faction_ok(caster, target):
@@ -512,7 +512,7 @@ static func _zone_list() -> Array:
 	ensure_loaded()
 	return _zones.get("zones", [])
 
-## Safe zones are map-scoped (plan.md Phase 8): a volume is only evaluated on
+## Safe zones are map-scoped: a volume is only evaluated on
 ## the maps whose catalog entry references it, so a position inside the castle
 ## can never be "protected" by an outdoor volume, and the grounds keep every
 ## volume they author. Without a catalog the legacy behaviour (all volumes

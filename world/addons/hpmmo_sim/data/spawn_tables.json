@@ -1,6 +1,6 @@
 {
   "_comment": "Server-owned encounter content. The authority is the only process that samples these tables; clients receive the result.",
-  "_policy": "Phase 11: every encounter resolves through a template (pack size 3/5, boss solo, boss with exactly two escorts), carries a stable encounter id and a maximum alive count, and only becomes active when its region's pack_count allows it. Pack sizes and boss patterns are data; the AI, placement validation and the death/respawn lifecycle live in encounter_director.gd + mob_base.gd.",
+  "_policy": "Encounter policy: every encounter resolves through a template (pack size 3/5, boss solo, boss with exactly two escorts), carries a stable encounter id and a maximum alive count, and only becomes active when its region's pack_count allows it. Pack sizes and boss patterns are data; the AI, placement validation and the death/respawn lifecycle live in encounter_director.gd + mob_base.gd.",
   "map_id": "grounds",
   "_debug_seed_note": "Reproducible encounter seed. Pass it as HPMMO_WORLD_SEED to replay an exact spawn layout; the world server uses it when the env var is unset.",
   "debug_seed": 20261005,
@@ -40,7 +40,7 @@
       "attack_style": "wizard"
     }
   },
-  "_pattern_note": "Boss attack patterns (Phase 11): anticipation -> release -> recovery. `anticipation` and `recovery` are seconds; the authority converts them to ticks and publishes the release tick with the telegraph, so the client-rendered warning is driven by the same clock that lands the damage.",
+  "_pattern_note": "Boss attack patterns (Creature pass): anticipation -> release -> recovery. `anticipation` and `recovery` are seconds; the authority converts them to ticks and publishes the release tick with the telegraph, so the client-rendered warning is driven by the same clock that lands the damage.",
   "boss_patterns": {
     "spider": [
       {
@@ -398,7 +398,7 @@
       "_dormant": true
     }
   ],
-  "_exclusions_note": "Volumes an encounter formation may never occupy (Phase 11 placement rule): water the mobs cannot stand in, and arrival pads fed by map portals. Safe zones and their buffer come from safe_zones.json.",
+  "_exclusions_note": "Volumes an encounter formation may never occupy (Creature pass placement rule): water the mobs cannot stand in, and arrival pads fed by map portals. Safe zones and their buffer come from safe_zones.json.",
   "exclusions": [
     {
       "id": "black_lake",

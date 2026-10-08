@@ -1,4 +1,4 @@
-# HPMMO server release (plan.md Phase 6).
+# HPMMO server release.
 #
 #   push to the release branch  -> build + test + package an immutable
 #                                  artifact, then deploy it to the box behind
@@ -6,7 +6,7 @@
 #   manual dispatch             -> optionally deploy an artifact (gated; may
 #                                  pin an earlier release_id/run_id)
 #
-# Rules encoded here (plan.md Phase 6):
+# Rules encoded here:
 #   * a merge to the designated release branch builds/tests automatically, and
 #     only a successfully built artifact is ever deployed;
 #   * a merge/deploy to production is a SEPARATE, explicitly-gated job that
@@ -18,7 +18,7 @@
 #     concurrency group never cancels, so two deploys queue instead of
 #     interleaving (the controller's own flock is the second line of defence).
 #
-# The client release pipeline belongs to Phase 7 and is deliberately NOT here.
+# The client release pipeline belongs to the release pipeline and is deliberately NOT here.
 name: server-release
 
 on:
@@ -107,7 +107,7 @@ jobs:
           fi
 
       - name: Rehearse the deployment controller (temp dir, stub services)
-        # Phase 6 exit cases: happy path, failed checksum/build, failed save,
+        # Maintenance surface exit cases: happy path, failed checksum/build, failed save,
         # failed migration, unhealthy release, queued releases, controller
         # restart, absent admin interface, operator rollback, status endpoint.
         run: python3 tests/deploy_rehearsal.py

@@ -1,7 +1,7 @@
 extends RefCounted
 class_name HPMaps
 
-## Map catalog (plan.md Phase 8). OWNER: server repository; the client runs the
+## Map catalog. OWNER: server repository; the client runs the
 ## synced copy, exactly like HPRules.
 ##
 ## `data/maps.json` is the one authored file both processes agree on: which maps

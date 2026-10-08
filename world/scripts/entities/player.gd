@@ -9,12 +9,12 @@ signal spell_cast_signal(spell_id: String, cooldown: float)
 signal loot_collected_signal(item_id: String, amount: int)
 signal mounted_changed(is_mounted: bool)
 signal inventory_changed
-## Phase 9: animation events (`footstep:<surface>`, `fx:wand_release`, ...) that
-## Phase 12 consumes for audio. Emitted from measured contact, never from a
+## Animation events (`footstep:<surface>`, `fx:wand_release`, ...) that
+## Spell effects consumes for audio. Emitted from measured contact, never from a
 ## hardcoded frame number.
 signal animation_event(event_name: String)
 
-## --------------------------------------------------------------- Phase 9 body
+## --------------------------------------------------------------- the rig body
 ## Measured from hero_wizard.glb (hooded adventurer, 1.835 m crown). Every
 ## distance that depends on body size is derived from these, so a second resize
 ## is a constant change, not a hunt through the file.
@@ -34,7 +34,7 @@ const MOUNT_LATERAL_WIDTH := 0.6
 const DISMOUNT_CEILING := 2.15       # headroom required at the landing spot
 const COMBAT_WINDOW := 2.0           # seconds after taking damage that mounting is refused
 
-## Phase 9 mount state machine. The authority owns the actual permission
+## Rig mount state machine. The authority owns the actual permission
 ## (`submit_mount`); these states only describe the rider's presentation.
 enum MountState { GROUND = 0, MOUNTING = 1, FLYING = 2, LANDING = 3 }
 
@@ -99,7 +99,7 @@ var _basic_held := false
 var _hit_recovery := 0.0
 var _was_airborne := false
 ## Committed attacks: movement is explicitly restricted until this expires
-## (plan Phase 9 - "explicit movement restrictions for committed attacks").
+## ("explicit movement restrictions for committed attacks").
 var _committed_until := 0.0
 ## Spells whose recovery commits the caster in place.
 const COMMITTED_SPELLS := {"bombarda": 0.35, "ultimate": 0.5}
@@ -124,8 +124,8 @@ const CombatRules = preload("res://scripts/spells/combat_rules.gd")
 const ParticleKit = preload("res://scripts/assets/particle_kit.gd")
 const HeroAnimationScript = preload("res://scripts/entities/hero_animation.gd")
 const BroomFlightScript = preload("res://scripts/entities/broom_flight.gd")
-## Phase 9 socket convention: one socket per attachment point, bound to the
-## skeleton by bone name (docs/phase9-rig-and-sockets.md).
+## Rig socket convention: one socket per attachment point, bound to the
+## skeleton by bone name.
 const SOCKET_BONES := {
 	"Socket_Wand": "Wrist.R",
 	"Socket_Hand_L": "Wrist.L",
@@ -148,7 +148,7 @@ const SOCKET_BONES := {
 @onready var wand_aura_particles: CPUParticles3D = get_node_or_null("Visuals/WandAuraParticles")
 @onready var wand_tip: Marker3D = get_node_or_null("Visuals/WandTipMarker")
 @onready var nameplate: Label3D = get_node_or_null("NameplateLabel3D")
-## Phase 9: the animation graph and the authored broom rig.
+## The animation graph and the authored broom rig.
 var hero_anim: HeroAnimation
 var broom: BroomFlight
 var sockets: Dictionary = {}
@@ -220,7 +220,7 @@ func _ready() -> void:
 		emit_stats()
 
 func _setup_character_model() -> void:
-	# Phase 9 hero: the model, its animation graph and the broom rig. The
+	# Rig hero: the model, its animation graph and the broom rig. The
 	# graph is a child of Visuals so it dies with the body and never leaks.
 	var skeleton := _find_skeleton()
 	if anim_player and skeleton:
@@ -347,7 +347,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			cast_spell("basic_cast")
 	
 	elif event is InputEventMouseMotion and mouse_orbit_active:
-		# Phase 13 hook: the mouse sensitivity slider scales the same raw
+		# Interface hook: the mouse sensitivity slider scales the same raw
 		# relative motion; 1.0 is the authored speed.
 		var sensitivity: float = GameSettings.mouse_sensitivity_value()
 		camera_rot_y -= event.relative.x * 0.28 * sensitivity
@@ -366,7 +366,7 @@ func _process(delta: float) -> void:
 	for spell_id in spell_cooldowns.keys():
 		spell_cooldowns[spell_id] = max(0.0, spell_cooldowns[spell_id] - delta)
 	
-	# Basic combo decay (Section 4.3 of plan.md)
+	# Basic combo decay (Section 4.3 of.md)
 	if basic_combo_timer > 0.0:
 		basic_combo_timer -= delta
 		if basic_combo_timer <= 0.0:
@@ -401,7 +401,7 @@ func _process(delta: float) -> void:
 		set_target(null)
 
 func _physics_process(delta: float) -> void:
-	# World Boundaries & Safeguards: Infinite Fall Kill-Plane (Section 7.2 of plan.md).
+	# World Boundaries & Safeguards: Infinite Fall Kill-Plane (Section 7.2 of.md).
 	# Only the authority rescues a body: a client that rescued itself would be
 	# teleporting somewhere the server never agreed to.
 	if is_local_player and SimAuthority.is_authority() and global_position.y < -10.0:
@@ -805,17 +805,20 @@ func input_blocked() -> bool:
 	var focus := get_viewport().gui_get_focus_owner()
 	if focus is LineEdit or focus is TextEdit:
 		return true
-	# Phase 13 hook: any open panel that takes keyboard focus registers itself in
+	# Interface hook: any open panel that takes keyboard focus registers itself in
 	# `UIFocus.GROUP` (client/scripts/ui/ui_focus.gd), so keys typed in a menu
 	# cannot also cast a spell or mount the broom. Mouse clicks are consumed by
 	# the Controls themselves before `_unhandled_input` ever sees them.
 	if UIFocus.is_blocking(get_tree()):
 		return true
+	# The bag is deliberately NOT listed here. It is a non-modal side window:
+	# its root is MOUSE_FILTER_IGNORE, only the card itself consumes clicks, and
+	# a player rummaging while walking is the intended behaviour. The Ollivander
+	# workshop stays blocking because it spends currency and rolls an upgrade.
 	var world := get_parent().get_parent()
-	for path in ["CanvasLayer/InventoryUI", "CanvasLayer/OllivanderUI"]:
-		var panel := world.get_node_or_null(path) as Control
-		if panel and panel.visible:
-			return true
+	var workshop := world.get_node_or_null("CanvasLayer/OllivanderUI") as Control
+	if workshop and workshop.visible:
+		return true
 	return false
 
 func _tick_regeneration(delta: float) -> void:
@@ -846,7 +849,7 @@ func _update_flight_pose(delta: float) -> void:
 	visuals.rotation.x = lerpf(visuals.rotation.x, -0.2 * speed_ratio * _mount_blend, minf(1, delta * 5))
 	var turn := 0.0 if not is_local_player or input_blocked() else Input.get_axis("move_right", "move_left")
 	# Rider lean is blended with acceleration and banking; the camera roll is a
-	# restrained, configurable fraction of the same bank (plan Phase 9).
+	# restrained, configurable fraction of the same bank.
 	var bank_target := turn * 0.22 * _mount_blend
 	visuals.rotation.z = lerpf(visuals.rotation.z, bank_target, minf(1, delta * 5))
 	_rider_roll = lerpf(_rider_roll, bank_target, minf(1, delta * 4))
@@ -895,7 +898,7 @@ func get_mouse_aim_point() -> Vector3:
 func cast_spell(spell_id: String) -> void:
 	if is_dead or not GameData.SPELLS.has(spell_id):
 		return
-	# Plan Phase 1: offensive casting is disabled while mounted (Protego is
+	# Prototype policy: offensive casting is disabled while mounted (Protego is
 	# defensive and stays available); airborne combat is a later feature.
 	# Held basic-attack repeats every frame, so drop the held input and
 	# throttle the feedback instead of spawning a node per frame.
@@ -934,7 +937,7 @@ func cast_spell(spell_id: String) -> void:
 	if face_dir.length_squared() > 0.01:
 		visuals.rotation.y = atan2(face_dir.x, face_dir.z)
 
-	# Refined Basic Attack Chain (Section 4.3 of plan.md) - animation only; the
+	# Refined Basic Attack Chain (Section 4.3 of.md) - animation only; the
 	# damage multiplier is the server's combo counter.
 	var anim_name := "Spellcast_Shoot"
 	if spell_id == "basic_cast":
@@ -959,7 +962,7 @@ func cast_spell(spell_id: String) -> void:
 	_play_cast_animation(anim_name)
 	if spell_id == "protego":
 		_activate_protego_preview()
-	# Phase 12 hook: predicted PRESENTATION only (wand flash + cast sound), keyed
+	# spell-effect hook: predicted PRESENTATION only (wand flash + cast sound), keyed
 	# by cast_seq so a rejection removes exactly this and nothing else. It cannot
 	# produce damage, a hit or a reward: the authority already owns those.
 	preload("res://scripts/spells/skill_fx.gd").play_predicted_cast(self, spell_id, _cast_seq)
@@ -981,7 +984,7 @@ func on_cast_answer(cast_seq: int, _cast_id: int, ok: bool, reason: String) -> v
 			spell_cooldowns[spell_id] = cd
 		emit_signal("spell_cast_signal", spell_id, cd)
 		return
-	# Phase 12 hook: a rejected cast removes its predicted feedback.
+	# spell-effect hook: a rejected cast removes its predicted feedback.
 	preload("res://scripts/spells/skill_fx.gd").cancel_predicted(self, cast_seq)
 	if spell_id == "protego":
 		_clear_protego_preview()

@@ -4,7 +4,7 @@ Packages a deployable HPMMO server release.
 
 Contents: world/ services/ contracts/ db/ deploy/ tests/ README.md
 Excluded by construction: assets/candidates, client visuals, docs previews,
-.git, .godot caches, any *.db (account data must never ship - plan.md Phase 3
+.git, .godot caches, any *.db (account data must never ship
 exit check "Server packages contain no unnecessary visual assets or account
 database files").
 

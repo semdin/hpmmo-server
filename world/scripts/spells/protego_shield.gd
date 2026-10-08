@@ -1,8 +1,8 @@
 extends Area3D
 
-## Protego Shield - Phase 12 layered ward.
+## Protego Shield - the spell effects layered ward.
 ##
-## This is the ONE place a solid shell is correct (plan.md 12.3): the mesh is the
+## This is the ONE place a solid shell is correct (12.3): the mesh is the
 ## authored `shield_shell.glb`, and it is entirely presentation. The rule it
 ## presents is the tooltip's and the authority's rule, unchanged: projectiles
 ## that strike the ward are REFLECTED, all other damage is REDUCED BY 60%

@@ -1,7 +1,7 @@
 extends Control
 class_name SettingsUI
 
-## Phase 13 settings screen (plan.md Phase 13, task 5): scalable UI, key
+## Interface settings screen (): scalable UI, key
 ## rebinding, mouse sensitivity, and independent shake / flash / volume
 ## controls - persisted under `user://` by `GameSettings`.
 ##

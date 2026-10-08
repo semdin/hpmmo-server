@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Phase 14 server tick headroom (plan.md Phase 14).
+"""Release gates server tick headroom.
 
-Runs the instrumented production boot (`client/scripts/test/phase14_tick.gd`,
+Runs the instrumented production boot (`client/scripts/test/server_tick_headroom.gd`,
 which performs exactly `world_server.gd`'s steps and then times every
 `SimAuthority._step` call) and walks it through increasing load levels by
-starting real headless clients against it - the same clients the Phase 5
+starting real headless clients against it - the same clients the authority
 multiplayer proof uses, in their `agree` mode, so the load is players walking,
 casting, killing packs and taking rewards.
 
@@ -15,7 +15,7 @@ Output: per-level p50/p95/p99/max of the authoritative step, the entity and
 player counts, and the headroom against the 50 ms tick budget.
 
 Usage:
-  python tests/phase14_tick.py [--out-dir DIR] [--quick]
+  python tests/server_tick_headroom.py [--out-dir DIR] [--quick]
 
 Environment: HPMMO_GODOT, HPMMO_CLIENT_DIR / HPMMO_SERVER_DIR.
 """
@@ -65,7 +65,7 @@ def base_env(extra):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--out-dir", default=os.path.join(HERE, "out", "phase14"))
+    parser.add_argument("--out-dir", default=os.path.join(HERE, "out", "release"))
     parser.add_argument("--quick", action="store_true", help="2 s levels, for a smoke test")
     parser.add_argument("--levels", default="")
     args = parser.parse_args()
@@ -78,7 +78,7 @@ def main():
     tick_log = os.path.join(args.out_dir, "tick-server.log")
     tick_err = os.path.join(args.out_dir, "tick-server.err.log")
     server = subprocess.Popen(
-        [godot, "--headless", "--path", CLIENT_DIR, "res://scenes/test/phase14_tick.tscn", "--",
+        [godot, "--headless", "--path", CLIENT_DIR, "res://scenes/test/server_tick_headroom.tscn", "--",
          "--port=%d" % port, "--seconds=%d" % (30 + per_level * len(levels) + 30)],
         stdout=open(tick_log, "wb"), stderr=open(tick_err, "wb"),
         env=base_env({"HPMMO_ALLOW_DEV_JOIN": "1", "HPMMO_DEV_FAST_RESPAWN": "4000",

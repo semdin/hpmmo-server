@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# HPMMO release-layout installer (plan.md Phase 6)
+# HPMMO release-layout installer
 # =============================================================================
 #
 # One-time (and idempotent) provisioning of the staged release layout:

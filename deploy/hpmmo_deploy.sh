@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# HPMMO staged deployment controller - plan.md Phase 6
+# HPMMO staged deployment controller
 # =============================================================================
 #
 # Replaces the manual tarball copy (deploy/update_server.sh) with a staged,
@@ -665,7 +665,7 @@ EOF
 }
 
 # --- rollback ----------------------------------------------------------------
-# Performs plan.md Phase 6 step (8): stop, restore the previous release,
+# Performs step (8): stop, restore the previous release,
 # restart the services, journal ROLLBACK and leave maintenance ACTIVE.
 # Sets ROLLBACK_RESULT = ok | no_previous | failed and always returns 0 so the
 # caller decides its own exit code.
@@ -1225,7 +1225,7 @@ cmd_status() {
 
 usage() {
     cat <<EOF
-$PROG - HPMMO staged deployment controller (plan.md Phase 6)
+$PROG - HPMMO staged deployment controller
 
 Usage:
   $PROG --stage <artifact.tar.gz|directory> [--id ID] [--generate-manifest]

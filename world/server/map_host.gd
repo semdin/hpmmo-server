@@ -1,6 +1,6 @@
 extends Node
 
-## Server-side map host (plan.md Phase 8; installs the `SimAuthority.map_provider`
+## Server-side map host (Map transfer; installs the `SimAuthority.map_provider`
 ## hook the authority consults before it reserves a transfer).
 ##
 ## The authority simulates every player body, so the map a body stands in must

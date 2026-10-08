@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# HPMMO synthetic login+join check (plan.md Phase 6, VERIFYING)
+# HPMMO synthetic login+join check (VERIFYING)
 # =============================================================================
 #
 # Run by deploy/hpmmo_deploy.sh after the new release is running and before it

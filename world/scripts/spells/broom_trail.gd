@@ -1,6 +1,6 @@
 extends Node3D
 
-## Phase 12 broom trail: a tapered energy ribbon, translucent wisps and sparse
+## Spell effects broom trail: a tapered energy ribbon, translucent wisps and sparse
 ## embers, driven by speed and acceleration from the broom's own TailSocket.
 ##
 ## The ribbon's UV layout and taper profile come from the authored mesh
@@ -49,7 +49,7 @@ func setup(owner_body: Node3D, model_root: Node = null) -> void:
 
 
 ## The authored taper profile is sampled straight out of the exported mesh's
-## vertex colours (phase12_meshes.py writes alpha = max(0.02, (1-t)^1.35)), so
+## vertex colours (spell_meshes.py writes alpha = max(0.02, (1-t)^1.35)), so
 ## the runtime strip uses the authored shape rather than a second hand-written
 ## curve that could drift from the asset.
 func _load_authored_taper() -> void:

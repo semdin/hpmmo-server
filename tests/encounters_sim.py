@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Phase 11 pack, boss and AI lifecycle proof (plan.md Phase 11).
+"""Creature pass pack, boss and AI lifecycle proof.
 
 Runs the real world server with real headless clients (the same probe the
-Phase 5/8 suites use, in its `encounter` mode) and asserts the exit checks:
+the authority and map-transfer suites suites use, in its `encounter` mode) and asserts the exit checks:
 
   * three- and five-member packs appear at DIFFERENT VALID positions across
     cycles, and every formation member (not just the anchor) passes the
@@ -410,7 +410,7 @@ def scenario_boss(out_dir, escorted=False):
     boss_damage = [d for d in damage if int(d.get("tick", 0)) >= 0]
     if telegraphs and boss_damage:
         # Each boss hit must land on the release tick of the warning that
-        # announced it, and never before that warning started (plan.md Phase 11:
+        # announced it, and never before that warning started (Creature pass:
         # the server owns the timing, the client only renders it). The client
         # clock is mirrored from 10 Hz snapshots, so the measurement resolution
         # is a few ticks; TOLERANCE states that instead of hiding it.

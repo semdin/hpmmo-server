@@ -1,7 +1,7 @@
 extends Node
 class_name HPStaircaseNet
 
-## ADDITIVE MODULE (plan.md Phase 8). Transport for HPStaircase.
+## ADDITIVE MODULE. Transport for HPStaircase.
 ##
 ## It is a tiny relay rather than a change to `net.gd`: RPCs are addressed by
 ## node path, and `net.gd`'s node is the `SimNet` autoload, present under the

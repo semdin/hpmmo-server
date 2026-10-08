@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Phase 14 latency / loss cost report (plan.md Phase 14: "Test packet delay/loss
+"""Release gates latency / loss cost report ("Test packet delay/loss
 profiles and report correction frequency, hit consistency, disconnect handling,
 and bandwidth per player").
 
-Reuses the Phase 5 multiplayer harness (same world server, same real headless
+Reuses the multiplayer harness (same world server, same real headless
 clients, same `agree` scenario: walk to a pack, fight it, take the reward) and
 adds two things that suite does not measure:
 
@@ -17,9 +17,9 @@ adds two things that suite does not measure:
 
 Profiles come from `addons/hpmmo_sim/net.gd` (`local`, `broadband`, `mobile`,
 `awful`); the delay/loss is applied at the application layer by the sim, exactly
-as in the Phase 5 proof.
+as in the multiplayer proof.
 
-Usage: python tests/phase14_profiles.py [--profiles local,mobile,awful]
+Usage: python tests/net_profiles.py [--profiles local,mobile,awful]
                                         [--seconds 45] [--out-dir DIR]
 """
 
@@ -228,7 +228,7 @@ def main():
     out_dir = args.out_dir
     if not out_dir:
         import tempfile
-        out_dir = tempfile.mkdtemp(prefix="hpmmo-phase14-")
+        out_dir = tempfile.mkdtemp(prefix="hpmmo-profiles-")
     os.makedirs(out_dir, exist_ok=True)
     print("artifacts: %s" % out_dir)
     for project, name in ((os.path.join(mp.SERVER_DIR, "world"), "world"), (mp.CLIENT_DIR, "client")):

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""End-to-end proof of the path a real player takes (plan.md Phase 6 VERIFYING).
+"""End-to-end proof of the path a real player takes (VERIFYING).
 
 The multiplayer suite joins with dev joins (no auth backend). This one runs the
 whole stack the way the deployment controller does:
@@ -242,7 +242,7 @@ def main():
         leaked = [s for s in ("SmokeTest123", "WrongPassword123", SERVICE_TOKEN) if s in smoke.stdout + bad.stdout]
         check(not leaked, "no password or token is printed by the check")
 
-        # 6. Phase 14 D14-1, the end-to-end persistence promise: the launcher
+        # 6. the character-bind fix, the end-to-end persistence promise: the launcher
         #    shape (an UNBOUND ticket, a session that names its character after
         #    the join) plays, earns, disconnects, and the numbers are still
         #    there when the character is reloaded.

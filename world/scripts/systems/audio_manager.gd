@@ -1,12 +1,12 @@
 extends Node
 
-## AudioManager - Phase 12 audio system.
+## AudioManager - the spell effects audio system.
 ##
-## Every sound is a project-original synthesised WAV (tools/audio/synth_phase12.py)
+## Every sound is a project-original synthesised WAV (tools/audio/synth_spell_sfx.py)
 ## described by `assets/audio/sound_library.json`: bus, base gain, pitch
 ## variation, loop mode and whether it is positional.
 ##
-## What this provides (plan.md 12.5):
+## What this provides (12.5):
 ##   * separate Music / SFX / UI / Ambience buses with independent volumes that
 ##     persist per user;
 ##   * spatial emitters (AudioStreamPlayer3D) with attenuation and a voice limit,
@@ -473,7 +473,7 @@ func _autodetect_zone() -> void:
 
 # ------------------------------------------------------------------ footsteps
 
-## Subscribe to the local player's own animation events. The Phase 9 rig already
+## Subscribe to the local player's own animation events. The rig already
 ## emits `footstep:<surface>` at contact frames; this listens, so no entity
 ## script has to know about audio.
 func _find_local_player() -> void:

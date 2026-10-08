@@ -15,7 +15,7 @@ signal auth_register_result(success: bool, message: String)
 signal auth_login_result(success: bool, message: String, characters: Array)
 signal character_create_result(success: bool, message: String, char_data: Dictionary)
 signal character_select_result(success: bool, message: String, char_data: Dictionary)
-## The world server answered a character-binding request (Phase 14 D14-1).
+## The world server answered a character-binding request (the character-bind fix).
 signal character_bind_result(success: bool, message: String, character: Dictionary)
 
 const DEFAULT_PORT: int = 7777
@@ -37,7 +37,7 @@ var peer_account_map: Dictionary = {} # peer_id -> account_id
 var peer_char_data_map: Dictionary = {} # peer_id -> full char_data
 var _auto_save_timer: float = 30.0
 
-## The character the player picked in the selection UI (Phase 14 D14-1). The
+## The character the player picked in the selection UI (the character-bind fix). The
 ## world session is bound to it on the server; holding the id here is what lets
 ## a reconnect re-bind the same character without asking the player again.
 var selected_character_id: int = 0
@@ -83,8 +83,8 @@ func select_character(data: Dictionary) -> void:
 	selected_character_id = int(data.get("id", 0))
 	character_bound = false
 
-## Ask the world server to bind this session to the selected character (Phase 14
-## D14-1). The server proves the character belongs to this session's account
+## Ask the world server to bind this session to the selected character (Release gates
+## character-bind). The server proves the character belongs to this session's account
 ## through the account service before it binds; a foreign character is refused
 ## and the session stays unbound, so the refusal is returned rather than papered
 ## over. Safe to await from UI code; bounded so a lost answer cannot hang a menu.

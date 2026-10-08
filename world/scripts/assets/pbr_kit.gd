@@ -1,6 +1,6 @@
 extends RefCounted
 
-## Phase 10 PBR material library + Gothic kit loader (plan.md Phase 10).
+## Art pass PBR material library + Gothic kit loader.
 ##
 ## One place that knows:
 ##   * which texture set backs each surface (and at what physical scale);
@@ -9,14 +9,14 @@ extends RefCounted
 ##   * which material slots each Gothic kit module carries, and how to instance
 ##     a module and replace those slots with the PBR materials.
 ##
-## The checks scene (`scenes/test/phase10_regression.tscn`) asserts the maps are
-## actually assigned, so this file is also the material contract for Phase 10.
+## The checks scene (`scenes/test/art_regression.tscn`) asserts the maps are
+## actually assigned, so this file is also the material contract for the art pass.
 
 const SHADER := preload("res://assets/shaders/triplanar_pbr.gdshader")
 
 ## ------------------------------------------------------------------ sets
 ## metres_per_tile drives texel density: px / (metres * 1000) px/m.
-## Budget: 256 px/m +/-15% for architecture (art-direction.md §4). Documented
+## Budget: 256 px/m +/-15% for architecture. Documented
 ## deviations: roof slates and planks are used finer because their course/plank
 ## size is the readable feature; recorded in assets/manifest.json.
 const PBR_SETS := {
@@ -99,7 +99,7 @@ const PBR_SETS := {
 
 # ------------------------------------------------------------------ slots
 ## Material slot map per kit module, in the order the Blender script registered
-## them (`tools/blender/phase10_kit.py`). Slot names resolve through
+## them (`tools/blender/kit_models.py`). Slot names resolve through
 ## `slot_material()` below.
 const KIT_SLOTS := {
 	"wall_module_4x6": ["stone"],

@@ -90,7 +90,7 @@ static func build(world: Node3D) -> void:
 		else:
 			_box(castle, "Blackboard", Vector3(28, 2.5, -14.3), Vector3(8, 3, 0.2), _mat(Color(0.04, 0.13, 0.12)), false)
 	# Distinct skyline, flanking towers and rear astronomy spire. None of these
-	# towers has a door: they are solid shafts, and Phase 10 says so out loud
+	# towers has a door: they are solid shafts, and the art pass says so out loud
 	# with a sealed plaque at each front tower base so nobody reads them as
 	# enterable content (the enterable tower is the interior tower landing).
 	for side in [-1, 1]:

@@ -1,5 +1,5 @@
 shader_type spatial;
-// Phase 10 world-space PBR surface shader.
+// the art pass world-space PBR surface shader.
 //
 // Why triplanar: the castle is assembled from arbitrary-sized boxes and kit
 // modules with no art-directed UVs, so a UV-mapped material would visibly
@@ -11,7 +11,7 @@ shader_type spatial;
 // Texture colour space: albedo is declared `source_color` (sRGB -> linear);
 // normal, roughness and AO are plain samplers and are used as raw data.
 // Normal maps are OpenGL (+Y up) tangent-space maps, generated from height in
-// `tools/blender/phase10_textures.py`. The per-axis tangent frames below are
+// `tools/blender/kit_textures.py`. The per-axis tangent frames below are
 // built right-handed against the surface normal (green is flipped where the
 // sampling plane's (T, B) is left-handed versus the normal), which is what
 // keeps a groove lit from the correct side on both walls and floors.

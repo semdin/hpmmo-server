@@ -1,11 +1,11 @@
 extends RefCounted
 
-## Phase 10 outdoor pass: shaped terrain, path edges, clearings, vegetation,
+## Art pass outdoor pass: shaped terrain, path edges, clearings, vegetation,
 ## landmarks and readable safe-zone boundaries.
 ##
 ## The flat playable core is preserved exactly: every encounter area, the
 ## courtyard, the paths, the broom landing pad and the castle entrance
-## sightline stay on the y = 0 plane with the Phase 8 collider. The shaping
+## sightline stay on the y = 0 plane with the map transfer collider. The shaping
 ## happens in a ring outside the core, meshed from one height function and
 ## collided by a matching HeightMapShape3D sampled from the same field, so the
 ## walkable surface and the visible surface are the same surface.
@@ -342,7 +342,7 @@ static func _build_rocks(root: Node3D) -> void:
 	rng.seed = 5150
 	# Path-edge and hillside rock clusters (visual only: no collision, no spawn
 	# interference; large landmark rocks carry no collider either, consistent
-	# with the Phase 8 ruin scatter).
+	# with the map transfer ruin scatter).
 	for i in range(int(90.0 * density)):
 		var x := rng.randf_range(-225.0, 225.0)
 		var z := rng.randf_range(-225.0, 195.0)

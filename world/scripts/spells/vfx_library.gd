@@ -1,10 +1,10 @@
 extends RefCounted
 
-## Phase 12 VFX library: the asset registry and the spell-by-spell composition
-## table (plan.md 12.3), plus the quality variants (plan.md 12.4).
+## vfx library: the asset registry and the spell-by-spell composition
+## table (12.3), plus the quality variants (12.4).
 ##
 ## Every effect scene builds its layers from this table - there is no second
-## copy of the composition, so `run_phase12_checks.ps1` can assert the table
+## copy of the composition, so `run_vfx_checks.ps1` can assert the table
 ## against the inventory: each spell has cast/travel/impact/sustain/end where it
 ## needs them, each layer names an asset that exists, each layer picks its blend
 ## mode, and the low variant is a genuine reduction (fewer layers, no dynamic
@@ -27,7 +27,7 @@ extends RefCounted
 
 const QUALITY_LEVELS := ["low", "medium", "high"]
 
-## Asset paths published by tools/blender/phase12_vfx.py + phase12_meshes.py.
+## Asset paths published by tools/blender/spell_vfx.py + spell_meshes.py.
 const ATLAS_DIR := "res://assets/vfx/atlases/"
 const TEX_DIR := "res://assets/vfx/tex/"
 const MESH_DIR := "res://assets/vfx/meshes/"
@@ -72,7 +72,7 @@ const LAYER_PRESETS := {
 		"lift": 0.06, "size": 1.0, "life": 1.0, "fade": "out", "core": true},
 }
 
-## The composition table (plan.md 12.3). `colour` is the spell tint from
+## The composition table (12.3). `colour` is the spell tint from
 ## data/json/spells.json; the tint is applied to the atlas layers so one atlas
 ## serves every spell while each keeps its own identity.
 const SPELLS := {
@@ -128,7 +128,7 @@ const SPELLS := {
 		"stages": {
 			"cast": {
 				# The authoritative shape is a short-range CONE burst, not a
-				# projectile (spells.json + phase5-authority section 6), and the
+				# projectile (spells.json), and the
 				# presentation is a flame burst down the aim direction.
 				"layers": [
 					{"kind": "flipbook", "atlas": "vfx_fire_burst", "blend": "alpha", "core": true,
@@ -301,7 +301,7 @@ const SPELLS := {
 	},
 }
 
-## Broom trail and boss warning are effects too (plan.md 12.3 last rows).
+## Broom trail and boss warning are effects too (12.3 last rows).
 const BROOM_TRAIL := {
 	"colour": Color(1.0, 0.72, 0.35),
 	"layers": [
@@ -334,7 +334,7 @@ const BOSS_WARNING := {
 	],
 }
 
-## Quality variants (plan.md 12.4): reduce layers, atlas use and dynamic lights,
+## Quality variants (12.4): reduce layers, atlas use and dynamic lights,
 ## but never the layer that carries the gameplay information.
 const QUALITY := {
 	"low": {"max_layers": 3, "lights": false, "particles": 0.5, "frame_step": 2, "atlas_scale": 0.5, "sprite_scale": 0.5},
@@ -450,7 +450,7 @@ static func _tune(layer: Dictionary, preset: Dictionary) -> Dictionary:
 
 ## True when the table is internally consistent: every layer names a real asset,
 ## every spell has the stages 12.3 asks for, and the low variant is lighter than
-## the high one while keeping the core layers. Used by the Phase 12 checks.
+## the high one while keeping the core layers. Used by the spell effects checks.
 static func validate_table() -> Array:
 	var problems: Array = []
 	for spell_id in SPELLS:

@@ -136,7 +136,7 @@ func load_character(character_id: int) -> Dictionary:
 	return {}
 
 ## Load a character and prove it belongs to `account_id` before a session may be
-## bound to it (Phase 14 D14-1). The service token authenticates this process;
+## bound to it (the character-bind fix). The service token authenticates this process;
 ## the account comparison against the sheet the service returns is the fact a
 ## client cannot forge, because the client never sees or sends an account id.
 ## Fails closed: a sheet without an account id (an older service) is refused
@@ -177,11 +177,11 @@ func save_character(character_id: int, payload: Dictionary) -> void:
 		else:
 			last_error = "save_%d" % status)
 
-## Reward through the Phase 4 operations ledger (exactly-once via `op_id`).
+## Reward through the operations ledger (exactly-once via `op_id`).
 ##
 ## NOT called by the live pickup path any more: a bound character's writes are
 ## owned by this bridge's saves, and applying the ledger on top credited the
-## same loot twice (Phase 14 D14-1). Kept because the service contract
+## same loot twice (the character-bind fix). Kept because the service contract
 ## (`/api/reward`) is real and exercised by tests/integration_api.py.
 func queue_reward(op_id: String, character_id: int, exp: int, galleons: int, items: Array) -> void:
 	if character_id <= 0:

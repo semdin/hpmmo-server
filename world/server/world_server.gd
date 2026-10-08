@@ -36,7 +36,7 @@ func _ready() -> void:
 	NetworkManager.is_connected_to_game = true
 	var port := int(_env("HPMMO_WORLD_PORT", str(SimNet.DEFAULT_PORT)))
 	# Reproducible by default: the authored debug seed replays an exact spawn
-	# layout without anyone having to remember a number (plan.md Phase 11).
+	# layout without anyone having to remember a number.
 	var world_seed := int(_env("HPMMO_WORLD_SEED", str(HPRules.debug_seed())))
 	SimAuthority.configure(SimAuthority.Role.DEDICATED, world_seed)
 
@@ -64,7 +64,7 @@ func _ready() -> void:
 		return
 	SimNet.bridge_authority()
 
-	# Maintenance controller (plan.md Phase 6). It owns the drain/save/disconnect
+	# Maintenance controller. It owns the drain/save/disconnect
 	# state machine and the authenticated admin HTTP API, and it is the gate the
 	# authority consults while the world is frozen. Without HPMMO_SERVICE_TOKEN it
 	# refuses to start and logs why - the API is never open.
@@ -76,7 +76,7 @@ func _ready() -> void:
 	world = WORLD_SCENE.instantiate()
 	add_child(world)
 
-	# Map host (plan.md Phase 8): the authority consults it before it reserves a
+	# Map host: the authority consults it before it reserves a
 	# transfer into a map, so the destination's collision exists in this process
 	# before ownership moves. Without it, an authoritative body indoors has no
 	# floor and the per-map fall rescue bounces it (and every client with it).
@@ -85,12 +85,12 @@ func _ready() -> void:
 	map_host.world = world
 	add_child(map_host)
 	# Roster transitions are logged immediately (not only on the 5 s status
-	# tick): operations and the Phase 8 map tests need to see joins, leaves and
+	# tick): operations and the map transfer map tests need to see joins, leaves and
 	# entity counts without waiting for a timer.
 	SimAuthority.player_joined.connect(func(_uid: int, _character_id: int, _peer_id: int): _print_roster("join"))
 	SimAuthority.player_left.connect(func(_uid: int, _character_id: int): _print_roster("leave"))
 
-	# --- Phase 8 magical staircase (ADDITIVE dev/test hook) --------------------
+	# --- the map transfer magical staircase (ADDITIVE dev/test hook) --------------------
 	# The interior map is authored by another workstream and is not part of the
 	# exported world yet, so a test - or local play - can place the staircase by
 	# environment. With HPMMO_DEV_STAIRCASE unset, none of this runs. Production

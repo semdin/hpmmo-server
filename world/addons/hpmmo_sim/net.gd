@@ -25,7 +25,7 @@ const HPProtocol = preload("res://addons/hpmmo_sim/protocol.gd")
 
 const DEFAULT_PORT := 7777
 const MAX_PLAYERS := 64
-const CLIENT_VERSION := "phase5"
+const CLIENT_VERSION := "0.7.0"
 
 enum NetProfile { LOCAL, BROADBAND, MOBILE, AWFUL }
 
@@ -115,8 +115,8 @@ func join(address: String, port: int = DEFAULT_PORT, token: String = "") -> Erro
 
 var join_token: String = ""
 
-## Client -> server: ask to play `character_id` on this session (Phase 14
-## D14-1). The session must already be joined; the answer arrives as the
+## Client -> server: ask to play `character_id` on this session (Release gates
+## character-bind). The session must already be joined; the answer arrives as the
 ## `character_bound` signal, and the server validates ownership through the
 ## account service before it binds, so a foreign character is refused.
 func bind_character(character_id: int) -> void:
@@ -215,7 +215,7 @@ func sim_join(token: String, protocol_version: int, client_version: String) -> v
 		sim_join_result.rpc_id(peer_id, false, "already_joined", 0, {}, SimAuthority.sim_tick, 0)
 		return
 	if not SimAuthority.joins_allowed():
-		# Maintenance (plan.md Phase 6): logins close at ANNOUNCING and stay
+		# Maintenance: logins close at ANNOUNCING and stay
 		# closed until the world is ONLINE again.
 		sim_join_result.rpc_id(peer_id, false, "maintenance", 0, {}, SimAuthority.sim_tick, 0)
 		return
@@ -233,7 +233,7 @@ func sim_join(token: String, protocol_version: int, client_version: String) -> v
 		# proves that binding itself through the service - load the sheet and
 		# compare account_id - instead of trusting the token, and refuses the join
 		# outright if the proof fails: a session that silently lands unbound would
-		# lose every number it earns (Phase 14 D14-1).
+		# lose every number it earns (the character-bind fix).
 		var bound_id := int(identity.get("character_id", 0))
 		if bound_id > 0:
 			var checked: Dictionary = SimAuthority.persistence.resolve_character(
@@ -324,8 +324,8 @@ func sim_spawn_player(peer_id: int, identity: Dictionary) -> void:
 	sim_chat_event.rpc("[Server] %s joined the realm." % node.player_name)
 	emit_signal("client_spawned", peer_id, int(identity.get("character_id", 0)), String(node.player_name))
 
-## Client -> server: name the character this session wants to play (Phase 14
-## D14-1). A session that joined without one (a plain login, or a launcher
+## Client -> server: name the character this session wants to play (Release gates
+## character-bind). A session that joined without one (a plain login, or a launcher
 ## ticket issued before a character was chosen) tells the server the choice the
 ## player made in the menu; the server proves the character belongs to this
 ## session's account through the service - introspect gives the account, the
@@ -402,7 +402,7 @@ func sim_respawn_request() -> void:
 		return
 	SimAuthority.submit_respawn(multiplayer.get_remote_sender_id())
 
-## Map transfer (plan.md Phase 8), client -> server. The client names the portal
+## Map transfer, client -> server. The client names the portal
 ## it stands at and the map it believes the door leads to; the authority checks
 ## both against the catalog (never trusting the claim) and answers through the
 ## transfer signals, which the bridge below fans out to exactly this peer.
@@ -467,7 +467,7 @@ func sim_join_result(ok: bool, reason: String, uid: int, character: Dictionary, 
 			SimAuthority.register_local_player(uid, character)
 	emit_signal("joined", ok, reason, character)
 
-## Server -> client: the answer to `sim_bind_character` (Phase 14 D14-1). The
+## Server -> client: the answer to `sim_bind_character` (the character-bind fix). The
 ## character sheet is the one the service returned, so the client's local body
 ## takes the same numbers the authority bound.
 @rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
@@ -533,13 +533,13 @@ func sim_chat_event(text: String) -> void:
 func sim_notice(kind: String, detail: String) -> void:
 	SimAuthority.emit_signal("notice", kind + ":" + detail, Color(1.0, 0.8, 0.4))
 
-## Maintenance lifecycle (plan.md Phase 6). Signal emission only: the client's
+## Maintenance lifecycle. Signal emission only: the client's
 ## countdown/HUD presentation listens to SimAuthority.maintenance_event.
 @rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
 func sim_maintenance_event(state: String, reason: String, seconds_remaining: int) -> void:
 	SimAuthority.on_maintenance_event(state, reason, seconds_remaining)
 
-## Map transfer lifecycle (plan.md Phase 8). Emission only: the client's map
+## Map transfer lifecycle. Emission only: the client's map
 ## controller listens to SimAuthority.transfer_* / map_state.
 @rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
 func sim_transfer_granted(token: int, map_id: String, spawn_id: String) -> void:
@@ -584,7 +584,7 @@ func sim_snapshot(tick: int, chunk: int, chunks: int, data: PackedByteArray) -> 
 func sim_despawn(uid: int) -> void:
 	SimAuthority.emit_signal("entity_despawned", uid)
 
-## Boss telegraph (plan.md Phase 11). The record keeps the shape and the
+## Boss telegraph. The record keeps the shape and the
 ## authoritative start/release ticks; presentation (mob_base) renders the
 ## warning from them, so what a player sees cannot disagree with when the
 ## damage lands.
@@ -680,7 +680,7 @@ func submit_pickup(player_node: Node, loot_uid: int) -> Dictionary:
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
 	return SimAuthority.request_pickup(int(record.get("peer_id", 0)), loot_uid)
 
-## Map transfer entry points, used by client code in EVERY role (plan.md Phase
+## Map transfer entry points, used by client code in EVERY role (Phase
 ## 8). In role CLIENT the exchange travels to the server; in the authority roles
 ## the same engine answers locally, so offline/host play exercises the identical
 ## validation. A client-role call answers only "sent": the transfer_* signals
@@ -885,7 +885,7 @@ func broadcast_reward(uid: int, character_id: int, exp: int, galleons: int, item
 		if not record.is_empty() and int(record.get("uid", 0)) == uid:
 			sim_reward_event.rpc_id(peer_id, character_id, exp, galleons, items, op_id)
 
-## Boss telegraph fan-out (plan.md Phase 11). Reliable, to every peer that can
+## Boss telegraph fan-out. Reliable, to every peer that can
 ## see the mob inside its interest set; the timing inside is authoritative, not
 ## a client-side estimate.
 func broadcast_telegraph(uid: int, data: Dictionary) -> void:
@@ -907,7 +907,7 @@ func broadcast_chat(text: String) -> void:
 		return
 	sim_chat_event.rpc(text)
 
-## Maintenance notification fan-out (plan.md Phase 6). Reliable, to every
+## Maintenance notification fan-out. Reliable, to every
 ## connected client: the countdown has to arrive even for a client that is not
 ## (or no longer) a spawned player.
 func broadcast_maintenance(state: String, reason: String, seconds_remaining: int) -> void:
@@ -915,7 +915,7 @@ func broadcast_maintenance(state: String, reason: String, seconds_remaining: int
 		return
 	sim_maintenance_event.rpc(state, reason, seconds_remaining)
 
-## Map transfer fan-out (plan.md Phase 8). Each answer goes to exactly the peer
+## Map transfer fan-out. Each answer goes to exactly the peer
 ## that owns the reservation; a peer that has already dropped is skipped.
 func _send_peer_event(peer_id: int, method: String, args: Array) -> void:
 	if peer_id <= 0 or not has_peers():

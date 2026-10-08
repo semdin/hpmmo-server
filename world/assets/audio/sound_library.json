@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "generator": "client/tools/audio/synth_phase12.py",
+ "generator": "client/tools/audio/synth_spell_sfx.py",
  "generated": "2026-10-05",
  "provenance": "project-original synthesis (deterministic seeded DSP, Python standard library only); no downloaded or third-party audio",
  "license": "project-original (CC0-equivalent dedication by the project)",

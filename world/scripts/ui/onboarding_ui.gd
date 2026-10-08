@@ -1,7 +1,7 @@
 extends Control
 class_name OnboardingUI
 
-## Phase 13 onboarding route (plan.md Phase 13, task 7): a short training flow
+## Interface onboarding route (): a short training flow
 ## covering dummy practice, safe-zone boundaries, reactive packs, broom controls
 ## and the castle entrance.
 ##
@@ -24,7 +24,7 @@ class_name OnboardingUI
 ## Progress persists under `user://` so a relog resumes where the player was,
 ## and `reset()` starts the route again.
 
-const STATE_PATH := "user://phase13_onboarding.json"
+const STATE_PATH := "user://onboarding.json"
 const AIRBORNE_HEIGHT := 2.5
 const SAFE_ZONE_POLL := 0.3
 
@@ -110,47 +110,61 @@ func _exit_tree() -> void:
 
 ## ------------------------------------------------------------------- ui
 
+## The card lives in the HUD's left rail: pinned to the shared edge inset and the
+## shared left column width (`UITheme`), and clear of the top-left status line. It
+## used to be centred on the left edge while the chat log was anchored to the
+## bottom-left, so the two panels overlapped and their text interleaved.
+const CARD_TOP := 68.0
+const CARD_H := 212.0
+
 func _build() -> void:
+	var size := Vector2(UITheme.LEFT_COL_W, CARD_H)
 	_panel = Panel.new()
 	_panel.name = "OnboardingPanel"
-	_panel.set_anchors_preset(Control.PRESET_CENTER_LEFT)
-	UILayout.place(_panel, Vector2(16, -84), Vector2(300, 168))
-	_panel.custom_minimum_size = Vector2(300, 168)
+	_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	UILayout.place(_panel, Vector2(UITheme.EDGE, CARD_TOP), size)
+	_panel.custom_minimum_size = size
 	_panel.mouse_filter = Control.MOUSE_FILTER_PASS
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.04, 0.05, 0.09, 0.86)
-	style.border_color = Color(0.85, 0.72, 0.32, 0.9)
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(8)
-	_panel.add_theme_stylebox_override("panel", style)
-	_title = _make_label("Getting started", 15, Color(1.0, 0.88, 0.55))
-	_title.position = Vector2(10, 6)
-	_panel.add_child(_title)
-	_body = _make_label("", 12, Color(0.92, 0.95, 1.0))
-	_body.position = Vector2(10, 30)
-	_body.custom_minimum_size = Vector2(280, 106)
+	_panel.theme = UITheme.get_theme()
+	_panel.theme_type_variation = UITheme.V_CARD
+
+	var margin := MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 10)
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_panel.add_child(margin)
+
+	var column := VBoxContainer.new()
+	column.name = "Column"
+	column.add_theme_constant_override("separation", 6)
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	margin.add_child(column)
+
+	_title = UITheme.heading("Getting started", UITheme.FS_HEADER)
+	column.add_child(_title)
+	column.add_child(UITheme.divider())
+
+	_body = UITheme.body("", UITheme.FS_SMALL, UITheme.c("parchment"))
+	_body.custom_minimum_size = Vector2(UITheme.LEFT_COL_W - 20, 100)
 	_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_panel.add_child(_body)
+	column.add_child(_body)
+
+	var footer := HBoxContainer.new()
+	footer.name = "Footer"
+	footer.alignment = BoxContainer.ALIGNMENT_END
+	footer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_child(footer)
+
 	_hide_button = Button.new()
 	_hide_button.name = "Hide"
 	_hide_button.text = "Hide (J)"
 	_hide_button.focus_mode = Control.FOCUS_NONE
-	_hide_button.position = Vector2(230, 140)
-	_hide_button.custom_minimum_size = Vector2(64, 20)
-	_hide_button.add_theme_font_size_override("font_size", 10)
+	_hide_button.custom_minimum_size = Vector2(84, 26)
+	_hide_button.add_theme_font_size_override("font_size", UITheme.FS_SMALL)
 	_hide_button.pressed.connect(toggle_panel)
-	_panel.add_child(_hide_button)
-	add_child(_panel)
+	footer.add_child(_hide_button)
 
-func _make_label(text: String, size: int, color: Color) -> Label:
-	var label := Label.new()
-	label.text = text
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	label.add_theme_font_size_override("font_size", size)
-	label.add_theme_color_override("font_color", color)
-	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
-	label.add_theme_constant_override("outline_size", 5)
-	return label
+	add_child(_panel)
 
 func toggle_panel() -> void:
 	visible_panel = not visible_panel

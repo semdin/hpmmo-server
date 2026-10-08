@@ -1,7 +1,7 @@
 extends RefCounted
 class_name UIFocus
 
-## Phase 13 input focus (plan.md Phase 13: "Make menus and interaction prompts
+## Interface input focus ("Make menus and interaction prompts
 ## respect input focus so clicks/keys in UI do not unexpectedly cast or mount").
 ##
 ## A panel that takes keyboard focus announces itself here while it is open.
@@ -13,7 +13,7 @@ class_name UIFocus
 ## Mouse clicks are a separate path: a Control with MOUSE_FILTER_STOP (the
 ## default for Panel/Button) consumes the click before `_unhandled_input`, so a
 ## click on a panel never reaches the world. The group below covers keys; both
-## paths are asserted in the Phase 13 checks.
+## paths are asserted in the interface checks.
 
 const GROUP := "ui_input_blocker"
 

@@ -1,8 +1,8 @@
 extends Node
 class_name UIStateBinder
 
-## Phase 13: the single subscription point between the authoritative state model
-## and the HUD (plan.md Phase 13, task 1).
+## The single subscription point between the authoritative state model
+## and the HUD ().
 ##
 ## Everything the HUD shows as gameplay state flows through here:
 ##   * `SimAuthority.stats_changed(uid, stats)` - the server's stat payload

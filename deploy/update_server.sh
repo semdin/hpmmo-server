@@ -1,10 +1,10 @@
 #!/bin/bash
 # =============================================================================
-# HPMMO server updater - compatibility wrapper (plan.md Phase 6)
+# HPMMO server updater - compatibility wrapper
 # =============================================================================
 #
-# The Phase 3 updater stopped the services, extracted a tarball over the live
-# tree and compiled on the box. Phase 6 replaces that with the staged,
+# the original updater stopped the services, extracted a tarball over the live
+# tree and compiled on the box. the maintenance surface replaces that with the staged,
 # journalled controller in deploy/hpmmo_deploy.sh:
 #
 #   verify checksums -> lock -> announce maintenance -> drain -> final save

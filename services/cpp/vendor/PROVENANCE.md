@@ -1,6 +1,6 @@
 # Vendored dependency provenance
 
-Pinned third-party sources for the Phase 4 C++ service. Every file is fetched
+Pinned third-party sources for the C++ service. Every file is fetched
 from its upstream release and hash-pinned here.
 
 | file | bytes | sha256 |

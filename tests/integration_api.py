@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Phase 4 integration tests for the C++ service + PostgreSQL.
+"""persistence integration tests for the C++ service + PostgreSQL.
 
 Self-contained: starts the local PostgreSQL cluster (if needed), creates a
 throwaway database, migrates it, boots hpmmo_service.exe, and exercises the
-plan.md Phase 4 exit checks end to end:
+exit checks end to end:
 
   register / login / create / save / RESTART / load-back (state survives)
   cross-account denial (a second account cannot load or save another's character)
@@ -380,7 +380,7 @@ def main():
         status, body = http(port, "POST", "/api/characters/load", {"character_id": alice_char}, token=game_tok)
         check(status == 401, "revoked session is rejected")
 
-        # --- service-token session introspection (Phase 5 world server) ------------
+        # --- service-token session introspection (Authority world server) ------------
         schema_level = max(int(f[:4]) for f in os.listdir(MIGRATIONS) if f.endswith(".sql"))
         status, body = http(port, "GET", "/api/ready")
         check(status == 200 and body.get("schema") == schema_level,

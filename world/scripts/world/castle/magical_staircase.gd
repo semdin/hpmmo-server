@@ -1,6 +1,6 @@
 extends HPStaircase
 
-## Magical staircase scene root (plan.md Phase 8, "Magical staircase prototype").
+## Magical staircase scene root ("Magical staircase prototype").
 ##
 ## The scene is self-contained and position-independent: all of its geometry is
 ## built from the shared spec in `hpmmo_sim/staircase.gd`, in the scene's own

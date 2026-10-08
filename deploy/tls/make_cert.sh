@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# HPMMO release-listener TLS certificate (plan.md Phase 7)
+# HPMMO release-listener TLS certificate
 # =============================================================================
 #
 # Generates the SELF-SIGNED certificate that the read-only release/status
@@ -140,4 +140,4 @@ printf 'Serve it (loopback until you expose the listener):\n'
 printf '  HPMMO_STATUS_TLS_CERT=%s HPMMO_STATUS_TLS_KEY=%s \\\n' "$CERT" "$KEY"
 printf '  HPMMO_STATUS_RELEASES_ROOT=/srv/hpmmo/client-releases \\\n'
 printf '  python3 deploy/hpmmo_status.py --host 0.0.0.0 --port 8443\n'
-printf 'See server/docs/phase7-release-contract.md for the exact exposure change.\n'
+printf 'See server/docs/release-contract.md for the exact exposure change.\n'

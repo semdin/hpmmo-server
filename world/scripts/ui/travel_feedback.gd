@@ -1,7 +1,7 @@
 extends Control
 class_name TravelFeedback
 
-## Phase 13 location and transition UI (plan.md Phase 13, task 3): indoor
+## Interface location and transition UI (): indoor
 ## floor/area labels, portal/loading progress, moving-staircase warnings,
 ## mounted controls and invalid-landing feedback.
 ##
@@ -63,7 +63,7 @@ func setup(p_player: Node3D, p_world: Node3D) -> void:
 	_build()
 	_consolidate_location_labels()
 
-## Phase 13 presentation consolidation: the Phase 8 map controller already owns
+## Interface presentation consolidation: the map transfer map controller already owns
 ## a top-centre location label with the same text this panel shows (plus the
 ## landing-pad hint and the outdoor region). Two overlapping copies of the same
 ## line is not "continuously understandable", so the controller's label keeps its
@@ -71,15 +71,40 @@ func setup(p_player: Node3D, p_world: Node3D) -> void:
 func _consolidate_location_labels() -> void:
 	if world == null or not is_instance_valid(world):
 		return
+	if _hide_legacy_location():
+		return
+	# The map controller builds its status layer in its own `_ready`, and the HUD
+	# binds the player - which reaches this - before the controller is added to the
+	# world. On a fresh world the legacy label therefore does not exist yet, and
+	# quietly giving up here is what left two location lines on screen at once.
+	if not world.child_entered_tree.is_connected(_on_world_child_added):
+		world.child_entered_tree.connect(_on_world_child_added)
+
+
+func _on_world_child_added(node: Node) -> void:
+	if node.name != "MapStatusUI":
+		return
+	if world.child_entered_tree.is_connected(_on_world_child_added):
+		world.child_entered_tree.disconnect(_on_world_child_added)
+	# `_build_ui` adds the layer and then its labels in the same call, so the
+	# Location label does not exist at the moment the layer does.
+	_hide_legacy_location.call_deferred()
+
+
+## True once the controller's own location line has been found and hidden.
+func _hide_legacy_location() -> bool:
 	var legacy := world.get_node_or_null("MapStatusUI/Location")
 	if legacy is CanvasItem:
 		(legacy as CanvasItem).visible = false
+		return true
+	return false
 
 func _build() -> void:
-	# Location / floor line, top centre under the zone banner.
-	_location_label = _make_label("", 15, Color(1.0, 0.9, 0.62))
+	# Location / floor line, directly under the zone banner and above the target
+	# frame, which used to reach up into it.
+	_location_label = _make_label("", UITheme.FS_LABEL, UITheme.c("gold_lt"))
 	_location_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	UILayout.place_centred(_location_label, Vector2(480, 22), Vector2(0, 84))
+	UILayout.place_centred(_location_label, Vector2(480, 22), Vector2(0, 55))
 	_location_label.custom_minimum_size = Vector2(480, 22)
 	_location_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(_location_label)
@@ -91,13 +116,9 @@ func _build() -> void:
 	UILayout.place_centred(_portal_panel, Vector2(340, 56), Vector2(0, -70))
 	_portal_panel.custom_minimum_size = Vector2(340, 56)
 	_portal_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.03, 0.04, 0.07, 0.9)
-	style.border_color = Color(0.9, 0.78, 0.3, 0.9)
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(8)
-	_portal_panel.add_theme_stylebox_override("panel", style)
-	_portal_label = _make_label("Loading...", 15, Color(0.95, 0.9, 0.75))
+	_portal_panel.theme = UITheme.get_theme()
+	_portal_panel.theme_type_variation = UITheme.V_CARD
+	_portal_label = _make_label("Loading...", UITheme.FS_BODY, UITheme.c("parchment"))
 	_portal_label.position = Vector2(10, 6)
 	_portal_panel.add_child(_portal_label)
 	_portal_bar = ProgressBar.new()
@@ -109,48 +130,41 @@ func _build() -> void:
 	_portal_bar.offset_bottom = -10
 	_portal_bar.show_percentage = false
 	_portal_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var fill := StyleBoxFlat.new()
-	fill.bg_color = Color(0.9, 0.78, 0.3)
-	_portal_bar.add_theme_stylebox_override("fill", fill)
+	UITheme.role(_portal_bar, UITheme.V_EXP)
 	_portal_panel.add_child(_portal_bar)
 	_portal_panel.hide()
 	add_child(_portal_panel)
 
-	# Staircase warning.
+	# Staircase warning, below the boss bar so a boss fight and a staircase
+	# warning can be on screen together.
 	_stairs_panel = Panel.new()
 	_stairs_panel.name = "StaircaseWarning"
 	_stairs_panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	UILayout.place_centred(_stairs_panel, Vector2(480, 30), Vector2(0, 120))
+	UILayout.place_centred(_stairs_panel, Vector2(480, 30), Vector2(0, 187))
 	_stairs_panel.custom_minimum_size = Vector2(480, 30)
 	_stairs_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var stair_style := StyleBoxFlat.new()
-	stair_style.bg_color = Color(0.16, 0.08, 0.03, 0.82)
-	stair_style.border_color = Color(1.0, 0.55, 0.35, 0.9)
-	stair_style.set_border_width_all(1)
-	stair_style.set_corner_radius_all(6)
-	_stairs_panel.add_theme_stylebox_override("panel", stair_style)
-	_stairs_label = _make_label("", 14, Color(1.0, 0.7, 0.45))
+	_stairs_panel.theme = UITheme.get_theme()
+	_stairs_panel.theme_type_variation = UITheme.V_CARD
+	_stairs_label = _make_label("", UITheme.FS_SMALL, UITheme.c("blood_lt"))
 	_stairs_label.position = Vector2(10, 5)
 	_stairs_panel.add_child(_stairs_label)
 	_stairs_panel.hide()
 	add_child(_stairs_panel)
 
-	# Mounted controls + landing verdict.
+	# Mounted controls + landing verdict, in the left rail's own slot under the
+	# onboarding card: the two are both guidance cards and used to be drawn on top
+	# of each other whenever a new player mounted for the onboarding broom step.
 	_mounted_panel = Panel.new()
 	_mounted_panel.name = "MountedControls"
 	_mounted_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	UILayout.place(_mounted_panel, Vector2(16, 70), Vector2(275, 78))
-	_mounted_panel.custom_minimum_size = Vector2(275, 78)
+	UILayout.place(_mounted_panel, Vector2(UITheme.EDGE, 292), Vector2(UITheme.LEFT_COL_W, 78))
+	_mounted_panel.custom_minimum_size = Vector2(UITheme.LEFT_COL_W, 78)
 	_mounted_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var mount_style := StyleBoxFlat.new()
-	mount_style.bg_color = Color(0.04, 0.06, 0.1, 0.82)
-	mount_style.border_color = Color(0.3, 0.9, 1.0, 0.8)
-	mount_style.set_border_width_all(1)
-	mount_style.set_corner_radius_all(6)
-	_mounted_panel.add_theme_stylebox_override("panel", mount_style)
-	_mounted_label = _make_label("", 12, Color(0.8, 0.95, 1.0))
-	_mounted_label.position = Vector2(8, 6)
-	_mounted_label.custom_minimum_size = Vector2(258, 66)
+	_mounted_panel.theme = UITheme.get_theme()
+	_mounted_panel.theme_type_variation = UITheme.V_CARD
+	_mounted_label = _make_label("", UITheme.FS_SMALL, UITheme.c("parchment"))
+	_mounted_label.position = Vector2(9, 6)
+	_mounted_label.custom_minimum_size = Vector2(UITheme.LEFT_COL_W - 18, 66)
 	_mounted_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_mounted_panel.add_child(_mounted_label)
 	_mounted_panel.hide()
@@ -160,10 +174,13 @@ func _make_label(text: String, size: int, color: Color) -> Label:
 	var label := Label.new()
 	label.text = text
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# These lines sit over the world, so they keep an edge - but a tight one, in
+	# the bold cut, instead of the 5 px halo that turned 13 px text into a smudge.
+	label.add_theme_font_override("font", UITheme.font_body_bold())
 	label.add_theme_font_size_override("font_size", size)
 	label.add_theme_color_override("font_color", color)
-	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
-	label.add_theme_constant_override("outline_size", 5)
+	label.add_theme_color_override("font_outline_color", UITheme.c("shadow"))
+	label.add_theme_constant_override("outline_size", 3)
 	return label
 
 ## ------------------------------------------------------------ location

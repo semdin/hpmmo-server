@@ -4,7 +4,7 @@
 Boots services/db_service.py against a TEMP sqlite database (no PostgreSQL, no
 real data) and exercises the current API surface end to end:
   /api/health, register, login, character create/load/save,
-  the save contract (character_id required), and the Phase 1 trade disable.
+  the save contract (character_id required), and the core trade disable.
 
 Exits non-zero on any failure. Run via `dev.ps1 test` or directly:
   python tests/smoke_service.py
@@ -122,7 +122,7 @@ def main():
 
             status, body = call(port, "POST", "/api/trade",
                                 {"player1_id": char_id, "player2_id": char_id})
-            check(status == 503, "trade endpoint stays disabled (503) until the Phase 4 rewrite")
+            check(status == 503, "trade endpoint stays disabled (503) until the persistence rewrite")
 
             status, body = call(port, "POST", "/api/nonexistent", {})
             check(status == 404, "unknown route returns 404")

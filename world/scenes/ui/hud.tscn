@@ -1,59 +1,12 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/hud.gd" id="1_hd"]
+[ext_resource type="Script" path="res://scripts/ui/ui_slot.gd" id="2_slot"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bar_bg"]
-bg_color = Color(0.12, 0.1, 0.12, 0.85)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.3, 0.25, 0.2, 1)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hp"]
-bg_color = Color(0.85, 0.15, 0.15, 1)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mana"]
-bg_color = Color(0.15, 0.45, 0.95, 1)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_exp"]
-bg_color = Color(0.9, 0.75, 0.1, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_target"]
-bg_color = Color(0.08, 0.08, 0.1, 0.85)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.8, 0.2, 0.2, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hotbar_slot"]
-bg_color = Color(0.15, 0.14, 0.18, 0.9)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.7, 0.6, 0.3, 1)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
+; The HUD scene carries structure only: node paths, sizes and anchors. Every
+; colour, border, corner radius and font comes from `assets/ui/hpmmo.tres` via
+; the type variations hud.gd asks for, so there is no stylebox in this file to
+; drift out of step with the theme.
 
 [node name="HUD" type="Control"]
 layout_mode = 3
@@ -67,36 +20,30 @@ script = ExtResource("1_hd")
 
 [node name="ExpBar" type="ProgressBar" parent="."]
 layout_mode = 1
-anchors_preset = 12
+anchors_preset = 7
+anchor_left = 0.5
 anchor_top = 1.0
-anchor_right = 1.0
+anchor_right = 0.5
 anchor_bottom = 1.0
-offset_top = -12.0
+offset_left = -210.0
+offset_top = -18.0
+offset_right = 210.0
+offset_bottom = -4.0
 grow_horizontal = 2
 grow_vertical = 0
-theme_override_styles/background = SubResource("StyleBoxFlat_bar_bg")
-theme_override_styles/fill = SubResource("StyleBoxFlat_exp")
 value = 50.0
 show_percentage = false
 
 [node name="ExpLabel" type="Label" parent="ExpBar"]
 layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -100.0
-offset_top = -10.0
-offset_right = 100.0
-offset_bottom = 10.0
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
-theme_override_constants/outline_size = 4
-theme_override_font_sizes/font_size = 10
 text = "EXP: 0 / 200"
 horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="BottomBar" type="HBoxContainer" parent="."]
 layout_mode = 1
@@ -105,33 +52,28 @@ anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = -460.0
-offset_top = -80.0
-offset_right = 460.0
-offset_bottom = -16.0
+offset_left = -400.0
+offset_top = -104.0
+offset_right = 400.0
+offset_bottom = -24.0
 grow_horizontal = 2
 grow_vertical = 0
-theme_override_constants/separation = 16
+theme_override_constants/separation = 12
 alignment = 1
 
 [node name="StatusBars" type="VBoxContainer" parent="BottomBar"]
-custom_minimum_size = Vector2(170, 0)
+custom_minimum_size = Vector2(210, 0)
 layout_mode = 2
 theme_override_constants/separation = 4
 alignment = 1
 
 [node name="LevelLabel" type="Label" parent="BottomBar/StatusBars"]
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
-theme_override_constants/outline_size = 4
-theme_override_font_sizes/font_size = 14
 text = "Lv. 1"
 
 [node name="HpBar" type="ProgressBar" parent="BottomBar/StatusBars"]
 custom_minimum_size = Vector2(0, 18)
 layout_mode = 2
-theme_override_styles/background = SubResource("StyleBoxFlat_bar_bg")
-theme_override_styles/fill = SubResource("StyleBoxFlat_hp")
 value = 100.0
 show_percentage = false
 
@@ -142,9 +84,6 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
-theme_override_constants/outline_size = 4
-theme_override_font_sizes/font_size = 11
 text = "500 / 500"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -152,8 +91,6 @@ vertical_alignment = 1
 [node name="ManaBar" type="ProgressBar" parent="BottomBar/StatusBars"]
 custom_minimum_size = Vector2(0, 18)
 layout_mode = 2
-theme_override_styles/background = SubResource("StyleBoxFlat_bar_bg")
-theme_override_styles/fill = SubResource("StyleBoxFlat_mana")
 value = 100.0
 show_percentage = false
 
@@ -164,89 +101,72 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
-theme_override_constants/outline_size = 4
-theme_override_font_sizes/font_size = 11
 text = "300 / 300"
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="Hotbar" type="HBoxContainer" parent="BottomBar"]
 layout_mode = 2
-theme_override_constants/separation = 6
-alignment = 1
-
-[node name="Slot1" type="Button" parent="BottomBar/Hotbar"]
-custom_minimum_size = Vector2(60, 60)
-layout_mode = 2
-theme_override_font_sizes/font_size = 11
-theme_override_styles/normal = SubResource("StyleBoxFlat_hotbar_slot")
-text = "[1]
-Stupefy"
-
-[node name="Slot2" type="Button" parent="BottomBar/Hotbar"]
-custom_minimum_size = Vector2(60, 60)
-layout_mode = 2
-theme_override_font_sizes/font_size = 11
-theme_override_styles/normal = SubResource("StyleBoxFlat_hotbar_slot")
-text = "[2]
-Incendio"
-
-[node name="Slot3" type="Button" parent="BottomBar/Hotbar"]
-custom_minimum_size = Vector2(60, 60)
-layout_mode = 2
-theme_override_font_sizes/font_size = 11
-theme_override_styles/normal = SubResource("StyleBoxFlat_hotbar_slot")
-text = "[3]
-Bombarda"
-
-[node name="Slot4" type="Button" parent="BottomBar/Hotbar"]
-custom_minimum_size = Vector2(60, 60)
-layout_mode = 2
-theme_override_font_sizes/font_size = 11
-theme_override_styles/normal = SubResource("StyleBoxFlat_hotbar_slot")
-text = "[4]
-Expelli"
-
-[node name="SlotQ" type="Button" parent="BottomBar/Hotbar"]
-custom_minimum_size = Vector2(60, 60)
-layout_mode = 2
-theme_override_font_sizes/font_size = 11
-theme_override_styles/normal = SubResource("StyleBoxFlat_hotbar_slot")
-text = "[Q]
-Protego"
-
-[node name="SlotE" type="Button" parent="BottomBar/Hotbar"]
-custom_minimum_size = Vector2(60, 60)
-layout_mode = 2
-theme_override_font_sizes/font_size = 11
-theme_override_styles/normal = SubResource("StyleBoxFlat_hotbar_slot")
-text = "[E]
-Ultimate"
-
-[node name="QuickBar" type="VBoxContainer" parent="BottomBar"]
-layout_mode = 2
 theme_override_constants/separation = 4
 alignment = 1
 
-[node name="InvBtn" type="Button" parent="BottomBar/QuickBar"]
-custom_minimum_size = Vector2(90, 26)
+[node name="Slot1" type="Button" parent="BottomBar/Hotbar"]
+custom_minimum_size = Vector2(44, 44)
 layout_mode = 2
-theme_override_font_sizes/font_size = 11
+size_flags_vertical = 4
+script = ExtResource("2_slot")
+
+[node name="Slot2" type="Button" parent="BottomBar/Hotbar"]
+custom_minimum_size = Vector2(44, 44)
+layout_mode = 2
+size_flags_vertical = 4
+script = ExtResource("2_slot")
+
+[node name="Slot3" type="Button" parent="BottomBar/Hotbar"]
+custom_minimum_size = Vector2(44, 44)
+layout_mode = 2
+size_flags_vertical = 4
+script = ExtResource("2_slot")
+
+[node name="Slot4" type="Button" parent="BottomBar/Hotbar"]
+custom_minimum_size = Vector2(44, 44)
+layout_mode = 2
+size_flags_vertical = 4
+script = ExtResource("2_slot")
+
+[node name="SlotQ" type="Button" parent="BottomBar/Hotbar"]
+custom_minimum_size = Vector2(44, 44)
+layout_mode = 2
+size_flags_vertical = 4
+script = ExtResource("2_slot")
+
+[node name="SlotE" type="Button" parent="BottomBar/Hotbar"]
+custom_minimum_size = Vector2(44, 44)
+layout_mode = 2
+size_flags_vertical = 4
+script = ExtResource("2_slot")
+
+[node name="QuickBar" type="GridContainer" parent="BottomBar"]
+layout_mode = 2
+theme_override_constants/h_separation = 4
+theme_override_constants/v_separation = 4
+columns = 3
+
+[node name="InvBtn" type="Button" parent="BottomBar/QuickBar"]
+custom_minimum_size = Vector2(76, 26)
+layout_mode = 2
 text = "[I] Bag"
 
 [node name="OllivanderBtn" type="Button" parent="BottomBar/QuickBar"]
-custom_minimum_size = Vector2(90, 26)
+custom_minimum_size = Vector2(76, 26)
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
-theme_override_font_sizes/font_size = 11
 text = "[O] Ollivander"
 
 [node name="MountBtn" type="Button" parent="BottomBar/QuickBar"]
-custom_minimum_size = Vector2(90, 26)
+custom_minimum_size = Vector2(76, 26)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.3, 0.9, 1, 1)
-theme_override_font_sizes/font_size = 11
 text = "[Shift] Nimbus"
 
 [node name="TargetPanel" type="Panel" parent="."]
@@ -255,11 +175,9 @@ anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
 offset_left = -160.0
-offset_top = 18.0
+offset_top = 70.0
 offset_right = 160.0
-offset_bottom = 68.0
-grow_horizontal = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_target")
+offset_bottom = 120.0
 
 [node name="TargetName" type="Label" parent="TargetPanel"]
 layout_mode = 1
@@ -268,9 +186,6 @@ anchor_right = 1.0
 offset_top = 4.0
 offset_bottom = 24.0
 grow_horizontal = 2
-theme_override_colors/font_color = Color(1, 0.9, 0.3, 1)
-theme_override_constants/outline_size = 4
-theme_override_font_sizes/font_size = 13
 text = "[Lv.12] Inferi Ghoul"
 horizontal_alignment = 1
 
@@ -286,32 +201,38 @@ offset_right = -12.0
 offset_bottom = -6.0
 grow_horizontal = 2
 grow_vertical = 0
-theme_override_styles/background = SubResource("StyleBoxFlat_bar_bg")
-theme_override_styles/fill = SubResource("StyleBoxFlat_hp")
 value = 100.0
 show_percentage = false
 
-[node name="ChatContainer" type="VBoxContainer" parent="."]
+[node name="ChatContainer" type="PanelContainer" parent="."]
 layout_mode = 1
-anchors_preset = 2
-anchor_top = 1.0
+anchors_preset = 9
 anchor_bottom = 1.0
 offset_left = 16.0
-offset_top = -250.0
-offset_right = 320.0
-offset_bottom = -90.0
-grow_vertical = 0
+offset_top = 378.0
+offset_right = 330.0
+offset_bottom = -144.0
+grow_vertical = 2
 
-[node name="ChatHistory" type="RichTextLabel" parent="ChatContainer"]
-custom_minimum_size = Vector2(0, 125)
+[node name="Margin" type="MarginContainer" parent="ChatContainer"]
 layout_mode = 2
-theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
-theme_override_constants/outline_size = 4
-theme_override_font_sizes/normal_font_size = 12
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 6
+
+[node name="Chat" type="VBoxContainer" parent="ChatContainer/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ChatHistory" type="RichTextLabel" parent="ChatContainer/Margin/Chat"]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+size_flags_vertical = 3
 bbcode_enabled = true
 scroll_following = true
 
-[node name="ChatInput" type="LineEdit" parent="ChatContainer"]
+[node name="ChatInput" type="LineEdit" parent="ChatContainer/Margin/Chat"]
+custom_minimum_size = Vector2(0, 30)
 layout_mode = 2
-theme_override_font_sizes/font_size = 12
 placeholder_text = "Press Enter to chat..."

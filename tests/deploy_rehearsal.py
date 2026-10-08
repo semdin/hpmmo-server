@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Phase 6 deployment rehearsal (plan.md).
+"""deployment rehearsal.
 
 Drives the REAL deployment controller (deploy/hpmmo_deploy.sh) against a fully
 synthetic environment in a temp directory:
@@ -12,7 +12,7 @@ synthetic environment in a temp directory:
   * stub units in a temp UNIT_DIR (never /etc, never /opt, never the real
     machine, never the real services).
 
-Rehearsed exit cases (plan.md Phase 6 "Exit checks" + the task list):
+Rehearsed exit cases ("Exit checks" + the task list):
 
   1. happy path: stage -> maintenance -> save -> migrate -> switch -> verify
      -> ONLINE, and `current` only ever changes at the switch step

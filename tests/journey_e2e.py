@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Phase 14 complete-journey driver (plan.md Phase 14: the section 1 journey,
+"""Release gates complete-journey driver (the section 1 journey,
 end to end, on a packaged build).
 
 Brings up the real stack the way production does -
@@ -7,7 +7,7 @@ Brings up the real stack the way production does -
     PostgreSQL -> C++ account/persistence service -> authoritative world server
     -> client
 
-- and runs `client/scripts/test/phase14_journey.gd` as the client. That scene is
+- and runs `client/scripts/test/journey_e2e.gd` as the client. That scene is
 a real client (real autoloads, real transport, real intents); the only thing it
 replaces is the keyboard. It registers and logs in through the service, selects
 a character, joins with the session token (NO dev join), plays the journey
@@ -19,10 +19,10 @@ The client can be either the project (`godot --path client <scene>`) or a
 packaged build (`--client-exe path/to/HPMMO.exe`), which is what the launcher
 starts. A packaged build cannot be pointed at another scene (the official export
 templates are compiled with `disable_path_overrides=yes`), so the QA package's
-main scene is the journey driver; see `docs/phase14-acceptance.md`.
+main scene is the journey driver.
 
 Usage:
-  python tests/phase14_journey.py [--client-exe PATH] [--seconds 900]
+  python tests/journey_e2e.py [--client-exe PATH] [--seconds 900]
                                   [--out-dir DIR] [--keep-scene]
 """
 
@@ -127,7 +127,7 @@ def main():
     parser.add_argument("--keep-scene", action="store_true")
     parser.add_argument("--user", default="")
     args = parser.parse_args()
-    out_dir = args.out_dir or os.path.join(HERE, "out", "phase14")
+    out_dir = args.out_dir or os.path.join(HERE, "out", "release")
     os.makedirs(out_dir, exist_ok=True)
 
     password_file = os.path.join(HERE, ".pg-dev.pw")
@@ -195,7 +195,7 @@ def main():
 
         world_env = dict(os.environ, HPMMO_WORLD_PORT=str(world_port), HPMMO_WORLD_SEED="20261005",
                          HPMMO_API_URL="http://127.0.0.1:%d" % api_port, HPMMO_SERVICE_TOKEN=SERVICE_TOKEN,
-                         HPMMO_ADMIN_PORT=str(admin_port), HPMMO_RELEASE="phase14-journey")
+                         HPMMO_ADMIN_PORT=str(admin_port), HPMMO_RELEASE="journey-e2e")
         world_env.pop("HPMMO_ALLOW_DEV_JOIN", None)
         world_log_path = os.path.join(out_dir, "journey-world.log")
         world_log = open(world_log_path, "wb")
@@ -227,7 +227,7 @@ def main():
             cwd = os.path.dirname(os.path.abspath(args.client_exe))
         else:
             command = [marker_cmd(), "--headless", "--path", CLIENT_DIR,
-                       "res://scenes/test/phase14_journey.tscn", "--"] + client_args
+                       "res://scenes/test/journey_e2e.tscn", "--"] + client_args
             cwd = CLIENT_DIR
         client_log_path = os.path.join(out_dir, "journey-client.log")
         print("[journey] running %s" % (os.path.basename(command[0])))

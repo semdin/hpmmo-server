@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HPMMO deployment status + client release endpoint (plan.md Phases 6 and 7).
+"""HPMMO deployment status + client release endpoint (the maintenance surface and the release pipeline).
 
 Answers the launcher's two questions:
 
@@ -16,7 +16,7 @@ It reads the state document written by deploy/hpmmo_deploy.sh
 ($HPMMO_STATE_DIR/status.json) and never talks to the world server, so it keeps
 answering while releases are being switched.
 
-TLS (Phase 7). /releases is the update path, so it is served over TLS with a
+TLS (Release pipeline). /releases is the update path, so it is served over TLS with a
 certificate the launcher pins by SPKI sha256 (deploy/tls/make_cert.sh prints the
 pin). The certificate is deliberately self-signed: pinning is stronger than any
 CA chain, and it removes the hostname/CA dependency. A cleartext request for
@@ -27,7 +27,7 @@ Binding: 127.0.0.1 only by default. This service must never be exposed
 publicly without TLS; a non-loopback bind is refused unless
 HPMMO_STATUS_ALLOW_NONLOOPBACK=1 is set explicitly, and the project's rule is
 that the flag is set together with HPMMO_STATUS_TLS_CERT/KEY (see
-docs/phase7-release-contract.md for the exact change and the firewall rule).
+docs/release-contract.md for the exact change and the firewall rule).
 
 Environment:
     HPMMO_STATE_DIR          deployment state dir      (default /opt/hpmmo/state)

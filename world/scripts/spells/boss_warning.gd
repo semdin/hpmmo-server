@@ -1,6 +1,6 @@
 extends Node3D
 
-## Phase 12 boss warning: a layered ground effect whose timing is the
+## Spell effects boss warning: a layered ground effect whose timing is the
 ## authoritative telegraph's, never a client guess.
 ##
 ## The shape and the countdown come straight from the replicated telegraph
@@ -10,7 +10,7 @@ extends Node3D
 ## tick, and `set_progress()` is driven by the same `sim_tick` the authority
 ## scheduled the damage on, so what the player sees is what the server will do.
 ##
-## Layers (plan.md 12.3 last row): the ground mask matching the hit area, an
+## Layers (12.3 last row): the ground mask matching the hit area, an
 ## edge ring, a countdown ring that fills to the release tick, rim motes so it
 ## stays readable in a crowd, a pulse light and the charge/release audio.
 

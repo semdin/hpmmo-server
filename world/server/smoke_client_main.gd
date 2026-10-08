@@ -1,6 +1,6 @@
 extends Node
 
-## Synthetic login + join check (plan.md Phase 6, VERIFYING step).
+## Synthetic login + join check (VERIFYING step).
 ##
 ## The deployment controller runs this against a freshly started release and
 ## refuses to advertise it ONLINE unless this exits 0. It is the difference
@@ -14,7 +14,7 @@ extends Node
 ## deploy/smoke_client.sh prefers a script at exactly that path and would then
 ## run it in a mode where the autoloads are missing.
 ##
-## Persistence scenario (Phase 14 D14-1), enabled with HPMMO_SMOKE_PERSIST=1.
+## Persistence scenario (the character-bind fix), enabled with HPMMO_SMOKE_PERSIST=1.
 ## The plain check above joins with an unbound session - exactly the launcher
 ## shape - and stops there, which is how the "characters are never saved" bug
 ## stayed invisible. This mode plays the whole promise out:
@@ -58,7 +58,7 @@ var failing_step := "startup"
 var failure := ""
 var _http: HTTPRequest = null
 
-## Persistence scenario state (Phase 14 D14-1).
+## Persistence scenario state (the character-bind fix).
 var account_token := ""
 var mode := "join"              # join | persist | reload | foreign
 var foreign_id := 0
@@ -203,7 +203,7 @@ func _run() -> void:
 	# 3. a one-time game ticket, the same handoff the launcher uses. The
 	#    persistence scenario asks for an UNBOUND one on purpose: that is the
 	#    launcher shape (a ticket issued before a character is chosen), which is
-	#    what made D14-1 invisible. The reload control carries the character id.
+	#    what made character-bind invisible. The reload control carries the character id.
 	failing_step = "game_ticket"
 	var ticket_body := {}
 	if mode == "reload":

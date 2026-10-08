@@ -1,4 +1,4 @@
-# HPMMO server deployment and rollback runbook (Phase 6)
+# HPMMO server deployment and rollback runbook (Maintenance surface)
 
 Audience: whoever is on call when a server release goes wrong on the VPS.
 Scope: `deploy/hpmmo_deploy.sh` (the controller), the release layout under
@@ -297,5 +297,5 @@ anything is touched) rather than advertising an unverified release.
   was changed. `--recover` does only that check.
 * **The status endpoint must stay loopback**: `hpmmo_status.py` refuses a
   non-loopback bind and no ufw rule is opened for 8083.
-* **The client release pipeline is Phase 7** and is intentionally not part of
+* **The client release pipeline is the release pipeline** and is intentionally not part of
   `server-release.yml`.

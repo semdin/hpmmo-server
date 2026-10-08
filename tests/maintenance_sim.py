@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Phase 6 maintenance proof: drain / save / disconnect over real processes.
+"""maintenance proof: drain / save / disconnect over real processes.
 
-Proves the plan.md Phase 6 application-side exit checks with real processes:
+Proves the application-side exit checks with real processes:
 
   1. cycle   - one world server and two headless clients. `begin` announces a
                countdown to every connected client, new joins are refused with
@@ -267,7 +267,7 @@ def test_cycle(out_dir):
     admin_port = free_tcp_port()
     token = secrets.token_hex(24)          # never printed
     server = start_server(port, admin_port, token, 606060, out_dir,
-                          extra={"HPMMO_RELEASE": "phase6-test"})
+                          extra={"HPMMO_RELEASE": "maintenance-test"})
     keeper = None
     victim = None
     latecomer = None
@@ -290,7 +290,7 @@ def test_cycle(out_dir):
         online_state = str(payload.get("state", "ONLINE"))
         check(isinstance(payload.get("protocol"), int) and payload.get("protocol") > 0,
               "the status payload publishes the protocol version (%s)" % payload.get("protocol"))
-        check(payload.get("release") == "phase6-test",
+        check(payload.get("release") == "maintenance-test",
               "the status payload publishes the release identifier")
         check(int(payload.get("players", -1)) == 0, "the status payload counts zero players")
         check(int(payload.get("uptime_ms", 0)) > 0, "the status payload publishes uptime")

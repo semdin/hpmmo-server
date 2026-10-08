@@ -1,7 +1,7 @@
 extends SkeletonModifier3D
 class_name CastLayerModifier
 
-## Phase 9 upper-body casting layer.
+## Rig upper-body casting layer.
 ##
 ## Godot's Blend2 nodes pull any track a clip does not animate toward the rest
 ## pose, so blending an upper-body-only clip through the animation tree drags

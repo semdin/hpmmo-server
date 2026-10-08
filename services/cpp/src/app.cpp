@@ -422,7 +422,7 @@ void handle_logout(const httplib::Request& req, httplib::Response& res, db::Pool
 }
 
 // Service-token only: map a session token to its account and bound character
-// (Phase 5 world-server lookup). The token itself and its hash are never
+// (world-server lookup). The token itself and its hash are never
 // returned; unknown, expired, and revoked tokens are indistinguishable.
 void handle_session_introspect(const httplib::Request& req, httplib::Response& res, const Config& cfg,
                                db::Pool& pool) {
@@ -596,7 +596,7 @@ json character_snapshot(db::Conn& conn, const db::Row& row, bool include_items) 
     // The owning account. The world server carries the service token, so it
     // receives this field and uses it to prove a character belongs to the
     // session's account before it binds the session to that character
-    // (Phase 14 D14-1). It is the same fact `owns_character` checks.
+    // (the character-bind fix). It is the same fact `owns_character` checks.
     const std::string account = get(18);
     c["account_id"] = account.empty() ? 0 : std::stoll(account);
     return c;

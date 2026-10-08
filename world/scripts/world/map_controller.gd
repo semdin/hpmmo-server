@@ -1,7 +1,6 @@
 extends Node
 
-## MapController - the client half of server-authorized map transfer (plan.md
-## Phase 8), plus the local map host.
+## MapController - the client half of server-authorized map transfer, plus the local map host.
 ##
 ## What the client owns here (the server owns the decision, never the client):
 ##   * portal trigger volumes and the "press F" doorway interaction;
@@ -475,7 +474,7 @@ func _load_map(map_id: String) -> bool:
 	_apply_interior_ambience(true)
 	return true
 
-## Phase 10: an interior is not lit by the open sky. While the castle interior
+## An interior is not lit by the open sky. While the castle interior
 ## is the resident map the ambient is a dim warm fill, so the torch fixtures
 ## and the baked occlusion give the rooms contrast instead of a cold wash. The
 ## outdoor sky ambient is restored on the way out.
@@ -487,8 +486,8 @@ func _apply_interior_ambience(inside: bool) -> void:
 	if env == null:
 		return
 	if inside:
-		if not env.has_meta("phase10_outdoor_ambient"):
-			env.set_meta("phase10_outdoor_ambient", {
+		if not env.has_meta("outdoor_ambient"):
+			env.set_meta("outdoor_ambient", {
 				"source": env.ambient_light_source,
 				"color": env.ambient_light_color,
 				"energy": env.ambient_light_energy,
@@ -496,12 +495,12 @@ func _apply_interior_ambience(inside: bool) -> void:
 		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 		env.ambient_light_color = Color(0.40, 0.36, 0.32)
 		env.ambient_light_energy = 0.62
-	elif env.has_meta("phase10_outdoor_ambient"):
-		var saved: Dictionary = env.get_meta("phase10_outdoor_ambient")
+	elif env.has_meta("outdoor_ambient"):
+		var saved: Dictionary = env.get_meta("outdoor_ambient")
 		env.ambient_light_source = int(saved["source"])
 		env.ambient_light_color = saved["color"]
 		env.ambient_light_energy = float(saved["energy"])
-		env.remove_meta("phase10_outdoor_ambient")
+		env.remove_meta("outdoor_ambient")
 
 func _free_interior() -> void:
 	if _interior == null or not is_instance_valid(_interior):
@@ -515,7 +514,7 @@ func _free_interior() -> void:
 	_interior = null
 	await get_tree().process_frame
 
-## Threaded load (plan.md Phase 8: poll the request instead of blocking the
+## Threaded load (poll the request instead of blocking the
 ## loading screen). Falls back to a blocking load if the request is refused.
 func _load_threaded(path: String) -> PackedScene:
 	if not ResourceLoader.exists(path):
@@ -617,7 +616,7 @@ func floor_display(map_id: String, y: float) -> String:
 			break
 	return "Hogwarts Castle - %s" % name
 
-## The shared map catalog, when the Phase 8 sync has landed. Loaded by path so
+## The shared map catalog, when the map transfer sync has landed. Loaded by path so
 ## a build without maps.gd still runs.
 func _maps_script() -> GDScript:
 	if not ResourceLoader.exists("res://addons/hpmmo_sim/maps.gd"):

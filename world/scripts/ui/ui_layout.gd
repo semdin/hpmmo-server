@@ -1,7 +1,7 @@
 extends RefCounted
 class_name UILayout
 
-## Phase 13 layout helper.
+## Interface layout helper.
 ##
 ## `Control.position` is expressed against the parent's top-left corner, so
 ## assigning it after `set_anchors_preset()` on anything that is not anchored to

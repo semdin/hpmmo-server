@@ -1,9 +1,9 @@
 #!/bin/bash
 # =============================================================================
-# HPMMO server packager (Linux) - plan.md Phase 6
+# HPMMO server packager (Linux)
 # =============================================================================
 #
-# Linux equivalent of deploy/package_server.ps1, with two Phase 6 changes:
+# Linux equivalent of deploy/package_server.ps1, with two the maintenance surface changes:
 #
 #   * the C++ service is built here and the binary ships in the artifact, so
 #     the staged release is complete before it is frozen (no compiling on the

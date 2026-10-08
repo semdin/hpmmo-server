@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Phase 7 client release pipeline rehearsal (plan.md).
+"""Release pipeline client release pipeline rehearsal.
 
 Drives the REAL release tooling against a fully synthetic environment in a temp
 directory:
@@ -16,7 +16,7 @@ Nothing here touches the live box, the real keys, or the repository: every
 artifact, key, certificate, channel pointer and process lives under a temp root
 that is removed at the end.
 
-Rehearsed exit checks (plan.md Phase 7 "Exit checks" + the release contract):
+Rehearsed exit checks ("Exit checks" + the release contract):
 
   1. deterministic packaging: the same build tree produces the same zip bytes
   2. deterministic manifest: the same inputs and a pinned --published-at
@@ -81,7 +81,7 @@ MANIFEST_TOOL = os.path.join(TOOLS, "gen_manifest.py")
 MAKE_CERT = os.path.join(SERVER, "deploy", "tls", "make_cert.sh")
 STATUS_SERVICE = os.path.join(SERVER, "deploy", "hpmmo_status.py")
 WORKFLOW = os.path.join(CLIENT, ".github", "workflows", "client-release.yml")
-CONTRACT_DOC = os.path.join(SERVER, "docs", "phase7-release-contract.md")
+CONTRACT_DOC = os.path.join(SERVER, "docs", "release-contract.md")
 
 sys.path.insert(0, TOOLS)
 try:
@@ -812,7 +812,7 @@ def case_tls_endpoint(keep: bool) -> None:
 
 
 def case_contract(keep: bool) -> None:
-    check(os.path.isfile(CONTRACT_DOC), "[contract] server/docs/phase7-release-contract.md exists")
+    check(os.path.isfile(CONTRACT_DOC), "[contract] server/docs/release-contract.md exists")
     check(os.path.isfile(WORKFLOW), "[contract] client/.github/workflows/client-release.yml exists")
     check(os.path.isfile(os.path.join(TOOLS, "keys", "README.md")),
           "[contract] the key custody notes exist at client/tools/release/keys/README.md")

@@ -3,7 +3,7 @@ extends Control
 ## Metin2-style HUD for HPMMO
 ## HP/Mana orbs & bars, EXP progress, spell hotbar with cooldowns, target frame, and chat
 ##
-## Phase 13: the widget values are bound to the authoritative state model
+## The widget values are bound to the authoritative state model
 ## through `UIStateBinder` - one subscription point that connects to the
 ## authority's stat payloads and entity deltas and disconnects cleanly on
 ## rebind and tree exit. Bars keep an instant authoritative readout plus a
@@ -12,6 +12,9 @@ extends Control
 ## staircase state, the maintenance countdown, the onboarding route and the
 ## settings screen.
 
+## Layout grid, in canvas (1280x720) pixels. See `UITheme` for the shared inset
+## and column widths; the deck numbers come from there too so this file cannot
+## drift from the overlay that has to sit clear of it.
 @onready var hp_bar: ProgressBar = $BottomBar/StatusBars/HpBar
 @onready var hp_label: Label = $BottomBar/StatusBars/HpBar/HpLabel
 @onready var mana_bar: ProgressBar = $BottomBar/StatusBars/ManaBar
@@ -39,15 +42,15 @@ extends Control
 @onready var mount_button: Button = $BottomBar/QuickBar/MountBtn
 
 # Chat
-@onready var chat_history: RichTextLabel = $ChatContainer/ChatHistory
-@onready var chat_input: LineEdit = $ChatContainer/ChatInput
+@onready var chat_history: RichTextLabel = $ChatContainer/Margin/Chat/ChatHistory
+@onready var chat_input: LineEdit = $ChatContainer/Margin/Chat/ChatInput
 
 var player: Node3D = null
 var current_target: Node3D = null
 var _currency: Label
 var _last_galleons := -1
 
-## Phase 13: the authoritative binding and the panels it feeds.
+## The authoritative binding and the panels it feeds.
 var binder: UIStateBinder = null
 var feedback: CombatFeedback = null
 var travel: TravelFeedback = null
@@ -67,12 +70,7 @@ var _galleons_from_authority := false
 func _ready() -> void:
 	target_panel.hide()
 	_apply_theme()
-	_currency = Label.new()
-	_currency.position = Vector2(20, 16)
-	_currency.add_theme_color_override("font_color", Color(1, 0.83, 0.43))
-	_currency.add_theme_font_size_override("font_size", 16)
-	_currency.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_currency)
+	_build_player_plate()
 	chat_input.text_submitted.connect(_on_chat_submitted)
 	NetworkManager.chat_message_received.connect(_on_chat_received)
 
@@ -85,14 +83,14 @@ func _ready() -> void:
 
 	mount_button.pressed.connect(func(): if is_instance_valid(player): player.toggle_broom_mount())
 
-	_setup_phase13()
+	_setup_panels()
 	_add_system_chat("Welcome to HPMMO! Cast spells with 1-4, Q, E. Shift mounts/dismounts. Space rises, Ctrl descends.")
 	_add_system_chat("Target Dark Monoliths and mobs with Left Click or Tab. Destroy Monoliths for massive loot!")
 
-## Phase 13 wiring: the animation layers, the authoritative binder and the
+## Interface wiring: the animation layers, the authoritative binder and the
 ## panels. Built at runtime so the scene file keeps its node paths (other
 ## systems and the walkthrough depend on them).
-func _setup_phase13() -> void:
+func _setup_panels() -> void:
 	_hp_stat = StatBar.new().attach(self, hp_bar)
 	_mana_stat = StatBar.new().attach(self, mana_bar)
 	_exp_stat = StatBar.new().attach(self, exp_bar)
@@ -135,6 +133,34 @@ func _setup_phase13() -> void:
 	_ensure_ui_action("toggle_settings", KEY_F1)
 	_ensure_ui_action("toggle_onboarding", KEY_J)
 
+## Name, house and purse, on a small brass plate in the top-left corner.
+## Previously a bare label that overlapped the chat log.
+func _build_player_plate() -> void:
+	var plate := PanelContainer.new()
+	plate.name = "PlayerPlate"
+	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	plate.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	plate.offset_left = 14.0
+	plate.offset_top = 12.0
+	add_child(plate)
+
+	var margin := MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 5)
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	plate.add_child(margin)
+
+	_currency = Label.new()
+	_currency.add_theme_font_override("font", UITheme.font_body_bold())
+	_currency.add_theme_color_override("font_color", UITheme.c("gold_lt"))
+	_currency.add_theme_color_override("font_outline_color", UITheme.c("shadow"))
+	_currency.add_theme_constant_override("outline_size", 4)
+	_currency.add_theme_font_size_override("font_size", UITheme.FS_BODY)
+	_currency.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_currency.text = "—"
+	margin.add_child(_currency)
+
+
 func _add_quick_button(button_name: String, text: String, action: Callable) -> void:
 	var quick := get_node_or_null("BottomBar/QuickBar")
 	if quick == null:
@@ -142,8 +168,8 @@ func _add_quick_button(button_name: String, text: String, action: Callable) -> v
 	var button := Button.new()
 	button.name = button_name
 	button.text = text
-	button.custom_minimum_size = Vector2(90, 26)
-	button.add_theme_font_size_override("font_size", 11)
+	button.custom_minimum_size = Vector2(76, 26)
+	button.add_theme_font_size_override("font_size", 12)
 	button.focus_mode = Control.FOCUS_NONE
 	button.pressed.connect(action)
 	quick.add_child(button)
@@ -211,7 +237,7 @@ func _trigger_player_spell(spell_id: String) -> void:
 	if is_instance_valid(player):
 		player.cast_spell(spell_id)
 
-## ------------------------------------------------- Phase 13: authoritative
+## ------------------------------------------------- the interface: authoritative
 
 ## One entry point for stat payloads: the authority's `stats_changed` (primary)
 ## and the mirror's own signal (same numbers) both land here, so the widgets
@@ -324,16 +350,21 @@ func _process(delta: float) -> void:
 		_update_slot_cd(slot_q, "protego", "Q")
 		_update_slot_cd(slot_e, "ultimate", "E")
 
+## A hotbar cell shows the spell's icon and its hotkey, and veils itself while
+## the spell is on cooldown. The spell's name and numbers live in the tooltip.
 func _update_slot_cd(slot: Button, spell_id: String, key_hint: String) -> void:
 	var cd := cooldown_remaining(spell_id)
+	var spell: Dictionary = GameData.SPELLS[spell_id]
+	var cell := slot as UISlot
+	if cell != null:
+		if cell.item_id != spell_id:
+			cell.key_hint = key_hint
+			cell.set_item(spell_id, {})
+		cell.set_cooldown(cd, cd / maxf(float(spell.cooldown), 0.01))
 	slot.disabled = player.is_dead
-	slot.tooltip_text = "%s\n%d mana • %.1fs cooldown\n%s" % [GameData.SPELLS[spell_id].name, GameData.SPELLS[spell_id].mana_cost, GameData.SPELLS[spell_id].cooldown, GameData.SPELLS[spell_id].desc]
-	if cd > 0.0:
-		slot.text = "[%s]\n%.1fs" % [key_hint, cd]
-		slot.modulate = Color(0.6, 0.6, 0.6, 0.8)
-	else:
-		slot.text = "[%s]\n%s" % [key_hint, GameData.SPELLS[spell_id].name]
-		slot.modulate = Color(1.0, 1.0, 1.0, 1.0)
+	slot.modulate = Color(0.62, 0.62, 0.62, 0.85) if player.is_dead else Color.WHITE
+	slot.tooltip_text = "[%s] %s\n%d mana • %.1fs cooldown\n%s" % [
+		key_hint, spell.name, spell.mana_cost, spell.cooldown, spell.desc]
 
 func _update_target_frame() -> void:
 	if not is_instance_valid(current_target) or ("current_hp" in current_target and current_target.current_hp <= 0):
@@ -394,9 +425,9 @@ func _on_loot_collected(item_id: String, amount: int) -> void:
 func _on_spell_cast(spell_id: String, cd: float) -> void:
 	pass
 
-## Listener evidence for the Phase 13 checks: every subscription this HUD holds
+## Listener evidence for the interface checks: every subscription this HUD holds
 ## through its binder, plus the panel-owned ones.
-## Layout evidence: where each Phase 13 panel actually sits, at the current
+## Layout evidence: where each the interface panel actually sits, at the current
 ## window size. Used by the captures and by the scalable-UI check.
 func layout_report() -> Dictionary:
 	var panel_list := {
@@ -445,29 +476,75 @@ func _on_chat_received(sender_name: String, sender_house: String, message: Strin
 func _add_system_chat(msg: String) -> void:
 	chat_history.append_text("[color=#e6b800][System] %s[/color]\n" % msg)
 
+## Every HUD surface draws through `UITheme`, so the bars, the frames and the
+## hotbar cells are the same generated kit the bag and the menus use. The
+## hotbar slots are `UISlot`s now and carry a real skill icon instead of the
+## spell's name as button text.
 func _apply_theme() -> void:
-	var theme := Theme.new()
-	var panel := StyleBoxFlat.new()
-	panel.bg_color = Color(0.025, 0.04, 0.065, 0.94)
-	panel.border_color = Color(0.5, 0.41, 0.24, 0.8)
-	panel.set_border_width_all(1)
-	panel.set_corner_radius_all(6)
-	panel.content_margin_left = 8
-	panel.content_margin_right = 8
-	panel.content_margin_top = 6
-	panel.content_margin_bottom = 6
-	theme.set_stylebox("normal", "Button", panel)
-	var hover := panel.duplicate() as StyleBoxFlat
-	hover.bg_color = Color(0.14, 0.18, 0.23, 0.97)
-	hover.border_color = Color(0.95, 0.76, 0.4)
-	theme.set_stylebox("hover", "Button", hover)
-	theme.set_stylebox("pressed", "Button", hover)
-	theme.set_stylebox("disabled", "Button", panel)
-	theme.set_color("font_color", "Button", Color(0.96, 0.9, 0.75))
-	theme.set_font_size("font_size", "Button", 12)
-	self.theme = theme
+	theme = UITheme.get_theme()
+
+	# ---- status bars: the theme supplies the recessed track and the fills
+	UITheme.role(hp_bar, UITheme.V_HP)
+	UITheme.role(mana_bar, UITheme.V_MANA)
+	UITheme.role(exp_bar, UITheme.V_EXP)
+	UITheme.role(target_hp_bar, UITheme.V_HP)
+	hp_bar.custom_minimum_size = Vector2(0, 18)
+	mana_bar.custom_minimum_size = Vector2(0, 18)
+	exp_bar.custom_minimum_size = Vector2(0, 14)
+
+	# The level badge and the target nameplate are captions, so they take the
+	# theme's title role and only override the size the layout needs.
+	UITheme.role(level_label, UITheme.V_TITLE)
+	level_label.add_theme_font_size_override("font_size", UITheme.FS_SMALL)
+	level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+
+	for label in [hp_label, mana_label, exp_label]:
+		# A bar's own numbers are the one place a player reads at a glance, so
+		# they get the bold cut and a tight outline: enough edge to survive the
+		# fill behind them, not so much that 13 px text turns into a blob.
+		label.add_theme_font_override("font", UITheme.font_body_bold())
+		label.add_theme_font_size_override("font_size", UITheme.FS_SMALL)
+		label.add_theme_color_override("font_color", UITheme.c("parchment"))
+		label.add_theme_constant_override("outline_size", 3)
+
+	# ---- target frame: the window frame, shrunk to a nameplate
+	UITheme.role(target_panel, UITheme.V_WINDOW)
+	UITheme.role(target_name_label, UITheme.V_TITLE)
+	target_name_label.add_theme_font_size_override("font_size", UITheme.FS_BODY)
+
+	for button in [inventory_button, ollivander_button, mount_button]:
+		button.focus_mode = Control.FOCUS_NONE
 	for slot in [slot_1, slot_2, slot_3, slot_4, slot_q, slot_e]:
-		slot.remove_theme_stylebox_override("normal")
 		slot.focus_mode = Control.FOCUS_NONE
 	for control in [hp_bar, mana_bar, exp_bar, target_panel]:
 		control.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	_frame_level_badge()
+
+
+## "Lv. 5" was a bare label floating over the deck; give it a badge so the left
+## column reads as one stack. It is left-aligned now, so it sits over the gauges
+## it labels instead of centred across them.
+func _frame_level_badge() -> void:
+	var parent := level_label.get_parent()
+	if parent == null or parent.get_node_or_null("LevelBadge") != null:
+		return
+	var badge := PanelContainer.new()
+	badge.name = "LevelBadge"
+	badge.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var index := level_label.get_index()
+	parent.remove_child(level_label)
+	parent.add_child(badge)
+	parent.move_child(badge, index)
+	var margin := MarginContainer.new()
+	for side in ["left", "right"]:
+		margin.add_theme_constant_override("margin_" + side, 8)
+	margin.add_theme_constant_override("margin_top", 1)
+	margin.add_theme_constant_override("margin_bottom", 1)
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	badge.add_child(margin)
+	margin.add_child(level_label)
+
+
+

@@ -2,9 +2,9 @@ extends CharacterBody3D
 
 ## Ordinary mob / boss body. Runs the AI on the authority (dedicated server,
 ## host, or the single-player client); on a client it is a PUPPET that renders
-## the replicated state and never decides anything (plan.md Phase 5 + 11).
+## the replicated state and never decides anything (the authority and creature replication).
 ##
-## Phase 11 AI contract:
+## Creature pass AI contract:
 ##   * reactive aggro: a valid hit activates the mob and its pack; proximity
 ##     alone never starts ordinary combat (`aggro_mode == "aggressive"` is the
 ##     explicit opt-in used by aggressive encounter data);
@@ -25,7 +25,7 @@ extends CharacterBody3D
 
 enum State { IDLE, WANDER, CHASE, ATTACK, STUNNED, DEAD, RETURN }
 
-## Explicit attack phases (plan.md Phase 11). `_windup`/`_recovery` are the
+## Explicit attack phases. `_windup`/`_recovery` are the
 ## countdowns; the phase is what the rest of the AI reads.
 enum AttackPhase { NONE, ANTICIPATION, RELEASE, RECOVERY }
 
@@ -51,7 +51,7 @@ signal died(mob: Node3D)
 @export var pack_anchor := Vector3.ZERO
 @export var is_boss := false
 @export var is_commander := false
-## Phase 11 encounter metadata (set by the encounter director from server data).
+## encounter metadata (set by the encounter director from server data).
 @export var encounter_id := ""
 @export var escort_count := 0
 @export var boss_style := ""
@@ -179,7 +179,7 @@ func _apply_boss_visual() -> void:
 			clip.loop_mode = Animation.LOOP_LINEAR if animation in ["Idle", "Walk", "Run", "Walking_A",
 				"Running_A", "Stun", "Stun_Loop"] else Animation.LOOP_NONE
 
-## LOD switch for bodies whose GLB ships a second skinned mesh (Phase 11
+## LOD switch for bodies whose GLB ships a second skinned mesh (Creature pass
 ## creatures). Ordinary mobs use LOD1 only (art-direction §4).
 ## Both collision proxies exist so a boss body is not the ordinary mob's sphere:
 ## exactly one is active at a time, and a corpse has none.
@@ -286,7 +286,7 @@ func _physics_process(delta: float) -> void:
 		if state == State.DEAD:
 			_tick_corpse(delta)
 		return
-	# Phase 12 hook: an AUTHORITY body inside a client process (offline and
+	# spell-effect hook: an AUTHORITY body inside a client process (offline and
 	# listen-host play) draws the boss warning from the same replicated ticks a
 	# connected client uses, so single-player shows exactly what a client sees.
 	# The dedicated server draws nothing.
@@ -294,7 +294,7 @@ func _physics_process(delta: float) -> void:
 		var authored_record := SimAuthority.record_for(self)
 		if not authored_record.is_empty():
 			_draw_telegraph(authored_record)
-	# Phase 12 hook: creature voices. Movement, bite and death cues come from the
+	# spell-effect hook: creature voices. Movement, bite and death cues come from the
 	# sound library by creature type. Presentation only - nothing here can
 	# change damage, AI or rewards.
 	if not is_boss and state == State.CHASE:
@@ -305,7 +305,7 @@ func _physics_process(delta: float) -> void:
 	if state == State.DEAD:
 		_tick_corpse(delta)
 		return
-	# Phase 1: enemies displaced inside a protected volume cancel the fight and
+	# Enemies displaced inside a protected volume cancel the fight and
 	# walk home instead of attacking through the boundary.
 	if state != State.RETURN and SafeZone.is_protected_point(global_position) and not SafeZone.is_protected_point(spawn_point):
 		_cancel_attack()
@@ -387,7 +387,7 @@ func _publish_state() -> void:
 
 func _tick_attack(delta: float) -> void:
 	# A leash broken mid-windup cancels the attack: the release must not land
-	# from outside the pack's arena (plan.md Phase 11: "clear attacks ... return
+	# from outside the pack's arena ("clear attacks ... return
 	# home").
 	if global_position.distance_to(pack_anchor) > _leash_limit():
 		_break_fight("leash")
@@ -442,7 +442,7 @@ func _release_attack() -> void:
 	_publish_state()
 	if is_boss and bool(plan.get("telegraph", false)) and SimAuthority.is_authority():
 		SimAuthority.end_mob_telegraph(self)
-	# Phase 12 hook: the release cue fires on the authoritative release tick.
+	# spell-effect hook: the release cue fires on the authoritative release tick.
 	if is_instance_valid(_warning_effect):
 		_warning_effect.call("release")
 	_resolve_attack(plan)
@@ -483,7 +483,7 @@ func _cancel_attack() -> void:
 
 # ------------------------------------------------------------------ corpse
 
-## Corpse lifetime is matched to the death animation (plan.md Phase 11): the
+## Corpse lifetime is matched to the death animation: the
 ## body holds its collapse pose for the clip's length, then sinks and fades.
 func _tick_corpse(delta: float) -> void:
 	_corpse_time += delta
@@ -521,7 +521,7 @@ func _idle_and_wander(delta: float) -> void:
 	if _scan_timer <= 0:
 		_scan_timer = 0.35
 		# Ordinary mobs are reactive: only explicit aggressive encounters use
-		# the proximity trigger (plan Phase 1, gameplay policy 3.3).
+		# the proximity trigger (prototype policy 3.3).
 		if aggro_mode == "aggressive":
 			for player in get_tree().get_nodes_in_group("players"):
 				if Rules.can_damage(self, player) and global_position.distance_to(player.global_position) < aggro_radius and Rules.has_line_of_sight(self, player):
@@ -586,7 +586,7 @@ func _fight(delta: float) -> void:
 		if not engaged and not is_ranged:
 			# Attack slots: a bounded number of pack mates melee the same
 			# target, the rest hold a spread ring instead of stacking on the
-			# point (plan.md Phase 11).
+			# point.
 			_hold_attack_ring(delta)
 			return
 		_move_to(target_player.global_position, move_speed, delta)
@@ -664,7 +664,7 @@ func _move_to(point: Vector3, speed: float, delta: float) -> void:
 		return
 	direction = direction.normalized()
 	direction = _steer(direction)
-	# Local separation: five mobs must not occupy one point (plan.md Phase 11).
+	# Local separation: five mobs must not occupy one point.
 	var push := _separation()
 	if push.length_squared() > 0.0001:
 		direction = (direction + push * float(HPRules.pack_tuning("separation_weight", 1.35))).normalized()
@@ -728,7 +728,7 @@ func _face_direction(direction: Vector3, delta: float) -> void:
 ## from the attack plan: a disc for an area attack, a stretched lune for a
 ## directional one. `_warning_fill` is the event horizon: it fills over the
 ## anticipation and is exactly full at the authoritative release tick.
-## Phase 12 hook: the layered boss-warning effect scene (spells/boss_warning.gd)
+## spell-effect hook: the layered boss-warning effect scene (spells/boss_warning.gd)
 ## is attached to the ground mask. The mask itself must stay a MeshInstance3D
 ## with a CylinderMesh: the multiplayer probe reads its `top_radius` to prove the
 ## replicated warning matches the authoritative hit area.
@@ -736,7 +736,7 @@ var _warning_effect: Node3D
 var _voice_timer := 0.0
 
 
-## Phase 12 audio hook: play a creature voice at this body's position.
+## Spell effects audio hook: play a creature voice at this body's position.
 func _play_voice(key: String) -> void:
 	var audio := get_node_or_null("/root/AudioManager")
 	if audio == null:
@@ -763,7 +763,7 @@ func _show_warning(plan: Dictionary = {}) -> void:
 	mat.albedo_color = Color(1, 0.15, 0.06, 0.36)
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	# Phase 12: the hit-area mask carries the rune/ground-mark texture so the
+	# The hit-area mask carries the rune/ground-mark texture so the
 	# area itself reads as magic rather than as a flat red disc.
 	mat.albedo_texture = load("res://assets/vfx/atlases/rune_masks_2x2_1k.png")
 	# cell 0 of the 2x2 rune atlas (the telegraph circle)
@@ -781,7 +781,7 @@ func _show_warning(plan: Dictionary = {}) -> void:
 	_attach_warning_effect(plan, kind, radius, length, width)
 
 
-## Phase 12 hook: layer the warning effect (edge ring, countdown ring, rim
+## spell-effect hook: layer the warning effect (edge ring, countdown ring, rim
 ## motes, pulse light, charge/release cues) on the authoritative mask. Its
 ## timing comes from the telegraph's own start/release ticks.
 func _attach_warning_effect(plan: Dictionary, kind: String, radius: float, length: float, width: float) -> void:
@@ -1052,7 +1052,7 @@ func _draw_telegraph(record: Dictionary) -> void:
 	var mat := (_warning.mesh as CylinderMesh).material as StandardMaterial3D
 	if mat:
 		mat.albedo_color = Color(1.0, 0.15 + 0.35 * progress, 0.06, 0.22 + 0.3 * progress)
-	# Phase 12 hook: the layered effect's countdown fill is driven by the same
+	# spell-effect hook: the layered effect's countdown fill is driven by the same
 	# authority ticks this fill is - never by a client-side guess.
 	if is_instance_valid(_warning_effect) and _warning_effect.has_method("set_progress"):
 		_warning_effect.call("set_progress", progress)

@@ -1,13 +1,13 @@
 extends Node
 
-## Encounter director - the ONE place packs are decided (plan.md Phase 11).
+## Encounter director - the ONE place packs are decided.
 ##
-## Phase 5: this runs inside the authority only (dedicated server, host, or the
+## This runs inside the authority only (dedicated server, host, or the
 ## client in single-player). Every spawn samples the server-owned tables with the
 ## authority's seeded RNG and registers the mob with the authority, so clients
 ## online never roll their own encounter.
 ##
-## Phase 11 rules implemented here:
+## Creature pass rules implemented here:
 ##   * encounters resolve through a data template (pack of 3/5, boss alone,
 ##     boss with exactly two escorts) and a region's separate pack_count;
 ##   * an anchor is only accepted when EVERY formation member passes: safe zones
@@ -100,7 +100,7 @@ func _spawn_initial() -> void:
 
 # ------------------------------------------------------------- placement rules
 
-## Every formation member is validated, not just the anchor (plan.md Phase 11).
+## Every formation member is validated, not just the anchor.
 ## Returns the id of the rule that rejected the placement, or "" when the whole
 ## formation is clear.
 func _placement_refusal(anchor: Vector3, pack: Dictionary) -> String:
@@ -153,8 +153,8 @@ func _member_clear_of_geometry(point: Vector3) -> bool:
 	query.collision_mask = 1
 	return container.get_world_3d().direct_space_state.intersect_shape(query, 1).is_empty()
 
-## Phase 1 compatibility: the old formation check. Kept because earlier checks
-## and callers use it; the Phase 11 path is `_placement_refusal`.
+## Prototype compatibility: the old formation check. Kept because earlier checks
+## and callers use it; the creature pass path is `_placement_refusal`.
 func _formation_clear(anchor: Vector3, member_count: int) -> bool:
 	if HPRules.is_spawn_blocked(anchor):
 		return false
@@ -192,7 +192,7 @@ func _spawn_pack(index: int) -> void:
 	var pack := packs[index]
 	if pack.get("scene") == null:
 		return
-	# Maximum alive count (plan.md Phase 11): never stack a second copy of an
+	# Maximum alive count: never stack a second copy of an
 	# encounter on top of living members.
 	var alive := 0
 	for member in pack.members:
@@ -272,7 +272,7 @@ func _apply_boss(mob: Node3D, pack: Dictionary) -> void:
 	mob.is_ranged = false
 	mob.move_speed = float(data.get("move_speed", mob.move_speed))
 	# The authored creature cycle has a real ground speed; the boss uses it so
-	# the walk does not skate (plan.md Phase 11 exit: coordinated walking).
+	# the walk does not skate (exit: coordinated walking).
 	mob.walk_speed = float(data.get("walk_speed", 0.0))
 	mob.boss_style = String(pack.get("template", {}).get("attack_style", "spider"))
 	mob.boss_arena_radius = float(pack.get("template", {}).get("arena_radius", 18.0))

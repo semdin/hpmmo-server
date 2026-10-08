@@ -7,9 +7,9 @@ const QualityPreset = preload("res://scripts/world/quality_preset.gd")
 
 ## Builds a real wizarding valley: castle, village, forest, lake,
 ## quidditch pitch, paths, lamps, fences, floating candles, stars.
-## Phase 10 resurfaced it with authored PBR materials, shaped the terrain
+## Art pass resurfaced it with authored PBR materials, shaped the terrain
 ## outside the playable core, and instanced the vegetation through the Gothic
-## kit. Plan.md Phase 8's route, encounter areas and landing pad are untouched.
+## kit. the map transfer's route, encounter areas and landing pad are untouched.
 
 
 static func build(world: Node3D) -> void:
@@ -39,7 +39,7 @@ static func build(world: Node3D) -> void:
 
 ## Everything build() adds at the world root. `teardown()` frees exactly these,
 ## which is what lets the map controller prove an outdoor world can be unloaded
-## before the castle interior is loaded (plan.md Phase 8, "old worlds actually
+## before the castle interior is loaded ("old worlds actually
 ## unload"). Scene-authored nodes (Terrain, the HUD, Players, Mobs, NPCs,
 ## TrainingGrounds) are NOT in this list: they are the world's collision and its
 ## live entities, not its map resources.
@@ -82,7 +82,7 @@ static func _apply_sky_and_fog(world: Node3D) -> void:
 				sky_mat.ground_horizon_color = Color(0.42, 0.47, 0.52)
 				sky_mat.sun_angle_max = 10.0
 			# No broad haze: fog stays off so it can never disguise unfinished
-			# terrain or swallow navigation landmarks (plan.md Phase 10).
+			# terrain or swallow navigation landmarks.
 			env.fog_enabled = false
 			env.fog_density = 0.0002
 			env.fog_aerial_perspective = 0.0
@@ -135,7 +135,7 @@ static func _reskin_terrain(world: Node3D) -> void:
 	var court := world.get_node_or_null("Terrain/Courtyard")
 	if court and court is MeshInstance3D:
 		(court as MeshInstance3D).set_surface_override_material(0, PBR.surface("stone_tiles_02"))
-		# The Phase 8 courtyard disc was 20 cm proud of the collision plane, so
+		# The map transfer courtyard disc was 20 cm proud of the collision plane, so
 		# walkers sank into it. Flush it with the ground now that it carries the
 		# paving material.
 		court.position.y = -0.13
@@ -315,7 +315,7 @@ static func _build_forbidden_forest(world: Node3D, rng: RandomNumberGenerator) -
 	var forest := Node3D.new()
 	forest.name = "ForbiddenForest"
 	world.add_child(forest)
-	# Phase 10: the canopy comes from the instanced terrain pass
+	# The canopy comes from the instanced terrain pass
 	# (outdoor_terrain.gd, two authored species with visibility ranges); this
 	# node keeps the forest's identity marker and the deep-wood light.
 	var label := Label3D.new()
@@ -709,7 +709,7 @@ static func _build_stars_and_moon(world: Node3D) -> void:
 	ml.rotation_degrees = Vector3(-50, -30, 0)
 	world.add_child(ml)
 
-# ------------------------------------------------------ broom landing (Phase 8)
+# ------------------------------------------------------ broom landing (Map transfer)
 
 ## Landing/dismount area in front of the castle gate. Broom flight is prohibited
 ## inside the castle slice, so a rider lands here and walks in. Purely
@@ -785,7 +785,7 @@ static func _build_world_boundaries(world: Node3D) -> void:
 		{"pos": Vector3(half_size, wall_height * 0.5, 0), "size": Vector3(wall_thickness, wall_height, half_size * 2)}   # East
 	]
 
-	# Glowing ancient magical barrier effect (Section 7.2 of plan.md)
+	# Glowing ancient magical barrier effect (Section 7.2 of.md)
 	var barrier_mat := StandardMaterial3D.new()
 	barrier_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	barrier_mat.albedo_color = Color(0.15, 0.55, 1.0, 0.12)

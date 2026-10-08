@@ -1,9 +1,9 @@
 extends RefCounted
 
-## Phase 10 quality presets (plan.md Phase 10: "provide reduced particles,
+## Art pass quality presets ("provide reduced particles,
 ## shadows, and postprocessing for the Intel integrated GPU profile").
 ##
-## The target machine records an Intel integrated GPU in docs/baseline.md, so
+## The target machine records an Intel integrated GPU, so
 ## `auto` resolves to the `low` preset there: no sun shadows, no glow, no SSAO,
 ## no MSAA, and roughly half the vegetation and particle density. Visual
 ## capture runs pass `--quality=high` explicitly.

@@ -1,5 +1,5 @@
 {
-  "_comment": "Server-owned map catalog (plan.md Phase 8). Maps, spawn points, safe-zone references, entity sets and the portals between maps. The authority validates every transfer against this file; clients load one map at a time and build trigger volumes, landing pads and floor labels from the same data, so the two sides share contracts and nothing else.",
+  "_comment": "Server-owned map catalog. Maps, spawn points, safe-zone references, entity sets and the portals between maps. The authority validates every transfer against this file; clients load one map at a time and build trigger volumes, landing pads and floor labels from the same data, so the two sides share contracts and nothing else.",
   "_membership": "A map is a y-band (y_min..y_max). The grounds own everything below 185; the castle interior is authored above it, so the two maps never overlap in space and the server can keep both registered while a client has one loaded.",
   "maps": {
     "grounds": {

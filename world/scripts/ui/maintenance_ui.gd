@@ -1,7 +1,7 @@
 extends Control
 class_name MaintenanceUI
 
-## Phase 13 maintenance countdown (plan.md Phase 13, task 3).
+## Interface maintenance countdown ().
 ##
 ## The authority announces a maintenance cycle as
 ## `SimAuthority.maintenance_event(state, reason, seconds_remaining)` - until now

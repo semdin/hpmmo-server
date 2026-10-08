@@ -1,11 +1,11 @@
 extends Node3D
 class_name BroomFlight
 
-## Phase 9 flight broom (plan.md: shaped shaft, grip, bristles; one MountRoot and
+## Rig flight broom(shaped shaft, grip, bristles; one MountRoot and
 ## one SeatSocket with the model axes normalised in this single wrapper; a trail
 ## driven by speed/acceleration from the broom socket's own velocity).
 ##
-## Socket convention (documented in docs/phase9-rig-and-sockets.md):
+## Socket convention:
 ##   MountRoot  - the shaft point the rider's mount node attaches to
 ##   SeatSocket - where the rider's hips sit; coincides with the hero's Socket_Hips
 ##   GripSocket - the two-handed grip centre
@@ -41,8 +41,8 @@ var _accel := 0.0
 var _flying := false
 var _trail_time := 0.0
 var model_root_ref: Node
-## Phase 12 hook: the layered broom-trail effect scene (spells/broom_trail.gd).
-## While it is present it owns the ribbon, wisps and sparks; the Phase 9
+## spell-effect hook: the layered broom-trail effect scene (spells/broom_trail.gd).
+## While it is present it owns the ribbon, wisps and sparks; the rig
 ## primitives stay in the tree as a fallback if the scene cannot be built.
 var trail: Node3D
 
@@ -68,13 +68,13 @@ func setup(player_body: Node3D, visuals_node: Node3D, wisp_particles: CPUParticl
 		particles.emitting = false
 	_build_sparks()
 	_build_ribbon()
-	_attach_phase12_trail(scope)
+	_attach_spell_trail(scope)
 
 
-## Phase 12 hook. The trail effect samples the authored trail_ribbon.glb taper
+## spell-effect hook. The trail effect samples the authored trail_ribbon.glb taper
 ## profile and the tail socket's own motion history; nothing about flight state
 ## changes because the presentation is replaced.
-func _attach_phase12_trail(scope: Node) -> void:
+func _attach_spell_trail(scope: Node) -> void:
 	var scene: PackedScene = load("res://scenes/spells/fx_broom_trail.tscn")
 	if scene == null:
 		return
@@ -183,7 +183,7 @@ func tick(delta: float) -> void:
 	_prev_speed = _speed
 	_trail_time += delta
 	if trail != null and is_instance_valid(trail):
-		# Phase 12: the layered trail owns the per-frame ribbon and emission.
+		# The layered trail owns the per-frame ribbon and emission.
 		# Speed and acceleration are measured from the same body velocity.
 		trail.call("tick", delta)
 		return

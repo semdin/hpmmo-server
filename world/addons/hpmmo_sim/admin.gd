@@ -1,6 +1,6 @@
 extends Node
 
-## HPMMO maintenance controller and authenticated admin surface (plan.md Phase 6).
+## HPMMO maintenance controller and authenticated admin surface.
 ##
 ## OWNER: server repository. The client receives this file as part of the synced
 ## simulation package but never instantiates it: only the dedicated world server
@@ -42,7 +42,7 @@ const DEFAULT_SAVE_MIN_MS := 1000
 const DEFAULT_ANNOUNCE_MS := 10000
 const URGENT_ANNOUNCE_MS := 3000
 const URGENT_REMAINING_SEC := 15
-## Bounded save-acknowledgement wait (plan Phase 6: "await persistence
+## Bounded save-acknowledgement wait ("await persistence
 ## acknowledgments with bounded timeouts").
 const SAVE_ACK_TIMEOUT_MS := 15000
 ## The bridge must be idle for this long before the flush counts as acknowledged.
@@ -658,7 +658,7 @@ func _start_flush() -> void:
 	_flush_bridge = bridge
 	if bridge == null:
 		# No auth backend: there is nothing to acknowledge, and the barrier must
-		# never hang waiting for acks that cannot come (plan Phase 6).
+		# never hang waiting for acks that cannot come.
 		print("[AdminApi] persistence disabled - save barrier reports saved=0 failed=0")
 		_flush_requested = 0
 		_flush_skipped = SimAuthority.players_by_peer.size()

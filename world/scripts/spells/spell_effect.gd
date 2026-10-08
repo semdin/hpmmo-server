@@ -1,7 +1,7 @@
 extends Node3D
 class_name SpellEffect
 
-## Phase 12 reusable effect scene: builds one stage (cast / travel / impact /
+## Spell effects reusable effect scene: builds one stage (cast / travel / impact /
 ## sustain / end) of one spell from the composition table in vfx_library.gd and
 ## drives its layers over time.
 ##
@@ -10,7 +10,7 @@ class_name SpellEffect
 ## animation callback can never produce a second hit. Quality reduction, culling
 ## and cancellation only ever change what is drawn.
 ##
-## Lifecycle contract (plan.md 12.4):
+## Lifecycle contract (12.4):
 ##   * `finished` fires when the stage has played out and the node frees itself;
 ##   * `cancel(reason)` stops emission, fades fast and frees - used by death,
 ##     map transfer, cast interruption, network rejection and shutdown;

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -e
 # HPMMO dedicated server + database installer (Ubuntu 22.04+).
-# Phase 3 layout. Credentials come from /etc/hpmmo/hpmmo.env - never hardcoded.
-# Phase 6 replaces this script with the staged deployment controller + drain flow.
+# server layout. Credentials come from /etc/hpmmo/hpmmo.env - never hardcoded.
+# Maintenance surface replaces this script with the staged deployment controller + drain flow.
 
 echo "=========================================================="
 echo ">>> HPMMO DEDICATED SERVER & DB INSTALLER <<<"
@@ -81,7 +81,7 @@ if command -v psql &> /dev/null; then
     fi
 fi
 
-# Compile C++ persistence microservice (Phase 4)
+# Compile C++ persistence microservice (Server integration)
 if [ -d "$GAME_DIR/services/cpp" ]; then
     echo "Building C++ persistence service (hpmmo_service)..."
     rm -rf "$GAME_DIR/services/cpp/build"
@@ -89,14 +89,14 @@ if [ -d "$GAME_DIR/services/cpp" ]; then
     ninja -C "$GAME_DIR/services/cpp/build"
 fi
 
-# 4. Firewall (SSH, 7777 UDP game, 8081 TCP API - see plan.md B3 before exposing 8081)
+# 4. Firewall (SSH, 7777 UDP game, 8081 TCP API - see B3 before exposing 8081)
 echo "[4/5] Configuring Linux UFW Firewall..."
 sudo ufw allow 22/tcp || true
 sudo ufw allow 7777/udp || true
 sudo ufw allow 8081/tcp || true
 sudo ufw --force enable || true
 
-# 5. Release layout + systemd units (Phase 6)
+# 5. Release layout + systemd units (Maintenance surface)
 #    The world/db units run through $RELEASES_DIR/current so a release swap is
 #    an atomic symlink rename, not a rewrite of live files. The status endpoint
 #    (loopback only) answers /status while the world server is stopped.

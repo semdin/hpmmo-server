@@ -41,7 +41,7 @@ static func _rotation_y(node: Node3D) -> float:
 ## Interest set for one peer: everything ON THAT PEER'S MAP within
 ## INTEREST_RADIUS of its player, plus every pack mate of an in-range mob (a
 ## pack must appear whole), plus the player itself. Map membership is the outer
-## filter (plan.md Phase 8): a client standing in the castle is never sent
+## filter: a client standing in the castle is never sent
 ## outdoor entity state, and vice versa, however close the two maps' coordinates
 ## happen to be.
 static func interest_set(authority, peer_id: int, center: Vector3) -> Array:

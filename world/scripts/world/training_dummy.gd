@@ -89,7 +89,7 @@ func _update_label() -> void:
 	if label:
 		label.text = "Training Dummy\n%d / %d" % [current_hp, max_hp]
 
-## Damage is requested from the authority (dummies keep the Phase 1 exemption
+## Damage is requested from the authority (dummies keep the prototype exemption
 ## that makes them practiceable inside protected volumes).
 func take_damage(amount: int, spell: String, attacker: Node3D) -> void:
 	SimAuthority.apply_damage(self, amount, spell, attacker)

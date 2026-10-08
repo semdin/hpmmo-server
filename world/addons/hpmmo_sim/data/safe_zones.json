@@ -1,5 +1,5 @@
 {
-  "_comment": "Server-owned protection volumes (Phase 1 policy, now enforced by the authority at resolution time).",
+  "_comment": "Server-owned protection volumes (Prototype policy, now enforced by the authority at resolution time).",
   "spawn_buffer": 8.0,
   "zones": [
     { "id": "courtyard", "shape": "cylinder", "center": [0.0, 0.0, 0.0], "radius": 21.0, "y_min": -10.0, "y_max": 200.0 },

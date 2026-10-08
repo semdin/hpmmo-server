@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Phase 14 test stack: PostgreSQL + C++ service + authoritative world server.
+"""Release gates test stack: PostgreSQL + C++ service + authoritative world server.
 
 Brought up and torn down as one unit, exactly the production layout (the service
 owns accounts and characters; the world server is the only writer of live state).
-Shared by `phase14_journey.py`-style drivers and the launcher-path driver, so
+Shared by `journey_e2e.py`-style drivers and the launcher-path driver, so
 both exercise the same stack. Small and dependency-free on purpose.
 """
 
@@ -109,11 +109,11 @@ class Stack:
     def __init__(self, out_dir, seed="20261005", service_token=None, api_port=0):
         self.out_dir = out_dir
         self.seed = seed
-        self.service_token = service_token or "phase14-token-%d" % int(time.time())
+        self.service_token = service_token or "stack-token-%d" % int(time.time())
         self.service = None
         self.world = None
         self.service_log = None
-        self.db_name = "hpmmo_phase14_%d" % int(time.time())
+        self.db_name = "hpmmo_test_%d" % int(time.time())
         self.password = pg_password()
         self.api_port = api_port      # fixed when a caller needs a known port
         self.world_port = 0
@@ -170,7 +170,7 @@ class Stack:
         world_env = dict(os.environ, HPMMO_WORLD_PORT=str(self.world_port), HPMMO_WORLD_SEED=self.seed,
                          HPMMO_API_URL="http://127.0.0.1:%d" % self.api_port,
                          HPMMO_SERVICE_TOKEN=self.service_token,
-                         HPMMO_ADMIN_PORT=str(self.admin_port), HPMMO_RELEASE="phase14")
+                         HPMMO_ADMIN_PORT=str(self.admin_port), HPMMO_RELEASE="test-stack")
         world_env.pop("HPMMO_ALLOW_DEV_JOIN", None)
         self.world_log_path = os.path.join(self.out_dir, "stack-world.log")
         world_log = open(self.world_log_path, "wb")
@@ -202,7 +202,7 @@ class Stack:
 
 
 if __name__ == "__main__":
-    out = os.path.join(HERE, "out", "phase14")
+    out = os.path.join(HERE, "out", "release")
     os.makedirs(out, exist_ok=True)
     stack = Stack(out)
     try:

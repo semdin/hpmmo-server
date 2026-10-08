@@ -1,5 +1,5 @@
 shader_type spatial;
-// Phase 12 tapered ribbon (broom trail, projectile streaks, Expelliarmus arc).
+// the spell effects tapered ribbon (broom trail, projectile streaks, Expelliarmus arc).
 //
 // The strip is rebuilt each frame along a motion history; the authored UV layout
 // and taper profile come from assets/vfx/meshes/trail_ribbon.glb

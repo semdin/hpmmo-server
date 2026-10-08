@@ -19,7 +19,7 @@ var _reflection_grace := 0.0
 @onready var mesh: MeshInstance3D = $MeshInstance3D
 @onready var light: OmniLight3D = $OmniLight3D
 @onready var travel_slot: Node3D = get_node_or_null("TravelFx")
-## Phase 12: the travel stage (authored core mesh, tapered ribbon, wisps) is
+## The travel stage (authored core mesh, tapered ribbon, wisps) is
 ## built by the effect scene and parented here, so it dies with the bolt.
 var travel_effect: Node3D
 
@@ -38,7 +38,7 @@ func setup(source: Node3D, id: String, aim: Vector3, target: Node3D = null, bonu
 	speed = float(data.get("projectile_speed", 40))
 	max_lifetime = float(data.get("range", 36)) / speed
 	spell_color = data.get("color", Color.WHITE)
-	# Phase 12: the placeholder sphere is replaced by the authored carrier core;
+	# The placeholder sphere is replaced by the authored carrier core;
 	# the layered travel stage (ribbon + wisps) rides along with it.
 	var core_scene := load(VFX.asset_path("vfx_projectile_mesh")) as PackedScene
 	if core_scene != null:

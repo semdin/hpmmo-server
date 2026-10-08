@@ -1,6 +1,6 @@
 extends RefCounted
 
-## SkillFX - Phase 12 facade over the layered effect scenes.
+## SkillFX - the spell effects facade over the layered effect scenes.
 ##
 ## Public API is unchanged since the prototype (`play_cast`, `play_impact`,
 ## `play_stun_stars`, `shake_camera`) so every existing call site - the
@@ -9,11 +9,11 @@ extends RefCounted
 ## layered effect built from `vfx_library.gd` instead of the old sphere/ring/
 ## cylinder kit.
 ##
-## The rules this file enforces for every effect (plan.md 12.4):
+## The rules this file enforces for every effect (12.4):
 ##   * emission origins sit on the ACTUAL animated wand socket when the caster
 ##     has one, and are pulled out of geometry for near-wall launches;
 ##   * zero-length directions and vertical aims are guarded (the collinear
-##     `look_at` crash class from the Phase 0 baseline);
+##     `look_at` crash class from the baseline);
 ##   * effects are presentation: nothing here can produce a second hit;
 ##   * predicted feedback is registered by cast sequence so a rejection can
 ##     remove exactly what was predicted and nothing else.
@@ -221,7 +221,7 @@ static func active_count() -> int:
 	return live
 
 
-## Broom trail scene, instanced by broom_flight (the documented Phase 12 hook).
+## Broom trail scene, instanced by broom_flight (the documented spell-effect hook).
 static func make_trail(owner: Node3D) -> Node3D:
 	if not ResourceLoader.exists(TRAIL_SCENE):
 		return null
@@ -239,9 +239,9 @@ static func shake_camera(caster: Node3D, strength: float) -> void:
 	var cam := caster.get_node_or_null("CameraPivot/SpringArm3D/Camera3D") as Camera3D
 	if cam == null:
 		return
-	if cam.has_meta("phase12_shake"):
+	if cam.has_meta("spell_shake"):
 		return
-	cam.set_meta("phase12_shake", true)
+	cam.set_meta("spell_shake", true)
 	var orig_h := cam.h_offset
 	var orig_v := cam.v_offset
 	cam.h_offset = randf_range(-strength, strength) * 0.4
@@ -249,4 +249,4 @@ static func shake_camera(caster: Node3D, strength: float) -> void:
 	var tw := cam.create_tween()
 	tw.tween_property(cam, "h_offset", orig_h, 0.3)
 	tw.parallel().tween_property(cam, "v_offset", orig_v, 0.3)
-	tw.tween_callback(func(): cam.remove_meta("phase12_shake"))
+	tw.tween_callback(func(): cam.remove_meta("spell_shake"))

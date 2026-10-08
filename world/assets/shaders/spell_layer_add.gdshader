@@ -1,5 +1,5 @@
 shader_type spatial;
-// Phase 12 spell effect layer (ADDITIVE variant).
+// spell effect layer (ADDITIVE variant).
 //
 // One billboard/flat quad reads ONE cell of a flipbook atlas. The layer's blend
 // mode is chosen per layer by picking this shader (alpha) or

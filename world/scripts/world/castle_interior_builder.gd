@@ -1,15 +1,15 @@
 extends RefCounted
 
-## Castle interior (plan.md Phase 8 greybox, resurfaced in Phase 10).
+## Castle interior (greybox, resurfaced in the art pass).
 ##
 ## OWNER: client. The layout, the collision and the walkable route are the
-## Phase 8 geometry, unchanged: every floor, wall, ramp and railing keeps the
+## Map transfer geometry, unchanged: every floor, wall, ramp and railing keeps the
 ## same collider it had when the walkthrough passed (scenes/test/
-## castle_walkthrough.tscn, 87 checks). Phase 10 replaces the greybox *surfaces*
+## castle_walkthrough.tscn, 87 checks). the art pass replaces the greybox *surfaces*
 ## with authored PBR materials, dresses the rooms through the Gothic kit, and
 ## bakes a static occlusion term into the batched architecture.
 ##
-## Geometry rules kept from Phase 8:
+## Geometry rules kept from the map transfer:
 ##   * everything walkable carries collision (layer 1);
 ##   * stairs are one ramp collider with decorative treads inside half a step;
 ##   * openings are recorded so the arch surrounds land exactly on the gap the
@@ -36,7 +36,7 @@ const STAIR_RUN := 12.0
 const STEP_H := 0.2
 const STAIR_W := 6.0
 
-# --- modular clearances (plan.md Phase 2 dimensions).
+# --- modular clearances (dimensions).
 const DOOR_W := 2.2        # doorway clear width
 const DOOR_H := 2.8
 const WALL_T := 0.5
@@ -156,7 +156,7 @@ static func _mesh(parent: Node3D, title: String, mesh: Mesh, pos: Vector3, mater
 	parent.add_child(node)
 	return node
 
-## A box. `solid` adds the Phase 8 collider; `visible_box` false keeps a
+## A box. `solid` adds the map transfer collider; `visible_box` false keeps a
 ## collider without a greybox mesh (the kit supplies the visible surface).
 ## A collision-only build keeps the collider and creates no surface at all.
 static func _box(parent: Node3D, title: String, pos: Vector3, size: Vector3,
@@ -183,7 +183,7 @@ static func _box(parent: Node3D, title: String, pos: Vector3, size: Vector3,
 			parent.add_child(body)
 	return node
 
-## A collider that is never drawn: the Phase 8 surface is replaced by a kit
+## A collider that is never drawn: the map transfer surface is replaced by a kit
 ## piece, but the collision it owned stays exactly where it was.
 static func _collider(parent: Node3D, title: String, pos: Vector3, size: Vector3) -> void:
 	_box(parent, title, pos, size, null, true, false)
@@ -295,11 +295,11 @@ static func _wall_segment(parent: Node3D, title: String, axis: String, fixed: fl
 		else Vector3((a + b) * 0.5, (y0 + y1) * 0.5, fixed)
 	_box(parent, title, pos, size, material)
 
-## A railing along a gallery edge or around a stairwell. The Phase 8 solid
+## A railing along a gallery edge or around a stairwell. The map transfer solid
 ## collision stays (a body cannot walk through); the visible surface is now a
 ## Gothic balustrade with newel posts at both ends.
 static func _rail(parent: Node3D, title: String, axis: String, fixed: float, from: float, to: float, y: float) -> void:
-	# Invisible collider exactly where the Phase 8 rail wall was.
+	# Invisible collider exactly where the map transfer rail wall was.
 	_wall(parent, title, axis, fixed, from, to, y, y + RAIL_H, null, [], RAIL_T)
 	var length: float = absf(to - from)
 	var segments: int = maxi(1, int(round(length / 4.0)))
@@ -535,7 +535,7 @@ static func _build_basement(s: Node3D) -> void:
 	_wall(s, "EncounterSeal", "z", 10, -55.0, -49.0, Y_BASEMENT, Y_BASEMENT + 3.4, seal, [[-52.0, 3.0, 3.2]])
 	var glow := _mat(Color(0.55, 0.2, 0.95), true, 0.4)
 	_box(s, "EncounterSealGlow", Vector3(-52, Y_BASEMENT + 1.6, 10.15), Vector3(3.0, 3.2, 0.08), glow, false)
-	_sign(s, "FUTURE ENCOUNTER\nSEALED - PHASE 8", Vector3(-52, Y_BASEMENT + 3.9, 10.4), 30, Color(0.85, 0.6, 1.0))
+	_sign(s, "FUTURE ENCOUNTER\nSEALED - the map transfer", Vector3(-52, Y_BASEMENT + 3.9, 10.4), 30, Color(0.85, 0.6, 1.0))
 	_rail(s, "EncounterSealRailL", "x", -53.6, 8.6, 10.0, Y_BASEMENT)
 	_rail(s, "EncounterSealRailR", "x", -50.4, 8.6, 10.0, Y_BASEMENT)
 
@@ -594,7 +594,7 @@ static func _build_tower(s: Node3D) -> void:
 	collision.shape = shape
 	body.add_child(collision)
 	floor_node.add_child(body)
-	# Slate cap: an octagonal Gothic roof instead of the Phase 8 cone.
+	# Slate cap: an octagonal Gothic roof instead of the map transfer cone.
 	if not _collision_only:
 		var cap := PBR.kit_instance("tower_cap_7")
 		if cap != null:
@@ -707,7 +707,7 @@ static func _build_floor_wear(s: Node3D) -> void:
 # =========================================================== furniture
 
 ## Long tables, benches and candles: the Great Hall reads as a hall at a glance.
-## Collision stays exactly where the Phase 8 tables were.
+## Collision stays exactly where the map transfer tables were.
 static func _build_furniture_great_hall(s: Node3D) -> void:
 	var house_colors := [Color(0.52, 0.06, 0.09), Color(0.09, 0.22, 0.44), Color(0.10, 0.30, 0.19), Color(0.78, 0.56, 0.11)]
 	for i in range(4):
@@ -739,7 +739,7 @@ static func _build_furniture_great_hall(s: Node3D) -> void:
 			candle.set_meta("phase", float(i))
 			candle.add_to_group("floating_candles")
 
-## A trestle table with benches and candles; collision matches Phase 8.
+## A trestle table with benches and candles; collision matches the map transfer.
 static func _table(parent: Node3D, pos: Vector3, length: float, width: float = 1.7) -> void:
 	_collider(parent, "TableBody", pos + Vector3(0, 1.0, 0), Vector3(width, 0.2, length))
 	if not _collision_only:
@@ -802,7 +802,7 @@ static func _build_furniture_classrooms(s: Node3D) -> void:
 	_kit(s, "candelabra_1_6", Vector3(-50.0, Y_SECOND, -32.0))
 	_sign(s, "UPPER STUDY", Vector3(-38, Y_SECOND + 4.4, -31.6), 42, Color(1.0, 0.86, 0.6))
 
-## A desk with its stool; collision matches the Phase 8 desk.
+## A desk with its stool; collision matches the map transfer desk.
 static func _desk(parent: Node3D, pos: Vector3, title: String) -> void:
 	_collider(parent, title + "Body", pos + Vector3(0, 0.85, 0), Vector3(1.6, 0.12, 1.2))
 	_kit_instanced("desk_1_6", pos)
@@ -830,7 +830,7 @@ static func _build_furniture_circulation(s: Node3D) -> void:
 		_kit(s, "portrait_1x1_5", Vector3(-48.0 + i * 16.0, Y_FIRST + 3.2, -29.55), 0.0)
 	for i in range(2):
 		_kit(s, "portrait_1x1_5", Vector3(-40.0 + i * 20.0, Y_SECOND + 3.2, -29.55), 0.0)
-	# The reachable tower: dressed as a lookout (plan.md: one tower is enterable).
+	# The reachable tower: dressed as a lookout(one tower is enterable).
 	_kit(s, "candelabra_1_6", Vector3(56.0, Y_SECOND, 4.5))
 	_kit(s, "armour_stand_2", Vector3(59.5, Y_SECOND, 11.0), PI)
 	_kit(s, "portrait_1x1_5", Vector3(50.5, Y_SECOND + 3.0, 13.6), PI)
@@ -872,7 +872,7 @@ static func _sign(parent: Node3D, text: String, pos: Vector3, size: int, color: 
 	parent.add_child(label)
 
 ## A wall torch: iron bracket, wax stub, emissive flame and a warm, local,
-## non-shadow-casting light. Phase 10 keeps shadow-casting dynamic lights to
+## non-shadow-casting light. the art pass keeps shadow-casting dynamic lights to
 ## zero inside; contrast comes from the fixtures plus the baked occlusion.
 static func _torch(parent: Node3D, pos: Vector3) -> void:
 	if _collision_only:

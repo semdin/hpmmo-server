@@ -1,10 +1,10 @@
-# HPMMO Service API contract (Phase 4)
+# HPMMO Service API contract (Server integration)
 
 Base URL: `http://<host>:8081`. JSON in/out. Two auth mechanisms:
 
 - **Session** - `Authorization: Bearer <token>` from `/api/login` or `/api/ticket/redeem`.
 - **Service token** - `X-Service-Token: <HPMMO_SERVICE_TOKEN>` for machine-to-machine endpoints
-  (the authoritative world server in Phase 5). Refused when unconfigured.
+  (the authoritative world server in the authority). Refused when unconfigured.
   **Trust boundary:** the service token is infrastructure-only - it must never be shipped to,
   embedded in, or logged by a client (launcher or game build). A holder can read and write every
   character without any ownership restriction; leaking it is a full player-data compromise.
@@ -35,7 +35,7 @@ revision), 410 consumed/expired ticket, 503 database unavailable (no fallback ba
 | `POST /api/characters/create` | `{name, house}` -> `{character:{id,name,house}}`; max 2 per account; starter items seeded as ownership rows |
 | `POST /api/characters/list` | `{}` -> `{characters:[snapshot]}` scoped to the session account |
 | `POST /api/characters/load` | `{character_id}` -> `{character: snapshot + inventory[]}`; 404 for foreign ids; also accepts `X-Service-Token` (world server: any character, no session - see below) |
-| `POST /api/characters/save` | `{character_id, base_revision?, level?, exp?, max_hp?, current_hp?, max_mana?, current_mana?, galleons?, wand_tier?, pos?[3], rot_y?, map_id?, quests?, inventory?}` -> `{revision}`; **absent fields keep their stored values**; `inventory` present = validated full replacement of the ownership rows (capacity-limited to 40 item kinds, stacks <= 9999); `base_revision` mismatch -> 409 with the current revision; also accepts `X-Service-Token` (world server: any character, no session - see below). **Phase 4 gate:** progression fields accepted here are client-authoritative until Phase 5 moves authority to the world server - do not expose this endpoint to untrusted clients before then |
+| `POST /api/characters/save` | `{character_id, base_revision?, level?, exp?, max_hp?, current_hp?, max_mana?, current_mana?, galleons?, wand_tier?, pos?[3], rot_y?, map_id?, quests?, inventory?}` -> `{revision}`; **absent fields keep their stored values**; `inventory` present = validated full replacement of the ownership rows (capacity-limited to 40 item kinds, stacks <= 9999); `base_revision` mismatch -> 409 with the current revision; also accepts `X-Service-Token` (world server: any character, no session - see below). **the server integration gate:** progression fields accepted here are client-authoritative until the authority moves authority to the world server - do not expose this endpoint to untrusted clients before then |
 
 ## Service-token endpoints (world server authority)
 
@@ -52,7 +52,7 @@ revision), 410 consumed/expired ticket, 503 database unavailable (no fallback ba
 2. Launcher requests `POST /api/game-ticket` (Bearer session, optional `character_id`).
 3. Launcher starts the game with the ticket delivered via the **`HPMMO_TICKET` environment
    variable** of the child process - never on the command line. (Replacing the current
-   `--pass` argv handoff is tracked as the remaining Phase 4 launcher item; the service side
+   `--pass` argv handoff is tracked as the remaining the server integration launcher item; the service side
    and the redemption endpoint are live and tested.)
 4. The game calls `POST /api/ticket/redeem` once, receives its own session, and uses
    `Authorization: Bearer` for character load/save. The ticket is consumed on first use

@@ -1,11 +1,11 @@
 extends RefCounted
 
-## Phase 10 static batching (replaces the Phase 8 whole-interior merge).
+## Art pass static batching (replaces the castle whole-interior merge).
 ##
 ## Two things changed from the greybox version:
 ##   1. Instances are grouped by material *and by a 24 m chunk cell*, so the
 ##      renderer can cull the interior room by room instead of drawing one
-##      interior-wide MultiMesh. plan.md Phase 10: "avoid one giant merged
+##      interior-wide MultiMesh. "avoid one giant merged
 ##      interior mesh that defeats room-level culling."
 ##   2. Each instance carries a baked ambient-occlusion term in its instance
 ##      colour. The term is computed once per layout (see `_ao_for`) from the
@@ -15,7 +15,7 @@ extends RefCounted
 ##      lightmap (LightmapGI cannot bake procedural geometry at runtime).
 ##
 ## Collision bodies and named nodes are untouched; only the *visual* boxes are
-## merged, exactly like the Phase 8 batch did.
+## merged, exactly like the castle batch did.
 
 const CHUNK := 24.0
 

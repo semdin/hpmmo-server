@@ -1,6 +1,6 @@
 extends Node3D
 
-## 3D Character Selection Stage (Section 3.2 of plan.md)
+## 3D Character Selection Stage (Section 3.2 of.md)
 ## Interactive 3D stone podium with glowing runes, rim lighting, atmospheric embers,
 ## house-specific robes, wand tier aura, max 2 characters per account, and arrow-key navigation.
 

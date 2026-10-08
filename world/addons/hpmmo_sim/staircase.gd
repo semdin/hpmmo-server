@@ -1,7 +1,7 @@
 extends Node3D
 class_name HPStaircase
 
-## Magical staircase (plan.md Phase 8, "Magical staircase prototype").
+## Magical staircase ("Magical staircase prototype").
 ##
 ## ADDITIVE MODULE. This file is new; it does not change any existing behaviour
 ## of the simulation package. It is synced to the client like the rest of
@@ -162,7 +162,7 @@ var platform: AnimatableBody3D = null
 var nav_link: NavigationLink3D = null
 
 ## True between `boarding_warning` and the next arrival: new entry is refused
-## while the platform is unsafe (plan.md Phase 8, "Block new entry during unsafe
+## while the platform is unsafe ("Block new entry during unsafe
 ## motion"). Set in `_begin_warning`, cleared in `_arrive`.
 var _locked: bool = false
 
@@ -697,7 +697,7 @@ func build_geometry() -> void:
 	platform.collision_mask = 0
 	add_child(platform)
 	# One ramp collider under a stepped visual: a CharacterBody3D walks a 26.6 deg
-	# ramp cleanly, and the steps stay a greybox visual (plan: "stairs/ramps").
+	# ramp cleanly, and the steps stay a greybox visual ("stairs/ramps").
 	_collider(platform, Vector3(width, 0.3, ramp_length), mid - up * 0.15, -angle, "DeckShape")
 	_box(platform, Vector3(width, 0.3, ramp_length), mid - up * 0.15, MAT_DECK, -angle, "DeckMesh")
 	var steps := maxi(1, int(round(rise_v / maxf(step_height, 0.05))))

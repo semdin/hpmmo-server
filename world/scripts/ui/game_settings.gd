@@ -1,7 +1,7 @@
 extends RefCounted
 class_name GameSettings
 
-## Phase 13 player settings (plan.md Phase 13, "Provide scalable UI at common
+## Interface player settings ("Provide scalable UI at common
 ## aspect ratios and resolutions, readable contrast, key rebinding, sensitivity
 ## settings, and independent shake/flash/volume controls").
 ##
@@ -23,8 +23,8 @@ class_name GameSettings
 ## player controller, which only needs `mouse_sensitivity()`) can consult it
 ## without adding an autoload to project.godot.
 
-const SETTINGS_PATH := "user://phase13_settings.cfg"
-const SECTION_GENERAL := "phase13"
+const SETTINGS_PATH := "user://settings.cfg"
+const SECTION_GENERAL := "general"
 const SECTION_BINDINGS := "bindings"
 
 const UI_SCALE_DEFAULT := 1.0
@@ -174,7 +174,7 @@ func set_flash_intensity(value: float) -> void:
 	flash_intensity = clampf(value, INTENSITY_MIN, INTENSITY_MAX)
 	save_to_disk()
 
-## The four audio buses are owned by AudioManager (Phase 12), which already
+## The four audio buses are owned by AudioManager (Spell effects), which already
 ## persists them to user://audio_settings.json. The settings screen drives that
 ## one API instead of keeping a second copy of the same numbers.
 func set_volume(bus_name: String, linear: float) -> void:

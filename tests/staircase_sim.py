@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Phase 8 magical staircase proof: one world server, real headless clients.
+"""Map transfer magical staircase proof: one world server, real headless clients.
 
-Proves the plan.md Phase 8 "Magical staircase prototype" exit check - two
+Proves the "Magical staircase prototype" exit check - two
 independent clients see the same staircase position and state at the same tick -
 and the rest of the prototype's required behaviour:
 
@@ -44,9 +44,9 @@ CLIENT_DIR = os.environ.get("HPMMO_CLIENT_DIR", os.path.join(WORKSPACE, "client"
 GODOT = os.environ.get("HPMMO_GODOT", "godot")
 
 # Where the dev hook places the staircase in the outdoor world and where the
-# probes spawn. The site must sit inside the Phase 10 FLAT CORE
+# probes spawn. The site must sit inside the art pass FLAT CORE
 # (outdoor_terrain.gd: x in [-110, 110], z in [-125, 70], the 6 m edge fade
-# included) and away from every encounter region, or the hill ring the Phase 10
+# included) and away from every encounter region, or the hill ring the art pass
 # terrain pass raises outside that core intersects the staircase: the old site
 # (150, 0, 120) is in the hill ring and the terrain there is ~8 m high, which
 # wedged the fallback walker between the flight and the hillside and left the

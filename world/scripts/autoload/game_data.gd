@@ -233,7 +233,7 @@ var ITEMS: Dictionary = {
 
 var QUESTS: Dictionary = {}
 
-## Protected volumes (Phase 1) loaded from res://data/json/safe_zones.json.
+## Protected volumes (Prototype) loaded from res://data/json/safe_zones.json.
 ## Consumed by scripts/world/safe_zone.gd.
 var SAFE_ZONES: Dictionary = {}
 
@@ -241,9 +241,9 @@ func _ready() -> void:
 	_load_json_data()
 	_register_input_actions()
 
-## Gameplay contracts (spells, safe zones) are SERVER-owned since Phase 5 and
+## Gameplay contracts (spells, safe zones) are server-owned since the authority handover and
 ## consumed from the synced simulation package; items/houses/quests stay client
-## content. See docs/phase5-authority.md section 2.
+## content.
 const SIM_DATA_DIR := "res://addons/hpmmo_sim/data/"
 
 func _load_json_data() -> void:

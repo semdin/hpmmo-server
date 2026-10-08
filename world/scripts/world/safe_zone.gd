@@ -2,7 +2,7 @@ extends RefCounted
 
 ## Client-side face of the authored protection volumes.
 ##
-## Ownership moved to the server in Phase 5: the volumes live in
+## Ownership moved to the server in the authority: the volumes live in
 ## `addons/hpmmo_sim/data/safe_zones.json` and are evaluated by
 ## `HPRules`. Clients use this for presentation (zone tinting, spawn previews);
 ## the world server is the only process whose answer decides damage.

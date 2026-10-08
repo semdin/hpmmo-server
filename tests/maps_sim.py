@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Phase 8 map-state and map-transfer proof (plan.md Phase 8).
+"""Map transfer map-state and map-transfer proof.
 
-Starts world servers and real headless clients - the same probe the Phase 5
+Starts world servers and real headless clients - the same probe the authority
 suite uses, in its `transfer` mode - and asserts:
 
   1. cross-map invisibility in BOTH directions, with same-map visibility as the
@@ -23,7 +23,7 @@ suite uses, in its `transfer` mode - and asserts:
      unknown destination.
 
 The persistence path is exercised through a stub service that speaks the same
-request/response shapes as the Phase 4 service (integration_api.py covers the
+request/response shapes as the persistence service (integration_api.py covers the
 real PostgreSQL build; this suite is about the world server's half of the
 contract).
 
@@ -102,7 +102,7 @@ def near(a, b, tolerance=1.0):
 # ------------------------------------------------------------------ stub service
 
 class StubService:
-    """A contract-faithful stand-in for the Phase 4 persistence service.
+    """A contract-faithful stand-in for the persistence service.
 
     Implements the four endpoints the world server's bridge calls
     (session/introspect, characters/load, characters/save, reward) with the
@@ -125,7 +125,7 @@ class StubService:
             cid = int(character["id"])
             character.setdefault("revision", 1)
             # The real service returns the owning account on every character
-            # sheet (Phase 14 D14-1): the world server proves a bind belongs to
+            # sheet (the character-bind fix): the world server proves a bind belongs to
             # the session's account by comparing it, so the stub must carry it.
             character.setdefault("account_id", 1)
             self.characters[cid] = character

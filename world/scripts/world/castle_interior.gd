@@ -1,6 +1,6 @@
 extends Node3D
 
-## CastleInterior - the separate indoor map (plan.md Phase 8).
+## CastleInterior - the separate indoor map.
 ##
 ## This scene is built procedurally on entry and freed on the way out, so an
 ## outdoor world and an indoor world are never both resident. It owns no
@@ -8,7 +8,7 @@ extends Node3D
 ## scene that hosts it (`map_controller.gd` moves the body and keeps the HUD).
 ##
 ## The floor levels and the stair profile mirror the shared map contract in
-## `addons/hpmmo_sim/data/maps.json`. If that contract is present (Phase 8 sync),
+## `addons/hpmmo_sim/data/maps.json`. If that contract is present (Map transfer sync),
 ## `HPMaps` is asked for the floor names; otherwise the documented values are
 ## used, so the interior keeps working with today's offline build.
 
@@ -81,7 +81,7 @@ func _local_floor_for_y(y: float) -> Dictionary:
 			best = entry
 	return best
 
-## The shared map catalog, when the Phase 8 sync has landed. Loaded by path
+## The shared map catalog, when the map transfer sync has landed. Loaded by path
 ## rather than preloaded so today's build (which has no maps.gd) still runs.
 func _maps_script() -> GDScript:
 	if not ResourceLoader.exists("res://addons/hpmmo_sim/maps.gd"):

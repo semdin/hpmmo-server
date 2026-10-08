@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Phase 5 multiplayer proof: two independent clients against one world server.
+"""multiplayer proof: two independent clients against one world server.
 
-Proves the plan.md Phase 5 exit checks with real processes:
+Proves the exit checks with real processes:
 
   1. agreement   - two headless clients join the same world server, walk to the
                    same pack, attack the same mob, and must observe the same

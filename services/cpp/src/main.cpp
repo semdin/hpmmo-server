@@ -190,7 +190,7 @@ int main(int argc, char** argv) {
     if (command == "selfcheck") return cmd_selfcheck(cfg);
     if (command == "dev-reset") return cmd_dev_reset(cfg);
     if (command == "version") {
-        std::printf("hpmmo-service 2.0.0 (phase4)\n");
+        std::printf("hpmmo-service 2.0.0 (persistence)\n");
         return 0;
     }
     std::fprintf(stderr,

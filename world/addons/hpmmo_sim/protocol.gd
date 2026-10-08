@@ -14,7 +14,7 @@ class_name HPProtocol
 ## v5: per-map state and the server-authorized map-transfer exchange.
 ## v6: encounter lifecycle - mob AI state in the snapshot state byte and the
 ##     boss telegraph message (server-owned release tick, client-rendered
-##     warning) from plan.md Phase 11.
+##     warning) from the creature pass.
 ## v7: the session is bound to the character it plays - a character-bound
 ##     session is validated and bound at join, and a `sim_bind_character`
 ##     exchange lets a session that joined without one name the character it
@@ -32,7 +32,7 @@ const SNAPSHOT_INTERVAL_TICKS := SIM_HZ / SNAPSHOT_HZ
 ## Input older than this is discarded (the player simply stops accelerating).
 const INPUT_BUFFER_MS := 120
 ## A cast request arriving this close to the end of recovery is queued instead
-## of refused (plan Phase 5: bounded input buffer, 100-150 ms).
+## of refused (bounded input buffer, 100-150 ms).
 const CAST_QUEUE_MS := 120
 ## Damage within this window of a kill credits the player with the reward.
 const KILL_CREDIT_MS := 10000
@@ -49,7 +49,7 @@ const INTEREST_RADIUS := 70.0
 const MAX_ENTITIES_PER_SNAPSHOT := 30
 const DEFAULT_MAP := "grounds"
 
-## Map transfer (plan.md Phase 8). A client that requested a transfer but never
+## Map transfer. A client that requested a transfer but never
 ## acknowledged readiness must not strand its character between maps, so the
 ## reservation expires and the character returns to its last valid safe spawn.
 ## Test affordance: HPMMO_DEV_TRANSFER_TIMEOUT_MS (never set in production).
@@ -75,7 +75,7 @@ const REJECT_LINE_OF_SIGHT := "no_line_of_sight"
 const REJECT_INPUT_BUFFER := "input_buffer"
 const REJECT_ZONE := "wrong_zone"
 const REJECT_STATE := "invalid_state"
-## Map transfer (plan.md Phase 8).
+## Map transfer.
 const REJECT_TRANSFER_PENDING := "transfer_pending"
 const REJECT_NO_PORTAL := "no_portal"
 const REJECT_WRONG_MAP := "wrong_map"
@@ -85,9 +85,9 @@ const REJECT_MAP_FULL := "map_full"
 const REJECT_TRANSFER_TOKEN := "bad_transfer_token"
 const REJECT_ABORTED := "aborted"
 
-## Character binding outcomes (Phase 14 D14-1). `BIND_NOT_FOUND` is also the
+## Character binding outcomes (the character-bind fix). `BIND_NOT_FOUND` is also the
 ## answer for a character that exists but belongs to another account: the same
-## indistinguishable "not found" the Phase 4 character endpoints return, so a
+## indistinguishable "not found" the character endpoints return, so a
 ## session can learn nothing about another account's characters.
 const BIND_ALREADY := "already_bound"
 const BIND_NOT_FOUND := "character_not_found"
@@ -95,10 +95,10 @@ const BIND_IN_SESSION := "character_in_session"
 const BIND_NO_BODY := "no_body"
 const BIND_NOT_JOINED := "not_joined"
 
-## Combat state machine (plan Phase 5: idle -> windup -> release -> recovery -> idle).
+## Combat state machine (idle -> windup -> release -> recovery -> idle).
 enum CastState { IDLE = 0, WINDUP = 1, RELEASE = 2, RECOVERY = 3, STUNNED = 4, DEAD = 5 }
 
-## Mob AI state (plan.md Phase 11), carried in a MOB entity's `state` byte so a
+## Mob AI state, carried in a MOB entity's `state` byte so a
 ## client renders the authority's phase - anticipation, release, recovery, chase
 ## - instead of guessing it from movement. Values are append-only.
 enum MobState {
@@ -116,7 +116,7 @@ enum MobState {
 ## Entity kinds replicated to clients.
 enum Kind { PLAYER = 1, MOB = 2, DUMMY = 3, MONOLITH = 4, LOOT = 5, NPC = 6 }
 
-## Mount presentation phase (plan.md Phase 9). Carried in a PLAYER entity's
+## Mount presentation phase. Carried in a PLAYER entity's
 ## existing `state` byte inside snapshots, so a remote client animates the same
 ## flight phase it would if it owned the body - the phase is decided here, from
 ## authoritative state, and never by the client that renders it. NONE means "not
@@ -206,7 +206,7 @@ const MSG_TARGET_REQUEST := "target_request"
 const MSG_INTERACT_REQUEST := "interact_request"
 const MSG_PICKUP_REQUEST := "pickup_request"
 const MSG_RESPAWN_REQUEST := "respawn_request"
-## Map transfer exchange (plan.md Phase 8). request/ready/abort travel client ->
+## Map transfer exchange. request/ready/abort travel client ->
 ## server; granted/refused/committed/expired/map_state travel server -> client.
 const MSG_TRANSFER_REQUEST := "transfer_request"
 const MSG_TRANSFER_READY := "transfer_ready"
@@ -218,7 +218,7 @@ const MSG_TRANSFER_EXPIRED := "transfer_expired"
 const MSG_MAP_STATE := "map_state"
 const MSG_SNAPSHOT := "snapshot"
 const MSG_DESPAWN := "despawn"
-## Boss telegraph (plan.md Phase 11). Reliable, server -> client: the warning a
+## Boss telegraph. Reliable, server -> client: the warning a
 ## player sees is driven by the authority's start/release ticks, and the damage
 ## is applied by the authority at the release tick.
 const MSG_TELEGRAPH := "telegraph"
