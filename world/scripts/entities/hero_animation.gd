@@ -239,9 +239,25 @@ func start_cast(upper_clip: String, hold_seconds: float) -> void:
 	if cast_layer:
 		cast_layer.play(clip)
 
+## Point the casting arm at `point` (world space) for the duration of the cast:
+## the clip supplies the gesture, this makes it face the target. Call before
+## `start_cast` (or any time during it); `end_cast` releases the aim.
+func set_cast_aim(point: Vector3) -> void:
+	if cast_layer:
+		cast_layer.set_aim(point, true)
+
+## Hand the casting arm back to the clip (a melee swing aims itself).
+func clear_cast_aim() -> void:
+	if cast_layer:
+		cast_layer.set_aim(Vector3.ZERO, false)
+
+func cast_aiming() -> bool:
+	return cast_layer != null and cast_layer.aim_active()
+
 func end_cast() -> void:
 	cast_left = 0.0
 	if cast_layer:
+		cast_layer.set_aim(Vector3.ZERO, false)
 		cast_layer.stop()
 
 func casting() -> bool:

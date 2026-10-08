@@ -9,7 +9,6 @@ extends Node3D
 @onready var podium_light: OmniLight3D = $Podium/PodiumLight
 @onready var rune_ring: MeshInstance3D = $Podium/RuneRing
 @onready var model_anchor: Node3D = $Podium/ModelAnchor
-@onready var wand_aura: CPUParticles3D = $Podium/WandAuraParticles
 
 # 2D UI References
 @onready var slot_label: Label = $CanvasLayer/TopBar/SlotLabel
@@ -207,23 +206,18 @@ func _spawn_podium_character(c_data: Dictionary) -> void:
 	if current_char_node == null:
 		return
 	current_anim_player = HeroAppearance.find_anim_player(current_char_node)
-
-	# Wand aura particles
-	var wand_tier: int = c_data.get("wand_tier", 0)
-	if wand_tier >= 4 and wand_aura:
-		var up_info = GameData.UPGRADE_TABLE.get(wand_tier, {})
-		wand_aura.emitting = true
-		wand_aura.color = up_info.get("aura", Color.TRANSPARENT)
-	elif wand_aura:
-		wand_aura.emitting = false
+	# The podium wizard holds the same wand the world wizard does, built by the same
+	# helper - so the grip, the tip and the refinement aura cannot drift apart from
+	# the body the player is about to control. The wand's aura comes with it; the
+	# old scene-level particle node sat at a fixed offset that was not the wand.
+	HeroAppearance.show_equipped_wand(model_anchor,
+		{"tier": int(c_data.get("wand_tier", 0))})
 
 func _clear_podium_character() -> void:
 	if is_instance_valid(current_char_node):
 		current_char_node.queue_free()
 		current_char_node = null
 	current_anim_player = null
-	if wand_aura:
-		wand_aura.emitting = false
 
 func _apply_rune_color(col: Color) -> void:
 	if podium_light:

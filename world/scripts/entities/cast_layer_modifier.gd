@@ -10,6 +10,18 @@ class_name CastLayerModifier
 ## layer: this node samples the cast clip's upper-body tracks and writes only
 ## those bones, slerped by the layer weight, leaving every other bone exactly as
 ## the locomotion layer left it.
+##
+## It also owns the CAST AIM, because the two have to be written in one place: the
+## clip supplies the pose, and the aim then turns the casting arm so the wand
+## points at the target. Only arm bones are touched, so the layer still cannot
+## disturb the lower body.
+##
+## The aim exists because the clip alone does not point anywhere: `Spellcast_Shoot`
+## is a retarget of a generic "spell shoot" gesture, so the character faced the
+## target while its wand hung down the leg (measured wand-to-aim dot -0.51 at
+## release). The aim runs in two steps: a two-bone solve reaches the arm toward
+## the target, and then the wrist is turned so the WAND's own axis - the wand
+## rides the wrist bone, not the forearm - lands on the target.
 
 var animation: Animation = null
 var weight := 0.0
@@ -18,13 +30,36 @@ var playing := false
 ## Bone name -> tracks that belong to it (index into the Animation).
 var upper_tracks: Array[int] = []
 var lower_prefixes := ["Hips", "Body", "Root", "UpperLeg", "LowerLeg", "Foot", "PT"]
+
+## The casting hand's bone chain. `UpperArm.R` is the shoulder joint: the clavicle
+## (Shoulder.R -> UpperArm.R) is left to the clip so the aim never dislocates it.
+const AIM_ROOT_BONE := "UpperArm.R"
+const AIM_MID_BONE := "LowerArm.R"
+const AIM_END_BONE := "Wrist.R"
+## How far short of full extension the aim targets the wrist, so the elbow keeps a
+## natural bend instead of locking.
+const AIM_EXTENSION := 0.97
+## A wrist has a range; a solve that has to twist it further than this is asking
+## the hand to do something a hand cannot, so the correction is clamped rather
+## than allowed to snap the wrist. The aim blends in with the cast layer's own
+## weight, so it needs no ramp of its own.
+const AIM_MAX_WRIST_TWIST := 1.2
+
+## World-space point the casting arm points at, and whether the aim is in force.
+var aim_point := Vector3.ZERO
+var _aim_active := false
+## What the clip wrote for each bone this pass, keyed by bone name. The aim
+## blends from THIS rather than from the bone's current pose, so running the aim
+## twice in one frame (both `_process_modification` and the deferred `apply_now`
+## call `_apply`) cannot compound into a stronger blend than asked for.
+var _clip_rotations := {}
+
 func _bone_of(path: NodePath) -> String:
 	var text := String(path)
 	if not text.contains(":"):
 		return ""
 	return text.split(":")[-1]
 
-var writes := 0
 func configure(clip: Animation) -> void:
 	animation = clip
 	upper_tracks.clear()
@@ -56,6 +91,15 @@ func stop() -> void:
 func upper_bone_count() -> int:
 	return upper_tracks.size()
 
+## Point the casting arm at `point` (world space) while the cast layer is blended
+## in. Pass `active = false` to hand the arm back to the clip.
+func set_aim(point: Vector3, active: bool) -> void:
+	aim_point = point
+	_aim_active = active
+
+func aim_active() -> bool:
+	return _aim_active
+
 func _process_modification_with_delta(delta: float) -> void:
 	# The mixer writes its own pose during the idle frame; writing here would be
 	# overwritten whenever this node is processed before the AnimationTree. The
@@ -75,21 +119,67 @@ func _process_modification() -> void:
 
 func _apply() -> void:
 	var skeleton := get_skeleton()
-	if not playing or animation == null or skeleton == null or weight <= 0.001:
+	if skeleton == null:
 		return
-	var clamped := clampf(time, 0.0, maxf(0.0, animation.length))
-	for track in upper_tracks:
-		var bone := _bone_of(animation.track_get_path(track))
-		if bone == "":
-			continue
-		var index := skeleton.find_bone(bone)
-		if index < 0:
-			index = skeleton.find_bone(bone.replace(".", "_"))
-		if index < 0:
-			continue
-		var cast_pose: Quaternion = animation.rotation_track_interpolate(track, clamped)
-		if weight >= 0.999:
-			skeleton.set_bone_pose_rotation(index, cast_pose)
-		else:
-			var current := skeleton.get_bone_pose_rotation(index)
-			skeleton.set_bone_pose_rotation(index, current.slerp(cast_pose, weight))
+	_clip_rotations.clear()
+	if playing and animation != null and weight > 0.001:
+		var clamped := clampf(time, 0.0, maxf(0.0, animation.length))
+		for track in upper_tracks:
+			var bone := _bone_of(animation.track_get_path(track))
+			if bone == "":
+				continue
+			var index := _bone_index(skeleton, bone)
+			if index < 0:
+				continue
+			var cast_pose: Quaternion = animation.rotation_track_interpolate(track, clamped)
+			_clip_rotations[bone] = cast_pose
+			if weight >= 0.999:
+				skeleton.set_bone_pose_rotation(index, cast_pose)
+			else:
+				var current := skeleton.get_bone_pose_rotation(index)
+				skeleton.set_bone_pose_rotation(index, current.slerp(cast_pose, weight))
+	_apply_aim(skeleton)
+
+## ---------------------------------------------------------------- aim
+
+## Reach the casting arm at `aim_point`, then turn the WRIST so the wand's own
+## axis - the prop rides the wrist bone, not the forearm - lands on the target.
+func _apply_aim(skeleton: Skeleton3D) -> void:
+	if not _aim_active or weight <= 0.001:
+		return
+	var root := _bone_index(skeleton, AIM_ROOT_BONE)
+	var mid := _bone_index(skeleton, AIM_MID_BONE)
+	var end := _bone_index(skeleton, AIM_END_BONE)
+	if root < 0 or mid < 0 or end < 0:
+		return
+	skeleton.force_update_all_bone_transforms()
+	# The aim point arrives in world space; every pose query is in skeleton space.
+	var to_aim: Vector3 = skeleton.global_transform.affine_inverse() * aim_point
+	var shoulder := skeleton.get_bone_global_pose(root).origin
+	var towards := to_aim - shoulder
+	if towards.length_squared() < 1e-6:
+		return
+	var elbow_live := skeleton.get_bone_global_pose(mid).origin
+	var end_live := skeleton.get_bone_global_pose(end).origin
+	var upper_len := shoulder.distance_to(elbow_live)
+	var lower_len := elbow_live.distance_to(end_live)
+	# Target just inside full extension so the elbow keeps a natural bend.
+	var target := shoulder + towards.normalized() * ((upper_len + lower_len) * AIM_EXTENSION)
+	var bases := {}
+	for bone in [root, mid]:
+		bases[bone] = _clip_rotations.get(skeleton.get_bone_name(bone), Quaternion())
+	RigIK.two_bone(skeleton, root, mid, end, target, Vector3.DOWN, weight, bases)
+	var aimed_wrist := skeleton.get_bone_global_pose(end).origin
+	var wanted := to_aim - aimed_wrist
+	if wanted.length_squared() > 1e-6:
+		_aim_axis(skeleton, end, HeroAppearance.wand_axis_in_wrist(skeleton), wanted)
+
+## Rotate `bone` so an axis fixed in that bone (`axis_local`, e.g. the wand's own
+## long axis in the wrist's frame) points along `wanted`, blended by the layer
+## weight over what the clip wrote for that bone.
+func _aim_axis(skeleton: Skeleton3D, bone: int, axis_local: Vector3, wanted: Vector3) -> void:
+	RigIK.aim_axis(skeleton, bone, axis_local, wanted, weight, AIM_MAX_WRIST_TWIST,
+		_clip_rotations.get(skeleton.get_bone_name(bone), Quaternion()))
+
+func _bone_index(skeleton: Skeleton3D, bone: String) -> int:
+	return RigIK.bone_index(skeleton, bone)

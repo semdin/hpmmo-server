@@ -300,8 +300,11 @@ def test_forged(out_dir, profile="local"):
         return
     check(final.get("mob_hp_after_forged_damage", 0) > 0,
           "a claimed 99999 damage did not kill the mob (hp %s)" % final.get("mob_hp_after_forged_damage"))
-    check(int(final.get("own_hp_after", -1)) == int(final.get("own_hp_before", -2)),
-          "a claimed self-death did not change the client's health")
+    # A landed death claim would zero this body's health; regeneration is the only
+    # thing allowed to move it, and it only ever moves it up.
+    check(not final.get("own_dead") and int(final.get("own_hp_after", -1)) >= int(final.get("own_hp_before", -2)) > 0,
+          "a claimed self-death did not land (hp %s -> %s, alive %s)"
+          % (final.get("own_hp_before"), final.get("own_hp_after"), not final.get("own_dead")))
     check(final.get("casts_accepted", 1) == 0,
           "no forged cast was accepted")
     check("unknown_spell" in final.get("casts_rejected", []),
@@ -352,10 +355,19 @@ def test_protection(out_dir):
     aoe_in = result.get("boss_aoe_over_zone", {})
     aoe_out = result.get("boss_aoe_outside_zone", {})
 
-    check(projectile_in and projectile_in.get("after") == projectile_in.get("before"),
-          "a delayed projectile does not damage a target inside a safe zone")
-    check(projectile_out and projectile_out.get("after", 1) < projectile_out.get("before", 0),
-          "the same projectile does damage outside the zone (positive control, same distance)")
+    # Health cannot answer this on its own: the victim is a live player, so its
+    # regeneration moves the number up (503 -> 508 over the sample) whether or not
+    # the bolt landed. The damage events delivered are the measurement; the health
+    # is the corroboration (it must not fall).
+    check(projectile_in and int(projectile_in.get("events", -1)) == 0
+          and projectile_in.get("after", -1) >= projectile_in.get("before", 0),
+          "a delayed projectile does not damage a target inside a safe zone (%s damage events, hp %s -> %s)"
+          % (projectile_in.get("events"), projectile_in.get("before"), projectile_in.get("after")))
+    check(projectile_out and int(projectile_out.get("events", 0)) >= 1
+          and projectile_out.get("after", 1) < projectile_out.get("before", 0),
+          "the same projectile does damage outside the zone (positive control, same distance, "
+          "%s damage events, hp %s -> %s)"
+          % (projectile_out.get("events"), projectile_out.get("before"), projectile_out.get("after")))
     burn_out = result.get("burn_outside_zone", {})
     check(bool(burn.get("burn_started")),
           "the incendio hit really started a burn (the check below is not vacuous)")

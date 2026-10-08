@@ -467,15 +467,33 @@ func _on_entity_health(uid: int, hp: int, max_hp: int, _flags: int) -> void:
 
 func _on_cast_released(_cast_id: int, caster_uid: int, spell_id: String, origin: Vector3, dir: Vector3) -> void:
 	var caster = SimAuthority.record_by_uid(caster_uid).get("node")
+	# Another player's body plays the gesture too, aimed from the authority's
+	# direction, so a replicated cast reads the same as the caster's prediction.
+	if caster != null and is_instance_valid(caster) and caster.has_method("present_replicated_cast"):
+		caster.call("present_replicated_cast", origin, dir)
 	if spell_id in ["incendio", "protego"]:
 		preload("res://scripts/spells/skill_fx.gd").play_cast(self, caster if caster is Node3D else null, spell_id, origin, dir)
 		return
 	var proj = preload("res://scenes/spells/spell_projectile.tscn").instantiate()
 	add_child(proj)
-	proj.global_position = origin
+	# Presentation only: the bolt on screen leaves the caster's wand head when one
+	# is held, while `origin` (the authority's body-centred launch point, which
+	# decided the damage) is left exactly as it was.
+	proj.global_position = _presentation_cast_origin(caster, origin)
 	# The bolt on screen is a VIEW: the authority already decided what it hits.
 	proj.visual_only = true
 	proj.setup(caster if caster is Node3D else null, spell_id, dir, null, 1.0)
+
+## Where the client draws a spell from. The authority's `origin` stays the
+## body-centred launch point that decided the hit geometry; only the drawn bolt
+## is re-anchored, and only for a caster that actually carries a wand.
+func _presentation_cast_origin(caster: Node, origin: Vector3) -> Vector3:
+	if caster == null or not is_instance_valid(caster) or not (caster is Node3D):
+		return origin
+	var tip: Node3D = HeroAppearance.wand_tip(caster)
+	if tip != null and is_instance_valid(tip):
+		return tip.global_position
+	return origin
 
 func _on_cast_landed(_cast_id: int, _caster_uid: int, spell_id: String, hits: Array) -> void:
 	for hit in hits:

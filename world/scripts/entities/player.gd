@@ -111,9 +111,26 @@ var _was_airborne := false
 ## Committed attacks: movement is explicitly restricted until this expires
 ## ("explicit movement restrictions for committed attacks").
 var _committed_until := 0.0
+## The yaw the body is currently turning to, and whether its facing is the
+## movement's (auto-faced) rather than the camera's. The animation state machine
+## classifies direction against this instead of the interpolated facing, which it
+## has not reached yet.
+var _facing_target_yaw := 0.0
+var _auto_facing := false
 ## Spells whose recovery commits the caster in place.
 const COMMITTED_SPELLS := {"bombarda": 0.35, "ultimate": 0.5}
 const COMMITTED_MELEE := 0.45
+## Deceleration (m/s^2) once a WALKING body's movement input is released. The
+## authored value was `walk_speed * 12` = 102, which left 0.28 m of glide over 4
+## frames after the key was let go - read as the character sliding on after it had
+## stopped and already gone back to its idle clip. 180 m/s^2 stops in 0.20 m.
+## Mounted and airborne bodies keep the authored value (see _physics_process).
+const GROUND_STOP_DECEL := 180.0
+## A standing body ignores a horizontal snapshot offset inside this radius: it is
+## the server still catching up on the client's own deceleration, not a
+## disagreement. Real discrepancies (walls, knockback, platforms, teleports) are
+## larger than this and are corrected. The vertical axis is never tolerated.
+const STANDING_TOLERANCE := 0.5
 ## Rolling history of local positions used for latency-tolerant reconciliation.
 var _pos_history: Array[Vector3] = []
 const MAX_POS_HISTORY := 90
@@ -134,6 +151,7 @@ const CombatRules = preload("res://scripts/spells/combat_rules.gd")
 const ParticleKit = preload("res://scripts/assets/particle_kit.gd")
 const HeroAnimationScript = preload("res://scripts/entities/hero_animation.gd")
 const BroomFlightScript = preload("res://scripts/entities/broom_flight.gd")
+const BroomGripModifierScript = preload("res://scripts/entities/broom_grip_modifier.gd")
 ## Rig socket convention: one socket per attachment point, bound to the
 ## skeleton by bone name.
 const SOCKET_BONES := {
@@ -155,12 +173,16 @@ const SOCKET_BONES := {
 @onready var camera: Camera3D = get_node_or_null("CameraPivot/SpringArm3D/Camera3D")
 @onready var broom_mesh: Node3D = get_node_or_null("Visuals/BroomMesh")
 @onready var broom_particles: CPUParticles3D = get_node_or_null("Visuals/BroomMesh/BroomParticles")
-@onready var wand_aura_particles: CPUParticles3D = get_node_or_null("Visuals/WandAuraParticles")
-@onready var wand_tip: Marker3D = get_node_or_null("Visuals/WandTipMarker")
+## The wand's own tip (a marker inside the equipped prop) is the only wand point
+## this body exposes - see `wand_tip_position`. There is no scene-level marker or
+## aura any more: both were fixed offsets that did not follow the wand.
+@onready var wand_aura_particles: CPUParticles3D = null
 @onready var nameplate: Label3D = get_node_or_null("NameplateLabel3D")
 ## The animation graph and the authored broom rig.
 var hero_anim: HeroAnimation
 var broom: BroomFlight
+## Solves the rider's hands onto the broom shaft while mounted.
+var broom_grip: BroomGripModifier
 var sockets: Dictionary = {}
 
 func _find_anim_player() -> AnimationPlayer:
@@ -275,6 +297,15 @@ func _setup_broom() -> void:
 	broom.name = "BroomRig"
 	broom_mesh.add_child(broom)
 	broom.setup(self, visuals, broom_particles, broom_mesh)
+	# The rider is solved onto the broom while mounted (broom_grip_modifier.gd):
+	# the authored seat pose never matched the hands to the shaft. Added after the
+	# cast layer, so its deferred apply runs last and the grip wins the arms.
+	var skeleton := _find_skeleton()
+	if skeleton:
+		broom_grip = BroomGripModifierScript.new()
+		broom_grip.name = "BroomGripModifier"
+		skeleton.add_child(broom_grip)
+		broom_grip.setup(broom)
 	if broom_mesh is Node3D:
 		broom_mesh.rotation = Vector3.ZERO   # the authored GLB is already +Z forward
 	_align_broom_to_hips()
@@ -379,6 +410,11 @@ func _process(delta: float) -> void:
 	_update_flight_pose(delta)
 	if hero_anim:
 		hero_anim.tick(delta)
+		# Keep a wand cast tracking its target: the aim point is the mouse (or the
+		# locked target), which moves while the gesture plays. Only a cast that is
+		# aiming is refreshed, so a melee swing is never overwritten.
+		if is_local_player and not is_dead and hero_anim.cast_aiming():
+			hero_anim.set_cast_aim(get_mouse_aim_point())
 	if is_local_player and not is_dead:
 		# Regeneration is authoritative (the world server ticks it and mirrors the
 		# result back), so the local body no longer regenerates on its own.
@@ -470,22 +506,39 @@ func _physics_process(delta: float) -> void:
 		var forward := Vector3(-sin(cam_yaw), 0, -cos(cam_yaw))
 		var right := Vector3(cos(cam_yaw), 0, -sin(cam_yaw))
 		var move_vector := (right * input_dir.x + forward * -input_dir.y).normalized()
-		
+
 		var acceleration := 25.0 if is_mounted else 65.0
 		velocity.x = move_toward(velocity.x, move_vector.x * active_speed, acceleration * delta)
 		velocity.z = move_toward(velocity.z, move_vector.z * active_speed, acceleration * delta)
-		
+
 		# Rotate ONLY visuals towards move direction (Camera remains independent!)
 		var target_yaw := atan2(move_vector.x, move_vector.z)
 		if _cast_lock <= 0.0:
+			# The body is turning to `target_yaw`, and that - not the interpolated
+			# facing it has not reached yet - is what the animation state is chosen
+			# against. Classifying on the lagging yaw made the first ~0.1 s of every
+			# direction change play Walk_Back or a strafe (measured: 1 frame of
+			# Walk_Back and 5 of Strafe_R before Running_A on a forward press).
+			_facing_target_yaw = target_yaw
+			_auto_facing = true
 			visuals.rotation.y = lerp_angle(visuals.rotation.y, target_yaw, minf(1, 14.0 * delta))
-		
+
 	else:
-		velocity.x = move_toward(velocity.x, 0, active_speed * 12.0 * delta)
-		velocity.z = move_toward(velocity.z, 0, active_speed * 12.0 * delta)
+		if is_mounted or not is_on_floor():
+			# Airborne and flying keep the authored deceleration: the broom is
+			# supposed to coast and cutting its momentum mid-air would look wrong.
+			velocity.x = move_toward(velocity.x, 0, active_speed * 12.0 * delta)
+			velocity.z = move_toward(velocity.z, 0, active_speed * 12.0 * delta)
+		else:
+			velocity.x = move_toward(velocity.x, 0, GROUND_STOP_DECEL * delta)
+			velocity.z = move_toward(velocity.z, 0, GROUND_STOP_DECEL * delta)
 
 		# If holding right-click while standing, face camera direction
 		if mouse_orbit_active:
+			# Facing is the camera's, not the movement's: the strafe and back clips
+			# are exactly for this case, so the state machine must classify on the
+			# real facing here rather than on a commanded one.
+			_auto_facing = false
 			var cam_yaw: float = deg_to_rad(_intent_yaw())
 			visuals.rotation.y = lerp_angle(visuals.rotation.y, cam_yaw, 10.0 * delta)
 
@@ -520,7 +573,12 @@ func _update_animation_state() -> void:
 	if horizontal < 0.25:
 		hero_anim.set_locomotion("idle", "Idle")
 		return
-	var yaw := visuals.rotation.y
+	# Classify against the facing the body is heading FOR while it auto-faces its
+	# movement (reaching it takes several frames at 14 rad/s), and against the real
+	# facing when something else owns it - the camera during a right-click orbit, or
+	# replication on a puppet. Using the lagging facing made a forward press start
+	# with Walk_Back/Strafe_R frames.
+	var yaw := _facing_target_yaw if _auto_facing else visuals.rotation.y
 	var forward := Vector3(sin(yaw), 0, cos(yaw))
 	var left := Vector3(cos(yaw), 0, -sin(yaw))
 	var dir := Vector3(velocity.x, 0, velocity.z).normalized()
@@ -832,6 +890,13 @@ func _tick_regeneration(delta: float) -> void:
 func _update_flight_pose(delta: float) -> void:
 	_flight_time += delta
 	_mount_blend = move_toward(_mount_blend, 1.0 if is_mounted else 0.0, delta * 3.2)
+	if broom_grip:
+		# Fades in with the mount, and yields while a get-on/get-off one-shot plays
+		# so the transition keeps the clip's own arms.
+		var grip_target := _mount_blend
+		if hero_anim and hero_anim.has_oneshot():
+			grip_target = 0.0
+		broom_grip.target_weight = grip_target
 	if broom_mesh:
 		broom_mesh.visible = _mount_blend > 0.01
 	if broom:
@@ -886,6 +951,16 @@ func restore_character(data: Dictionary) -> void:
 	inventory_changed.emit()
 	emit_stats()
 
+## Where this body's spell leaves it: the head of the equipped wand when one is
+## held, otherwise the documented body offset. The wand tip is authored inside
+## the prop (`HeroAppearance.wand_tip`), so it follows the grip and the cast
+## animation - a spell fired from here genuinely leaves the wand.
+func wand_tip_position() -> Vector3:
+	var tip := HeroAppearance.wand_tip(visuals)
+	if tip:
+		return tip.global_position
+	return global_position + Vector3(0, CAST_ORIGIN_HEIGHT, 0)
+
 func get_mouse_aim_point() -> Vector3:
 	if is_instance_valid(current_target) and CombatRules.can_damage(self, current_target):
 		return current_target.global_position + Vector3.UP * TARGET_AIM_HEIGHT
@@ -931,11 +1006,10 @@ func cast_spell(spell_id: String) -> void:
 
 	# --- predicted feedback. The world server decides; everything below is the
 	# client's guess at what it will say, and a rejection undoes it cleanly.
+	# `aim_hit` is also the cast's aiming target: the animation turns the casting
+	# arm onto it (see _play_cast_animation) and the spell leaves the wand's head
+	# there (skill_fx.emission_origin reads the live tip).
 	var aim_hit := get_mouse_aim_point()
-	var spawn_pos := global_position + Vector3(0, CAST_ORIGIN_HEIGHT, 0)
-	var cast_dir := (aim_hit - spawn_pos).normalized()
-	if cast_dir.length_squared() < 0.01:
-		cast_dir = visuals.global_basis.z
 
 	# Wizard instantly faces the mouse aim direction on ground
 	var face_dir := (aim_hit - global_position)
@@ -965,7 +1039,7 @@ func cast_spell(spell_id: String) -> void:
 		_committed_until = maxf(_committed_until, COMMITTED_MELEE)
 	_cast_seq += 1
 	_predicted_casts[_cast_seq] = {"spell_id": spell_id, "aim": aim_hit}
-	_play_cast_animation(anim_name)
+	_play_cast_animation(anim_name, aim_hit)
 	if spell_id == "protego":
 		_activate_protego_preview()
 	# spell-effect hook: predicted PRESENTATION only (wand flash + cast sound), keyed
@@ -1016,10 +1090,13 @@ func _reject_feedback(reason: String) -> void:
 				_spawn_floating_text("Cast refused", Color(1.0, 0.6, 0.4))
 
 ## Cast presentation. The upper-body clip is blended OVER locomotion (so a
-## moving caster keeps their footwork), and the clip is seeked so its extension
-## pose lands on the authority's release moment - `fx:wand_release` is only
-## emitted then, never on a guessed frame.
-func _play_cast_animation(anim_name: String = "Spellcast_Shoot") -> void:
+## moving caster keeps their footwork), the clip is seeked so its extension pose
+## lands on the authority's release moment - `fx:wand_release` is only emitted
+## then, never on a guessed frame - and the casting arm is then aimed at `aim`.
+##
+## `aim` defaults to the body's forward so the cast still points somewhere when a
+## caller has no aim point (the vfx viewer calls this with no arguments).
+func _play_cast_animation(anim_name: String = "Spellcast_Shoot", aim: Variant = null) -> void:
 	if hero_anim == null and not is_instance_valid(anim_player):
 		return
 	is_casting_anim = true
@@ -1030,6 +1107,13 @@ func _play_cast_animation(anim_name: String = "Spellcast_Shoot") -> void:
 	if hero_anim:
 		hero_anim.start_cast(upper if hero_anim.has_clip(upper) else anim_name, hold)
 		hero_anim.align_cast(hold * 0.6, 0.45)
+		# A wand cast points the wand at the target; a melee chop is a SWING, so it
+		# keeps the clip's own arm (holding it on the target would freeze it). The
+		# aim lasts exactly as long as the cast - end_cast releases it.
+		if anim_name.begins_with("Melee") or anim_name.begins_with("1H_Melee"):
+			hero_anim.clear_cast_aim()
+		else:
+			hero_anim.set_cast_aim(aim if aim is Vector3 else global_position + visuals.global_basis.z * 12.0)
 	elif anim_player:
 		if anim_player.has_animation(anim_name):
 			anim_player.play(anim_name, 0.08)
@@ -1043,6 +1127,14 @@ func _play_cast_animation(anim_name: String = "Spellcast_Shoot") -> void:
 		is_casting_anim = false
 		if hero_anim:
 			hero_anim.end_cast()
+
+## A replicated cast: another player's body plays the same gesture, aimed from the
+## authority's origin and direction rather than from local input. The caster's own
+## client already predicted this, so only other clients run it.
+func present_replicated_cast(origin: Vector3, dir: Vector3) -> void:
+	if is_local_player or hero_anim == null or is_dead:
+		return
+	_play_cast_animation("Spellcast_Shoot", origin + dir * 20.0)
 
 func _activate_protego_preview() -> void:
 	is_protego_active = true
@@ -1129,13 +1221,24 @@ func apply_authoritative_position(pos: Vector3, rot_y: float) -> void:
 	var is_standing := velocity.length_squared() < 0.04 and _intent_move().length_squared() < 0.01
 
 	if is_standing:
-		# When standing still, client and server converge to the same point.
+		# Vertical is never tolerated: a carriage, a lift or a fall rescue moves the
+		# body through the server, and only the server knows where it went.
+		if absf(pos.y - global_position.y) > 0.005:
+			global_position.y = lerpf(global_position.y, pos.y, 0.25)
+		# Horizontally, a snapshot taken while we were still decelerating sits a
+		# fraction of a metre behind us. Pulling 25% of the way toward it every
+		# snapshot dragged the body on after the key was released, which is the
+		# "keeps moving a moment after stopping" the player sees. The same inputs
+		# through the same deceleration land both sides on the same point within a
+		# few ticks, so a residual inside the stopping distance is latency, not
+		# disagreement - correct only what is genuinely elsewhere.
 		if direct_dist > 2.0:
 			global_position = pos
 			velocity = Vector3.ZERO
 			_pos_history.clear()
-		elif direct_dist > 0.05:
-			global_position = global_position.lerp(pos, 0.25)
+		elif direct_dist > STANDING_TOLERANCE:
+			global_position.x = lerpf(global_position.x, pos.x, 0.25)
+			global_position.z = lerpf(global_position.z, pos.z, 0.25)
 	else:
 		# When moving:
 		# If the server's snapshot position is along our recent path (within tolerance),
@@ -1307,22 +1410,16 @@ func upgrade_wand(_new_tier: int) -> void:
 	# Compatibility entry point: the authority determines the resulting tier.
 	SimNet.submit_equipment(self, "refine", "main_hand")
 
+## Re-attach the equipped wand whenever what is held changes. The head of the
+## wand, its tip marker and the refinement aura are all built inside that one
+## call, so they cannot drift apart from the grip or from each other.
 func _apply_wand_aura() -> void:
-	if is_instance_valid(visuals):
-		var key := str(equipment.get("main_hand",{}))
-		if key != _wand_visual_key:
-			_wand_visual_key = key
-			HeroAppearance.show_equipped_wand(visuals,equipment.get("main_hand",{}))
-	if not wand_aura_particles:
+	if not is_instance_valid(visuals):
 		return
-	var up_info = GameData.UPGRADE_TABLE.get(wand_tier, {})
-	var aura_color: Color = up_info.get("aura", Color.TRANSPARENT)
-	if wand_tier >= 4:
-		wand_aura_particles.emitting = true
-		wand_aura_particles.color = aura_color
-		wand_aura_particles.amount = 20 if wand_tier < 7 else (40 if wand_tier < 9 else 70)
-	else:
-		wand_aura_particles.emitting = false
+	var key := str(equipment.get("main_hand",{}))
+	if key != _wand_visual_key:
+		_wand_visual_key = key
+		HeroAppearance.show_equipped_wand(visuals,equipment.get("main_hand",{}))
 
 func _spawn_floating_text(text: String, col: Color, scale_mult: float = 1.0) -> void:
 	if FT_SCENE:

@@ -54,7 +54,15 @@ static func emission_origin(caster: Node3D, fallback: Vector3, dir: Vector3) -> 
 	if caster == null or not is_instance_valid(caster):
 		return fallback
 	var origin := fallback
-	if caster.has_method("socket"):
+	# The equipped wand's own tip is the single definition of where a spell leaves
+	# the caster: `HeroAppearance.wand_tip` marks it inside the prop, so it rides
+	# the animation and the grip (hero_appearance.gd) instead of sitting at a
+	# fixed scene coordinate. A wand-less caster - a mob, or a player with no main
+	# hand - falls through to the wrist socket and then to the body offset.
+	var tip: Node3D = HeroAppearance.wand_tip(caster)
+	if tip != null and is_instance_valid(tip):
+		origin = tip.global_position
+	elif caster.has_method("socket"):
 		var socket = caster.call("socket", "Socket_Wand")
 		if socket is Node3D and is_instance_valid(socket):
 			origin = (socket as Node3D).global_position + dir * 0.35
