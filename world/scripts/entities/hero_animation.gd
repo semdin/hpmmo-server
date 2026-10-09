@@ -129,6 +129,20 @@ func setup(animation_player: AnimationPlayer, skeleton_node: Skeleton3D, host: N
 		var anim := _animation(one_shot)
 		if anim:
 			anim.loop_mode = Animation.LOOP_NONE
+	# Finger bones must only rotate at knuckle joints, never translate away from parent joints.
+	# Strip spurious translation tracks on fingers from all imported clips to prevent mesh distortion.
+	if anim_player:
+		for anim_name in anim_player.get_animation_list():
+			var anim := anim_player.get_animation(anim_name)
+			if anim:
+				for t in range(anim.get_track_count() - 1, -1, -1):
+					if anim.track_get_type(t) == Animation.TYPE_POSITION_3D:
+						var path := String(anim.track_get_path(t))
+						for f in ["Index", "Middle", "Ring", "Pinky", "Thumb"]:
+							if f in path:
+								anim.remove_track(t)
+								break
+
 
 ## Restrict the cast layer to the bone paths an upper-body clip owns, so every
 ## other path passes through the locomotion layer untouched.

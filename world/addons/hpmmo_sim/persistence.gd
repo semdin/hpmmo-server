@@ -145,12 +145,35 @@ func load_character(character_id: int) -> Dictionary:
 ## Fails closed: a sheet without an account id (an older service) is refused
 ## rather than trusted.
 func resolve_character(character_id: int, account_id: int) -> Dictionary:
-	if _pending_saves.has(character_id) or _saving.has(character_id) or _reconciling.has(character_id):
-		return {"ok": false, "reason": "save_pending"}
 	if character_id <= 0:
 		return {"ok": false, "reason": "invalid_character"}
 	if account_id <= 0:
 		return {"ok": false, "reason": "no_account"}
+
+	# If there is a pending dirty save and nothing is actively saving or reconciling,
+	# synchronously flush it now so the arriving session reads its fresh data immediately.
+	if _pending_saves.has(character_id) and not _saving.has(character_id) and not _reconciling.has(character_id):
+		_flush_character_sync(character_id)
+
+	# If a save/reconcile request is currently in flight, wait briefly (up to 1.5s) for it to settle.
+	if _saving.has(character_id) or _reconciling.has(character_id):
+		var deadline := Time.get_ticks_msec() + 1500
+		while (_saving.has(character_id) or _reconciling.has(character_id)) and Time.get_ticks_msec() < deadline:
+			OS.delay_msec(25)
+
+	# If still dirty, check whether it has failed repeatedly. If so, drop the stuck state
+	# rather than permanently locking the character out of the world.
+	if _pending_saves.has(character_id) or _saving.has(character_id) or _reconciling.has(character_id):
+		if int(_save_failures.get(character_id, 0)) >= 3:
+			push_warning("[Persistence] resolve_character: clearing stuck save for character %d after repeated failures (%s)" % [
+				character_id, last_error])
+			_pending_saves.erase(character_id)
+			_saving.erase(character_id)
+			_reconciling.erase(character_id)
+			_save_failures.erase(character_id)
+		else:
+			return {"ok": false, "reason": "save_pending"}
+
 	var character := load_character(character_id)
 	if character.is_empty():
 		return {"ok": false, "reason": "character_not_found"}
@@ -166,7 +189,35 @@ func resolve_character(character_id: int, account_id: int) -> Dictionary:
 var _pending_saves: Dictionary = {}
 var _saving: Dictionary = {}
 var _reconciling: Dictionary = {}
+var _save_failures: Dictionary = {}
 var _retry_elapsed := 0.0
+
+func _flush_character_sync(character_id: int) -> bool:
+	if not _pending_saves.has(character_id):
+		return true
+	var body: Dictionary = _pending_saves[character_id]
+	_pending_saves.erase(character_id)
+	body["base_revision"] = int(revisions.get(character_id, -1))
+	var response := _post_sync("/api/characters/save", body)
+	var status := int(response.get("_status", 0))
+	if status == 200:
+		revisions[character_id] = int(response.get("revision", 0))
+		_save_failures.erase(character_id)
+		return true
+	elif status == 409:
+		var load_res := _post_sync("/api/characters/load", {"character_id": character_id})
+		if int(load_res.get("_status", 0)) == 200:
+			var sheet: Dictionary = load_res.get("character", {})
+			revisions[character_id] = int(sheet.get("revision", 0))
+			_reconciling.erase(character_id)
+			_save_failures.erase(character_id)
+			return true
+	last_error = "save_%d" % status
+	var fails: int = int(_save_failures.get(character_id, 0)) + 1
+	_save_failures[character_id] = fails
+	if fails <= 5:
+		_pending_saves[character_id] = body
+	return false
 
 func save_character(character_id: int, payload: Dictionary) -> void:
 	if character_id <= 0: return
@@ -198,14 +249,24 @@ func _flush_character(character_id: int) -> void:
 		_saving.erase(character_id)
 		var status := int(response.get("_status", 0))
 		if status == 200:
+			_save_failures.erase(character_id)
 			revisions[character_id] = int(response.get("revision", 0))
 			_flush_character(character_id)
 		elif status == 409:
+			_save_failures.erase(character_id)
 			# A concurrent writer won. Adopt its inventory; never replay a stale full bag.
 			_reconcile_character(character_id, body)
 		else:
 			last_error = "save_%d" % status
-			if not _pending_saves.has(character_id): _pending_saves[character_id] = body)
+			var fails: int = int(_save_failures.get(character_id, 0)) + 1
+			_save_failures[character_id] = fails
+			if fails <= 5:
+				if not _pending_saves.has(character_id): _pending_saves[character_id] = body
+			else:
+				push_warning("[Persistence] save failed %d times for character %d (%s); discarding dirty save to prevent lockout" % [
+					fails, character_id, last_error])
+				_save_failures.erase(character_id)
+				_pending_saves.erase(character_id))
 
 func _reconcile_character(character_id: int, rejected: Dictionary) -> void:
 	_reconciling[character_id] = rejected
@@ -216,7 +277,15 @@ func _reconcile_character(character_id: int, rejected: Dictionary) -> void:
 	_post_async("/api/characters/load", {"character_id": character_id}, func(response: Dictionary):
 		_saving.erase(character_id)
 		if int(response.get("_status", 0)) != 200:
+			var fails: int = int(_save_failures.get(character_id, 0)) + 1
+			_save_failures[character_id] = fails
+			if fails > 5:
+				push_warning("[Persistence] reconcile failed %d times for character %d; discarding to prevent lockout" % [
+					fails, character_id])
+				_save_failures.erase(character_id)
+				_reconciling.erase(character_id)
 			return
+		_save_failures.erase(character_id)
 		var sheet: Dictionary = response.get("character", {})
 		revisions[character_id] = int(sheet.get("revision", 0))
 		_pending_saves.erase(character_id)

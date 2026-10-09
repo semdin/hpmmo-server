@@ -244,6 +244,13 @@ func _on_enter_world_pressed() -> void:
 	# them into a session that would never save.
 	NetworkManager.select_character(c)
 	var result: Dictionary = await NetworkManager.bind_selected_character()
+	var retries := 0
+	while not bool(result.get("ok", false)) and String(result.get("reason", "")) == "save_pending" and retries < 4:
+		retries += 1
+		slot_label.text = "Karakter kaydediliyor, lütfen bekleyin (%d/4)..." % retries
+		await get_tree().create_timer(1.2).timeout
+		result = await NetworkManager.bind_selected_character()
+
 	if not bool(result.get("ok", false)):
 		enter_world_btn.disabled = false
 		enter_world_btn.text = previous_text
@@ -260,6 +267,8 @@ func _bind_reason_text(reason: String) -> String:
 			return "Bu karakter şu anda başka bir oturumda."
 		"already_bound":
 			return "Bu oturum zaten başka bir karaktere bağlı."
+		"save_pending":
+			return "Karakter önceki oturumdan kaydediliyor. Lütfen birkaç saniye sonra tekrar deneyin."
 		"not_joined", "timeout", "no_character_selected":
 			return "Dünya sunucusuna ulaşılamadı. Tekrar deneyin."
 		_:

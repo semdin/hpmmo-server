@@ -101,12 +101,9 @@ func aim_active() -> bool:
 	return _aim_active
 
 func _process_modification_with_delta(delta: float) -> void:
-	# The mixer writes its own pose during the idle frame; writing here would be
-	# overwritten whenever this node is processed before the AnimationTree. The
-	# layer therefore applies itself deferred, at the end of the frame, and the
-	# skeleton renders the masked result.
 	call_deferred("apply_now")
 	time += delta
+	_apply()
 
 ## Apply the mask at the end of the frame (see _process_modification_with_delta).
 func apply_now() -> void:

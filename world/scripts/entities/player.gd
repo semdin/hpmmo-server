@@ -897,8 +897,15 @@ func _update_flight_pose(delta: float) -> void:
 		if hero_anim and hero_anim.has_oneshot():
 			grip_target = 0.0
 		broom_grip.target_weight = grip_target
+	var wand_grip = visuals.find_child("WandGripModifier", true, false)
+	if wand_grip:
+		wand_grip.target_weight = 1.0 - _mount_blend
+	var wand_node := visuals.find_child("EquippedWand", true, false) as Node3D
+	if wand_node:
+		wand_node.visible = _mount_blend < 0.5
 	if broom_mesh:
 		broom_mesh.visible = _mount_blend > 0.01
+
 	if broom:
 		broom.set_flying(is_mounted)
 		broom.tick(delta)

@@ -118,6 +118,11 @@ func _on_character_bound(ok: bool, reason: String, character: Dictionary) -> voi
 
 func _rebind_selected_character() -> void:
 	var result := await bind_selected_character()
+	var retries := 0
+	while not bool(result.get("ok", false)) and String(result.get("reason", "")) == "save_pending" and retries < 4:
+		retries += 1
+		await get_tree().create_timer(1.2).timeout
+		result = await bind_selected_character()
 	if not bool(result.get("ok", false)):
 		push_warning("[Network] reconnect could not re-bind character %d (%s)" % [
 			selected_character_id, str(result.get("reason", ""))])

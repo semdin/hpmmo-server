@@ -45,10 +45,8 @@ func followed(node: Node) -> bool:
 
 
 func _process_modification_with_delta(_delta: float) -> void:
-	# Deferred, so this runs after the cast layer and the aim have written: see the
-	# class comment for the measurement that makes that ordering load-bearing.
 	call_deferred("apply_now")
-
+	_apply()
 
 func _process_modification() -> void:
 	_apply()

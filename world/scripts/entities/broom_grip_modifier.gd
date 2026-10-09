@@ -109,11 +109,9 @@ func engaged() -> bool:
 
 
 func _process_modification_with_delta(delta: float) -> void:
-	# Deferred, like the cast layer: the mixer writes the pose during the idle
-	# frame, and a write before that is silently overwritten.
 	call_deferred("apply_now")
 	weight = move_toward(weight, clampf(target_weight, 0.0, 1.0), delta * 3.2)
-
+	_apply()
 
 func _process_modification() -> void:
 	_apply()
@@ -190,13 +188,43 @@ func _lean(skeleton: Skeleton3D) -> void:
 ## undone when the grip releases.
 func _pin_hands(skeleton: Skeleton3D) -> void:
 	for side in ["L", "R"]:
-		for bone in HAND_BONES:
-			var index := RigIK.bone_index(skeleton, "%s.%s" % [bone, side])
+		for f in ["Index", "Middle", "Ring", "Pinky"]:
+			for k in [1, 2, 3, 4]:
+				var index := RigIK.bone_index(skeleton, "%s%d.%s" % [f, k, side])
+				if index < 0:
+					continue
+				var rest: Transform3D = skeleton.get_bone_rest(index)
+				skeleton.set_bone_pose_position(index,
+					skeleton.get_bone_pose_position(index).lerp(rest.origin, weight))
+				var rest_q := rest.basis.get_rotation_quaternion()
+				var curl_q := rest_q
+				if k == 1:
+					curl_q = rest_q * Quaternion(Vector3(1, 0, 0), deg_to_rad(15.0))
+				elif k == 2:
+					curl_q = rest_q * Quaternion(Vector3(1, 0, 0), deg_to_rad(70.0))
+				elif k == 3:
+					curl_q = rest_q * Quaternion(Vector3(1, 0, 0), deg_to_rad(80.0))
+				elif k == 4:
+					curl_q = rest_q * Quaternion(Vector3(1, 0, 0), deg_to_rad(55.0))
+				var current_q := skeleton.get_bone_pose_rotation(index)
+				skeleton.set_bone_pose_rotation(index, current_q.slerp(curl_q, weight))
+		for k in [1, 2, 3]:
+			var index := RigIK.bone_index(skeleton, "Thumb%d.%s" % [k, side])
 			if index < 0:
 				continue
-			var rest: Vector3 = skeleton.get_bone_rest(index).origin
+			var rest: Transform3D = skeleton.get_bone_rest(index)
 			skeleton.set_bone_pose_position(index,
-				skeleton.get_bone_pose_position(index).lerp(rest, weight))
+				skeleton.get_bone_pose_position(index).lerp(rest.origin, weight))
+			var rest_q := rest.basis.get_rotation_quaternion()
+			var curl_q := rest_q
+			if k == 1:
+				curl_q = rest_q * Quaternion(Vector3(0, 1, 0), deg_to_rad(25.0))
+			elif k == 2:
+				curl_q = rest_q * Quaternion(Vector3(1, 0, 0), deg_to_rad(50.0))
+			elif k == 3:
+				curl_q = rest_q * Quaternion(Vector3(1, 0, 0), deg_to_rad(50.0))
+			var current_q := skeleton.get_bone_pose_rotation(index)
+			skeleton.set_bone_pose_rotation(index, current_q.slerp(curl_q, weight))
 	skeleton.force_update_all_bone_transforms()
 
 ## Solve both arms onto the shaft.
@@ -235,12 +263,11 @@ func _grip(skeleton: Skeleton3D) -> void:
 		if away.length_squared() < 1e-6:
 			away = shaft["up"]
 		palm_point += away.normalized() * PALM_OFFSET
-		# Solve for the WRIST, but place the FIST. On this rig the fist's centre is
-		# 0.2 m or more from the wrist joint (measured live below), so a wrist on the
-		# shaft leaves the visible hand well away from it - which is exactly what it
-		# looked like. The hand is going to be aligned along the shaft, so backing the
-		# wrist up by the hand's own length puts the fist on the palm point.
+		# Solve for the WRIST, but place the FIST. The hand is curled around the
+		# shaft, so backing the wrist up by hand length puts the fist on the palm point.
 		var hand_length := (fist_now - wrist_now).length()
+		if hand_length > 0.08 or hand_length < 0.01:
+			hand_length = 0.035
 		var target := palm_point - direction * hand_length
 		var bases := {}
 		for index in [root, mid]:

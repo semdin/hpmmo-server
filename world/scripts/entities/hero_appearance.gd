@@ -15,6 +15,7 @@ class_name HeroAppearance
 
 const MODEL := preload("res://assets/models/characters/hero_wizard.glb")
 const WAND := preload("res://assets/models/props/wand.gltf")
+const WandGripModifierScript = preload("res://scripts/entities/wand_grip_modifier.gd")
 
 ## The prop's own units: `assets/models/props/wand.gltf` is a cylinder whose
 ## POSITION accessor spans y -0.2656934 .. +0.7004468 (0.9661 m long, 0.0803 m
@@ -119,12 +120,28 @@ static func show_equipped_wand(root: Node, entry: Dictionary) -> void:
 			(follower as RigFollower).detach(previous)
 		previous.get_parent().remove_child(previous)
 		previous.queue_free()
-	if entry.is_empty(): return
+	var wand_grip = root.find_child("WandGripModifier", true, false)
+	if entry.is_empty():
+		if wand_grip:
+			wand_grip.target_weight = 0.0
+			wand_grip.weight = 0.0
+			wand_grip.apply_now()
+		return
 	var skeleton: Skeleton3D = _skeleton(root)
 	if skeleton == null: return
 	var bone := "Wrist.R"
 	if skeleton.find_bone(bone) < 0: bone = "Wrist_R"
 	if skeleton.find_bone(bone) < 0: return
+
+	# Curl fingers of right hand to firmly grasp the wand
+	if wand_grip == null:
+		wand_grip = WandGripModifierScript.new()
+		wand_grip.name = "WandGripModifier"
+		skeleton.add_child(wand_grip)
+	wand_grip.target_weight = 1.0
+	wand_grip.weight = 1.0
+	wand_grip.apply_now()
+
 	# A plain holder glued to the FINAL bone pose by the rig's follower, not a
 	# BoneAttachment3D: an attachment follows the skeleton's own update, which runs
 	# before the cast layer poses the arm, so the wand used to sit at the clip-only
