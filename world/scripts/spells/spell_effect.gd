@@ -41,18 +41,44 @@ var _elapsed := 0.0
 var _duration := 0.6
 var _audio_started: Array[String] = []
 var _audio_key := ""
+var _audio_manager: Node = null
+var _audio_looping := false
+## The follow target's position on the last tick. A following effect is
+## translated BY the target's motion, so the offset it was authored with - a stun
+## halo 1.9 m over the head, an impact placed at chest height - survives the
+## first tick. Snapping the effect onto the target's origin instead dropped that
+## offset (the halo fell to the caster's feet).
+var _follow_anchor := Vector3.ZERO
+## Set when the follow target already carries this effect inside its own scene
+## tree (the projectile parents its travel stage to `TravelFx`): translating it
+## again would apply the motion twice.
+var _follow_carried := false
+## Set for a travel stage that follows a bolt. The bolt owns that stage and ends
+## it by spending, leaving range or being freed; a fixed timer would clip the
+## flight short (basic_cast flies 0.9 s, the viewer rehearses up to 3 s).
+var _follow_owned := false
 
 func _ready() -> void:
 	set_process(true)
+
+## The stage's sound. It starts at the end of `setup`, never in `_ready`: the
+## emission point is only known once the stage is built, and a sound started on
+## `add_child` came out of the world origin instead of the caster's wand. A
+## looping stage is kept on the effect afterwards (see `_process`), or the bolt's
+## whoosh would stay behind at the point where the loop began.
+func _start_audio() -> void:
+	if not _audio_started.is_empty():
+		return
 	_audio_key = _resolve_audio()
-	if _audio_key != "" and has_node("/root/AudioManager"):
-		var manager := get_node("/root/AudioManager")
-		var looping: bool = bool(_stage_data().get("loop_audio", false))
-		if looping:
-			manager.call("loop_sound", _audio_key, self, 0.0)
-		else:
-			manager.call("play_sound_at", _audio_key, global_position, self)
-		_audio_started.append(_audio_key)
+	if _audio_key == "" or not has_node("/root/AudioManager"):
+		return
+	_audio_manager = get_node("/root/AudioManager")
+	if bool(_stage_data().get("loop_audio", false)):
+		_audio_looping = true
+		_audio_manager.call("loop_sound", _audio_key, self, 0.0)
+	else:
+		_audio_manager.call("play_sound_at", _audio_key, global_position, self)
+	_audio_started.append(_audio_key)
 
 func _stage_data() -> Dictionary:
 	return VFX.stages_for(spell_id).get(stage, {})
@@ -60,7 +86,8 @@ func _stage_data() -> Dictionary:
 func _resolve_audio() -> String:
 	return String(_stage_data().get("audio", ""))
 
-## Build this stage. `opts` may carry follow_target, target_position, aoe_radius.
+## Build this stage. `opts` may carry follow_target, target_position, aoe_radius
+## and duration (an authoritative status length that outranks the table's).
 func setup(p_spell: String, p_stage: String, p_quality: String, p_origin: Vector3,
 		p_dir: Vector3, p_caster: Node3D = null, opts: Dictionary = {}) -> void:
 	spell_id = p_spell
@@ -73,25 +100,40 @@ func setup(p_spell: String, p_stage: String, p_quality: String, p_origin: Vector
 	follow_target = opts.get("follow_target", null)
 	target_position = opts.get("target_position", p_origin)
 	aoe_radius = float(opts.get("aoe_radius", 0.0))
+	if follow_target != null and is_instance_valid(follow_target):
+		_follow_anchor = follow_target.global_position
+		_follow_carried = follow_target.is_ancestor_of(self)
 	var colour := VFX.spell_colour(spell_id)
 	var layers := VFX.layers_for(spell_id, stage, quality)
+	var authored_length := float(_stage_data().get("length", 0.0))
+	# A status effect's authoritative length wins over the authored one, and the
+	# layers written to span the whole stage span the requested length with it.
+	var requested := float(opts.get("duration", 0.0))
 	var offset := 0.0
 	for layer in layers:
 		var node := _build_layer(layer, colour)
 		if node == null:
 			continue
+		var life := float(layer.get("life", 0.0))
+		if requested > 0.0 and authored_length > 0.0 and is_equal_approx(life, authored_length):
+			life = requested
+			layer["life"] = requested
 		_layers.append({"node": node, "layer": layer, "born": _elapsed, "offset": offset})
 		offset += 0.04  # staggered so the layers do not pop in as one sheet
-		var life := float(layer.get("life", 0.0))
 		if life > 0.0:
 			_duration = maxf(_duration, life + float(layer.get("delay", 0.0)))
-	_duration = maxf(_duration, float(_stage_data().get("length", 0.6)))
+	_duration = maxf(_duration, authored_length)
 	_duration = maxf(_duration, 0.2)
-	if follow_target == null and bool(_stage_data().get("loop_audio", false)) == false:
-		# a travel stage without a follow target still needs an owner: keep it
-		# alive for the projectile's flight estimate instead of one frame
-		if stage == "travel":
+	if requested > 0.0:
+		_duration = requested
+	if stage == "travel":
+		if follow_target == null:
+			# nobody owns this stage: keep it alive for the projectile's flight
+			# estimate instead of one frame
 			_duration = maxf(_duration, 2.5)
+		else:
+			_follow_owned = true
+	_start_audio()
 
 # ------------------------------------------------------------------ building
 
@@ -277,9 +319,6 @@ func _build_mesh_layer(layer: Dictionary, colour: Color) -> Node3D:
 			_set_mesh_material(instance, mat)
 		if bool(layer.get("follow", false)) and follow_target != null:
 			instance.set_meta("follows", true)
-	if bool(layer.get("follow", false)) and follow_target != null:
-		root.top_level = false
-		global_position = follow_target.global_position
 	return root
 
 func _set_mesh_material(node: Node, material: Material) -> void:
@@ -330,10 +369,20 @@ func _process(delta: float) -> void:
 	if caster != null and "is_dead" in caster and bool(caster.get("is_dead")):
 		cancel("caster_dead")
 		return
-	if follow_target != null and is_instance_valid(follow_target):
-		global_position = follow_target.global_position
+	if follow_target != null and is_instance_valid(follow_target) and not _follow_carried:
+		var anchor := follow_target.global_position
+		global_position += anchor - _follow_anchor
+		_follow_anchor = anchor
+	if _audio_looping and is_instance_valid(_audio_manager):
+		# the pooled voice is positioned once, so it has to be told to ride along
+		_audio_manager.call("move_loop", _audio_key, self, global_position)
 	for entry in _layers:
 		_tick_layer(entry, delta)
+	if _follow_owned:
+		# the bolt is gone: nothing owns this stage any more, so it ends here
+		if not is_instance_valid(follow_target):
+			_finish()
+		return
 	if _elapsed >= _duration:
 		_finish()
 
@@ -351,20 +400,12 @@ func _tick_layer(entry: Dictionary, delta: float) -> void:
 	var fade := _fade_for(layer, age, life)
 	match kind:
 		"flipbook", "sprite":
-			var frames := float(VFX.asset(String(layer.get("atlas", layer.get("tex", "")))).get("frames", 1))
-			var fps := float(VFX.asset(String(layer.get("atlas", layer.get("tex", "")))).get("fps", 20))
-			var step := float(layer.get("frame_step", 1))
-			var looping := bool(layer.get("loop", false))
-			var base := float(layer.get("frame", 0))
-			var count := maxf(1.0, frames - base)
-			var f := base + age * fps / maxf(1.0, step)
-			if looping:
-				f = base + fmod(age * fps / maxf(1.0, step), count)
-			elif f > frames - 1.0:
-				f = frames - 1.0
 			var material := (node as MeshInstance3D).mesh.surface_get_material(0) as ShaderMaterial
 			if material != null:
-				material.set_shader_parameter("frame", floor(f + 0.5))
+				# a flipbook walks its atlas frame by frame; a sprite holds the
+				# single cell it was placed on (a rune mask, a ground mark, a glow)
+				var frame := float(layer.get("frame", 0)) if kind == "sprite" else _flipbook_frame(layer, age)
+				material.set_shader_parameter("frame", frame)
 				material.set_shader_parameter("opacity", fade * float(layer.get("opacity", 1.0)))
 				if bool(layer.get("fracture", false)):
 					material.set_shader_parameter("erode", clampf(age / maxf(0.05, life), 0.0, 1.0))
@@ -402,6 +443,23 @@ func _tick_layer(entry: Dictionary, delta: float) -> void:
 		"light":
 			var peak := float(node.get_meta("peak_energy", 2.0))
 			(node as OmniLight3D).light_energy = peak * fade
+
+## The atlas cell a flipbook shows at `age`: it walks the sheet from the layer's
+## start frame and holds the last cell when the layer does not loop.
+func _flipbook_frame(layer: Dictionary, age: float) -> float:
+	var entry := VFX.asset(String(layer.get("atlas", layer.get("tex", ""))))
+	var frames := float(entry.get("frames", 1))
+	var fps := float(entry.get("fps", 20))
+	var base := float(layer.get("frame", 0))
+	if frames <= 1.0 or fps <= 0.0:
+		return base
+	var advance := age * fps / maxf(1.0, float(layer.get("frame_step", 1)))
+	var frame := base + advance
+	if bool(layer.get("loop", false)):
+		frame = base + fmod(advance, maxf(1.0, frames - base))
+	elif frame > frames - 1.0:
+		frame = frames - 1.0
+	return floor(frame + 0.5)
 
 func _first_material(node: Node) -> Material:
 	if node is MeshInstance3D:

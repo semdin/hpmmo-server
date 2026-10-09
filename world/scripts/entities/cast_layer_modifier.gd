@@ -48,10 +48,7 @@ const AIM_MAX_WRIST_TWIST := 1.2
 ## World-space point the casting arm points at, and whether the aim is in force.
 var aim_point := Vector3.ZERO
 var _aim_active := false
-## What the clip wrote for each bone this pass, keyed by bone name. The aim
-## blends from THIS rather than from the bone's current pose, so running the aim
-## twice in one frame (both `_process_modification` and the deferred `apply_now`
-## call `_apply`) cannot compound into a stronger blend than asked for.
+## Clip rotations used as the blend source for the arm aim in this modifier pass.
 var _clip_rotations := {}
 
 func _bone_of(path: NodePath) -> String:
@@ -101,17 +98,7 @@ func aim_active() -> bool:
 	return _aim_active
 
 func _process_modification_with_delta(delta: float) -> void:
-	call_deferred("apply_now")
 	time += delta
-	_apply()
-
-## Apply the mask at the end of the frame (see _process_modification_with_delta).
-func apply_now() -> void:
-	if not is_inside_tree():
-		return
-	_apply()
-
-func _process_modification() -> void:
 	_apply()
 
 func _apply() -> void:

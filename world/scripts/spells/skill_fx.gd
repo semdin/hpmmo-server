@@ -133,20 +133,28 @@ static func play_impact(world: Node3D, pos: Vector3, spell_id: String, victim: N
 		return
 	if spell_id == "incendio" and victim != null:
 		# The burn is server-timed; the sustain runs for the authoritative burn
-		# duration (spells.json: 3 ticks x 1000 ms) and no longer.
-		play_burn(world, victim, 3.0)
+		# duration (spells.json: ticks x interval_ms) and no longer.
+		play_burn(world, victim, burn_seconds(spell_id))
+
+
+## The authoritative burn length from spells.json (ticks x interval_ms), with the
+## 3 s the composition table was authored against as the fallback: the flames must
+## neither outlive the status they show nor die while it still burns.
+static func burn_seconds(spell_id: String) -> float:
+	var burn: Dictionary = (GameData.SPELLS.get(spell_id, {}) as Dictionary).get("burn", {})
+	var ticks := int(burn.get("ticks", 0))
+	var interval := float(burn.get("interval_ms", 0))
+	if ticks <= 0 or interval <= 0.0:
+		return 3.0
+	return ticks * interval / 1000.0
 
 
 ## Burn sustain on a victim for `seconds` (the authoritative status duration).
 static func play_burn(world: Node3D, victim: Node3D, seconds: float) -> Node3D:
 	if not is_instance_valid(victim):
 		return null
-	var effect := spawn_stage(world, "incendio", "sustain", victim.global_position, Vector3.UP, null,
-		{"follow_target": victim})
-	if effect == null:
-		return null
-	effect.set_meta("duration_override", seconds)
-	return effect
+	return spawn_stage(world, "incendio", "sustain", victim.global_position, Vector3.UP, null,
+		{"follow_target": victim, "duration": seconds})
 
 
 ## The stun indicator, kept for compatibility with the prototype's API.

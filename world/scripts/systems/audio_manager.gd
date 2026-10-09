@@ -319,6 +319,18 @@ func loop_sound(key: String, owner_node: Node, fade: float = 0.0) -> Node:
 	return player
 
 
+## Keep a loop on its owner. A loop is positioned once when it starts, so a
+## moving owner - a bolt in flight - has to ask for this every tick or its sound
+## stays behind at the point where the loop began. A voice the pool has since
+## stolen for another sound is left alone.
+func move_loop(key: String, owner_node: Node, position: Vector3) -> void:
+	var loop_key := "%s::%d" % [key, owner_node.get_instance_id() if is_instance_valid(owner_node) else 0]
+	var player = _loops.get(loop_key)
+	if player is AudioStreamPlayer3D and is_instance_valid(player) \
+			and (player as AudioStreamPlayer3D).stream == _stream(key):
+		(player as AudioStreamPlayer3D).global_position = position
+
+
 func stop_sound(key: String, owner_node: Node) -> void:
 	var loop_key := "%s::%d" % [key, owner_node.get_instance_id() if is_instance_valid(owner_node) else 0]
 	if not _loops.has(loop_key):

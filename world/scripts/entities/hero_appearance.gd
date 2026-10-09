@@ -24,65 +24,13 @@ const WandGripModifierScript = preload("res://scripts/entities/wand_grip_modifie
 ## the bottom of the fist and the tip leads it, which is how a wand is held.
 const WAND_SCALE := 0.4
 const WAND_TIP_LOCAL := Vector3(0.0, 0.7004468, 0.0)
-## The finger bases that close around the handle. Their centroid is the fist, so
-## placing the pivot there puts the handle inside the grip instead of on the
-## wrist joint (which is where the identity transform used to park it).
-const GRIP_BONES := ["Index1.R", "Middle1.R", "Ring1.R", "Pinky1.R", "Thumb1.R"]
-
-## The wand's long axis in the Wrist.R bone's frame: the direction the prop
-## leaves the fist, i.e. the hand's forward axis.
-##
-## The prop's own +Y is its long axis, and this is the axis it is mapped onto. It
-## is derived from the rig rather than hardcoded: the wrist's rest origin is
-## exactly the elbow -> wrist vector, and re-expressing it in the wrist's own
-## frame gives the direction the hand continues the arm along. On this rig that
-## comes out 6.0 deg from the wrist's own +Y - small, because the rig's wrist bone
-## already points along the hand - but taking it from the rest means the grip does
-## not silently depend on that coincidence, and it survives a re-export.
-##
-## The wand then rides the WRIST bone, so this axis is what an aim solver has to
-## turn onto a target (see cast_layer_modifier.gd) - it is the wrist's rotation,
-## not the forearm's, that decides where the wand points.
+## The handle crosses the palm from pinky to index, not down the forearm.
 static func wand_axis_in_wrist(skeleton: Skeleton3D) -> Vector3:
-	return RigIK.hand_axis(skeleton, "Wrist.R")
+	return RigIK.grip_frame(skeleton, "R").basis.x
 
-
-## The wand's grip transform in the Wrist.R bone's frame, derived from the rig's
-## own rests so it holds on the live model, the inventory preview and the podium
-## alike, and so it survives a re-export.
-##
-## It does two things:
-##   * puts the pivot at the fist centroid. This is the load-bearing part: the
-##     identity transform parked the pivot on the wrist JOINT, so the whole prop
-##     sat beyond the fingers as if taped to the back of the hand. The finger
-##     bases sit on the wrist's +Y at 0.0272 m, so the pivot moves 2.7 cm along
-##     the hand and the closed fingers wrap the handle - and the butt, which is
-##     0.106 m below the pivot, now clears the bottom of the fist.
-##   * aims the prop's +Y down the hand's forward axis
-##     (`wand_axis_in_wrist`) instead of trusting the bone's own +Y to be it.
-##
-## Roll about the wand's own axis is free (the prop is a cylinder) and is left at
-## the minimal rotation from up to that axis.
 static func wand_grip_transform(skeleton: Skeleton3D) -> Transform3D:
-	var wrist := _bone_index(skeleton, "Wrist.R")
-	if wrist < 0:
-		return Transform3D(Basis(), Vector3.ZERO)
-	var point_dir := wand_axis_in_wrist(skeleton)
-	var fist := Vector3.ZERO
-	var counted := 0
-	var wrist_rest_global := skeleton.get_bone_global_rest(wrist)
-	for bone in GRIP_BONES:
-		var index := _bone_index(skeleton, bone)
-		if index < 0:
-			continue
-		fist += (wrist_rest_global.inverse() * skeleton.get_bone_global_rest(index)).origin
-		counted += 1
-	if counted > 0:
-		fist /= float(counted)
-	# Unit scale: the grip is a POSITION and an ORIENTATION in the bone's space.
-	# WAND_SCALE belongs to the prop node, so that particle effects hung off the
-	# holder (the refinement aura) keep their own authored size.
-	return Transform3D(Basis(Quaternion(Vector3.UP, point_dir)), fist)
+	var grip := RigIK.grip_frame(skeleton, "R")
+	return Transform3D(Basis(Quaternion(Vector3.UP, grip.basis.x)), grip.origin)
 
 
 ## The bone index for `bone`, accepting the importer's sanitised spelling
@@ -125,7 +73,6 @@ static func show_equipped_wand(root: Node, entry: Dictionary) -> void:
 		if wand_grip:
 			wand_grip.target_weight = 0.0
 			wand_grip.weight = 0.0
-			wand_grip.apply_now()
 		return
 	var skeleton: Skeleton3D = _skeleton(root)
 	if skeleton == null: return
@@ -140,7 +87,6 @@ static func show_equipped_wand(root: Node, entry: Dictionary) -> void:
 		skeleton.add_child(wand_grip)
 	wand_grip.target_weight = 1.0
 	wand_grip.weight = 1.0
-	wand_grip.apply_now()
 
 	# A plain holder glued to the FINAL bone pose by the rig's follower, not a
 	# BoneAttachment3D: an attachment follows the skeleton's own update, which runs

@@ -81,8 +81,8 @@ static func rotate_global(skeleton: Skeleton3D, bone: int, turn: Quaternion,
 
 
 ## The axis a hand points along, in that hand's own bone frame: the elbow -> wrist
-## vector re-expressed in the wrist's frame. The equipped wand is mapped onto this
-## same axis (hero_appearance.gd), so aiming it aims the wand.
+## vector re-expressed in the wrist's frame. For a held prop use grip_frame's
+## transverse axis instead; the handle crosses the palm.
 static func hand_axis(skeleton: Skeleton3D, wrist_bone: String) -> Vector3:
 	var wrist := bone_index(skeleton, wrist_bone)
 	if wrist < 0:
@@ -153,3 +153,51 @@ static func distance_to_line(point: Vector3, a: Vector3, direction: Vector3) -> 
 	var dir := direction.normalized()
 	var offset := point - a
 	return (offset - dir * offset.dot(dir)).length()
+
+
+## Index1 etc. are metacarpals starting beside the wrist. The actual knuckles
+## are Index2 etc.; construct a grip across those, on the palm side of the skin.
+static func grip_frame(skeleton: Skeleton3D, side: String, palm_depth := 0.026) -> Transform3D:
+	var wrist := bone_index(skeleton, "Wrist." + side)
+	var to_wrist := skeleton.get_bone_global_rest(wrist).affine_inverse()
+	var knuckles: Array[Vector3] = []
+	for finger in ["Index", "Middle", "Ring", "Pinky"]:
+		knuckles.append((to_wrist * skeleton.get_bone_global_rest(
+			bone_index(skeleton, finger + "2." + side))).origin)
+	var across := (knuckles[0] - knuckles[3]).normalized()
+	var forward := Vector3.UP
+	forward = (forward - across * forward.dot(across)).normalized()
+	var normal := across.cross(forward).normalized()
+	if normal.z > 0.0:
+		normal = -normal
+	var centre := (knuckles[0] + knuckles[1] + knuckles[2] + knuckles[3]) * 0.25
+	centre += normal * palm_depth - forward * 0.008
+	return Transform3D(Basis(across, forward, across.cross(forward)), centre)
+
+
+static func close_hand(skeleton: Skeleton3D, side: String, weight: float, palm_depth := 0.026) -> void:
+	for finger in ["Index", "Middle", "Ring", "Pinky", "Thumb"]:
+		var angles := [0.0, -65.0, -85.0, -45.0]
+		if palm_depth > 0.03:
+			angles = [0.0, -50.0, -70.0, -40.0]
+		if finger == "Thumb":
+			angles = [0.0, -25.0, -35.0]
+		for k in range(angles.size()):
+			var index := bone_index(skeleton, "%s%d.%s" % [finger, k + 1, side])
+			if index < 0:
+				continue
+			var rest := skeleton.get_bone_rest(index)
+			var rotation := rest.basis.get_rotation_quaternion() * Quaternion(Vector3.RIGHT, deg_to_rad(angles[k]))
+			skeleton.set_bone_pose_position(index, skeleton.get_bone_pose_position(index).lerp(rest.origin, weight))
+			skeleton.set_bone_pose_rotation(index, skeleton.get_bone_pose_rotation(index).slerp(rotation, weight))
+	skeleton.force_update_all_bone_transforms()
+	# Oppose the thumb across the handle instead of leaving it extended beside it.
+	var wrist := skeleton.get_bone_global_pose(bone_index(skeleton, "Wrist." + side))
+	var grip := grip_frame(skeleton, side, palm_depth)
+	var thumb1 := bone_index(skeleton, "Thumb1." + side)
+	var thumb2 := bone_index(skeleton, "Thumb2." + side)
+	var thumb3 := bone_index(skeleton, "Thumb3." + side)
+	var base_target := wrist * (grip.origin + grip.basis.x * 0.04 - grip.basis.y * 0.035)
+	aim_bone(skeleton, thumb1, thumb2, base_target - skeleton.get_bone_global_pose(thumb1).origin, weight)
+	var tip_target := wrist * (grip.origin - grip.basis.x * 0.005)
+	aim_bone(skeleton, thumb2, thumb3, tip_target - skeleton.get_bone_global_pose(thumb2).origin, weight)

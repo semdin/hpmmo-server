@@ -1,22 +1,10 @@
 extends SkeletonModifier3D
 class_name RigFollower
 
-## Keeps props that hang off a bone glued to the FINAL pose of that bone.
-##
-## `BoneAttachment3D` looks like the right tool for this and is not: it follows
-## the skeleton's `pose_updated` notification, which the skeleton emits while it
-## updates itself - BEFORE the `SkeletonModifier3D` nodes that pose the arms. The
-## equipped wand therefore sat at the clip-only pose while a cast aimed the hand
-## somewhere else; measured, the attachment froze at (0.303, 1.154, 4.947) while
-## the wrist it was bound to travelled 0.4 m.
-##
-## This modifier applies itself deferred, i.e. after the other modifiers have
-## written their poses, and places each follower in SKELETON space from
-## `get_bone_global_pose` - the same pose the mixer, the cast layer and the aim
-## all ended on. So a prop cannot lag the pose that moved the hand.
-##
-## It also serves the character-select podium, which plays a single idle clip and
-## has no player to do the wiring.
+## Read the rendered pose while skeleton_updated is emitted, after ALL modifiers.
+## Outside this signal Godot has restored the unmodified animation pose.
+func _ready() -> void:
+	get_skeleton().skeleton_updated.connect(_apply)
 
 ## One entry per followed prop: {node, bone, index, local}.
 var _followers: Array[Dictionary] = []
@@ -42,20 +30,6 @@ func followed(node: Node) -> bool:
 		if entry["node"] == node:
 			return true
 	return false
-
-
-func _process_modification_with_delta(_delta: float) -> void:
-	call_deferred("apply_now")
-	_apply()
-
-func _process_modification() -> void:
-	_apply()
-
-
-func apply_now() -> void:
-	if not is_inside_tree():
-		return
-	_apply()
 
 
 func _apply() -> void:

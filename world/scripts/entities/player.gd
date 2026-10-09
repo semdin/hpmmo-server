@@ -299,7 +299,7 @@ func _setup_broom() -> void:
 	broom.setup(self, visuals, broom_particles, broom_mesh)
 	# The rider is solved onto the broom while mounted (broom_grip_modifier.gd):
 	# the authored seat pose never matched the hands to the shaft. Added after the
-	# cast layer, so its deferred apply runs last and the grip wins the arms.
+	# cast layer, so the grip wins the arms within the same modifier pass.
 	var skeleton := _find_skeleton()
 	if skeleton:
 		broom_grip = BroomGripModifierScript.new()
@@ -898,9 +898,9 @@ func _update_flight_pose(delta: float) -> void:
 			grip_target = 0.0
 		broom_grip.target_weight = grip_target
 	var wand_grip = visuals.find_child("WandGripModifier", true, false)
-	if wand_grip:
-		wand_grip.target_weight = 1.0 - _mount_blend
 	var wand_node := visuals.find_child("EquippedWand", true, false) as Node3D
+	if wand_grip:
+		wand_grip.target_weight = (1.0 - _mount_blend) if wand_node != null else 0.0
 	if wand_node:
 		wand_node.visible = _mount_blend < 0.5
 	if broom_mesh:
