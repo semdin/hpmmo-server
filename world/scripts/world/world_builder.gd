@@ -141,11 +141,12 @@ static func _reskin_terrain(world: Node3D) -> void:
 	# Spans x: -15..700, z: 50..700
 	_ground_slab(meadow, Vector3(342.5, -0.05, 375.0), Vector2(715, 650), grass_mat, true)
 
-	# 3. Far South Perimeter: spans z: 260..700 across x: -700..-15
-	_ground_slab(meadow, Vector3(-357.5, -0.05, 480.0), Vector2(685, 440), grass_mat, true)
+	# 3. Far South Perimeter: spans z: 310..700 across x: -700..-15
+	# (starts past the Black Lake bank ramp so the bank is real terrain)
+	_ground_slab(meadow, Vector3(-357.5, -0.05, 505.0), Vector2(685, 390), grass_mat, true)
 
-	# 4. Far West Perimeter: spans x: -700..-320 across z: 50..260
-	_ground_slab(meadow, Vector3(-510.0, -0.05, 155.0), Vector2(380, 210), grass_mat, true)
+	# 4. Far West Perimeter: spans x: -700..-350 across z: 50..310
+	_ground_slab(meadow, Vector3(-525.0, -0.05, 180.0), Vector2(350, 260), grass_mat, true)
 
 	var court := world.get_node_or_null("Terrain/Courtyard")
 	if court and court is MeshInstance3D:
@@ -1169,7 +1170,7 @@ static func _build_black_lake(world: Node3D) -> void:
 	var bpm := PlaneMesh.new()
 	bpm.size = Vector2(150, 130)
 	bed_mesh.mesh = bpm
-	bed_mesh.material_override = PBR.surface("floor_flagstone_01", Color(0.22, 0.26, 0.28), {"metres": 4.0})
+	bed_mesh.material_override = PBR.surface("floor_flagstone_01", Color(0.45, 0.52, 0.55), {"metres": 4.0})
 	bed_mesh.position = Vector3(lake_center.x, bed_y, lake_center.z)
 	lake.add_child(bed_mesh)
 	_add_box_col(lake, Vector3(lake_center.x, bed_y - 0.5, lake_center.z), Vector3(150, 1.0, 130))

@@ -84,6 +84,7 @@ var gravity: float = 24.0
 ## True while the body is inside the Black Lake swim volume. Set every physics
 ## frame; the animation state reads it to play a paddle instead of a fall.
 var is_swimming: bool = false
+var _was_swimming: bool = false
 ## Black Lake swim datum (mirrors OutdoorTerrain.LAKE_*; duplicated here so the
 ## entity script never preloads the world builder).
 const LAKE_CENTER_X := -220.0
@@ -446,6 +447,56 @@ func _process(delta: float) -> void:
 	if is_instance_valid(current_target) and "current_hp" in current_target and current_target.current_hp <= 0:
 		set_target(null)
 
+## Splash burst + expanding ripple ring at the waterline (entering or leaving the lake).
+func _spawn_water_splash() -> void:
+	if not is_inside_tree() or get_parent() == null:
+		return
+	var origin := Vector3(global_position.x, WATER_SURFACE_Y + 0.05, global_position.z)
+	var fx := Node3D.new()
+	get_parent().add_child(fx)
+	fx.global_position = origin
+	var p := CPUParticles3D.new()
+	p.emitting = true
+	p.one_shot = true
+	p.explosiveness = 1.0
+	p.amount = 36
+	p.lifetime = 0.8
+	p.direction = Vector3.UP
+	p.spread = 55.0
+	p.initial_velocity_min = 2.5
+	p.initial_velocity_max = 5.0
+	p.gravity = Vector3(0, -12.0, 0)
+	p.scale_amount_min = 0.5
+	p.scale_amount_max = 1.0
+	var drop := SphereMesh.new()
+	drop.radius = 0.07
+	drop.height = 0.14
+	var drop_mat := StandardMaterial3D.new()
+	drop_mat.albedo_color = Color(0.75, 0.9, 1.0, 0.85)
+	drop_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	drop_mat.emission_enabled = true
+	drop_mat.emission = Color(0.5, 0.75, 0.95)
+	drop.material = drop_mat
+	p.mesh = drop
+	fx.add_child(p)
+	var ring := MeshInstance3D.new()
+	var tm := TorusMesh.new()
+	tm.inner_radius = 0.45
+	tm.outer_radius = 0.6
+	var ring_mat := StandardMaterial3D.new()
+	ring_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ring_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	ring_mat.albedo_color = Color(0.85, 0.95, 1.0, 0.7)
+	tm.material = ring_mat
+	ring.mesh = tm
+	ring.scale = Vector3(1.0, 0.1, 1.0)
+	fx.add_child(ring)
+	var tw := fx.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(ring, "scale", Vector3(5.0, 0.1, 5.0), 1.0)
+	tw.tween_property(ring_mat, "albedo_color:a", 0.0, 1.0)
+	tw.chain().tween_callback(fx.queue_free)
+
 func _physics_process(delta: float) -> void:
 	# World Boundaries & Safeguards: fall kill-plane matches grounds y_min (-16).
 	# The lakebed (-13.5) and the swim volume (-7) both sit above it, so swimming
@@ -464,6 +515,9 @@ func _physics_process(delta: float) -> void:
 		and absf(global_position.z - LAKE_CENTER_Z) <= LAKE_HALF_Z
 	is_swimming = in_lake_rect and not is_mounted and global_position.y < SWIM_FLOAT_Y + 0.7 \
 		and global_position.y > WATER_SURFACE_Y - 3.0
+	if is_swimming != _was_swimming:
+		_was_swimming = is_swimming
+		_spawn_water_splash()
 
 	# Update decoupled camera pivot position & rotation smoothly
 	if is_local_player and is_instance_valid(camera_pivot):
