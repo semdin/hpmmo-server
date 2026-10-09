@@ -65,6 +65,7 @@ func _ready() -> void:
 	offset_bottom = _default_offset.y + custom_minimum_size.y
 	theme = UITheme.get_theme()
 	theme_type_variation = UITheme.V_WINDOW
+	mouse_filter = Control.MOUSE_FILTER_STOP
 
 	# ---- body first, so the ribbon and its label are drawn over the frame ----
 	_content_margin = MarginContainer.new()
@@ -216,3 +217,7 @@ func place_centred(size_hint := Vector2.ZERO) -> void:
 	offset_top = at.y
 	offset_right = at.x + target.x
 	offset_bottom = at.y + target.y
+
+func _gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		accept_event()

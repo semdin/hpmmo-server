@@ -164,6 +164,10 @@ func _spawn_local_player() -> void:
 
 	hud.bind_player(local_player)
 	QuestManager.bind_player(local_player)
+	if local_player.has_signal("inventory_changed") and not local_player.inventory_changed.is_connected(_save_offline_state):
+		local_player.inventory_changed.connect(_save_offline_state)
+	if local_player.has_signal("equipment_changed") and not local_player.equipment_changed.is_connected(_save_offline_state):
+		local_player.equipment_changed.connect(_save_offline_state)
 	_check_external_models()
 
 func _notification(what: int) -> void:
@@ -171,7 +175,7 @@ func _notification(what: int) -> void:
 		_save_offline_state()
 
 func _save_offline_state() -> void:
-	if not is_instance_valid(local_player) or not local_player.is_inside_tree():
+	if not is_instance_valid(local_player):
 		return
 	if NetworkManager.is_server and not NetworkManager.is_dedicated_server:
 		var save_data := {
@@ -194,7 +198,7 @@ func _save_offline_state() -> void:
 			"pos_x": local_player.global_position.x,
 			"pos_y": local_player.global_position.y,
 			"pos_z": local_player.global_position.z,
-			"rot_y": local_player.visuals.rotation.y,
+			"rot_y": local_player.visuals.rotation.y if local_player.get("visuals") != null else 0.0,
 			"inventory": local_player.inventory,
 			"quests": {}
 		}

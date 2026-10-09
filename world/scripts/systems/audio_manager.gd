@@ -705,6 +705,18 @@ func play_upgrade_fail() -> void:
 func play_map_transition() -> void:
 	play_sound_at("map_transition", Vector3.ZERO, null, true)
 
+
+func play_equip() -> void:
+	play_sound_at("ui_equip", Vector3.ZERO, null, true)
+
+
+func play_unequip() -> void:
+	play_sound_at("ui_unequip", Vector3.ZERO, null, true)
+
+
+func play_potion() -> void:
+	play_sound_at("ui_potion", Vector3.ZERO, null, true)
+
 # ------------------------------------------------------------------ settings
 
 func _load_settings() -> void:

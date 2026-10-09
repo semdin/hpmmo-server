@@ -1892,6 +1892,8 @@ func _collect_loot(loot: Dictionary, player: Dictionary) -> void:
 			player["galleons"] = int(pnode.get("galleons"))
 		touch(player)
 		_push_stats(player)
+		if persistence != null:
+			persistence.save_player(player)
 	# The world server is the single writer of a character during its session
 	# (persistence.gd): the loot is already in the body and in the record, so
 	# the periodic autosave and the disconnect save persist it. It must NOT also
@@ -2070,16 +2072,17 @@ func apply_stats_payload(uid: int, stats: Dictionary) -> void:
 	if record.is_empty():
 		return
 	var node = record.get("node")
-	if is_instance_valid(node) and stats.has("equipment") and int(stats.get("inventory_revision",-1)) < node.inventory_revision:
-		return
-	for key in stats.keys():
-		record[key] = stats[key]
+	var stats_copy := stats.duplicate(true)
+	if is_instance_valid(node) and stats_copy.has("equipment") and int(stats_copy.get("inventory_revision", -1)) < node.inventory_revision:
+		stats_copy.erase("equipment")
+	for key in stats_copy.keys():
+		record[key] = stats_copy[key]
 	_sync_node_health(record)
 	# Replica state must come directly from the received snapshot. Rebuilding
 	# through build_stats() here would merge the client's old bag back over it.
 	if is_instance_valid(node) and node.has_method("apply_authoritative_stats"):
-		node.apply_authoritative_stats(stats)
-	emit_signal("stats_changed",uid,stats)
+		node.apply_authoritative_stats(stats_copy)
+	emit_signal("stats_changed", uid, stats_copy)
 
 # ------------------------------------------------------------ spawn helpers
 

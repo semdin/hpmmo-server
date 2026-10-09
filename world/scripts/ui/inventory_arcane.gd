@@ -22,6 +22,7 @@ var _ring_menu: PopupMenu
 var _ring_entry: Dictionary = {}
 var _pending := false
 var _pending_id := -1
+var _last_operation := ""
 var _compact := false
 var _selected_key := ""
 var _presentation_layer: CanvasLayer
@@ -168,7 +169,6 @@ func _select(slot: UISlot) -> void:
 	for other in _doll_slots + _bag_slots: other.selected = _selection_key(other) == _selected_key
 	var data := HPEquipment.item(slot.item_id)
 	_details.text = "%s\n%s" % [data.get("name", slot.item_id), _comparison(slot)]
-	if data.get("type") == "consumable": _on_item_clicked(slot.entry)
 
 func _selection_key(slot: UISlot) -> String:
 	return "%s:%s:%d" % [slot.equipment_slot,slot.item_id,int(slot.entry.get("tier",0))]
@@ -202,7 +202,11 @@ func _activate(slot: UISlot) -> void:
 	if slot.equipment_slot != "":
 		_request("unequip", slot.equipment_slot)
 		return
-	var targets: Array = HPEquipment.item(slot.item_id).get("slots", [])
+	var item_data := HPEquipment.item(slot.item_id)
+	if item_data.get("type") == "consumable" or slot.item_id in ["potion_health", "potion_mana"]:
+		_on_item_clicked(slot.entry)
+		return
+	var targets: Array = item_data.get("slots", [])
 	if targets.is_empty(): return
 	if "ring_left" in targets:
 		for target in targets:
@@ -232,6 +236,7 @@ func _drop(destination: UISlot, payload: Dictionary) -> void:
 func _request(operation: String, slot: String, entry: Dictionary = {}) -> void:
 	if _pending: return
 	_pending = true
+	_last_operation = operation
 	_message.text = "Updating equipment…"
 	_pending_id = SimNet.submit_equipment(player, operation, slot, String(entry.get("id", "")), int(entry.get("tier", 0)))
 	refresh()
@@ -239,8 +244,25 @@ func _request(operation: String, slot: String, entry: Dictionary = {}) -> void:
 func _answer(answer: Dictionary) -> void:
 	if int(answer.get("request_id", -1)) != _pending_id and int(answer.get("request_id", -1)) != -1: return
 	_pending = false
-	_message.text = String(REASONS.get(answer.get("reason", ""), "Equipment updated." if answer.get("ok", false) else "Unable to change equipment."))
+	var ok: bool = answer.get("ok", false)
+	_message.text = String(REASONS.get(answer.get("reason", ""), "Equipment updated." if ok else "Unable to change equipment."))
+	if ok:
+		_play_feedback_sound(_last_operation)
 	refresh()
+
+func _play_feedback_sound(op: String) -> void:
+	var audio := get_node_or_null("/root/AudioManager")
+	if audio == null: return
+	match op:
+		"equip":
+			if audio.has_method("play_equip"): audio.play_equip()
+			else: audio.play_sound_at("ui_equip", Vector3.ZERO, null, true)
+		"unequip":
+			if audio.has_method("play_unequip"): audio.play_unequip()
+			else: audio.play_sound_at("ui_unequip", Vector3.ZERO, null, true)
+		"consume":
+			if audio.has_method("play_potion"): audio.play_potion()
+			else: audio.play_sound_at("ui_potion", Vector3.ZERO, null, true)
 
 func _on_visibility_changed() -> void:
 	if _presentation_layer: _presentation_layer.visible = visible
@@ -273,6 +295,7 @@ func _layout() -> void:
 	item_container.columns = maxi(3, mini(6, int((extent.x-48 if compact else (extent.x-64)*0.5)/53)))
 	for slot in _doll_slots: slot.custom_minimum_size = Vector2(32,32) if canvas.y < 480 else Vector2(48,48)
 	_preview.custom_minimum_size.y = 130 if canvas.y < 480 else 210
+
 func _on_item_clicked(item_data: Dictionary) -> void:
 	if is_instance_valid(player) and not player.is_dead:
 		_request("consume", "", item_data)

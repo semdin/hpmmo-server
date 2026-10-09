@@ -1152,6 +1152,18 @@
    "seconds": 0.3,
    "purpose": "UI deny"
   },
+  "ui_equip": {
+   "path": "assets/audio/ui/equip.wav",
+   "bus": "ui",
+   "gain_db": -8.0,
+   "pitch_variation": 0.05,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": false,
+   "sample_rate": 44100,
+   "seconds": 0.2,
+   "purpose": "UI equip armor/gear"
+  },
   "ui_hit": {
    "path": "assets/audio/ui/hit.wav",
    "bus": "ui",
@@ -1212,6 +1224,18 @@
    "seconds": 0.14,
    "purpose": "UI open"
   },
+  "ui_potion": {
+   "path": "assets/audio/ui/potion.wav",
+   "bus": "ui",
+   "gain_db": -7.5,
+   "pitch_variation": 0.05,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": false,
+   "sample_rate": 44100,
+   "seconds": 0.38,
+   "purpose": "UI drink potion"
+  },
   "ui_quest": {
    "path": "assets/audio/ui/quest.wav",
    "bus": "ui",
@@ -1223,6 +1247,18 @@
    "sample_rate": 44100,
    "seconds": 0.45,
    "purpose": "UI quest"
+  },
+  "ui_unequip": {
+   "path": "assets/audio/ui/unequip.wav",
+   "bus": "ui",
+   "gain_db": -8.5,
+   "pitch_variation": 0.05,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": false,
+   "sample_rate": 44100,
+   "seconds": 0.22,
+   "purpose": "UI unequip gear"
   },
   "ui_upgrade_fail": {
    "path": "assets/audio/ui/upgrade_fail.wav",

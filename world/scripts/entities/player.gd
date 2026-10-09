@@ -1416,8 +1416,6 @@ func apply_level(new_level: int, new_max_hp: int, new_max_mana: int) -> void:
 
 ## Authority stat mirror: the engine owns these numbers, the node displays them.
 func apply_authoritative_stats(stats: Dictionary) -> void:
-	if stats.has("equipment") and int(stats.get("inventory_revision", -1)) < inventory_revision:
-		return
 	current_hp = clampi(int(stats.get("hp", current_hp)), 0, maxi(1, int(stats.get("max_hp", max_hp))))
 	max_hp = maxi(1, int(stats.get("max_hp", max_hp)))
 	current_mana = clampi(int(stats.get("mana", current_mana)), 0, maxi(1, int(stats.get("max_mana", max_mana))))
@@ -1427,7 +1425,9 @@ func apply_authoritative_stats(stats: Dictionary) -> void:
 	level = int(stats.get("level", level))
 	galleons = int(stats.get("galleons", galleons))
 	if stats.has("equipment"):
-		apply_equipment_snapshot(stats)
+		var revision := int(stats.get("inventory_revision", -1))
+		if revision >= inventory_revision:
+			apply_equipment_snapshot(stats)
 	var was_mounted := is_mounted
 	var now_mounted := bool(stats.get("mounted", is_mounted))
 	if was_mounted != now_mounted:

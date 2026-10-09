@@ -212,11 +212,16 @@ func clear() -> void:
 	set_item("", {})
 
 func _gui_input(event: InputEvent) -> void:
-	if not equipment_interaction or disabled: return
-	if event is InputEventMouseButton and event.pressed:
-		if event.button_index == MOUSE_BUTTON_RIGHT or (event.button_index == MOUSE_BUTTON_LEFT and event.double_click):
-			activated.emit(self)
-			accept_event()
+	if event is InputEventMouseButton:
+		if event.pressed:
+			if equipment_interaction and not disabled and item_id != "":
+				if event.button_index == MOUSE_BUTTON_RIGHT or (event.button_index == MOUSE_BUTTON_LEFT and event.double_click):
+					activated.emit(self)
+					accept_event()
+					return
+		elif event.button_index == MOUSE_BUTTON_LEFT and not disabled:
+			pressed.emit()
+		accept_event()
 
 func _get_drag_data(_at: Vector2) -> Variant:
 	if not equipment_interaction or disabled or item_id == "": return null

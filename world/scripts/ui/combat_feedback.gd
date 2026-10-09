@@ -70,7 +70,6 @@ const STATUS_EFFECTS := [
 	{"id": "status_ward", "token": "[WARD]"},
 	{"id": "status_stun", "token": "[STUNNED]"},
 	{"id": "status_burn", "token": "[BURNING]"},
-	{"id": "status_mounted", "token": "[MOUNTED]"},
 ]
 
 ## Live cast, in simulation-clock terms.

@@ -680,12 +680,12 @@ func _arcane_layout() -> void:
 	var canvas := get_viewport().get_visible_rect().size
 	var compact := canvas.x < 1000 or canvas.y < 560
 	var rail := 210.0 if compact else 280.0
-	UILayout.place(_player_frame, Vector2(16,12), Vector2(rail,136))
-	UILayout.place($PlayerPlate, Vector2(22,17), Vector2(rail-12,45))
+	UILayout.place(_player_frame, Vector2(16, 12), Vector2(rail, 92))
+	$PlayerPlate.visible = false
 	var status := $BottomBar/StatusBars as Control
 	status.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	status.custom_minimum_size.x = 0
-	UILayout.place(status, Vector2(28,63), Vector2(rail-24,74))
+	UILayout.place(status, Vector2(24, 18), Vector2(rail - 16, 80))
 	var hotbar := $BottomBar/Hotbar as Control
 	hotbar.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	UILayout.place(hotbar, Vector2(-166,-88), Vector2(332,54))
@@ -706,7 +706,7 @@ func _arcane_layout() -> void:
 	if has_node("ChatBadge"): $ChatBadge.position = chat.position + Vector2(4,-9)
 	UILayout.place(target_panel, Vector2(-120 if compact else -160,42), Vector2(240 if compact else 320,50))
 	if feedback != null:
-		feedback._status_row.position = Vector2(rail-100,72)
+		feedback._status_row.position = Vector2(20, 110)
 		feedback._safe_label.custom_minimum_size = Vector2.ZERO
 		feedback._safe_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		UILayout.place_centred(feedback._safe_row,Vector2(230,22),Vector2(0,-198))
