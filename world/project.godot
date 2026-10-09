@@ -34,7 +34,6 @@ window/size/viewport_height=720
 window/size/mode="fullscreen"
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
-mouse_cursor/custom_image="res://assets/ui/cursor.png"
 
 [gui]
 

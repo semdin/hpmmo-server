@@ -44,6 +44,69 @@ const ZONES := {
 	"interior": {"ambience": ["amb_great_hall", "amb_fire", "amb_candles", "amb_distant"], "room_size": 0.70, "damping": 0.40, "wet": 0.32, "dry": 0.9},
 }
 
+## Procedural atmospheric scatter events: randomized non-repeating environmental
+## sounds placed around the player or played flat to bring zones to life.
+const AMBIENT_SCATTER := {
+	"exterior": [
+		{
+			"keys": ["amb_bird_chirp_1", "amb_bird_chirp_2", "amb_bird_chirp_3", "amb_bird_chirp_4"],
+			"min_sec": 4.0, "max_sec": 10.0,
+			"spatial": true, "min_dist": 14.0, "max_dist": 30.0, "height": 5.0,
+			"gain_offset": -2.0
+		},
+		{
+			"keys": ["amb_wind_gust_1", "amb_wind_gust_2"],
+			"min_sec": 11.0, "max_sec": 24.0,
+			"spatial": false,
+			"gain_offset": -1.0
+		},
+		{
+			"keys": ["amb_leaf_rustle_1", "amb_leaf_rustle_2"],
+			"min_sec": 7.0, "max_sec": 16.0,
+			"spatial": true, "min_dist": 7.0, "max_dist": 18.0, "height": 2.0,
+			"gain_offset": -2.0
+		}
+	],
+	"dungeon": [
+		{
+			"keys": ["amb_dungeon_drip_1", "amb_dungeon_drip_2", "amb_dungeon_drip_3"],
+			"min_sec": 2.2, "max_sec": 6.5,
+			"spatial": true, "min_dist": 4.0, "max_dist": 14.0, "height": 2.2,
+			"gain_offset": 0.0
+		},
+		{
+			"keys": ["amb_dungeon_rumble"],
+			"min_sec": 14.0, "max_sec": 30.0,
+			"spatial": false,
+			"gain_offset": -2.0
+		}
+	],
+	"library": [
+		{
+			"keys": ["amb_library_page_1", "amb_library_page_2"],
+			"min_sec": 6.0, "max_sec": 15.0,
+			"spatial": true, "min_dist": 3.0, "max_dist": 9.0, "height": 1.2,
+			"gain_offset": -1.5
+		}
+	],
+	"great_hall": [
+		{
+			"keys": ["amb_hall_settle_1", "amb_hall_settle_2"],
+			"min_sec": 8.0, "max_sec": 20.0,
+			"spatial": true, "min_dist": 6.0, "max_dist": 22.0, "height": 2.0,
+			"gain_offset": -2.0
+		}
+	],
+	"interior": [
+		{
+			"keys": ["amb_hall_settle_1", "amb_hall_settle_2"],
+			"min_sec": 9.0, "max_sec": 22.0,
+			"spatial": true, "min_dist": 5.0, "max_dist": 18.0, "height": 1.8,
+			"gain_offset": -2.0
+		}
+	]
+}
+
 const MAX_SPATIAL_VOICES := 24
 const MAX_NONPOSITIONAL_VOICES := 12
 
@@ -72,6 +135,7 @@ var _footstep_variant := 0
 # sibling class, so appending one to a typed Array[AudioStreamPlayer] raises an
 # engine error on every zone change whenever a real audio device is present.
 var _zone_beds: Array[Node] = []
+var _scatter_timers: Array = []
 var _reverb_sfx: AudioEffectReverb
 var _reverb_amb: AudioEffectReverb
 var _limiter_sfx: AudioEffectLimiter
@@ -255,7 +319,17 @@ func play_sound_at(key: String, position: Vector3, owner_node: Node = null, forc
 	var entry: Dictionary = library.get(key, {})
 	if entry.is_empty():
 		return null
-	var stream := _stream(key)
+	var resolved_key := key
+	if key == "spell_basic_cast_cast":
+		var r := randi() % 3
+		if r == 1 and has_sound("spell_basic_cast_cast_2"):
+			resolved_key = "spell_basic_cast_cast_2"
+		elif r == 2 and has_sound("spell_basic_cast_cast_3"):
+			resolved_key = "spell_basic_cast_cast_3"
+	elif key == "spell_basic_cast_impact":
+		if randf() > 0.5 and has_sound("spell_basic_cast_impact_2"):
+			resolved_key = "spell_basic_cast_impact_2"
+	var stream := _stream(resolved_key)
 	if stream == null:
 		return null
 	var bus_name := _bus_for(entry)
@@ -363,6 +437,7 @@ func stop_everything() -> void:
 			player.stream = null
 	_loops.clear()
 	_zone_beds.clear()
+	_scatter_timers.clear()
 
 
 func _release_streams() -> void:
@@ -382,6 +457,7 @@ func _release_streams() -> void:
 	_flat_pool.clear()
 	_zone_beds.clear()
 	_loops.clear()
+	_scatter_timers.clear()
 
 # ------------------------------------------------------------------ zones
 
@@ -398,6 +474,56 @@ func _apply_zone(name: String, immediate: bool) -> void:
 	var config: Dictionary = ZONES.get(name, ZONES["exterior"])
 	_apply_reverb(float(config["room_size"]), float(config["damping"]), float(config["wet"]), float(config["dry"]))
 	_start_zone_beds(config["ambience"], immediate)
+	_reset_ambient_scatter(immediate)
+
+
+func _reset_ambient_scatter(immediate: bool) -> void:
+	_scatter_timers.clear()
+	var scatters: Array = AMBIENT_SCATTER.get(zone, [])
+	for s in scatters:
+		var min_t: float = float(s.get("min_sec", 4.0))
+		var max_t: float = float(s.get("max_sec", 10.0))
+		var initial_t := randf_range(min_t * 0.3, min_t * 1.2) if not immediate else randf_range(min_t, max_t)
+		_scatter_timers.append(initial_t)
+
+
+func _process_ambient_scatter(delta: float) -> void:
+	if not audio_available():
+		return
+	var scatters: Array = AMBIENT_SCATTER.get(zone, [])
+	if scatters.is_empty() or _scatter_timers.size() != scatters.size():
+		return
+	var listener_pos := Vector3.ZERO
+	if _local_player != null and is_instance_valid(_local_player) and _local_player is Node3D:
+		listener_pos = (_local_player as Node3D).global_position
+
+	for i in range(scatters.size()):
+		_scatter_timers[i] -= delta
+		if _scatter_timers[i] <= 0.0:
+			var cfg: Dictionary = scatters[i]
+			_scatter_timers[i] = randf_range(float(cfg.get("min_sec", 4.0)), float(cfg.get("max_sec", 10.0)))
+			var keys: Array = cfg.get("keys", [])
+			if keys.is_empty():
+				continue
+			var key: String = String(keys[randi() % keys.size()])
+			if not has_sound(key):
+				continue
+
+			var is_spatial: bool = bool(cfg.get("spatial", false))
+			var player_node: Node = null
+			if is_spatial and listener_pos != Vector3.ZERO:
+				var angle := randf_range(0.0, TAU)
+				var dist := randf_range(float(cfg.get("min_dist", 10.0)), float(cfg.get("max_dist", 25.0)))
+				var h := randf_range(1.0, float(cfg.get("height", 4.0)))
+				var pos := listener_pos + Vector3(cos(angle) * dist, h, sin(angle) * dist)
+				player_node = play_sound_at(key, pos, null, false)
+			else:
+				player_node = play_sound_at(key, Vector3.ZERO, null, true)
+
+			if player_node != null and is_instance_valid(player_node):
+				player_node.pitch_scale = randf_range(0.93, 1.07)
+				var gain_off: float = float(cfg.get("gain_offset", 0.0))
+				player_node.volume_db += gain_off + randf_range(-1.5, 1.5)
 
 
 func _apply_reverb(room_size: float, damping: float, wet: float, dry: float) -> void:
@@ -527,6 +653,7 @@ func _play_varied(key: String, at: Vector3, gain_scale: float) -> Node:
 var _scan_timer := 0.0
 
 func _process(delta: float) -> void:
+	_process_ambient_scatter(delta)
 	_scan_timer -= delta
 	if _scan_timer > 0.0:
 		return
