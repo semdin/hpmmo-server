@@ -77,226 +77,167 @@ const LAYER_PRESETS := {
 ## serves every spell while each keeps its own identity.
 const SPELLS := {
 	"basic_cast": {
-		"colour": Color(1.0, 0.847, 0.4),
+		"colour": Color(1.0, 0.67, 0.22),
 		"stages": {
-			"cast": {"layers": ["glow_flash"], "length": 0.3,
-				"audio": "spell_basic_cast_cast", "core": "cast_snap"},
+			"cast": {"layers": [
+				{"kind": "sprite", "energy_shape": 3, "blend": "add", "core": true, "colour": true, "size": 0.75, "life": 0.16}
+			], "length": 0.3, "audio": "spell_basic_cast_cast", "core": "cast_snap"},
 			"travel": {"layers": [
-				{"kind": "mesh", "mesh": "vfx_projectile_mesh", "blend": "add", "core": true,
-					"size": Vector3(0.13, 0.13, 0.42), "life": 0.0, "follow": true, "colour": true},
-				{"kind": "ribbon", "tex": "vfx_energy_streak", "blend": "add", "core": false,
-					"width": 0.07, "length": 2.2, "life": 0.0, "follow": true},
-				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "core": false, "optional": true,
-					"amount": 10, "life": 0.3, "speed": 1.2, "spread": 18.0, "gravity": 0.0, "size": 0.06},
+				{"kind": "sprite", "energy_shape": 1, "blend": "add", "core": true, "colour": true, "size": 0.36, "life": 0.0, "stretch": 4.0, "forward": -0.36},
+				{"kind": "sprite", "energy_shape": 0, "blend": "add", "core": true, "colour": true, "size": 0.48, "life": 0.0, "opacity": 0.45},
+				{"kind": "ribbon", "tex": "vfx_energy_streak", "blend": "add", "core": true, "colour": true, "width": 0.065, "length": 2.6, "life": 0.0, "follow": true},
+				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "colour": true, "amount": 12, "life": 0.18, "speed": 0.6, "size": 0.045, "spread": 150.0, "gravity": 0.0, "optional": true, "continuous": true}
 			], "length": 0.0, "audio": "spell_basic_cast_travel", "loop_audio": true},
-			"impact": {"layers": ["impact_ring", "ember_sparks", "glow_flash"], "length": 0.7,
-				"audio": "spell_basic_cast_impact", "core": "impact_fleck"},
+			"impact": {"layers": [
+				{"kind": "sprite", "energy_shape": 3, "blend": "add", "core": true, "colour": true, "size": 1.05, "life": 0.16},
+				{"kind": "sprite", "energy_shape": 2, "blend": "add", "core": true, "colour": true, "size": 1.3, "life": 0.26},
+				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "colour": true, "amount": 14, "life": 0.32, "speed": 3.2, "size": 0.05, "spread": 150.0, "gravity": -1.5}
+			], "length": 0.4, "audio": "spell_basic_cast_impact", "core": "impact_fleck"},
 			"end": {"layers": [
-				{"kind": "sprite", "tex": "vfx_soft_glow", "blend": "add", "core": true,
-					"size": 0.7, "life": 0.35, "fade": "out"},
-			], "length": 0.4, "audio": "spell_basic_cast_end"},
+				{"kind": "sprite", "energy_shape": 0, "blend": "add", "core": true, "colour": true, "size": 0.45, "life": 0.2, "opacity": 0.4}
+			], "length": 0.25, "audio": "spell_basic_cast_end"}
 		},
 	},
 	"stupefy": {
-		"colour": Color(1.0, 0.133, 0.2),
+		"colour": Color(1.0, 0.025, 0.075),
 		"stages": {
 			"cast": {"layers": [
-				"glow_flash",
-				{"kind": "flipbook", "atlas": "vfx_energy_impact", "blend": "add", "core": true,
-					"size": 0.8, "life": 0.35, "colour": true},
-			], "length": 0.4, "audio": "spell_stupefy_cast", "core": "cast_buildup"},
+				{"kind": "stupefy_energy", "core": true, "life": 0.32},
+				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "colour": true,
+					"amount": 14, "life": 0.24, "speed": 2.4, "size": 0.045, "spread": 65.0, "gravity": 0.0, "forward": true, "optional": true},
+				{"kind": "light", "colour": true, "energy": 2.6, "range": 3.0, "life": 0.22},
+			], "length": 0.34, "audio": "spell_stupefy_cast", "core": "spiral_discharge"},
 			"travel": {"layers": [
-				{"kind": "mesh", "mesh": "vfx_projectile_mesh", "blend": "add", "core": true,
-					"size": Vector3(0.16, 0.16, 0.62), "life": 0.0, "follow": true, "colour": true},
-				{"kind": "ribbon", "tex": "vfx_energy_streak", "blend": "add", "core": false,
-					"width": 0.10, "length": 2.8, "life": 0.0, "follow": true},
+				{"kind": "stupefy_energy", "core": true, "life": 0.0},
+				{"kind": "ribbon", "tex": "vfx_energy_streak", "blend": "add", "core": true, "colour": true,
+					"width": 0.11, "length": 4.8, "life": 0.0, "follow": true},
+				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "colour": true,
+					"amount": 32, "life": 0.22, "speed": 1.1, "size": 0.045, "spread": 150.0, "gravity": 0.0, "optional": true, "continuous": true},
 			], "length": 0.0, "audio": "spell_stupefy_travel", "loop_audio": true},
 			"impact": {"layers": [
-				"impact_ring",
-				{"kind": "flipbook", "atlas": "vfx_energy_impact", "blend": "add", "core": false, "optional": true,
-					"size": 2.2, "life": 0.5, "colour": true},
-				"glow_flash",
-			], "length": 0.8, "audio": "spell_stupefy_impact", "core": "impact_stun"},
+				{"kind": "stupefy_energy", "core": true, "life": 0.72},
+				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "colour": true,
+					"amount": 40, "life": 0.58, "speed": 4.8, "size": 0.055, "spread": 170.0, "gravity": -2.0, "optional": true},
+				{"kind": "light", "colour": true, "energy": 3.2, "range": 4.0, "life": 0.28},
+			], "length": 0.76, "audio": "spell_stupefy_impact", "core": "torn_energy_burst"},
 			"sustain": {"layers": [
-				{"kind": "sprite", "atlas": "vfx_rune_masks", "frame": 1, "blend": "add", "core": true,
-					"billboard": true, "size": 1.6, "life": 1.8, "fade": "hold"},
+				{"kind": "sprite", "atlas": "vfx_rune_masks", "frame": 1, "blend": "add", "core": true, "colour": true,
+					"size": 0.85, "life": 1.8, "fade": "hold"},
 			], "length": 1.8, "audio": "spell_stupefy_end", "core": "stun_indicator"},
 		},
 	},
 	"incendio": {
-		"colour": Color(1.0, 0.4, 0.0),
+		"colour": Color(1.0, 0.27, 0.025),
 		"stages": {
-			"cast": {
-				# The authoritative shape is a short-range CONE burst, not a
-				# projectile (spells.json), and the
-				# presentation is a flame burst down the aim direction.
-				"layers": [
-					{"kind": "flipbook", "atlas": "vfx_fire_burst", "blend": "alpha", "core": true,
-						"size": 2.6, "life": 0.75, "forward": 1.1, "colour": true},
-					{"kind": "flipbook", "atlas": "vfx_flame_loop", "blend": "alpha", "core": true,
-						"size": 2.2, "life": 1.0, "forward": 1.7, "loop": true, "colour": true},
-					"ember_sparks",
-					"smoke_puff",
-					{"kind": "particles", "tex": "vfx_flame_static", "blend": "add", "core": false,
-						"amount": 26, "life": 0.5, "speed": 9.0, "spread": 26.0, "gravity": 2.0,
-						"size": 0.45, "forward": true, "colour": true},
-					{"kind": "light", "core": false, "colour": true, "energy": 3.4, "range": 9.0, "life": 0.8},
-					"ground_scorch",
-				],
-				"length": 1.1, "audio": "spell_incendio_cast", "core": "cone_burst"},
+			"cast": {"layers": [
+				{"kind": "signature", "core": true, "life": 0.7, "blend": "add"},
+				{"kind": "flipbook", "atlas": "vfx_fire_burst", "blend": "alpha", "colour": true, "life": 0.4, "size": 0.9, "loop": false, "opacity": 0.3},
+				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "colour": true, "amount": 28, "life": 0.4, "speed": 5, "size": 0.06, "spread": 145.0, "gravity": -2.0, "optional": true},
+				{"kind": "light", "colour": true, "energy": 3, "range": 5.0, "life": 0.45}
+			], "length": 0.7, "audio": "spell_incendio_cast", "core": "incendio_cast"},
 			"impact": {"layers": [
-				{"kind": "flipbook", "atlas": "vfx_fire_burst", "blend": "alpha", "core": true,
-					"size": 1.8, "life": 0.7, "colour": true},
-				"ember_sparks", "smoke_puff",
-				{"kind": "light", "core": false, "colour": true, "energy": 2.4, "range": 7.0, "life": 0.6},
-			], "length": 0.9, "audio": "spell_incendio_impact", "core": "burn_hit"},
+				{"kind": "signature", "core": true, "life": 0.6, "blend": "add"},
+				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "colour": true, "amount": 24, "life": 0.45, "speed": 3.5, "size": 0.06, "spread": 145.0, "gravity": -2.0, "optional": true},
+				{"kind": "light", "colour": true, "energy": 2.5, "range": 5.0, "life": 0.3}
+			], "length": 0.6, "audio": "spell_incendio_impact", "core": "incendio_impact"},
 			"sustain": {"layers": [
-				{"kind": "flipbook", "atlas": "vfx_flame_loop", "blend": "alpha", "core": true,
-					"size": 1.1, "life": 3.0, "loop": true, "colour": true},
-				{"kind": "particles", "tex": "vfx_flame_static", "blend": "alpha", "core": false, "optional": true,
-					"amount": 14, "life": 0.7, "speed": 1.4, "spread": 40.0, "gravity": 1.0,
-					"size": 0.35, "colour": true},
-			], "length": 3.0, "audio": "spell_incendio_sustain", "loop_audio": true, "core": "burn_loop"},
+				{"kind": "signature", "core": true, "life": 3.0, "blend": "add"},
+				{"kind": "flipbook", "atlas": "vfx_flame_loop", "blend": "alpha", "colour": true, "life": 3.0, "size": 1.0, "loop": true, "opacity": 0.3},
+				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "colour": true, "amount": 12, "life": 0.6, "speed": 1.2, "size": 0.06, "spread": 145.0, "gravity": -2.0, "optional": true}
+			], "length": 3.0, "audio": "spell_incendio_sustain", "core": "incendio_sustain", "loop_audio": true},
 			"end": {"layers": [
-				{"kind": "flipbook", "atlas": "vfx_flame_loop", "blend": "alpha", "core": true,
-					"size": 1.6, "life": 1.0, "loop": true, "colour": true},
-				"smoke_puff",
-			], "length": 1.2, "audio": "spell_incendio_end", "core": "extinguish"},
+				{"kind": "signature", "core": true, "life": 0.65, "blend": "add"},
+				{"kind": "flipbook", "atlas": "vfx_smoke_puff", "blend": "alpha", "size": 2.6, "life": 0.65, "optional": true, "opacity": 0.3}
+			], "length": 0.65, "audio": "spell_incendio_end", "core": "incendio_end"}
 		},
 	},
 	"bombarda": {
-		"colour": Color(1.0, 0.667, 0.133),
+		"colour": Color(1.0, 0.48, 0.035),
 		"stages": {
 			"cast": {"layers": [
-				"glow_flash",
-				{"kind": "flipbook", "atlas": "vfx_flame_loop", "blend": "alpha", "core": true,
-					"size": 0.7, "life": 0.45, "colour": true},
-			], "length": 0.45, "audio": "spell_bombarda_cast", "core": "charge"},
+				{"kind": "signature", "core": true, "life": 0.4, "blend": "add"},
+				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "colour": true, "amount": 10, "life": 0.3, "speed": 1.5, "size": 0.06, "spread": 145.0, "gravity": -2.0, "optional": true},
+				{"kind": "light", "colour": true, "energy": 2.5, "range": 5.0, "life": 0.3}
+			], "length": 0.4, "audio": "spell_bombarda_cast", "core": "bombarda_cast"},
 			"travel": {"layers": [
-				{"kind": "mesh", "mesh": "vfx_projectile_mesh", "blend": "add", "core": true,
-					"size": Vector3(0.26, 0.26, 0.7), "life": 0.0, "follow": true, "colour": true},
-				{"kind": "ribbon", "tex": "vfx_energy_streak", "blend": "add", "core": false,
-					"width": 0.16, "length": 2.4, "life": 0.0, "follow": true},
-				{"kind": "particles", "tex": "vfx_flame_static", "blend": "add", "core": false, "optional": true,
-					"amount": 12, "life": 0.35, "speed": 1.6, "spread": 30.0, "gravity": -1.0, "size": 0.2},
-			], "length": 0.0, "audio": "spell_bombarda_travel", "loop_audio": true},
-			"impact": {
-				# The radius on screen is the authoritative AoE radius (9 m): the
-				# dust ring is scaled to it so the telegraph is honest.
-				"layers": [
-					{"kind": "flipbook", "atlas": "vfx_fire_burst", "blend": "alpha", "core": true,
-						"size": 4.0, "life": 0.8, "colour": true},
-					"impact_ring", "smoke_puff", "ember_sparks",
-					{"kind": "mesh", "mesh": "vfx_shard_meshes", "blend": "alpha", "core": false,
-						"amount": 8, "size": Vector3(0.3, 0.3, 0.3), "life": 1.4, "burst": true},
-					{"kind": "sprite", "atlas": "vfx_ground_marks", "frame": 0, "blend": "alpha", "core": true,
-						"flat": true, "lift": 0.05, "size": 6.0, "life": 6.0, "fade": "slow"},
-					{"kind": "light", "core": false, "colour": true, "energy": 5.5, "range": 14.0, "life": 0.7},
-				],
-				"length": 1.4, "audio": "spell_bombarda_impact", "core": "aoe_blast", "aoe_radius": 9.0},
+				{"kind": "signature", "core": true, "life": 0.0, "blend": "add"},
+				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "colour": true, "amount": 18, "life": 0.25, "speed": 1.0, "size": 0.06, "spread": 145.0, "gravity": -2.0, "optional": true, "continuous": true}
+			], "length": 0.0, "audio": "spell_bombarda_travel", "core": "bombarda_travel", "loop_audio": true},
+			"impact": {"layers": [
+				{"kind": "signature", "core": true, "life": 1.05, "blend": "add"},
+				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "colour": true, "amount": 38, "life": 0.7, "speed": 6.0, "size": 0.06, "spread": 145.0, "gravity": -2.0, "optional": true},
+				{"kind": "flipbook", "atlas": "vfx_smoke_puff", "blend": "alpha", "size": 2.6, "life": 1.05, "optional": true, "opacity": 0.3},
+				{"kind": "light", "colour": true, "energy": 4, "range": 5.0, "life": 0.45}
+			], "length": 1.05, "audio": "spell_bombarda_impact", "core": "bombarda_impact", "aoe_radius": 9.0},
 			"end": {"layers": [
-				{"kind": "flipbook", "atlas": "vfx_smoke_puff", "blend": "alpha", "core": true,
-					"size": 3.0, "life": 1.6, "rise": 0.8},
-			], "length": 1.6, "audio": "spell_bombarda_end", "core": "debris_settle"},
+				{"kind": "signature", "core": true, "life": 1.1, "blend": "add"},
+				{"kind": "flipbook", "atlas": "vfx_smoke_puff", "blend": "alpha", "size": 2.6, "life": 1.1, "optional": true, "opacity": 0.3}
+			], "length": 1.1, "audio": "spell_bombarda_end", "core": "bombarda_end"}
 		},
 	},
 	"expelliarmus": {
-		"colour": Color(0.933, 0.2, 0.333),
+		"colour": Color(1.0, 0.12, 0.38),
 		"stages": {
-			"cast": {"layers": ["glow_flash"], "length": 0.3,
-				"audio": "spell_expelliarmus_cast", "core": "wand_sweep"},
+			"cast": {"layers": [
+				{"kind": "signature", "core": true, "life": 0.32, "blend": "add"},
+				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "colour": true, "amount": 10, "life": 0.25, "speed": 2.0, "size": 0.06, "spread": 145.0, "gravity": -2.0, "optional": true}
+			], "length": 0.32, "audio": "spell_expelliarmus_cast", "core": "expelliarmus_cast"},
 			"travel": {"layers": [
-				{"kind": "ribbon", "tex": "vfx_energy_streak", "blend": "add", "core": true,
-					"width": 0.18, "length": 4.5, "life": 0.0, "follow": true},
-				{"kind": "mesh", "mesh": "vfx_projectile_mesh", "blend": "add", "core": false,
-					"size": Vector3(0.12, 0.12, 0.5), "life": 0.0, "follow": true, "colour": true},
-				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "core": false, "optional": true,
-					"amount": 10, "life": 0.4, "speed": 1.0, "spread": 24.0, "gravity": 0.0, "size": 0.07},
-			], "length": 0.0, "audio": "spell_expelliarmus_travel", "loop_audio": true},
+				{"kind": "signature", "core": true, "life": 0.0, "blend": "add"},
+				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "colour": true, "amount": 14, "life": 0.18, "speed": 0.5, "size": 0.06, "spread": 145.0, "gravity": -2.0, "optional": true, "continuous": true}
+			], "length": 0.0, "audio": "spell_expelliarmus_travel", "core": "expelliarmus_travel", "loop_audio": true},
 			"impact": {"layers": [
-				{"kind": "flipbook", "atlas": "vfx_energy_impact", "blend": "add", "core": true,
-					"size": 1.8, "life": 0.6, "stretch": 1.6},
-				"glow_flash",
-				{"kind": "sprite", "atlas": "vfx_lightning_branches", "frame": 1, "blend": "add", "core": false,
-					"size": 1.4, "life": 0.3, "spin": true},
-			], "length": 0.7, "audio": "spell_expelliarmus_impact", "core": "weaken_cue"},
+				{"kind": "signature", "core": true, "life": 0.55, "blend": "add"},
+				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "colour": true, "amount": 22, "life": 0.35, "speed": 3.0, "size": 0.06, "spread": 145.0, "gravity": -2.0, "optional": true},
+				{"kind": "light", "colour": true, "energy": 2.5, "range": 5.0, "life": 0.2}
+			], "length": 0.55, "audio": "spell_expelliarmus_impact", "core": "expelliarmus_impact"},
 			"end": {"layers": [
-				{"kind": "sprite", "tex": "vfx_soft_glow", "blend": "add", "core": true,
-					"size": 0.8, "life": 0.45, "fade": "out"},
-			], "length": 0.5, "audio": "spell_expelliarmus_end", "core": "interrupt_cue"},
+				{"kind": "signature", "core": true, "life": 0.4, "blend": "add"}
+			], "length": 0.4, "audio": "spell_expelliarmus_end", "core": "expelliarmus_end"}
 		},
 	},
 	"protego": {
-		"colour": Color(0.267, 0.667, 1.0),
-		# The ONE place a mesh shell is correct. Rule, tooltip and VFX agree:
-		# projectiles are reflected, all other damage is reduced by 60%.
+		"colour": Color(0.16, 0.55, 1.0),
 		"stages": {
 			"cast": {"layers": [
-				{"kind": "mesh", "mesh": "vfx_shield_mesh", "blend": "alpha", "core": true,
-					"size": Vector3(1.8, 1.8, 1.8), "life": 0.6, "grow": true, "flow": true},
-				{"kind": "sprite", "tex": "vfx_soft_glow", "blend": "add", "core": false, "optional": true,
-					"size": 2.4, "life": 0.5, "colour": true},
-				{"kind": "light", "core": false, "colour": true, "energy": 2.2, "range": 6.0, "life": 0.6},
-			], "length": 0.6, "audio": "spell_protego_cast", "core": "shield_raise"},
+				{"kind": "signature", "core": true, "life": 0.35, "blend": "add"},
+				{"kind": "light", "colour": true, "energy": 2.5, "range": 5.0, "life": 0.3}
+			], "length": 0.35, "audio": "spell_protego_cast", "core": "protego_cast"},
 			"sustain": {"layers": [
-				{"kind": "mesh", "mesh": "vfx_shield_mesh", "blend": "alpha", "core": true,
-					"size": Vector3(1.8, 1.8, 1.8), "life": 3.5, "flow": true, "rim": true},
-				{"kind": "sprite", "atlas": "vfx_rune_masks", "frame": 3, "blend": "add", "core": false,
-					"flat": true, "lift": 0.04, "size": 4.2, "life": 3.5, "fade": "hold"},
-			], "length": 3.5, "audio": "spell_protego_sustain", "loop_audio": true, "core": "ward"},
+				{"kind": "mesh", "mesh": "vfx_shield_mesh", "blend": "add", "core": true, "colour": true, "size": Vector3(1.8, 1.8, 1.8), "life": 3.5, "ward": true},
+				{"kind": "signature", "core": true, "life": 3.5, "blend": "add"}
+			], "length": 3.5, "audio": "spell_protego_sustain", "core": "protego_sustain", "loop_audio": true},
 			"impact": {"layers": [
-				{"kind": "flipbook", "atlas": "vfx_shield_ripple", "blend": "add", "core": true,
-					"size": 0.9, "life": 0.65, "at_hit": true},
-				{"kind": "light", "core": false, "colour": true, "energy": 1.6, "range": 4.0, "life": 0.3},
-			], "length": 0.7, "audio": "spell_protego_impact", "core": "deflect_ping"},
+				{"kind": "sprite", "energy_shape": 2, "core": true, "colour": true, "blend": "add", "size": 1.35, "life": 0.45, "at_hit": true},
+				{"kind": "light", "colour": true, "energy": 2.5, "range": 5.0, "life": 0.2}
+			], "length": 0.45, "audio": "spell_protego_impact", "core": "protego_impact"},
 			"end": {"layers": [
-				{"kind": "mesh", "mesh": "vfx_shield_mesh", "blend": "add", "core": true,
-					"size": Vector3(1.8, 1.8, 1.8), "life": 0.7, "fracture": true},
-				{"kind": "sprite", "tex": "vfx_shield_fracture", "blend": "add", "core": false,
-					"size": 3.2, "life": 0.6},
-			], "length": 0.8, "audio": "spell_protego_end", "core": "ward_collapse"},
+				{"kind": "mesh", "mesh": "vfx_shield_mesh", "blend": "add", "core": true, "colour": true, "size": Vector3(1.8, 1.8, 1.8), "life": 0.5, "ward": true, "fracture": true},
+				{"kind": "signature", "core": true, "life": 0.5, "blend": "add"}
+			], "length": 0.5, "audio": "spell_protego_end", "core": "protego_end"}
 		},
 	},
 	"ultimate": {
-		"colour": Color(0.0, 1.0, 0.467),
+		"colour": Color(0.04, 1.0, 0.4),
 		"stages": {
-			"cast": {
-				# A readable warning before damage: anticipation field first, and
-				# the strike is a separate stage. Limited bloom and shake.
-				"layers": [
-					{"kind": "sprite", "atlas": "vfx_rune_masks", "frame": 0, "blend": "add", "core": true,
-						"flat": true, "lift": 0.05, "size": 5.0, "life": 0.7, "fade": "in"},
-					{"kind": "sprite", "atlas": "vfx_rune_masks", "frame": 1, "blend": "add", "core": true,
-						"billboard": true, "size": 2.2, "life": 0.7, "spin": true},
-					{"kind": "flipbook", "atlas": "vfx_flame_loop", "blend": "add", "core": false,
-						"size": 1.0, "life": 0.7, "loop": true, "colour": true},
-					{"kind": "light", "core": false, "colour": true, "energy": 3.0, "range": 10.0, "life": 0.7},
-				],
-				"length": 0.8, "audio": "spell_ultimate_cast", "core": "anticipation_field"},
+			"cast": {"layers": [
+				{"kind": "signature", "core": true, "life": 0.6, "blend": "add"},
+				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "colour": true, "amount": 18, "life": 0.4, "speed": 1.7, "size": 0.06, "spread": 145.0, "gravity": -2.0, "optional": true},
+				{"kind": "light", "colour": true, "energy": 3, "range": 5.0, "life": 0.4}
+			], "length": 0.6, "audio": "spell_ultimate_cast", "core": "ultimate_cast"},
 			"travel": {"layers": [
-				{"kind": "flipbook", "atlas": "vfx_energy_impact", "blend": "add", "core": true,
-					"size": 1.4, "life": 0.5, "colour": true},
-				{"kind": "ribbon", "tex": "vfx_energy_streak", "blend": "add", "core": false,
-					"width": 0.3, "length": 5.0, "life": 0.0, "follow": true},
-			], "length": 0.0, "audio": "spell_ultimate_travel", "loop_audio": true},
+				{"kind": "signature", "core": true, "life": 0.0, "blend": "add"},
+				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "colour": true, "amount": 28, "life": 0.22, "speed": 1.2, "size": 0.06, "spread": 145.0, "gravity": -2.0, "optional": true, "continuous": true}
+			], "length": 0.0, "audio": "spell_ultimate_travel", "core": "ultimate_travel", "loop_audio": true},
 			"impact": {"layers": [
-				{"kind": "sprite", "atlas": "vfx_lightning_branches", "frame": 3, "blend": "add", "core": true,
-					"size": 7.0, "life": 0.28, "flicker": true},
-				{"kind": "sprite", "atlas": "vfx_lightning_branches", "frame": 0, "blend": "add", "core": false,
-					"size": 5.4, "life": 0.22, "spin": true, "optional": true},
-				"impact_ring",
-				{"kind": "flipbook", "atlas": "vfx_fire_burst", "blend": "alpha", "core": false,
-					"size": 3.2, "life": 0.7, "colour": true},
-				{"kind": "sprite", "atlas": "vfx_ground_marks", "frame": 3, "blend": "alpha", "core": true,
-					"flat": true, "lift": 0.05, "size": 8.0, "life": 5.0, "fade": "slow"},
-				"ember_sparks", "smoke_puff",
-				{"kind": "light", "core": false, "colour": true, "energy": 7.0, "range": 18.0, "life": 0.75},
-			], "length": 1.5, "audio": "spell_ultimate_impact", "core": "strike"},
+				{"kind": "signature", "core": true, "life": 1.1, "blend": "add"},
+				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "colour": true, "amount": 40, "life": 0.65, "speed": 5, "size": 0.06, "spread": 145.0, "gravity": -2.0, "optional": true},
+				{"kind": "light", "colour": true, "energy": 4, "range": 5.0, "life": 0.45}
+			], "length": 1.1, "audio": "spell_ultimate_impact", "core": "ultimate_impact", "aoe_radius": 12.0},
 			"end": {"layers": [
-				{"kind": "flipbook", "atlas": "vfx_flame_loop", "blend": "alpha", "core": true,
-					"size": 2.0, "life": 1.4, "loop": true, "colour": true},
-				"smoke_puff",
-			], "length": 1.5, "audio": "spell_ultimate_end", "core": "tail"},
+				{"kind": "signature", "core": true, "life": 0.85, "blend": "add"},
+				{"kind": "flipbook", "atlas": "vfx_smoke_puff", "blend": "alpha", "size": 2.6, "life": 0.85, "optional": true, "opacity": 0.3}
+			], "length": 0.85, "audio": "spell_ultimate_end", "core": "ultimate_end"}
 		},
 	},
 }

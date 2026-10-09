@@ -42,7 +42,7 @@ varying vec3 vertex_color_factor;
 
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	world_nrm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
+	world_nrm = normalize(MODEL_NORMAL_MATRIX * NORMAL);
 	// COLOR carries the baked per-instance ambient occlusion on batched
 	// architecture (white when a mesh has none).
 	vertex_color_factor = use_baked_instance_ao ? COLOR.rgb : vec3(1.0);
@@ -81,7 +81,8 @@ void fragment() {
 	float ao = texture(ao_tex, uv).r;
 
 	ALBEDO = albedo * vertex_color_factor;
-	NORMAL = sample_normal(uv, t, b, n);
+	// Sampling builds a world-space normal; Godot's lighting consumes view space.
+	NORMAL = normalize((VIEW_MATRIX * vec4(sample_normal(uv, t, b, n), 0.0)).xyz);
 	ROUGHNESS = clamp(rough, rough_min, rough_max);
 	METALLIC = metallic_amount;
 	AO = mix(1.0, ao, ao_strength);

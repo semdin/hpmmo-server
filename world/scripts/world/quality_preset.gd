@@ -3,18 +3,17 @@ extends RefCounted
 ## Art pass quality presets ("provide reduced particles,
 ## shadows, and postprocessing for the Intel integrated GPU profile").
 ##
-## The target machine records an Intel integrated GPU, so
-## `auto` resolves to the `low` preset there: no sun shadows, no glow, no SSAO,
-## no MSAA, and roughly half the vegetation and particle density. Visual
-## capture runs pass `--quality=high` explicitly.
+## Low keeps nearby two-cascade sun shadows, disables glow/SSAO/MSAA and halves
+## vegetation and particles. Graphical runs default to high; headless to low.
 ##
 ## Everything the preset changes is presentation only. It can never alter the
 ## simulation: mobs, collision, routes and rewards are identical on both.
 
 const PRESETS := {
 	"low": {
-		"sun_shadows": false,
-		"shadow_max_distance": 0.0,
+		"sun_shadows": true,
+		"shadow_max_distance": 45.0,
+		"shadow_splits": DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS,
 		"glow": false,
 		"ssao": false,
 		"msaa": 0,
@@ -22,11 +21,12 @@ const PRESETS := {
 		"foliage_density": 0.55,
 		"particle_scale": 0.5,
 		"torch_range_scale": 0.85,
-		"tonemap_exposure": 1.12,
+		"tonemap_exposure": 0.92,
 	},
 	"high": {
 		"sun_shadows": true,
-		"shadow_max_distance": 150.0,
+		"shadow_max_distance": 110.0,
+		"shadow_splits": DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS,
 		"glow": true,
 		"ssao": true,
 		"msaa": 2,
@@ -34,7 +34,7 @@ const PRESETS := {
 		"foliage_density": 1.0,
 		"particle_scale": 1.0,
 		"torch_range_scale": 1.0,
-		"tonemap_exposure": 1.12,
+		"tonemap_exposure": 0.92,
 	},
 }
 
@@ -42,7 +42,7 @@ static var _current := "high"
 static var _resolved := false
 
 ## The preset this build should run at. `--quality=low|high` on the command
-## line wins; otherwise an Intel/unknown adapter gets the reduced preset.
+## line wins; otherwise graphical runs use high and headless runs use low.
 static func resolve() -> String:
 	if _resolved:
 		return _current
@@ -54,11 +54,8 @@ static func resolve() -> String:
 				_current = wanted
 				return _current
 	var adapter := RenderingServer.get_video_adapter_name().to_lower()
-	if adapter.contains("intel") or adapter.contains("uhd") or adapter.contains("iris"):
-		_current = "low"
-	elif adapter == "":
-		# Headless / dummy renderer: report the low preset so the checks scene
-		# asserts the same configuration the target machine runs.
+	if adapter == "":
+		# Headless / dummy renderer: exercise the reduced profile in checks.
 		_current = "low"
 	else:
 		_current = "high"
@@ -91,11 +88,13 @@ static func apply(world: Node3D) -> void:
 			env.glow_enabled = bool(preset["glow"])
 			env.ssao_enabled = bool(preset["ssao"])
 			env.ssr_enabled = bool(preset["ssr"])
+			env.tonemap_exposure = float(preset["tonemap_exposure"])
 	var sun := world.get_node_or_null("DirectionalLight3D") as DirectionalLight3D
 	if sun != null:
 		sun.shadow_enabled = bool(preset["sun_shadows"])
 		if bool(preset["sun_shadows"]):
 			sun.directional_shadow_max_distance = float(preset["shadow_max_distance"])
+			sun.directional_shadow_mode = int(preset["shadow_splits"])
 	var viewport := world.get_viewport()
 	if viewport != null:
 		viewport.msaa_3d = int(preset["msaa"])

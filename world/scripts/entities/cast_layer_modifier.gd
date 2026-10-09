@@ -50,6 +50,19 @@ var aim_point := Vector3.ZERO
 var _aim_active := false
 ## Clip rotations used as the blend source for the arm aim in this modifier pass.
 var _clip_rotations := {}
+var gesture_time := 0.0
+var gesture_duration := 0.42
+var gesture_strength := 0.0
+var gesture_side := 1.0
+var gesture_spell := ""
+
+func set_gesture(spell: String, combo: int, duration: float) -> void:
+	gesture_time = 0.0
+	gesture_duration = duration
+	gesture_spell = spell
+	gesture_strength = float({"stupefy": 1.0, "incendio": 0.8, "bombarda": 1.2,
+		"expelliarmus": 0.75, "protego": 0.55, "ultimate": 1.4}.get(spell, (0.8 if combo == 2 else 0.6) if spell == "basic_cast" else 0.0))
+	gesture_side = -1.0 if combo == 1 else 1.0
 
 func _bone_of(path: NodePath) -> String:
 	var text := String(path)
@@ -81,6 +94,9 @@ func play(clip: Animation, start_time := 0.0) -> void:
 		configure(clip)
 	playing = true
 	time = start_time
+	gesture_time = 0.0
+	gesture_strength = 0.0
+	gesture_spell = ""
 
 func stop() -> void:
 	playing = false
@@ -99,6 +115,7 @@ func aim_active() -> bool:
 
 func _process_modification_with_delta(delta: float) -> void:
 	time += delta
+	gesture_time += delta
 	_apply()
 
 func _apply() -> void:
@@ -122,7 +139,28 @@ func _apply() -> void:
 			else:
 				var current := skeleton.get_bone_pose_rotation(index)
 				skeleton.set_bone_pose_rotation(index, current.slerp(cast_pose, weight))
+	_apply_cast_torso(skeleton)
 	_apply_aim(skeleton)
+
+func _apply_cast_torso(skeleton: Skeleton3D) -> void:
+	if not playing or weight <= 0.001:
+		return
+	var phase := clampf(gesture_time / maxf(0.05, gesture_duration), 0, 1)
+	var envelope := sin(phase * PI) * weight
+	var yaw := 0.0
+	var pitch := 0.0
+	match gesture_spell:
+		"incendio": yaw = lerpf(-0.16, 0.16, phase) * envelope
+		"bombarda": pitch = -0.13 * envelope
+		"expelliarmus": yaw = 0.17 * sin(phase * TAU) * envelope
+		"protego": pitch = 0.08 * envelope
+		"ultimate": pitch = -0.19 * envelope
+	for name in ["Chest", "Torso", "Abdomen"]:
+		var index := _bone_index(skeleton, name)
+		if index >= 0 and _clip_rotations.has(skeleton.get_bone_name(index)):
+			var rotation := skeleton.get_bone_pose_rotation(index)
+			skeleton.set_bone_pose_rotation(index, rotation * Quaternion(Vector3.UP, yaw) * Quaternion(Vector3.RIGHT, pitch))
+			break
 
 ## ---------------------------------------------------------------- aim
 
@@ -148,7 +186,31 @@ func _apply_aim(skeleton: Skeleton3D) -> void:
 	var upper_len := shoulder.distance_to(elbow_live)
 	var lower_len := elbow_live.distance_to(end_live)
 	# Target just inside full extension so the elbow keeps a natural bend.
-	var target := shoulder + towards.normalized() * ((upper_len + lower_len) * AIM_EXTENSION)
+	# A short elbow draw, quick extension, then recoil. The wrist continues to
+	# aim at the actual target; locomotion and the wand grip remain untouched.
+	var phase := clampf(gesture_time / maxf(0.05, gesture_duration), 0.0, 1.0)
+	var snap := smoothstep(0.0, 0.24, phase)
+	var recoil := smoothstep(0.36, 0.9, phase)
+	var extension := AIM_EXTENSION - gesture_strength * (0.25 * (1.0 - snap) + 0.16 * recoil)
+	var side := towards.normalized().cross(Vector3.UP).normalized()
+	var sweep := sin(phase * PI * 2.0) * (1.0 - snap) * gesture_strength * 0.12 * gesture_side
+	var lift := 0.0
+	match gesture_spell:
+		"incendio":
+			sweep = lerpf(-0.2, 0.22, smoothstep(0, 0.65, phase)) * sin(phase * PI)
+			lift = 0.05 * sin(phase * PI)
+		"bombarda":
+			lift = 0.14 * (1.0 - snap)
+		"expelliarmus":
+			sweep = 0.26 * sin(phase * TAU) * (1.0 - phase)
+			lift = 0.08 * sin(phase * TAU)
+		"protego":
+			extension = 0.68
+			lift = 0.22 * sin(phase * PI)
+			sweep = 0.13 * sin(phase * PI)
+		"ultimate":
+			lift = 0.22 * (1.0 - snap) - 0.07 * recoil
+	var target := shoulder + towards.normalized() * ((upper_len + lower_len) * extension) + side * sweep + Vector3.UP * lift
 	var bases := {}
 	for bone in [root, mid]:
 		bases[bone] = _clip_rotations.get(skeleton.get_bone_name(bone), Quaternion())
@@ -156,6 +218,16 @@ func _apply_aim(skeleton: Skeleton3D) -> void:
 	var aimed_wrist := skeleton.get_bone_global_pose(end).origin
 	var wanted := to_aim - aimed_wrist
 	if wanted.length_squared() > 1e-6:
+		if gesture_spell in ["bombarda", "ultimate"]:
+			# Share the raised/heavy pose's correction with forearm pronation;
+			# the wrist keeps its normal limit and the hand stays at the IK target.
+			var forearm := (aimed_wrist - skeleton.get_bone_global_pose(mid).origin).normalized()
+			var wand_axis := skeleton.get_bone_global_pose(end).basis * HeroAppearance.wand_axis_in_wrist(skeleton)
+			var current_flat := wand_axis.slide(forearm)
+			var wanted_flat := wanted.slide(forearm)
+			if current_flat.length_squared() > 0.0001 and wanted_flat.length_squared() > 0.0001:
+				var roll := clampf(current_flat.signed_angle_to(wanted_flat, forearm), -1.1, 1.1)
+				RigIK.rotate_global(skeleton, mid, Quaternion(forearm, roll), weight, skeleton.get_bone_pose_rotation(mid))
 		_aim_axis(skeleton, end, HeroAppearance.wand_axis_in_wrist(skeleton), wanted)
 
 ## Rotate `bone` so an axis fixed in that bone (`axis_local`, e.g. the wand's own

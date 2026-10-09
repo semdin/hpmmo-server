@@ -29,6 +29,7 @@ var _fracturing := false
 var _quality := "high"
 var _audio_player: Node = null
 var _hits_root: Node3D
+var _last_hit_age := 10.0
 
 @onready var mesh: MeshInstance3D = $MeshInstance3D
 @onready var light: OmniLight3D = $OmniLight3D
@@ -56,13 +57,10 @@ func _build_layers() -> void:
 			shell_source.free()
 		# flowing noise + rim: a ward reads as a surface with motion in it
 		var material := ShaderMaterial.new()
-		material.shader = load(SHADER_ALPHA)
-		material.set_shader_parameter("atlas", load(VFX.asset_path("vfx_noise_flow")))
-		material.set_shader_parameter("grid", Vector2.ONE)
-		material.set_shader_parameter("billboard", false)
+		material.shader = preload("res://assets/shaders/ward_surface.gdshader")
+		material.set_shader_parameter("flow_noise", load(VFX.asset_path("vfx_noise_flow")))
 		material.set_shader_parameter("tint", Color(colour.r, colour.g, colour.b, 0.26))
 		material.set_shader_parameter("opacity", 0.85)
-		material.set_shader_parameter("soft_fade", 0.0)
 		mesh.material_override = material
 		_shell = mesh
 	# ward glyph band on the ground under the caster
@@ -104,6 +102,7 @@ func _find_mesh(node: Node) -> MeshInstance3D:
 
 func _process(delta: float) -> void:
 	elapsed += delta
+	_last_hit_age += delta
 	if is_instance_valid(caster):
 		global_position = caster.global_position + Vector3(0, 1.0, 0)
 	rotate_y(delta * 0.6)
@@ -118,9 +117,10 @@ func _process(delta: float) -> void:
 		if _shell:
 			var material := _shell.material_override as ShaderMaterial
 			if material != null:
-				# the noise field scrolls by driving the frame uniform through the
-				# 1x1 grid - the flow texture is static data, so the motion is
-				# the ward breathing rather than a texture crawl
+				material.set_shader_parameter("clock", elapsed)
+				material.set_shader_parameter("hit_age", _last_hit_age)
+				_shell.scale = Vector3.ONE * 1.8 * maxf(0.01, smoothstep(0, 0.18, elapsed))
+				# The shader scrolls the field and expands a ring from the hit point.
 				material.set_shader_parameter("opacity", 0.7 + 0.25 * pulse)
 		# ripples are presentation of hits the authority already resolved
 		for ripple in _hits_root.get_children():
@@ -148,6 +148,9 @@ func on_hit(point: Vector3) -> void:
 	if _fracturing:
 		return
 	hits_absorbed += 1
+	_last_hit_age = 0.0
+	if _shell != null:
+		(_shell.material_override as ShaderMaterial).set_shader_parameter("hit_point", point)
 	if _hits_root.get_child_count() >= MAX_RIPPLES:
 		_hits_root.get_child(0).queue_free()
 	var quad := QuadMesh.new()
@@ -184,7 +187,6 @@ func _expire() -> void:
 	if _shell:
 		var material := _shell.material_override as ShaderMaterial
 		if material != null:
-			material.set_shader_parameter("erosion", load(VFX.asset_path("vfx_noise_erosion")))
 			material.set_shader_parameter("erode", 0.05)
 	# a short fracture beat, then the shell is gone
 	var fracture := create_tween()

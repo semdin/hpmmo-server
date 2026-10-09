@@ -116,19 +116,31 @@ static func play_cast(world: Node3D, caster: Node3D, spell_id: String, spawn_pos
 		return
 	var aim := safe_direction(dir, Vector3.FORWARD)
 	var origin := emission_origin(caster, spawn_pos, aim)
+	if spell_id == "protego" and is_instance_valid(caster):
+		origin = caster.global_position + Vector3.UP
 	# Incendio is a short-range cone: the burst starts at the caster and points
 	# down the aim. Everything else is a cast flash at the emitter.
-	spawn_stage(world, spell_id, "cast", origin, aim, caster)
+	spawn_stage(world, spell_id, "cast", origin, aim, caster, _cast_options(caster, spell_id))
+
+
+static func _cast_options(caster: Node3D, spell_id: String) -> Dictionary:
+	if spell_id == "protego" and is_instance_valid(caster):
+		return {"follow_target": caster}
+	if spell_id in ["stupefy", "bombarda", "expelliarmus", "ultimate"] and is_instance_valid(caster):
+		var tip := HeroAppearance.wand_tip(caster)
+		if is_instance_valid(tip):
+			return {"follow_target": tip}
+	return {}
 
 
 ## Play the impact stage. `victim` is optional: a burn sustain attaches to it.
-static func play_impact(world: Node3D, pos: Vector3, spell_id: String, victim: Node3D = null) -> void:
+static func play_impact(world: Node3D, pos: Vector3, spell_id: String, victim: Node3D = null, incoming: Vector3 = Vector3.UP) -> void:
 	if not VFX.SPELLS.has(spell_id):
 		return
 	var opts := {"target_position": pos}
 	if victim != null:
 		opts["follow_target"] = victim
-	var effect := spawn_stage(world, spell_id, "impact", pos, Vector3.UP, null, opts)
+	var effect := spawn_stage(world, spell_id, "impact", pos, safe_direction(incoming), null, opts)
 	if effect == null:
 		return
 	if spell_id == "incendio" and victim != null:
@@ -177,7 +189,9 @@ static func play_predicted_cast(caster: Node3D, spell_id: String, cast_seq: int)
 		return null
 	var aim := safe_direction(caster.visuals.global_basis.z if "visuals" in caster else Vector3.FORWARD)
 	var origin := emission_origin(caster, caster.global_position + Vector3.UP * 1.25, aim)
-	var effect := spawn_stage(world, spell_id, "cast", origin, aim, caster)
+	if spell_id == "protego":
+		origin = caster.global_position + Vector3.UP
+	var effect := spawn_stage(world, spell_id, "cast", origin, aim, caster, _cast_options(caster, spell_id))
 	if effect != null:
 		_predicted["%d:%d" % [caster.get_instance_id(), cast_seq]] = effect
 	var manager := audio_manager()

@@ -112,7 +112,12 @@ func _process(delta: float) -> void:
 			(b as MeshInstance3D).rotation.y = sin(_candle_t * 1.6) * 0.12
 	var lake := get_node_or_null("BlackLake")
 	if lake:
-		lake.position.y = sin(_candle_t * 0.8) * 0.05
+		# Bob only the water surface + foam, never the docks, collision or
+		# lakebed: moving the whole lake moved its StaticBodies every frame and
+		# jittered any body standing on the piers.
+		var surface := lake.get_node_or_null("LakeWaterSurface")
+		if surface:
+			surface.position.y = -7.0 + sin(_candle_t * 0.8) * 0.05
 
 var _offline_save_timer: float = 15.0
 
@@ -470,7 +475,7 @@ func _on_cast_released(_cast_id: int, caster_uid: int, spell_id: String, origin:
 	# Another player's body plays the gesture too, aimed from the authority's
 	# direction, so a replicated cast reads the same as the caster's prediction.
 	if caster != null and is_instance_valid(caster) and caster.has_method("present_replicated_cast"):
-		caster.call("present_replicated_cast", origin, dir)
+		caster.call("present_replicated_cast", origin, dir, spell_id)
 	if spell_id in ["incendio", "protego"]:
 		preload("res://scripts/spells/skill_fx.gd").play_cast(self, caster if caster is Node3D else null, spell_id, origin, dir)
 		return
@@ -504,6 +509,10 @@ func _on_cast_landed(_cast_id: int, _caster_uid: int, spell_id: String, hits: Ar
 			preload("res://scripts/spells/skill_fx.gd").play_impact(self, (victim as Node3D).global_position + Vector3.UP, "protego")
 			if victim.has_method("_spawn_floating_text"):
 				victim.call("_spawn_floating_text", "REFLECTED!", Color(0.3, 0.8, 1.0), 1.3)
+			continue
+		# The travelling view draws one area blast at its collision point. Drawing
+		# another full-radius blast on every victim duplicates the affected area.
+		if spell_id in ["bombarda", "ultimate"]:
 			continue
 		preload("res://scripts/spells/skill_fx.gd").play_impact(self, (victim as Node3D).global_position + Vector3.UP, spell_id)
 

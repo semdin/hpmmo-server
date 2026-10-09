@@ -89,15 +89,13 @@ static func build(world: Node3D) -> void:
 			_table(castle, Vector3(-27, 0, 0), 7, wood)
 		else:
 			_box(castle, "Blackboard", Vector3(28, 2.5, -14.3), Vector3(8, 3, 0.2), _mat(Color(0.04, 0.13, 0.12)), false)
-	# Distinct skyline, flanking towers and rear astronomy spire. None of these
-	# towers has a door: they are solid shafts, and the art pass says so out loud
-	# with a sealed plaque at each front tower base so nobody reads them as
-	# enterable content (the enterable tower is the interior tower landing).
+	# Distinct skyline, flanking towers and rear astronomy spire. The front pair
+	# are finished guard posts (door frame, braziers, house banners) so they
+	# read as dressed architecture rather than "later content".
 	for side in [-1, 1]:
 		_tower(castle, Vector3(side * 20, 0, 24), 4.2, 25, stone, roof, trim)
 		_tower(castle, Vector3(side * 18, 0, -25), 5, 32, stone, roof, trim)
-	_sealed_tower_mark(castle, Vector3(-20, 2.0, 28.4), "TOWER SEALED\nLATER CONTENT")
-	_sealed_tower_mark(castle, Vector3(20, 2.0, 28.4), "TOWER SEALED\nLATER CONTENT")
+		_guard_post(castle, Vector3(side * 20, 0, 28.6), stone, wood)
 	_tower(castle, Vector3(0, 0, -33), 6, 43, stone, roof, trim)
 	# Entry forecourt with uninterrupted six-metre approach from the spawn area.
 	_box(castle, "EntryCourt", Vector3(0, 0.02, 33), Vector3(34, 0.1, 16), floor_mat)
@@ -215,6 +213,23 @@ static func _bookshelf(parent: Node3D, pos: Vector3, wood: Material, colors: Arr
 static func _banner(parent: Node3D, pos: Vector3, color: Color) -> void:
 	_box(parent, "HouseBanner", pos, Vector3(2.2, 4.8, 0.07), _mat(color), false)
 	_box(parent, "BannerGoldStripe", pos + Vector3(0, 0, 0.06), Vector3(0.22, 4.7, 0.03), Kit.gold_material(), false)
+
+## A finished guard post at a tower base: arched door frame, twin braziers,
+## house banner and plaque, so the tower reads as dressed rather than pending.
+static func _guard_post(parent: Node3D, pos: Vector3, stone: Material, wood: Material) -> void:
+	_box(parent, "GuardDoorL", pos + Vector3(-1.3, 1.5, 0), Vector3(0.6, 3.0, 0.6), stone)
+	_box(parent, "GuardDoorR", pos + Vector3(1.3, 1.5, 0), Vector3(0.6, 3.0, 0.6), stone)
+	_box(parent, "GuardLintel", pos + Vector3(0, 3.2, 0), Vector3(3.2, 0.6, 0.6), stone)
+	var door := _box(parent, "GuardDoor", pos + Vector3(0, 1.3, -0.2), Vector3(2.0, 2.6, 0.25), wood, false)
+	door.position = pos + Vector3(0, 1.3, -0.2)
+	for side in [-1, 1]:
+		var braz := CylinderMesh.new()
+		braz.top_radius = 0.3
+		braz.bottom_radius = 0.22
+		braz.height = 1.0
+		_mesh(parent, "GuardBrazier", braz, pos + Vector3(side * 2.2, 0.5, 0.6), stone)
+		_light(parent, pos + Vector3(side * 2.2, 1.6, 0.6), 1.6, 9.0)
+	_sealed_tower_mark(parent, pos + Vector3(0, 2.0, 0.4), "HOGWARTS WATCH")
 
 ## A sealed plaque at an inactive tower's base: "this is not a door".
 static func _sealed_tower_mark(parent: Node3D, pos: Vector3, text: String) -> void:

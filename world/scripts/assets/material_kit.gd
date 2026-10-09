@@ -87,12 +87,22 @@ static func leaf_material() -> StandardMaterial3D:
 	var m := _mat(t, Color(1,1,1), 0.9)
 	return m
 
-static func water_material() -> StandardMaterial3D:
+static func water_material() -> Material:
+	var shader := load("res://assets/shaders/water_pbr.gdshader") as Shader
+	if shader != null:
+		var mat := ShaderMaterial.new()
+		mat.shader = shader
+		return mat
+	# Fallback when the shader is missing: bright lake blue with emission so it
+	# never reads as a dark hole.
 	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(0.12, 0.30, 0.45, 0.82)
+	m.albedo_color = Color(0.23, 0.50, 0.62, 0.82)
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.roughness = 0.15
-	m.metallic = 0.6
+	m.roughness = 0.12
+	m.metallic = 0.05
+	m.emission_enabled = true
+	m.emission = Color(0.12, 0.30, 0.42)
+	m.emission_energy_multiplier = 0.5
 	return m
 
 static func robe_material(house_color: Color) -> StandardMaterial3D:

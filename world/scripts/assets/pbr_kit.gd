@@ -13,6 +13,7 @@ extends RefCounted
 ## actually assigned, so this file is also the material contract for the art pass.
 
 const SHADER := preload("res://assets/shaders/triplanar_pbr.gdshader")
+const MEADOW_TINT := Color(0.70, 0.76, 0.58)
 
 ## ------------------------------------------------------------------ sets
 ## metres_per_tile drives texel density: px / (metres * 1000) px/m.
@@ -304,9 +305,11 @@ static func slot_material(slot: String, tint: Color = Color.WHITE) -> Material:
 		"flame":
 			return _flame()
 		"foliage":
-			return textured("foliage_leafcard_01", {"alpha_scissor": 0.4, "roughness": 0.9})
+			return textured("foliage_leafcard_01", {"alpha_scissor": 0.4, "roughness": 0.9,
+				"tint": Color(0.78, 0.86, 0.72)})
 		"grass":
-			return textured("grass_blade_01", {"alpha_scissor": 0.35, "roughness": 0.95})
+			return textured("grass_blade_01", {"alpha_scissor": 0.35, "roughness": 0.95,
+				"tint": MEADOW_TINT})
 		"moss":
 			return textured("moss_01", {"blend": true, "roughness": 0.95})
 		"dirt":

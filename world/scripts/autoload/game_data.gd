@@ -148,6 +148,21 @@ func _ready() -> void:
 		UPGRADE_TABLE[tier] = spec.duplicate(true)
 		UPGRADE_TABLE[tier]["aura"] = WAND_AURAS[tier]
 	_register_input_actions()
+	_apply_custom_cursor()
+
+func _apply_custom_cursor() -> void:
+	var cursor_path := "res://assets/ui/cursor.png"
+	var tex: Texture2D = null
+	if ResourceLoader.exists(cursor_path):
+		tex = load(cursor_path) as Texture2D
+	if tex == null:
+		var global_path := ProjectSettings.globalize_path(cursor_path)
+		if FileAccess.file_exists(global_path):
+			var img := Image.load_from_file(global_path)
+			if img != null:
+				tex = ImageTexture.create_from_image(img)
+	if tex != null:
+		Input.set_custom_mouse_cursor(tex, Input.CURSOR_ARROW, Vector2.ZERO)
 
 ## Gameplay contracts (spells, safe zones) are server-owned since the authority handover and
 ## consumed from the synced simulation package, together with items/refinement.
@@ -234,3 +249,15 @@ func _ensure_action(action_name: String, key_codes: Array) -> void:
 		event.physical_keycode = key
 		if not InputMap.action_has_event(action_name, event):
 			InputMap.action_add_event(action_name, event)
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_F11 or (event.keycode == KEY_ENTER and event.alt_pressed):
+			toggle_fullscreen()
+
+func toggle_fullscreen() -> void:
+	var mode := DisplayServer.window_get_mode()
+	if mode == DisplayServer.WINDOW_MODE_FULLSCREEN or mode == DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN:
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+	else:
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)

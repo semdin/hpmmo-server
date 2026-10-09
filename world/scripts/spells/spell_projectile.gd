@@ -38,6 +38,9 @@ func setup(source: Node3D, id: String, aim: Vector3, target: Node3D = null, bonu
 	speed = float(data.get("projectile_speed", 40))
 	max_lifetime = float(data.get("range", 36)) / speed
 	spell_color = data.get("color", Color.WHITE)
+	# These wand bolts are entirely light layers. A second, full-size imported
+	# carrier obscured the streak and read as a flying solid block.
+	mesh.visible = false # The travel composition owns every spell's visible body.
 	# The placeholder sphere is replaced by the authored carrier core;
 	# the layered travel stage (ribbon + wisps) rides along with it.
 	var core_scene := load(VFX.asset_path("vfx_projectile_mesh")) as PackedScene
@@ -60,6 +63,8 @@ func setup(source: Node3D, id: String, aim: Vector3, target: Node3D = null, bonu
 	light.light_color = spell_color
 	light.light_energy = 1.5
 	light.omni_range = 4.0
+	light.visible = SkillFX.quality() != "low"
+	look_at(global_position + direction, Rules.safe_up(direction))
 	travel_effect = SkillFX.spawn_stage(travel_slot if travel_slot != null else get_parent(),
 		id, "travel", global_position, direction, caster, {"follow_target": self})
 	SkillFX.play_cast(get_parent(), caster, id, global_position, direction)
@@ -75,7 +80,7 @@ func _physics_process(delta: float) -> void:
 		else:
 			# out of range: the travel stage is cancelled, never left running
 			if travel_effect != null and is_instance_valid(travel_effect):
-				travel_effect.call("cancel", "out_of_range")
+				_end_travel("out_of_range")
 			queue_free()
 		return
 	var next := global_position + direction * speed * delta
@@ -139,10 +144,19 @@ func _handle_hit(target: Node) -> void:
 			SimAuthority.spell_area_impact(caster, global_position, radius, spell_id, damage)
 		elif Rules.can_damage(caster, target):
 			SimAuthority.apply_damage(target, damage, spell_id, caster)
-	SkillFX.play_impact(get_parent(), global_position, spell_id, target)
+	SkillFX.play_impact(get_parent(), global_position, spell_id, target, direction)
 	if travel_effect != null and is_instance_valid(travel_effect):
-		travel_effect.call("cancel", "spent")
+		_end_travel("spent")
 	queue_free()
+
+
+func _end_travel(reason: String) -> void:
+	if spell_id in ["stupefy", "bombarda", "expelliarmus", "ultimate"]:
+		# Keep the last quarter-second of filaments in world space at impact.
+		travel_effect.reparent(get_parent(), true)
+		travel_effect.call("retire_travel")
+	else:
+		travel_effect.call("cancel", reason)
 
 
 func _find_mesh(node: Node) -> MeshInstance3D:

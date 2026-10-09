@@ -4,10 +4,10 @@ extends RefCounted
 static func build(parent: Node3D) -> void:
 	var noise := FastNoiseLite.new()
 	noise.seed = 7429
-	noise.frequency = 0.012
+	noise.frequency = 0.005
 	noise.fractal_octaves = 3
-	var radii := [185.0, 225.0, 275.0, 315.0, 370.0]
-	var elevations := [-1.0, 8.0, 56.0, 36.0, -1.0]
+	var radii := [480.0, 560.0, 660.0, 780.0, 920.0]
+	var elevations := [-2.0, 18.0, 95.0, 65.0, -2.0]
 	var rows: Array = []
 	for ring in range(radii.size()):
 		var row: Array[Vector3] = []

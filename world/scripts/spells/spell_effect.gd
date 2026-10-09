@@ -57,6 +57,8 @@ var _follow_carried := false
 ## it by spending, leaving range or being freed; a fixed timer would clip the
 ## flight short (basic_cast flies 0.9 s, the viewer rehearses up to 3 s).
 var _follow_owned := false
+var _retiring := false
+var _retire_at := 0.0
 
 func _ready() -> void:
 	set_process(true)
@@ -118,8 +120,9 @@ func setup(p_spell: String, p_stage: String, p_quality: String, p_origin: Vector
 		if requested > 0.0 and authored_length > 0.0 and is_equal_approx(life, authored_length):
 			life = requested
 			layer["life"] = requested
+		offset = float(layer.get("delay", 0.0))
+		node.visible = offset <= 0.0
 		_layers.append({"node": node, "layer": layer, "born": _elapsed, "offset": offset})
-		offset += 0.04  # staggered so the layers do not pop in as one sheet
 		if life > 0.0:
 			_duration = maxf(_duration, life + float(layer.get("delay", 0.0)))
 	_duration = maxf(_duration, authored_length)
@@ -139,6 +142,20 @@ func setup(p_spell: String, p_stage: String, p_quality: String, p_origin: Vector
 
 func _build_layer(layer: Dictionary, colour: Color) -> Node3D:
 	match String(layer.get("kind", "")):
+		"signature":
+			var signature := preload("res://scripts/spells/spell_signature_vfx.gd").new()
+			signature.name = "SpellSignature"
+			add_child(signature)
+			var area := aoe_radius if aoe_radius > 0.0 else float(GameData.SPELLS.get(spell_id, {}).get("radius", 0.0))
+			signature.configure(spell_id, float(layer.get("life", 0.8)), area)
+			signature.setup(stage, quality, direction)
+			return signature
+		"stupefy_energy":
+			var energy := preload("res://scripts/spells/stupefy_vfx.gd").new()
+			energy.name = "StupefyEnergy"
+			add_child(energy)
+			energy.setup(stage, quality, direction)
+			return energy
 		"flipbook":
 			return _build_flipbook(layer, colour)
 		"sprite":
@@ -161,6 +178,13 @@ func _layer_colour(layer: Dictionary, colour: Color) -> Color:
 func _material_for(layer: Dictionary, colour: Color) -> ShaderMaterial:
 	var additive := String(layer.get("blend", "alpha")) == "add"
 	var material := ShaderMaterial.new()
+	if layer.has("energy_shape"):
+		material.shader = preload("res://assets/shaders/wand_energy.gdshader")
+		material.set_shader_parameter("shape", int(layer["energy_shape"]))
+		material.set_shader_parameter("tint", _layer_colour(layer, colour))
+		material.set_shader_parameter("aim", direction)
+		material.set_shader_parameter("opacity", float(layer.get("opacity", 1.0)))
+		return material
 	material.shader = load(SHADER_ADD if additive else SHADER_ALPHA)
 	var entry: Dictionary = VFX.asset(String(layer.get("atlas", layer.get("tex", ""))))
 	if layer.has("atlas") and entry.is_empty():
@@ -183,7 +207,7 @@ func _material_for(layer: Dictionary, colour: Color) -> ShaderMaterial:
 func _build_flipbook(layer: Dictionary, colour: Color) -> Node3D:
 	var quad := QuadMesh.new()
 	var size := float(layer.get("size", 1.0))
-	quad.size = Vector2(size, size)
+	quad.size = Vector2(size * float(layer.get("stretch", 1.0)), size)
 	var material := _material_for(layer, colour)
 	quad.material = material
 	var node := MeshInstance3D.new()
@@ -229,7 +253,11 @@ func _build_particles(layer: Dictionary, colour: Color) -> Node3D:
 	particles.amount = int(layer.get("amount", 12))
 	particles.lifetime = float(layer.get("life", 0.5))
 	particles.one_shot = true
+	if bool(layer.get("continuous", false)):
+		particles.one_shot = false
 	particles.explosiveness = 0.92
+	if not particles.one_shot:
+		particles.explosiveness = 0.0
 	particles.randomness = 0.8
 	particles.local_coords = false
 	particles.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -262,6 +290,12 @@ func _build_particles(layer: Dictionary, colour: Color) -> Node3D:
 	process.scale_min = 0.6
 	process.scale_max = 1.4
 	process.color = _layer_colour(layer, colour)
+	var gradient := Gradient.new()
+	gradient.set_color(0, Color(1, 1, 1, 1))
+	gradient.set_color(1, Color(1, 1, 1, 0))
+	var ramp := GradientTexture1D.new()
+	ramp.gradient = gradient
+	process.color_ramp = ramp
 	particles.process_material = process
 	add_child(particles)
 	particles.global_position = base_position + direction * _forward_of(layer)
@@ -296,7 +330,13 @@ func _build_mesh_layer(layer: Dictionary, colour: Color) -> Node3D:
 		mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD if String(layer.get("blend", "alpha")) == "add" else BaseMaterial3D.BLEND_MODE_MIX
 		mat.vertex_color_use_as_albedo = true
 		var tint := _layer_colour(layer, colour)
-		if bool(layer.get("flow", false)):
+		if bool(layer.get("ward", false)):
+			var ward := ShaderMaterial.new()
+			ward.shader = preload("res://assets/shaders/ward_surface.gdshader")
+			ward.set_shader_parameter("flow_noise", load(VFX.asset_path("vfx_noise_flow")))
+			ward.set_shader_parameter("tint", tint)
+			_set_mesh_material(instance, ward)
+		elif bool(layer.get("flow", false)):
 			# the shell carries a flowing noise field and a bright rim so the
 			# ward reads as a surface, not as a sprite
 			var shader_mat := ShaderMaterial.new()
@@ -340,6 +380,8 @@ func _build_ribbon(layer: Dictionary, colour: Color) -> Node3D:
 	material.set_shader_parameter("edge_softness", 0.6)
 	node.material_override = material
 	add_child(node)
+	# Vertices below are world positions; inherit neither spawn translation nor rotation.
+	node.global_transform = Transform3D.IDENTITY
 	node.set_meta("width", float(layer.get("width", 0.1)))
 	node.set_meta("max_length", float(layer.get("length", 3.0)))
 	node.set_meta("history", PackedVector3Array())
@@ -394,18 +436,36 @@ func _tick_layer(entry: Dictionary, delta: float) -> void:
 	var age: float = _elapsed - float(entry["born"]) - float(entry["offset"])
 	if age < 0.0:
 		return
+	node.visible = true
 	var life := float(layer.get("life", 0.0))
 	var kind := String(layer.get("kind", ""))
 	# fade curves: nothing pops, everything is a curve
 	var fade := _fade_for(layer, age, life)
 	match kind:
+		"signature":
+			var current_aim := direction
+			if is_instance_valid(follow_target) and "direction" in follow_target:
+				current_aim = follow_target.get("direction")
+			node.duration = maxf(0.1, life)
+			node.advance(age, current_aim)
+		"stupefy_energy":
+			var current_aim := direction
+			if is_instance_valid(follow_target) and "direction" in follow_target:
+				current_aim = follow_target.get("direction")
+			node.advance(age, current_aim)
 		"flipbook", "sprite":
 			var material := (node as MeshInstance3D).mesh.surface_get_material(0) as ShaderMaterial
 			if material != null:
+				if layer.has("energy_shape"):
+					material.set_shader_parameter("phase", clampf(age / maxf(life, 0.01), 0.0, 1.0))
+					if stage == "travel" and is_instance_valid(follow_target):
+						var current_aim: Vector3 = follow_target.get("direction") if "direction" in follow_target else direction
+						material.set_shader_parameter("aim", current_aim)
 				# a flipbook walks its atlas frame by frame; a sprite holds the
 				# single cell it was placed on (a rune mask, a ground mark, a glow)
-				var frame := float(layer.get("frame", 0)) if kind == "sprite" else _flipbook_frame(layer, age)
-				material.set_shader_parameter("frame", frame)
+				if not layer.has("energy_shape"):
+					var frame := float(layer.get("frame", 0)) if kind == "sprite" else _flipbook_frame(layer, age)
+					material.set_shader_parameter("frame", frame)
 				material.set_shader_parameter("opacity", fade * float(layer.get("opacity", 1.0)))
 				if bool(layer.get("fracture", false)):
 					material.set_shader_parameter("erode", clampf(age / maxf(0.05, life), 0.0, 1.0))
@@ -415,7 +475,7 @@ func _tick_layer(entry: Dictionary, delta: float) -> void:
 				var s := 0.85 + 0.3 * sin(_elapsed * 47.0) * randf()
 				node.scale = Vector3.ONE * s
 		"particles":
-			if age > life and (node as GPUParticles3D).emitting:
+			if not bool(layer.get("continuous", false)) and age > life and (node as GPUParticles3D).emitting:
 				(node as GPUParticles3D).emitting = false
 		"mesh":
 			for child in node.get_children():
@@ -430,6 +490,11 @@ func _tick_layer(entry: Dictionary, delta: float) -> void:
 			var mat := _first_material(node)
 			if mat is ShaderMaterial:
 				var shader_mat := mat as ShaderMaterial
+				if bool(layer.get("ward", false)):
+					shader_mat.set_shader_parameter("clock", age)
+					shader_mat.set_shader_parameter("opacity", fade)
+					if bool(layer.get("grow", false)):
+						node.scale = Vector3.ONE * maxf(0.01, smoothstep(0, 0.18, age))
 				var tint: Color = shader_mat.get_shader_parameter("tint")
 				shader_mat.set_shader_parameter("tint", Color(tint.r, tint.g, tint.b, fade * 0.35))
 				if bool(layer.get("fracture", false)):
@@ -440,6 +505,8 @@ func _tick_layer(entry: Dictionary, delta: float) -> void:
 				std.albedo_color = Color(std.albedo_color.r, std.albedo_color.g, std.albedo_color.b, fade)
 		"ribbon":
 			_update_ribbon(node, delta)
+			if _retiring:
+				(node.material_override as ShaderMaterial).set_shader_parameter("opacity", 1.0 - smoothstep(0.0, 0.24, _elapsed - _retire_at))
 		"light":
 			var peak := float(node.get_meta("peak_energy", 2.0))
 			(node as OmniLight3D).light_energy = peak * fade
@@ -487,7 +554,8 @@ func _fade_for(layer: Dictionary, age: float, life: float) -> float:
 func _update_ribbon(node: MeshInstance3D, delta: float) -> void:
 	var history: PackedVector3Array = node.get_meta("history")
 	var origin := follow_target.global_position if (follow_target != null and is_instance_valid(follow_target)) else global_position
-	history.push_back(origin)
+	if history.is_empty() or history[history.size() - 1].distance_squared_to(origin) > 0.0001:
+		history.push_back(origin)
 	# keep ~0.5 s of motion, decimated so a slow frame cannot grow the strip
 	while history.size() > 32:
 		history.remove_at(0)
@@ -509,7 +577,9 @@ func _update_ribbon(node: MeshInstance3D, delta: float) -> void:
 		var age := float(i) / float(count)
 		var taper := lerpf(1.0, 0.06, age)
 		var dir := (point - history[maxi(0, idx - 1)]).normalized() if idx > 0 else direction
-		var side := dir.cross(Vector3.UP)
+		var camera := get_viewport().get_camera_3d()
+		var to_camera := (camera.global_position - point).normalized() if camera != null else Vector3.UP
+		var side := dir.cross(to_camera)
 		if side.length_squared() < 0.0001:
 			side = Vector3.RIGHT
 		side = side.normalized() * width * taper
@@ -524,6 +594,26 @@ func _update_ribbon(node: MeshInstance3D, delta: float) -> void:
 
 ## Cancel: stop emitting, fade over a short beat, then free. Used by death,
 ## interruption, transfer, network rejection and shutdown.
+func retire_travel() -> void:
+	if _retiring or cancelled:
+		return
+	_retiring = true
+	_retire_at = _elapsed
+	_follow_owned = false
+	_follow_carried = false
+	if is_instance_valid(follow_target) and "direction" in follow_target:
+		direction = follow_target.get("direction")
+	follow_target = null
+	_duration = _elapsed + 0.26
+	_stop_audio()
+	for entry in _layers:
+		var node: Node = entry["node"]
+		if node.has_method("retire"):
+			node.call("retire")
+		elif node is GPUParticles3D:
+			(node as GPUParticles3D).emitting = false
+
+
 func cancel(reason: String = "") -> void:
 	if cancelled:
 		return
@@ -536,6 +626,8 @@ func cancel(reason: String = "") -> void:
 		if node is GPUParticles3D:
 			(node as GPUParticles3D).emitting = false
 		elif node is MeshInstance3D:
+			node.visible = false
+		elif node.has_method("retire"):
 			node.visible = false
 	set_meta("cancel_reason", reason)
 	# one short beat so a cancelled quad does not vanish between two frames

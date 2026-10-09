@@ -78,8 +78,21 @@ var _wand_visual_key := ""
 # Movement & Speeds
 var walk_speed: float = 8.5
 var mounted_speed: float = 15.0
+var swim_speed: float = 4.2
 var is_mounted: bool = false
 var gravity: float = 24.0
+## True while the body is inside the Black Lake swim volume. Set every physics
+## frame; the animation state reads it to play a paddle instead of a fall.
+var is_swimming: bool = false
+## Black Lake swim datum (mirrors OutdoorTerrain.LAKE_*; duplicated here so the
+## entity script never preloads the world builder).
+const LAKE_CENTER_X := -220.0
+const LAKE_CENTER_Z := 185.0
+const LAKE_HALF_X := 85.0
+const LAKE_HALF_Z := 75.0
+const WATER_SURFACE_Y := -7.0
+const SWIM_FLOAT_Y := -6.35
+const KILL_PLANE_Y := -16.0
 
 # Decoupled Camera Orbit
 var camera_rot_x: float = -20.0
@@ -434,15 +447,23 @@ func _process(delta: float) -> void:
 		set_target(null)
 
 func _physics_process(delta: float) -> void:
-	# World Boundaries & Safeguards: Infinite Fall Kill-Plane (Section 7.2 of.md).
-	# Only the authority rescues a body: a client that rescued itself would be
-	# teleporting somewhere the server never agreed to.
-	if is_local_player and SimAuthority.is_authority() and global_position.y < -10.0:
+	# World Boundaries & Safeguards: fall kill-plane matches grounds y_min (-16).
+	# The lakebed (-13.5) and the swim volume (-7) both sit above it, so swimming
+	# never triggers a rescue; only a genuine void fall does.
+	if is_local_player and SimAuthority.is_authority() and global_position.y < KILL_PLANE_Y:
 		global_position = Vector3(0, 1.0, 5.0) # Courtyard Fountain
 		velocity = Vector3.ZERO
 		current_hp = max_hp
 		_spawn_floating_text("Kadim Koruma Kalkanı Seni Kurtardı!", Color(0.3, 0.8, 1.0), 1.6)
 		emit_stats()
+
+	# Black Lake swim state: inside the lake rect and at/below water level.
+	# The water surface now has collision, so the body stands on it instead of
+	# falling through; buoyancy + drag here make it feel like water, not stone.
+	var in_lake_rect := absf(global_position.x - LAKE_CENTER_X) <= LAKE_HALF_X \
+		and absf(global_position.z - LAKE_CENTER_Z) <= LAKE_HALF_Z
+	is_swimming = in_lake_rect and not is_mounted and global_position.y < SWIM_FLOAT_Y + 0.7 \
+		and global_position.y > WATER_SURFACE_Y - 3.0
 
 	# Update decoupled camera pivot position & rotation smoothly
 	if is_local_player and is_instance_valid(camera_pivot):
@@ -477,9 +498,17 @@ func _physics_process(delta: float) -> void:
 	if is_dead:
 		velocity = Vector3.ZERO
 		return
-	_was_airborne = not is_on_floor() and not is_mounted
-	# Gravity & Mounting
-	if not is_on_floor() and not is_mounted:
+	_was_airborne = not is_on_floor() and not is_mounted and not is_swimming
+	# Gravity, swimming & mounting. Swimming overrides gravity with buoyancy:
+	# the body floats toward SWIM_FLOAT_Y and paddles with jump, never sinks to
+	# the lakebed.
+	if is_swimming:
+		var float_target := SWIM_FLOAT_Y
+		if not input_blocked() and _intent_jump():
+			float_target += 0.6
+		velocity.y = move_toward(velocity.y, (float_target - global_position.y) * 4.0, gravity * 0.6 * delta)
+		velocity.y = clampf(velocity.y, -3.0, 3.0)
+	elif not is_on_floor() and not is_mounted:
 		velocity.y -= gravity * delta
 	elif is_mounted:
 		var vertical := 0.0
@@ -491,13 +520,13 @@ func _physics_process(delta: float) -> void:
 		if global_position.y > 45.0:
 			vertical = minf(vertical, -0.5)
 		velocity.y = move_toward(velocity.y, vertical * 7.0, delta * 18.0)
-	elif not input_blocked() and _intent_jump_edge():
+	elif not input_blocked() and _intent_jump_edge() and not is_swimming:
 		velocity.y = 8.0
 
 	# Input direction relative to camera yaw
 	var input_dir := _intent_move()
 
-	var active_speed := mounted_speed if is_mounted else walk_speed
+	var active_speed := mounted_speed if is_mounted else (swim_speed if is_swimming else walk_speed)
 	var is_moving := input_dir.length_squared() > 0.01
 
 	if is_moving:
@@ -507,7 +536,7 @@ func _physics_process(delta: float) -> void:
 		var right := Vector3(cos(cam_yaw), 0, -sin(cam_yaw))
 		var move_vector := (right * input_dir.x + forward * -input_dir.y).normalized()
 
-		var acceleration := 25.0 if is_mounted else 65.0
+		var acceleration := 25.0 if is_mounted else (18.0 if is_swimming else 65.0)
 		velocity.x = move_toward(velocity.x, move_vector.x * active_speed, acceleration * delta)
 		velocity.z = move_toward(velocity.z, move_vector.z * active_speed, acceleration * delta)
 
@@ -563,6 +592,13 @@ func _update_animation_state() -> void:
 	if is_mounted:
 		var phase := sim_mount_phase if sim_puppet else mount_phase()
 		hero_anim.set_locomotion("mount%d" % phase, clip_for_mount_phase(phase))
+		return
+	if is_swimming:
+		var hspeed := Vector2(velocity.x, velocity.z).length()
+		if hspeed < 0.5:
+			hero_anim.set_locomotion("swim_idle", "Idle")
+		else:
+			hero_anim.set_locomotion("swim", "Running_A")
 		return
 	if not is_on_floor():
 		hero_anim.set_locomotion("air_up", "Jump_Start" if velocity.y > 0.5 else "Fall")
@@ -1027,16 +1063,17 @@ func cast_spell(spell_id: String) -> void:
 	# Refined Basic Attack Chain (Section 4.3 of.md) - animation only; the
 	# damage multiplier is the server's combo counter.
 	var anim_name := "Spellcast_Shoot"
+	var gesture_combo := basic_combo_index
 	if spell_id == "basic_cast":
 		basic_combo_timer = 1.2
 		if basic_combo_index == 0:
 			anim_name = "Spellcast_Shoot"
 			basic_combo_index = 1
 		elif basic_combo_index == 1:
-			anim_name = "Spellcast_Raise"
+			anim_name = "Spellcast_Shoot"
 			basic_combo_index = 2
 		else:
-			anim_name = "1H_Melee_Attack_Chop"
+			anim_name = "Spellcast_Shoot"
 			basic_combo_index = 0
 			_spawn_floating_text("3-HIT COMBO!", Color(1.0, 0.85, 0.2), 1.4)
 
@@ -1046,7 +1083,7 @@ func cast_spell(spell_id: String) -> void:
 		_committed_until = maxf(_committed_until, COMMITTED_MELEE)
 	_cast_seq += 1
 	_predicted_casts[_cast_seq] = {"spell_id": spell_id, "aim": aim_hit}
-	_play_cast_animation(anim_name, aim_hit)
+	_play_cast_animation(anim_name, aim_hit, spell_id, gesture_combo)
 	if spell_id == "protego":
 		_activate_protego_preview()
 	# spell-effect hook: predicted PRESENTATION only (wand flash + cast sound), keyed
@@ -1103,16 +1140,26 @@ func _reject_feedback(reason: String) -> void:
 ##
 ## `aim` defaults to the body's forward so the cast still points somewhere when a
 ## caller has no aim point (the vfx viewer calls this with no arguments).
-func _play_cast_animation(anim_name: String = "Spellcast_Shoot", aim: Variant = null) -> void:
+func _play_cast_animation(anim_name: String = "Spellcast_Shoot", aim: Variant = null, spell: String = "", combo: int = 0) -> void:
 	if hero_anim == null and not is_instance_valid(anim_player):
 		return
 	is_casting_anim = true
 	_cast_generation += 1
 	var generation := _cast_generation
+	if spell in ["protego", "ultimate"]:
+		anim_name = "Spellcast_Raise"
 	var upper := anim_name + "_Upper"
 	var hold := 0.42
+	if spell == "basic_cast":
+		hold = 0.30 if combo != 2 else 0.36
+	elif spell == "stupefy":
+		hold = 0.48
+	else:
+		hold = float({"incendio": 0.65, "bombarda": 0.55, "expelliarmus": 0.42, "protego": 0.62, "ultimate": 0.72}.get(spell, hold))
 	if hero_anim:
 		hero_anim.start_cast(upper if hero_anim.has_clip(upper) else anim_name, hold)
+		if hero_anim.cast_layer:
+			hero_anim.cast_layer.set_gesture(spell, combo, hold)
 		hero_anim.align_cast(hold * 0.6, 0.45)
 		# A wand cast points the wand at the target; a melee chop is a SWING, so it
 		# keeps the clip's own arm (holding it on the target would freeze it). The
@@ -1127,6 +1174,8 @@ func _play_cast_animation(anim_name: String = "Spellcast_Shoot", aim: Variant = 
 		elif anim_player.has_animation("Spellcast_Shoot"):
 			anim_player.play("Spellcast_Shoot", 0.08)
 	await get_tree().create_timer(hold * 0.6).timeout
+	if generation != _cast_generation or is_dead:
+		return
 	if animation_events.size() < 32:
 		_on_animation_event("fx:wand_release")
 	await get_tree().create_timer(hold * 0.4).timeout
@@ -1138,10 +1187,10 @@ func _play_cast_animation(anim_name: String = "Spellcast_Shoot", aim: Variant = 
 ## A replicated cast: another player's body plays the same gesture, aimed from the
 ## authority's origin and direction rather than from local input. The caster's own
 ## client already predicted this, so only other clients run it.
-func present_replicated_cast(origin: Vector3, dir: Vector3) -> void:
+func present_replicated_cast(origin: Vector3, dir: Vector3, spell: String = "") -> void:
 	if is_local_player or hero_anim == null or is_dead:
 		return
-	_play_cast_animation("Spellcast_Shoot", origin + dir * 20.0)
+	_play_cast_animation("Spellcast_Shoot", origin + dir * 20.0, spell)
 
 func _activate_protego_preview() -> void:
 	is_protego_active = true
