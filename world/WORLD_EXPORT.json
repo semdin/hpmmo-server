@@ -1,7 +1,7 @@
 {
  "generated": "2026-10-10",
  "source_repository": "hpmmo-client",
- "source_revision": "ec0a6644fa8f96a2b309250960f8900f2143d12c",
+ "source_revision": "427aa0556f24af6bb82aa2ef0d119e881aac3536",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/audio/sound_library.json": "89150de471b41283c681dbd3646c093b20985fe61c1663f8798f5af95c934476",
@@ -364,7 +364,7 @@
   "scripts/world/castle_interior_builder.gd": "a29405e33f2c37ee5d6a2f6fa5bb2be27ff18c578ba97274b20eb318f3da28b5",
   "scripts/world/distant_ridges.gd": "029bbba3a0a2e48b9b33fc0033a5763b64d82bc7e33e2431e89ea176afd35b1c",
   "scripts/world/encounter_director.gd": "ca52b989deb6a6b4e3688e586ede82ca8307125c57cd07f91b27997bb27c1ead",
-  "scripts/world/game_world.gd": "0d8d8a4b095520d88b8abbdac643ca7a8be6f46d1cf4c146c0abf80118baf769",
+  "scripts/world/game_world.gd": "dea92c6c10cc5b6b8e7d3f0252a66237116b29f1cbf05837a982ee793f2a219e",
   "scripts/world/map_controller.gd": "3c4186cc2dd78a94908c3d7282187c0b8001337e06bf5f69473c07dfe3dc1b39",
   "scripts/world/npc.gd": "94252696b42af9f11797c229603ed523585875e744f6cfa23158901724cbd296",
   "scripts/world/outdoor_terrain.gd": "ee767716c7dc95ee07b7e2dd10412239b9ebc6aa114ee0b2e7bc1d8fe0a0429d",

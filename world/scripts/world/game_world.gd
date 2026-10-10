@@ -521,6 +521,12 @@ func _on_cast_landed(_cast_id: int, _caster_uid: int, spell_id: String, hits: Ar
 		preload("res://scripts/spells/skill_fx.gd").play_impact(self, (victim as Node3D).global_position + Vector3.UP, spell_id)
 
 func _on_loot_spawned(uid: int, item_id: String, amount: int, pos: Vector3) -> void:
+	# One drop, one marker. A drop that lands while the player is watching
+	# arrives twice - the spawn broadcast and the interest scan's first-sight
+	# send - and a second view would be untracked: the pickup's despawn removes
+	# only the tracked node, so a copy of the item would stay on the ground.
+	if is_instance_valid(_views.get(uid)):
+		return
 	var node = LOOT_SCENE.instantiate()
 	add_child(node)
 	node.global_position = pos
