@@ -1,7 +1,7 @@
 {
  "generated": "2026-10-10",
  "source_repository": "hpmmo-client",
- "source_revision": "e263124eb3e5a40a55dcf51aebd6085cd6383050",
+ "source_revision": "2c8f3f16b681d01fa713e8c8287bba1b232f07c1",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/audio/sound_library.json": "89150de471b41283c681dbd3646c093b20985fe61c1663f8798f5af95c934476",
@@ -371,6 +371,6 @@
   "scripts/world/quality_preset.gd": "370062314f6217b1dc6e4716a92c50202a9097188ecad7d823d49f51612ed69b",
   "scripts/world/safe_zone.gd": "c638ef9a5fc897596043ef8ac9a07167adf8bb0a1ff8a53fb515742651c02cf4",
   "scripts/world/training_dummy.gd": "b51e94f0221528ffdcc137b16b16779192f0cda6fbddfb53a649ffaeaaabd4d3",
-  "scripts/world/world_builder.gd": "727bf4995a3f8be27393fb31a6a56068d7c1577525a2c65935dc70c81c6d09b5"
+  "scripts/world/world_builder.gd": "200795b08e064bf3988b7aa34e234835cedac4cba3a13620fe6a8cc1944114e8"
  }
 }

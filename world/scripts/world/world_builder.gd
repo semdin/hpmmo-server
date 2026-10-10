@@ -877,6 +877,9 @@ static func _build_stair_flight(parent: Node3D, from: Vector3, to: Vector3, step
 	for segment in range(1, SEGMENTS + 1):
 		var t := float(segment) / float(SEGMENTS)
 		var point := Vector3(lerpf(from.x, to.x, t), 0.0, lerpf(from.z, to.z, t))
+		# A blended hint line keeps the collision ramp smooth (a pure ground
+		# follower stacks ledges the walker cannot climb); the treads below are
+		# then lifted per step so they stay proud of the grass.
 		point.y = lerpf(OutdoorTerrain.ground_y(from.x, from.z),
 			OutdoorTerrain.ground_y(to.x, to.z), t) * 0.35 \
 			+ OutdoorTerrain.ground_y(point.x, point.z) * 0.65
@@ -890,10 +893,16 @@ static func _build_stair_segment(parent: Node3D, from: Vector3, to: Vector3, ste
 	var h_dist := Vector2(delta.x, delta.z).length()
 	var angle_y := atan2(delta.x, delta.z)
 	
-	# Physical stepped treads
+	# Physical stepped treads. The flight's collision ramp is the smooth blended
+	# line, which on a convex hillside dips below the real ground: at ramp level
+	# every tread sank into the grass and the flight read as bare hillside, so
+	# each tread is lifted to stay proud of the terrain it crosses.
+	const RAMP_LIFT := 0.26
 	for i in range(step_count):
 		var t := float(i) / float(step_count - 1)
 		var step_pos := from + delta * t
+		var ground_here := OutdoorTerrain.ground_y(step_pos.x, step_pos.z)
+		step_pos.y += maxf(RAMP_LIFT, ground_here - step_pos.y + 0.12)
 		var tread := PBR.kit_instance("stair_tread_0_2x4")
 		if tread:
 			tread.position = step_pos
@@ -905,7 +914,8 @@ static func _build_stair_segment(parent: Node3D, from: Vector3, to: Vector3, ste
 				var np := PBR.kit_instance("newel_post_1_2")
 				if np:
 					var lateral := Basis.from_euler(Vector3(0, angle_y, 0)) * Vector3(side * (width * 0.5 + 0.2), 0, 0)
-					np.position = step_pos + lateral
+					# Posts stand on the terrain, not on the lifted tread line.
+					np.position = Vector3(step_pos.x, ground_here, step_pos.z) + lateral
 					parent.add_child(np)
 					# One lamp pair per flight, not per segment: the segmented
 					# flight grew a lamp every metre down the hill.
