@@ -30,10 +30,7 @@ var _portal_bar: ProgressBar = null
 var _stairs_panel: Panel = null
 var _stairs_label: Label = null
 var _mounted_panel: Panel = null
-var _mounted_label: Label = null
 var _mounted_icon: TextureRect = null
-var _landing_icon: TextureRect = null
-var _landing_label: Label = null
 
 var _location_timer := 0.0
 var _mounted_timer := 0.0
@@ -165,7 +162,7 @@ func _build() -> void:
 	_mounted_panel = Panel.new()
 	_mounted_panel.name = "MountedControls"
 	_mounted_panel.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	_mounted_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_mounted_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	_mounted_panel.theme = UITheme.get_theme()
 	_mounted_panel.theme_type_variation = UITheme.V_CARD
 
@@ -179,22 +176,6 @@ func _build() -> void:
 	_mounted_icon = UITheme.icon_rect("ui_mount", 22.0)
 	_mounted_icon.name = "MountedIcon"
 	row.add_child(_mounted_icon)
-
-	_mounted_label = _make_label("", UITheme.FS_SMALL, UITheme.c("gold_lt"))
-	_mounted_label.name = "FlightStats"
-	_mounted_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	row.add_child(_mounted_label)
-
-	_landing_icon = UITheme.icon_rect("status_weakened", 18.0)
-	_landing_icon.name = "LandingIcon"
-	_landing_icon.modulate = Color("e06b6b")
-	_landing_icon.visible = false
-	row.add_child(_landing_icon)
-
-	_landing_label = _make_label("", UITheme.FS_SMALL, UITheme.c("blood_lt"))
-	_landing_label.name = "LandingStatus"
-	_landing_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	row.add_child(_landing_label)
 
 	_mounted_panel.hide()
 	add_child(_mounted_panel)
@@ -383,11 +364,6 @@ func _update_mounted() -> void:
 			_mounted_panel.hide()
 		last_mounted_text = ""
 		return
-	var altitude: float = player.global_position.y
-	var speed := 0.0
-	if "velocity" in player:
-		var velocity: Vector3 = player.get("velocity")
-		speed = Vector2(velocity.x, velocity.z).length()
 	var reason := ""
 	if player.has_method("dismount_block_reason"):
 		reason = String(player.call("dismount_block_reason"))
@@ -397,24 +373,9 @@ func _update_mounted() -> void:
 		_play_ui("ui_deny")
 	last_mounted_text = text
 	last_landing_reason = reason
-	if _mounted_label != null:
-		_mounted_label.text = "%.1f m/s · Alt: %.1f m" % [speed, altitude]
-	if reason != "":
-		if _landing_icon != null:
-			_landing_icon.visible = true
-		if _landing_label != null:
-			_landing_label.visible = true
-			_landing_label.text = "İnemez: %s" % reason
-			_landing_label.tooltip_text = "Cannot land: %s" % reason
-			_landing_label.add_theme_color_override("font_color", UITheme.c("blood_lt"))
-	else:
-		if _landing_icon != null:
-			_landing_icon.visible = false
-		if _landing_label != null:
-			_landing_label.visible = true
-			_landing_label.text = "[Shift] İniş"
-			_landing_label.tooltip_text = "Shift to land"
-			_landing_label.add_theme_color_override("font_color", UITheme.c("good"))
+	# Keep flight instructions and the landing reason in the hover description.
+	_mounted_panel.tooltip_text = text
+	_mounted_icon.modulate = UITheme.c("blood_lt") if reason != "" else UITheme.c("good")
 	_mounted_panel.show()
 
 ## ------------------------------------------------------------ helpers
@@ -470,4 +431,4 @@ func _arcane_layout() -> void:
 	_stairs_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_mounted_panel.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	_mounted_panel.custom_minimum_size = Vector2.ZERO
-	UILayout.place(_mounted_panel, Vector2(16, -210 if compact else -240), Vector2(250 if compact else 280, 36))
+	UILayout.place(_mounted_panel, Vector2(96 if compact else 220, -52), Vector2(36, 36))

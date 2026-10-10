@@ -26,6 +26,7 @@ var selected := false:
 
 ## Item id this cell holds, or "" when empty.
 var item_id := ""
+var _selection_pressed := false
 ## The player's inventory record for that item (id/amount/tier), backing the tooltip.
 var entry: Dictionary = {}
 ## Small caption under the icon, used by the equipment doll ("Wand", "Robes").
@@ -56,6 +57,7 @@ func _init(size := Vector2(52, 52)) -> void:
 	custom_minimum_size = size
 	clip_contents = true
 	focus_mode = Control.FOCUS_NONE
+	mouse_filter = Control.MOUSE_FILTER_STOP
 
 
 func _ready() -> void:
@@ -212,16 +214,20 @@ func clear() -> void:
 	set_item("", {})
 
 func _gui_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton:
+	# Normal hotbar buttons use Button's native press/release handling.
+	if equipment_interaction and event is InputEventMouseButton:
+		# Consume before callbacks: activation may rebuild/free this bag slot.
+		accept_event()
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			var select_on_release := _selection_pressed and not disabled and Rect2(Vector2.ZERO, size).has_point(event.position)
+			_selection_pressed = event.pressed and not event.double_click and not disabled
+			if not event.pressed and select_on_release:
+				pressed.emit()
 		if event.pressed:
 			if equipment_interaction and not disabled and item_id != "":
 				if event.button_index == MOUSE_BUTTON_RIGHT or (event.button_index == MOUSE_BUTTON_LEFT and event.double_click):
 					activated.emit(self)
-					accept_event()
 					return
-		elif event.button_index == MOUSE_BUTTON_LEFT and not disabled:
-			pressed.emit()
-		accept_event()
 
 func _get_drag_data(_at: Vector2) -> Variant:
 	if not equipment_interaction or disabled or item_id == "": return null

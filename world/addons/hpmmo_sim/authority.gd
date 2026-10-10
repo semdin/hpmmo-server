@@ -2073,8 +2073,10 @@ func apply_stats_payload(uid: int, stats: Dictionary) -> void:
 		return
 	var node = record.get("node")
 	var stats_copy := stats.duplicate(true)
-	if is_instance_valid(node) and stats_copy.has("equipment") and int(stats_copy.get("inventory_revision", -1)) < node.inventory_revision:
-		stats_copy.erase("equipment")
+	if is_instance_valid(node) and stats_copy.has("inventory_revision") and int(stats_copy.inventory_revision) < node.inventory_revision:
+		# Ignore stale ownership as a unit, while HP, mana and EXP keep flowing.
+		for key in ["equipment", "inventory", "inventory_revision", "equipment_version", "base_max_hp", "base_max_mana", "galleons"]:
+			stats_copy.erase(key)
 	for key in stats_copy.keys():
 		record[key] = stats_copy[key]
 	_sync_node_health(record)

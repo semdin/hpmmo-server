@@ -16,6 +16,7 @@ var float_offset: float = 0.0
 var base_y: float = 0.0
 var is_collected: bool = false
 var remaining_lifetime := 90.0
+var _pickup_retry_at := 0
 
 func _ready() -> void:
 	base_y = global_position.y
@@ -98,12 +99,18 @@ func collect(collector: Node3D) -> bool:
 		return false
 	if not SimAuthority.is_authority() and not SimNet.is_client:
 		return false
+	if not SimAuthority.is_authority() and Time.get_ticks_msec() < _pickup_retry_at:
+		return false
 	var result: Dictionary = SimNet.submit_pickup(collector, uid)
 	if not bool(result.get("ok", false)):
 		return false
-	is_collected = true
 	if not SimAuthority.is_authority():
-		collector.add_loot(item_id, amount)
+		# submit_pickup only acknowledges sending the request. The server may
+		# refuse it (range, full bag, or another collector). Its stat snapshot
+		# credits the bag; its despawn event removes this marker after acceptance.
+		_pickup_retry_at = Time.get_ticks_msec() + 500
+		return true
+	is_collected = true
 	# Pickup feedback (the credit itself is authoritative).
 	var ft_scene = load("res://scenes/ui/floating_text.tscn")
 	if ft_scene:

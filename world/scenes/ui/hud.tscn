@@ -67,10 +67,6 @@ layout_mode = 2
 theme_override_constants/separation = 4
 alignment = 1
 
-[node name="LevelLabel" type="Label" parent="BottomBar/StatusBars"]
-layout_mode = 2
-text = "Lv. 1"
-
 [node name="HpBar" type="ProgressBar" parent="BottomBar/StatusBars"]
 custom_minimum_size = Vector2(0, 18)
 layout_mode = 2

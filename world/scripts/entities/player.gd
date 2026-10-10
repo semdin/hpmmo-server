@@ -1416,6 +1416,9 @@ func apply_level(new_level: int, new_max_hp: int, new_max_mana: int) -> void:
 
 ## Authority stat mirror: the engine owns these numbers, the node displays them.
 func apply_authoritative_stats(stats: Dictionary) -> void:
+	# Ownership is revisioned independently of the live combat/progression feed.
+	if stats.has("equipment"):
+		apply_equipment_snapshot(stats)
 	current_hp = clampi(int(stats.get("hp", current_hp)), 0, maxi(1, int(stats.get("max_hp", max_hp))))
 	max_hp = maxi(1, int(stats.get("max_hp", max_hp)))
 	current_mana = clampi(int(stats.get("mana", current_mana)), 0, maxi(1, int(stats.get("max_mana", max_mana))))
@@ -1424,10 +1427,6 @@ func apply_authoritative_stats(stats: Dictionary) -> void:
 	max_exp = int(stats.get("max_exp", max_exp))
 	level = int(stats.get("level", level))
 	galleons = int(stats.get("galleons", galleons))
-	if stats.has("equipment"):
-		var revision := int(stats.get("inventory_revision", -1))
-		if revision >= inventory_revision:
-			apply_equipment_snapshot(stats)
 	var was_mounted := is_mounted
 	var now_mounted := bool(stats.get("mounted", is_mounted))
 	if was_mounted != now_mounted:
@@ -1449,7 +1448,7 @@ func add_exp(amount: int) -> void:
 	_spawn_floating_text("+%d EXP" % amount, Color(0.3, 1.0, 0.5), 1.2)
 
 func add_loot(item_id: String, amount: int, tier: int = 0) -> void:
-	if amount <= 0:
+	if not SimAuthority.is_authority() or amount <= 0:
 		return
 	if item_id == "galleons":
 		galleons += amount

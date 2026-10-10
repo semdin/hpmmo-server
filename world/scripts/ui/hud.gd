@@ -21,7 +21,6 @@ extends Control
 @onready var mana_label: Label = $BottomBar/StatusBars/ManaBar/ManaLabel
 @onready var exp_bar: ProgressBar = $ExpBar
 @onready var exp_label: Label = $ExpBar/ExpLabel
-@onready var level_label: Label = $BottomBar/StatusBars/LevelLabel
 
 # Target Frame
 @onready var target_panel: Panel = $TargetPanel
@@ -280,7 +279,6 @@ func _on_binder_stats(stats: Dictionary) -> void:
 	var max_mana := int(stats.get("max_mana", 1))
 	var exp := int(stats.get("exp", 0))
 	var max_exp := int(stats.get("max_exp", 1))
-	var level := int(stats.get("level", 1))
 	_hp_stat.set_value(hp, max_hp)
 	hp_label.text = "%d / %d" % [hp, max_hp]
 	_mana_stat.set_value(mana, max_mana)
@@ -288,7 +286,6 @@ func _on_binder_stats(stats: Dictionary) -> void:
 	_exp_stat.set_value(exp, max_exp)
 	var exp_pct := int((float(exp) / maxf(1.0, float(max_exp))) * 100.0)
 	exp_label.text = "EXP: %d / %d (%d%%)" % [exp, max_exp, exp_pct]
-	level_label.text = "Lv. %d" % level
 	var galleons := int(stats.get("galleons", -1))
 	if String(stats.get("source", "")) == "authority":
 		# Once the server has spoken about currency, its number is the one the
@@ -452,7 +449,8 @@ func _target_max_hp_value() -> int:
 	return 1
 
 func _on_mounted_changed(is_mounted: bool) -> void:
-	mount_button.text = "Dismount" if is_mounted else "Mount"
+	mount_button.tooltip_text = "[Shift] Dismount broom" if is_mounted else "[Shift] Mount broom"
+	mount_button.modulate = UITheme.c("gold_hi") if is_mounted else Color.WHITE
 
 
 ## The target frame's icon: a crown for a world boss, the enraged eye for an
@@ -548,12 +546,6 @@ func _apply_theme() -> void:
 	mana_bar.custom_minimum_size = Vector2(0, 18)
 	exp_bar.custom_minimum_size = Vector2(0, 18)
 
-	# The level badge and the target nameplate are captions, so they take the
-	# theme's title role and only override the size the layout needs.
-	UITheme.role(level_label, UITheme.V_TITLE)
-	level_label.add_theme_font_size_override("font_size", UITheme.FS_SMALL)
-	level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-
 	for label in [hp_label, mana_label, exp_label]:
 		# A bar's own numbers are the one place a player reads at a glance, so
 		# they get the bold cut and a tight outline: enough edge to survive the
@@ -603,7 +595,6 @@ func _apply_theme() -> void:
 	_target_status_icon.visible = false
 	target_panel.add_child(_target_status_icon)
 
-	_frame_level_badge()
 
 
 ## A gauge's icon, in the left end of its track. The bars are anchored rather
@@ -615,38 +606,6 @@ func _attach_bar_icon(bar: Control, id: String) -> void:
 	icon.set_anchors_preset(Control.PRESET_CENTER_LEFT)
 	icon.position = Vector2(4.0, -6.5)
 	bar.add_child(icon)
-
-
-## "Lv. 5" was a bare label floating over the deck; give it a badge so the left
-## column reads as one stack. It is left-aligned now, so it sits over the gauges
-## it labels instead of centred across them.
-func _frame_level_badge() -> void:
-	var parent := level_label.get_parent()
-	if parent == null or parent.get_node_or_null("LevelBadge") != null:
-		return
-	var badge := PanelContainer.new()
-	badge.name = "LevelBadge"
-	badge.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var index := level_label.get_index()
-	parent.remove_child(level_label)
-	parent.add_child(badge)
-	parent.move_child(badge, index)
-	var margin := MarginContainer.new()
-	for side in ["left", "right"]:
-		margin.add_theme_constant_override("margin_" + side, 8)
-	margin.add_theme_constant_override("margin_top", 1)
-	margin.add_theme_constant_override("margin_bottom", 1)
-	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	badge.add_child(margin)
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 5)
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	margin.add_child(row)
-	row.add_child(UITheme.icon_rect("stat_level", 14.0))
-	row.add_child(level_label)
-
-
 
 
 var _player_frame: Panel
@@ -662,14 +621,18 @@ func _build_arcane_layout() -> void:
 	$BottomBar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	$BottomBar.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	$PlayerPlate.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
-	mount_button.text = "Mount"
 	_currency.add_theme_font_size_override("font_size", 13)
 	_currency.add_theme_constant_override("outline_size", 0)
 	for slot in [slot_1, slot_2, slot_3, slot_4, slot_q, slot_e]:
 		slot.theme_type_variation = &"ArcaneSlot"
 	target_panel.theme_type_variation = &"ArcaneCard"
 	for button in $BottomBar/QuickBar.get_children():
-		if button is Button: button.theme_type_variation = &"ArcaneButton"
+		if button is Button:
+			button.theme_type_variation = &"ArcaneButton"
+			button.text = ""
+			button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			button.expand_icon = true
+			button.add_theme_constant_override("icon_max_width", 24)
 	chat_input.focus_entered.connect(_arcane_layout)
 	chat_input.focus_exited.connect(_arcane_layout)
 	get_viewport().size_changed.connect(_arcane_layout)
@@ -680,33 +643,34 @@ func _arcane_layout() -> void:
 	var canvas := get_viewport().get_visible_rect().size
 	var compact := canvas.x < 1000 or canvas.y < 560
 	var rail := 210.0 if compact else 280.0
-	UILayout.place(_player_frame, Vector2(16, 12), Vector2(rail, 92))
+	UILayout.place(_player_frame, Vector2(16, 12), Vector2(rail, 60))
 	$PlayerPlate.visible = false
 	var status := $BottomBar/StatusBars as Control
 	status.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	status.custom_minimum_size.x = 0
-	UILayout.place(status, Vector2(24, 18), Vector2(rail - 16, 80))
+	UILayout.place(status, Vector2(24, 18), Vector2(rail - 16, 48))
 	var hotbar := $BottomBar/Hotbar as Control
 	hotbar.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	UILayout.place(hotbar, Vector2(-166,-88), Vector2(332,54))
 	for slot in [slot_1,slot_2,slot_3,slot_4,slot_q,slot_e]: slot.custom_minimum_size = Vector2(48,48)
 	UILayout.place(exp_bar, Vector2(-166,-26), Vector2(332,14))
 	var quick := $BottomBar/QuickBar as GridContainer
-	quick.columns = 2 if compact else 3
-	quick.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	quick.columns = 3 if compact else 5
+	quick.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	for button in quick.get_children():
 		if button is Button:
-			button.custom_minimum_size = Vector2(76 if compact else 88,26)
-	UILayout.place(quick, Vector2(-176 if compact else -292,-92), Vector2(160 if compact else 276,80))
+			button.custom_minimum_size = Vector2(36,36)
+	var quick_height := 76.0 if compact else 36.0
+	UILayout.place(quick, Vector2(16,-16-quick_height), Vector2(116 if compact else 196,quick_height))
 	var chat := $ChatContainer as Control
 	chat.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	var chat_h := 180.0 if chat_input.has_focus() else (86.0 if compact else 120.0)
-	UILayout.place(chat, Vector2(16,-104-chat_h), Vector2(rail,chat_h))
+	UILayout.place(chat, Vector2(16,-32-quick_height-chat_h), Vector2(rail,chat_h))
 	chat_history.custom_minimum_size.y = 0
 	if has_node("ChatBadge"): $ChatBadge.position = chat.position + Vector2(4,-9)
 	UILayout.place(target_panel, Vector2(-120 if compact else -160,42), Vector2(240 if compact else 320,50))
 	if feedback != null:
-		feedback._status_row.position = Vector2(20, 110)
+		feedback._status_row.position = Vector2(20, 78)
 		feedback._safe_label.custom_minimum_size = Vector2.ZERO
 		feedback._safe_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		UILayout.place_centred(feedback._safe_row,Vector2(230,22),Vector2(0,-198))
