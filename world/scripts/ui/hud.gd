@@ -656,16 +656,16 @@ func _arcane_layout() -> void:
 	UILayout.place(exp_bar, Vector2(-166,-26), Vector2(332,14))
 	var quick := $BottomBar/QuickBar as GridContainer
 	quick.columns = 3 if compact else 5
-	quick.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	quick.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	for button in quick.get_children():
 		if button is Button:
 			button.custom_minimum_size = Vector2(36,36)
 	var quick_height := 76.0 if compact else 36.0
-	UILayout.place(quick, Vector2(16,-16-quick_height), Vector2(116 if compact else 196,quick_height))
+	UILayout.place(quick, Vector2(-132 if compact else -212,-16-quick_height), Vector2(116 if compact else 196,quick_height))
 	var chat := $ChatContainer as Control
 	chat.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	var chat_h := 180.0 if chat_input.has_focus() else (86.0 if compact else 120.0)
-	UILayout.place(chat, Vector2(16,-32-quick_height-chat_h), Vector2(rail,chat_h))
+	UILayout.place(chat, Vector2(16,-84-chat_h), Vector2(rail,chat_h))
 	chat_history.custom_minimum_size.y = 0
 	if has_node("ChatBadge"): $ChatBadge.position = chat.position + Vector2(4,-9)
 	UILayout.place(target_panel, Vector2(-120 if compact else -160,42), Vector2(240 if compact else 320,50))

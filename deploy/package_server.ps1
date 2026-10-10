@@ -53,6 +53,15 @@ try {
         throw 'world assets missing from the package - run dev.ps1 sync-world first'
     }
 
+    # A release must not ship Git LFS pointer files: model files that arrive as
+    # pointers fail the Godot import pass, and every script that preloads them
+    # stops parsing on the live world.
+    $pointer = Get-ChildItem -Recurse -Force $stage -File |
+        Where-Object { $_.Length -lt 1024 } |
+        Select-String -Pattern '^version https://git-lfs.github.com/spec/v1' -List |
+        Select-Object -First 1
+    if ($pointer) { throw "package contains a Git LFS pointer file (was the checkout fetched with lfs?): $($pointer.Path)" }
+
     $tar = Join-Path $OutDir "$stageName.tar.gz"
     # Pin to Windows' bsdtar: a Git-Bash GNU tar on PATH rejects "C:\..." paths.
     $tarExe = Join-Path $env:SystemRoot 'System32\tar.exe'

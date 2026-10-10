@@ -117,6 +117,12 @@ done
 [ -d "$STAGE/world/assets/models" ] || die "world assets are missing - run dev.ps1 sync-world first"
 [ -f "$STAGE/services/cpp/build/hpmmo_service" ] || die "the packaged service binary is missing"
 
+# A release must not ship Git LFS pointer files. model files that arrive as
+# pointers fail the Godot import pass, and every script that preloads them
+# stops parsing on the live world - the failure mode this guard exists for.
+pointer="$(grep -rls '^version https://git-lfs.github.com/spec/v1' "$STAGE" 2>/dev/null | head -1 || true)"
+[ -z "$pointer" ] || die "package contains a Git LFS pointer file (was the checkout fetched with lfs?): ${pointer#"$STAGE/"}"
+
 say "writing SHA256SUMS"
 ( cd "$STAGE" && find . -type f ! -name SHA256SUMS -print0 | LC_ALL=C sort -z | xargs -0 -r sha256sum > SHA256SUMS )
 

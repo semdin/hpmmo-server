@@ -278,13 +278,13 @@ def main():
         # --- save / restart / load back (state survives) -------------------------
         status, body = http(port, "POST", "/api/characters/save",
                             {"character_id": alice_char, "level": 3, "exp": 120, "galleons": 777,
-                             "equipment": {"main_hand":{"id":"wand_elder","tier":5}, "ring_left":{"id":"ring_apprentice","tier":0}, "ring_right":{"id":"ring_apprentice","tier":0}},
+                             "equipment": {"main_hand":{"id":"wand_elder","tier":5.0}, "ring_left":{"id":"ring_apprentice","tier":0.0}, "ring_right":{"id":"ring_apprentice","tier":0}},
                              "equipment_version":1, "inventory_revision":8, "base_max_hp":580, "base_max_mana":350,
                              "current_hp": 421, "pos": [1.5, 0.5, -8.25], "map_id": "grounds",
                              "inventory": [{"id": "potion_health", "amount": 3, "tier": 0},
                                            {"id": "wand_hawthorn", "amount": 1, "tier": 2}]},
                             service_token=SERVICE_TOKEN)
-        check(status == 200 and body.get("revision", 0) >= 2, "save accepts a validated full state")
+        check(status == 200 and body.get("revision", 0) >= 2, "save accepts Godot JSON round-tripped whole-number equipment tiers")
         rev = body.get("revision")
 
         stop_service()
@@ -309,6 +309,12 @@ def main():
         check(status == 200, "current base_revision accepted")
 
         # Equipment validation rejects the entire replacement, including currency.
+        for invalid_tier in [0.5, -1.0, 10.0, "0", True]:
+            status, invalid = http(port, "POST", "/api/characters/save",
+                                  {"character_id":alice_char, "galleons":1,
+                                   "equipment":{"feet":{"id":"boots_apprentice","tier":invalid_tier}},
+                                   "inventory":[]}, service_token=SERVICE_TOKEN)
+            check(status == 400, f"invalid equipment tier {invalid_tier!r} is rejected atomically")
         status, invalid = http(port, "POST", "/api/characters/save",
                               {"character_id":alice_char,"galleons":1,"equipment":{"feet":{"id":"boots_apprentice","tier":0}}},
                               service_token=SERVICE_TOKEN)

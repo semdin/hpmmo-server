@@ -332,6 +332,12 @@ func character_payload(node: Node, record: Dictionary) -> Dictionary:
 					"amount": int(item.get("amount", 1)),
 					"tier": int(item.get("tier", 0)),
 				})
+	# JSON.parse_string turns tiers into floats. The persistence wire format
+	# requires integers even when an equipped item has never been changed.
+	var equipment: Dictionary = {}
+	for slot in node.equipment:
+		var entry: Dictionary = node.equipment[slot]
+		equipment[slot] = {"id": String(entry.id), "tier": int(entry.get("tier", 0))}
 	return {
 		"character_id": int(record.get("character_id", 0)),
 		"level": int(node.get("level")),
@@ -346,7 +352,7 @@ func character_payload(node: Node, record: Dictionary) -> Dictionary:
 		"rot_y": float(node.get("visuals").rotation.y) if node.get("visuals") != null else 0.0,
 		"map_id": String(record.get("map_id", HPProtocol.DEFAULT_MAP)),
 		"inventory": inventory,
-		"equipment": node.equipment.duplicate(true),
+		"equipment": equipment,
 		"equipment_version": 1,
 		"inventory_revision": node.inventory_revision,
 		"base_max_hp": node.base_max_hp,

@@ -6,6 +6,7 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <fstream>
 #include <limits>
@@ -181,9 +182,12 @@ std::optional<ItemLine> parse_item(const json& j) {
     if (amount <= 0 || amount > kMaxItemAmount) return std::nullopt;
     line.amount = static_cast<int>(amount);
     if (j.contains("tier")) {
-        if (!j["tier"].is_number_integer()) return std::nullopt;
-        const long long tier = j["tier"].get<long long>();
-        if (tier < 0 || tier > 9) return std::nullopt;
+        // Godot decodes JSON integers as floats. An unchanged equipped item
+        // may therefore return as 0.0; accept exactly integral tiers only.
+        if (!j["tier"].is_number()) return std::nullopt;
+        const double tier = j["tier"].get<double>();
+        if (!std::isfinite(tier) || tier < 0 || tier > 9 || std::floor(tier) != tier)
+            return std::nullopt;
         line.tier = static_cast<int>(tier);
     }
     return line;

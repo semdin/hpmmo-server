@@ -20,6 +20,13 @@ class_name TravelFeedback
 const LOCATION_POLL := 0.25
 const MOUNTED_POLL := 0.25
 
+## The flight indicator's own art. The headless world export ships no UI
+## icons, so they load defensively (a missing file degrades to no picture)
+## instead of a hard preload that would stop the world scripts from parsing.
+const BROOM_ICON_PATH := "res://assets/ui/icons/broom_flight.svg"
+const LANDING_BLOCKED_ICON_PATH := "res://assets/ui/icons/landing_blocked.svg"
+const LANDING_READY_ICON_PATH := "res://assets/ui/icons/landing_ready.svg"
+
 var player: Node3D = null
 var world: Node3D = null
 
@@ -31,6 +38,9 @@ var _stairs_panel: Panel = null
 var _stairs_label: Label = null
 var _mounted_panel: Panel = null
 var _mounted_icon: TextureRect = null
+var _landing_badge: TextureRect = null
+var _landing_blocked_texture: Texture2D = null
+var _landing_ready_texture: Texture2D = null
 
 var _location_timer := 0.0
 var _mounted_timer := 0.0
@@ -166,16 +176,22 @@ func _build() -> void:
 	_mounted_panel.theme = UITheme.get_theme()
 	_mounted_panel.theme_type_variation = UITheme.V_CARD
 
-	var row := HBoxContainer.new()
-	row.name = "FlightRow"
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.position = Vector2(8, 6)
-	row.add_theme_constant_override("separation", 8)
-	_mounted_panel.add_child(row)
-
-	_mounted_icon = UITheme.icon_rect("ui_mount", 22.0)
+	_mounted_icon = TextureRect.new()
+	_mounted_icon.texture = _ui_icon(BROOM_ICON_PATH)
+	_mounted_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_mounted_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_mounted_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_mounted_icon.position = Vector2(4, 4)
+	_mounted_icon.size = Vector2(44, 44)
 	_mounted_icon.name = "MountedIcon"
-	row.add_child(_mounted_icon)
+	_mounted_panel.add_child(_mounted_icon)
+	_landing_blocked_texture = _ui_icon(LANDING_BLOCKED_ICON_PATH)
+	_landing_ready_texture = _ui_icon(LANDING_READY_ICON_PATH)
+	_landing_badge = TextureRect.new()
+	_landing_badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_landing_badge.position = Vector2(34, 34)
+	_landing_badge.size = Vector2(18, 18)
+	_mounted_panel.add_child(_landing_badge)
 
 	_mounted_panel.hide()
 	add_child(_mounted_panel)
@@ -375,10 +391,19 @@ func _update_mounted() -> void:
 	last_landing_reason = reason
 	# Keep flight instructions and the landing reason in the hover description.
 	_mounted_panel.tooltip_text = text
-	_mounted_icon.modulate = UITheme.c("blood_lt") if reason != "" else UITheme.c("good")
+	# A bright broom remains legible; a separate shape conveys landing state.
+	_landing_badge.texture = _landing_blocked_texture if reason != "" else _landing_ready_texture
 	_mounted_panel.show()
 
 ## ------------------------------------------------------------ helpers
+
+## A UI icon that may be absent: the headless world export ships no icons, so
+## a missing file must degrade to "no picture", never to a parse failure.
+static func _ui_icon(path: String) -> Texture2D:
+	if not ResourceLoader.exists(path):
+		return null
+	return load(path) as Texture2D
+
 
 func _map_controller() -> Node:
 	if world == null or not is_instance_valid(world):
@@ -431,4 +456,4 @@ func _arcane_layout() -> void:
 	_stairs_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_mounted_panel.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	_mounted_panel.custom_minimum_size = Vector2.ZERO
-	UILayout.place(_mounted_panel, Vector2(96 if compact else 220, -52), Vector2(36, 36))
+	UILayout.place(_mounted_panel, Vector2(16, -68), Vector2(52, 52))

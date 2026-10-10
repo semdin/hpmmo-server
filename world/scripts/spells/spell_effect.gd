@@ -102,7 +102,7 @@ func setup(p_spell: String, p_stage: String, p_quality: String, p_origin: Vector
 	follow_target = opts.get("follow_target", null)
 	target_position = opts.get("target_position", p_origin)
 	aoe_radius = float(opts.get("aoe_radius", 0.0))
-	if follow_target != null and is_instance_valid(follow_target):
+	if _live(follow_target):
 		_follow_anchor = follow_target.global_position
 		_follow_carried = follow_target.is_ancestor_of(self)
 	var colour := VFX.spell_colour(spell_id)
@@ -411,7 +411,7 @@ func _process(delta: float) -> void:
 	if caster != null and "is_dead" in caster and bool(caster.get("is_dead")):
 		cancel("caster_dead")
 		return
-	if follow_target != null and is_instance_valid(follow_target) and not _follow_carried:
+	if _live(follow_target) and not _follow_carried:
 		var anchor := follow_target.global_position
 		global_position += anchor - _follow_anchor
 		_follow_anchor = anchor
@@ -422,11 +422,18 @@ func _process(delta: float) -> void:
 		_tick_layer(entry, delta)
 	if _follow_owned:
 		# the bolt is gone: nothing owns this stage any more, so it ends here
-		if not is_instance_valid(follow_target):
+		if not _live(follow_target):
 			_finish()
 		return
 	if _elapsed >= _duration:
 		_finish()
+
+## A follow target that was detached from the tree (a rebuilt prop, a freed
+## holder) can no longer be read; it counts as gone.
+static func _live(node: Variant) -> bool:
+	if node == null or not is_instance_valid(node):
+		return false
+	return (node as Node).is_inside_tree()
 
 func _tick_layer(entry: Dictionary, delta: float) -> void:
 	var node = entry["node"]
@@ -479,7 +486,7 @@ func _tick_layer(entry: Dictionary, delta: float) -> void:
 				(node as GPUParticles3D).emitting = false
 		"mesh":
 			for child in node.get_children():
-				if child.has_meta("follows") and is_instance_valid(follow_target):
+				if child.has_meta("follows") and _live(follow_target):
 					child.global_position = follow_target.global_position
 				if child.has_meta("burst_velocity"):
 					var vel: Vector3 = child.get_meta("burst_velocity")
@@ -553,7 +560,7 @@ func _fade_for(layer: Dictionary, age: float, life: float) -> float:
 
 func _update_ribbon(node: MeshInstance3D, delta: float) -> void:
 	var history: PackedVector3Array = node.get_meta("history")
-	var origin := follow_target.global_position if (follow_target != null and is_instance_valid(follow_target)) else global_position
+	var origin := follow_target.global_position if _live(follow_target) else global_position
 	if history.is_empty() or history[history.size() - 1].distance_squared_to(origin) > 0.0001:
 		history.push_back(origin)
 	# keep ~0.5 s of motion, decimated so a slow frame cannot grow the strip
