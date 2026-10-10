@@ -91,6 +91,12 @@ static func _height(x: float, z: float) -> float:
 	var rim: float = clampf((maxf(absf(x), absf(z)) - 410.0) / 75.0, 0.0, 1.0)
 	h += rim * rim * 12.0
 
+	# Plateau weight: 0 in the flat core and the first metres outside it, so a
+	# plateau can never leak into the core (a flat-visual + raised-collision
+	# seam) or step at its edge; it reaches full weight 15 m out.
+	var plateau_in: float = clampf(distance / 15.0, 0.0, 1.0)
+	plateau_in = plateau_in * plateau_in * (3.0 - 2.0 * plateau_in)
+
 	# Flat gameplay plateaus: [cx, cz, radius, target_y, feather].
 	# Feather blends back to hills so there is no cliff seam.
 	var plateaus := [
@@ -115,7 +121,7 @@ static func _height(x: float, z: float) -> float:
 			var core := clampf(1.0 - pdist / pr, 0.0, 1.0)
 			core = core * core * (3.0 - 2.0 * core)
 			var blend := maxf(inner * 0.65 + core * 0.35, core)
-			h = lerpf(h, float(p[3]), blend)
+			h = lerpf(h, float(p[3]), blend * plateau_in)
 
 	# Black Lake basin carved from the SAME rectangle as the water surface and
 	# its collider: signed distance to the rect (negative inside). The bank
@@ -177,6 +183,13 @@ static func _bands() -> Array:
 		[-WORLD_LIMIT, CORE_MAX.y, WORLD_LIMIT, WORLD_LIMIT],
 		[-WORLD_LIMIT, CORE_MIN.y, CORE_MIN.x, CORE_MAX.y],
 		[CORE_MAX.x, CORE_MIN.y, WORLD_LIMIT, CORE_MAX.y],
+		# The flat core itself: collided by the same field as everything else
+		# (it is 0 there), so the whole walkable surface comes from one source.
+		# The old flat slab colliders covered the core *and* the shaped ground
+		# around it, which is how a body could walk at y=0 under the Hogsmeade
+		# terraces - the elevation was visible and unreachable, and walking
+		# "into" the hill put the camera inside the terrain.
+		[CORE_MIN.x, CORE_MIN.y, CORE_MAX.x, CORE_MAX.y],
 	]
 
 static func _build_hill_bands(root: Node3D) -> void:

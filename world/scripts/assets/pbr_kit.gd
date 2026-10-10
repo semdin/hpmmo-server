@@ -152,11 +152,11 @@ const INSTANCED_MODULES := [
 ## Visibility range end (metres) for repeated props; architecture is culled by
 ## its chunked batches instead. -1 means "no limit" (view-scale geometry).
 const VISIBILITY_RANGES := {
-	"grass_clump_1": 45.0,
-	"bush_1": 70.0,
-	"tree_pine_8": 220.0,
-	"tree_broad_8": 220.0,
-	"rock_01": 120.0, "rock_02": 120.0, "rock_03": 120.0,
+	"grass_clump_1": 55.0,
+	"bush_1": 90.0,
+	"tree_pine_8": 280.0,
+	"tree_broad_8": 280.0,
+	"rock_01": 150.0, "rock_02": 150.0, "rock_03": 150.0,
 	"candle_cluster": 60.0,
 	"balustrade_4": 90.0,
 	"newel_post_1_2": 90.0,
@@ -166,6 +166,11 @@ static var _set_cache: Dictionary = {}
 static var _material_cache: Dictionary = {}
 static var _scene_cache: Dictionary = {}
 static var _queued: Dictionary = {}
+## Repeated props are batched per module *and per 64 m cell*: a visibility range
+## is measured against the batch's bounding box, so one world-wide batch per
+## module measures the distance to its nearest instance - far trees then never
+## cull, and the whole forest pops at once when the range finally trips.
+const KIT_CHUNK := 64.0
 
 # ------------------------------------------------------------------ textures
 
@@ -410,7 +415,8 @@ static func kit_instance(module_name: String, tint: Color = Color.WHITE) -> Node
 	var limit: float = float(VISIBILITY_RANGES.get(module_name, -1.0))
 	if limit > 0.0:
 		node.visibility_range_end = limit
-		node.visibility_range_end_margin = limit * 0.1
+		node.visibility_range_end_margin = limit * 0.15
+		node.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 	return node
 
 static func _tint_cloth(node: MeshInstance3D, module_name: String, tint: Color) -> void:
@@ -438,25 +444,40 @@ static func flush(parent: Node3D) -> int:
 		var source_mesh := kit_mesh(module_name)
 		if source_mesh == null:
 			continue
-		var multimesh := MultiMesh.new()
-		multimesh.transform_format = MultiMesh.TRANSFORM_3D
-		multimesh.use_colors = true
-		multimesh.mesh = source_mesh
-		multimesh.instance_count = entries.size()
-		for i in range(entries.size()):
-			multimesh.set_instance_transform(i, entries[i]["xform"])
-			var tint: Color = entries[i]["tint"]
-			var ao: float = entries[i]["ao"]
-			multimesh.set_instance_color(i, Color(tint.r * ao, tint.g * ao, tint.b * ao, 1.0))
-		var renderer := MultiMeshInstance3D.new()
-		renderer.name = "KitBatch_" + module_name
-		renderer.multimesh = multimesh
-		var limit: float = float(VISIBILITY_RANGES.get(module_name, -1.0))
-		if limit > 0.0:
-			renderer.visibility_range_end = limit
-			renderer.visibility_range_end_margin = limit * 0.1
-		parent.add_child(renderer)
-		drawn += entries.size()
+		var cells: Dictionary = {}
+		for entry in entries:
+			var origin: Vector3 = (entry["xform"] as Transform3D).origin
+			var key := Vector2i(int(floor(origin.x / KIT_CHUNK)), int(floor(origin.z / KIT_CHUNK)))
+			if not cells.has(key):
+				cells[key] = []
+			cells[key].append(entry)
+		for key in cells:
+			var cell_entries: Array = cells[key]
+			var multimesh := MultiMesh.new()
+			multimesh.transform_format = MultiMesh.TRANSFORM_3D
+			multimesh.use_colors = true
+			multimesh.mesh = source_mesh
+			multimesh.instance_count = cell_entries.size()
+			for i in range(cell_entries.size()):
+				multimesh.set_instance_transform(i, cell_entries[i]["xform"])
+				var tint: Color = cell_entries[i]["tint"]
+				var ao: float = cell_entries[i]["ao"]
+				multimesh.set_instance_color(i, Color(tint.r * ao, tint.g * ao, tint.b * ao, 1.0))
+			var renderer := MultiMeshInstance3D.new()
+			renderer.name = "KitBatch_%s_%d_%d" % [module_name, key.x, key.y]
+			renderer.set_meta("kit_module", module_name)
+			renderer.multimesh = multimesh
+			var limit: float = float(VISIBILITY_RANGES.get(module_name, -1.0))
+			if limit > 0.0:
+				renderer.visibility_range_end = limit
+				# A long dissolve band (15% of the range) so a chunk leaving the
+				# range fades out instead of popping as the camera turns.
+				renderer.visibility_range_end_margin = limit * 0.15
+				# Dissolve instead of popping: the fade margin above is the band
+				# the fade runs through.
+				renderer.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+			parent.add_child(renderer)
+			drawn += cell_entries.size()
 	_queued.clear()
 	return drawn
 

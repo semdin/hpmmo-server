@@ -383,6 +383,12 @@ func _authority_step(tick: int) -> void:
 			if tick >= arrive_tick:
 				_arrive(tick)
 	_apply_platform(platform_transform_at(tick))
+	# The riders travel with the deck. Without this the flight moves out from
+	# under the body that boarded it: the authority never carries them, the
+	# client's prediction is corrected straight back to the floor, and the
+	# staircase reads as scenery that does nothing.
+	if not _riders.is_empty():
+		_carry_riders(tick)
 	_maybe_publish(tick)
 
 func _begin_warning(tick: int) -> void:

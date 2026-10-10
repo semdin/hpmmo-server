@@ -92,8 +92,18 @@ const LAKE_CENTER_Z := 185.0
 const LAKE_HALF_X := 85.0
 const LAKE_HALF_Z := 75.0
 const WATER_SURFACE_Y := -7.0
-const SWIM_FLOAT_Y := -6.35
+## Where the swim buoyancy holds the body: the water collider's top, a third of
+## a metre under the visual waterline, so a swimmer is in the water rather than
+## standing on it.
+const SWIM_FLOAT_Y := -7.35
 const KILL_PLANE_Y := -16.0
+## How tall a ledge the body can walk up. `move_and_slide` treats anything
+## above the floor snap as a wall, so without this a 0.2 m stair tread stops the
+## body dead: every authored flight (world and castle) relied on a separate ramp
+## collider, and the doorsteps, dock edges and terrace links had none.
+const STEP_UP_HEIGHT := 0.45
+const STEP_UP_PROBE := 0.4
+const STEP_UP_MIN_SPEED := 0.6
 
 # Decoupled Camera Orbit
 var camera_rot_x: float = -20.0
@@ -625,12 +635,51 @@ func _physics_process(delta: float) -> void:
 			var cam_yaw: float = deg_to_rad(_intent_yaw())
 			visuals.rotation.y = lerp_angle(visuals.rotation.y, cam_yaw, 10.0 * delta)
 
+	_step_up()
 	move_and_slide()
 	if is_local_player:
 		_pos_history.append(global_position)
 		if _pos_history.size() > MAX_POS_HISTORY:
 			_pos_history.pop_front()
 	_update_animation_state()
+
+## Walk up a ledge instead of stopping dead against it. The body is pushed
+## forward by its intent, so a tread, a doorstep, the shoreline shelf or the
+## boathouse sill is a wall `move_and_slide` can never pass. When the way ahead
+## is blocked at foot height, clear one step up, and there is ground to land on,
+## the body takes the step. The server runs this same body, so prediction and
+## authority take it together.
+func _step_up() -> void:
+	if not is_local_player and not sim_server_controlled:
+		return
+	if not is_on_floor() or is_mounted or is_swimming or is_dead:
+		return
+	var planar := Vector3(velocity.x, 0.0, velocity.z)
+	var speed := planar.length()
+	if speed < STEP_UP_MIN_SPEED:
+		return
+	var motion := planar / speed * STEP_UP_PROBE
+	var probe := global_transform
+	if not test_move(probe, motion):
+		return
+	if test_move(probe.translated(Vector3(0.0, STEP_UP_HEIGHT, 0.0)), motion):
+		return
+	# Is there a surface to land on, one step up and one probe ahead?
+	var landing := probe.translated(Vector3(0.0, STEP_UP_HEIGHT, 0.0)).translated(motion)
+	var space := get_world_3d().direct_space_state
+	var query := PhysicsRayQueryParameters3D.create(
+		landing.origin + Vector3(0.0, 0.05, 0.0),
+		landing.origin - Vector3(0.0, STEP_UP_HEIGHT + 0.3, 0.0),
+		collision_mask)
+	query.exclude = [get_rid()]
+	var hit := space.intersect_ray(query)
+	if hit.is_empty():
+		return
+	var rise: float = float(hit["position"].y) - global_position.y
+	if rise <= 0.03 or rise > STEP_UP_HEIGHT:
+		return
+	# Take the step; the next slide crosses onto the ledge and gravity settles.
+	global_position.y += rise + 0.02
 
 ## The state machine half of the animation graph: it selects the clip, the graph
 ## blends it. States are named so a test can assert which one is active.

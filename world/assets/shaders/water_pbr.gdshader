@@ -9,14 +9,14 @@ shader_type spatial;
 // - Fresnel sky tint + sun glitter + shoreline foam + subtle emission so night
 //   and shadowed views keep a blue read instead of darkness.
 
-render_mode blend_mix, depth_draw_always, cull_disabled, diffuse_burley, specular_schlick_ggx;
+render_mode blend_mix, depth_draw_opaque, cull_disabled, diffuse_burley, specular_schlick_ggx;
 
-uniform vec4 shallow_color : source_color = vec4(0.23, 0.52, 0.60, 0.78);
-uniform vec4 deep_color : source_color = vec4(0.05, 0.19, 0.33, 0.94);
-uniform vec4 sky_tint : source_color = vec4(0.55, 0.68, 0.78, 1.0);
+uniform vec4 shallow_color : source_color = vec4(0.16, 0.38, 0.46, 0.80);
+uniform vec4 deep_color : source_color = vec4(0.04, 0.13, 0.26, 0.95);
+uniform vec4 sky_tint : source_color = vec4(0.46, 0.60, 0.72, 1.0);
 uniform vec4 foam_color : source_color = vec4(0.88, 0.95, 1.0, 0.9);
 
-uniform float roughness : hint_range(0.0, 1.0) = 0.12;
+uniform float roughness : hint_range(0.0, 1.0) = 0.42;
 uniform float metallic : hint_range(0.0, 1.0) = 0.05;
 
 uniform float wave_amplitude_1 = 0.14;
@@ -32,13 +32,12 @@ uniform vec2 flow_direction_2 = vec2(-0.4, 0.9);
 
 uniform float depth_distance : hint_range(0.5, 20.0) = 5.0;
 uniform float foam_depth : hint_range(0.05, 1.5) = 0.45;
-uniform float emission_boost = 0.35;
+uniform float emission_boost = 0.16;
 
 // Depth/screen textures are intentionally NOT sampled: reading them from a
 // transparent surface turned the lake black on some passes/renderers.
 
 varying vec3 world_pos;
-varying vec3 vertex_normal;
 varying float wave_crest;
 
 void vertex() {
@@ -56,14 +55,6 @@ void vertex() {
 
 	VERTEX.y += wave1 + wave2;
 	wave_crest = clamp((wave1 + wave2) / (wave_amplitude_1 + wave_amplitude_2), -1.0, 1.0);
-
-	float ddx = cos(phase1) * wave_amplitude_1 * wave_frequency_1 * dir1.x
-	          + cos(phase2) * wave_amplitude_2 * wave_frequency_2 * dir2.x;
-	float ddz = cos(phase1) * wave_amplitude_1 * wave_frequency_1 * dir1.y
-	          + cos(phase2) * wave_amplitude_2 * wave_frequency_2 * dir2.y;
-
-	vec3 wave_norm = normalize(vec3(-ddx, 1.0, -ddz));
-	vertex_normal = (MODEL_MATRIX * vec4(wave_norm, 0.0)).xyz;
 }
 
 void fragment() {
@@ -79,25 +70,41 @@ void fragment() {
 	float foam_factor = clamp(1.0 - (water_depth / foam_depth), 0.0, 1.0);
 	foam_factor = pow(foam_factor, 1.5);
 	// Wave-crest whitening so the animation reads even mid-lake.
-	float crest_foam = smoothstep(0.55, 1.0, wave_crest) * 0.25;
+	float crest_foam = smoothstep(0.55, 1.0, wave_crest) * 0.14;
 	vec4 final_color = mix(water_col, foam_color, clamp(foam_factor * 0.75 + crest_foam, 0.0, 1.0));
 
 	float t = TIME;
-	float ripple = sin(world_pos.x * 2.5 + t * 2.0) * cos(world_pos.z * 2.5 + t * 1.8) * 0.09;
-	ripple += sin(world_pos.x * 5.0 - t * 3.0) * sin(world_pos.z * 4.0 + t * 2.5) * 0.045;
-	ripple += sin((world_pos.x + world_pos.z) * 9.0 + t * 4.0) * 0.02;
-
-	vec3 view_norm = normalize((VIEW_MATRIX * vec4(vertex_normal, 0.0)).xyz);
-	view_norm = normalize(view_norm + vec3(ripple, 0.0, ripple));
+	// Wave normal evaluated per pixel from the same waves as the vertex stage,
+	// plus two higher-frequency ripples travelling with the same flow
+	// directions. Directional ripples matter: an axis-aligned sin*cos product
+	// turns the sun glitter into a square lattice of cells instead of streaks.
+	vec2 dir1f = normalize(flow_direction_1);
+	vec2 dir2f = normalize(flow_direction_2);
+	float phase1f = dot(dir1f, world_pos.xz) * wave_frequency_1 + t * wave_speed_1;
+	float phase2f = dot(dir2f, world_pos.xz) * wave_frequency_2 + t * wave_speed_2;
+	float ddxf = cos(phase1f) * wave_amplitude_1 * wave_frequency_1 * dir1f.x
+	           + cos(phase2f) * wave_amplitude_2 * wave_frequency_2 * dir2f.x;
+	float ddzf = cos(phase1f) * wave_amplitude_1 * wave_frequency_1 * dir1f.y
+	           + cos(phase2f) * wave_amplitude_2 * wave_frequency_2 * dir2f.y;
+	float ripple1 = cos(dot(dir1f, world_pos.xz) * 0.70 + t * 2.3) * 0.055;
+	float ripple2 = cos(dot(dir2f, world_pos.xz) * 1.25 - t * 3.1) * 0.030;
+	vec2 third = normalize(vec2(0.9, -0.65));
+	float ripple3 = cos(dot(third, world_pos.xz) * 0.42 + t * 1.4) * 0.035;
+	float dhx = ddxf + ripple1 * 0.70 * dir1f.x + ripple2 * 1.25 * dir2f.x + ripple3 * 0.42 * third.x;
+	float dhz = ddzf + ripple1 * 0.70 * dir1f.y + ripple2 * 1.25 * dir2f.y + ripple3 * 0.42 * third.y;
+	vec3 world_norm = normalize(vec3(-dhx, 1.0, -dhz));
+	vec3 view_norm = normalize((VIEW_MATRIX * vec4(world_norm, 0.0)).xyz);
 	NORMAL = view_norm;
 
 	float fresnel = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 3.0);
-	vec3 col = mix(final_color.rgb, sky_tint.rgb, fresnel * 0.55);
+	// Grazing angles get a sky lift, but a capped one: the previous full blend
+	// turned the whole far surface into one flat sky-coloured sheet.
+	vec3 col = mix(final_color.rgb, sky_tint.rgb, fresnel * 0.34);
 
 	ALBEDO = col;
 	EMISSION = col * emission_boost * (0.35 + fresnel * 0.65) + foam_color.rgb * foam_factor * 0.25;
-	ALPHA = clamp(mix(final_color.a, 0.97, fresnel * 0.5), 0.55, 0.97);
-	ROUGHNESS = mix(roughness, 0.03, fresnel);
+	ALPHA = clamp(mix(final_color.a, 0.995, fresnel * 0.5), 0.82, 0.995);
+	ROUGHNESS = mix(roughness, 0.22, fresnel);
 	METALLIC = metallic;
-	SPECULAR = 0.9;
+	SPECULAR = 0.45;
 }

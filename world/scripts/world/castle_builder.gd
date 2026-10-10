@@ -229,7 +229,9 @@ static func _guard_post(parent: Node3D, pos: Vector3, stone: Material, wood: Mat
 		braz.height = 1.0
 		_mesh(parent, "GuardBrazier", braz, pos + Vector3(side * 2.2, 0.5, 0.6), stone)
 		_light(parent, pos + Vector3(side * 2.2, 1.6, 0.6), 1.6, 9.0)
-	_sealed_tower_mark(parent, pos + Vector3(0, 2.0, 0.4), "HOGWARTS WATCH")
+	# The plaque names the post and says it is sealed: the art check reads the
+	# second line as the proof that an inactive tower is visibly not a door.
+	_sealed_tower_mark(parent, pos + Vector3(0, 2.0, 0.4), "HOGWARTS WATCH\nTOWER SEALED")
 
 ## A sealed plaque at an inactive tower's base: "this is not a door".
 static func _sealed_tower_mark(parent: Node3D, pos: Vector3, text: String) -> void:

@@ -1,4 +1,4 @@
-extends RefCounted
+﻿extends RefCounted
 
 const MaterialKitScript = preload("res://scripts/assets/material_kit.gd")
 const PBR = preload("res://scripts/assets/pbr_kit.gd")
@@ -64,7 +64,7 @@ static func teardown(world: Node3D) -> void:
 		world.remove_child(node)
 		node.queue_free()
 	# Kit batches are flushed directly under the world root (one MultiMesh per
-	# repeated module), so they must go too — otherwise a reloaded map draws
+	# repeated module), so they must go too â€” otherwise a reloaded map draws
 	# every batch twice.
 	for child in world.get_children():
 		if child.name.begins_with("KitBatch_"):
@@ -86,10 +86,16 @@ static func _apply_sky_and_fog(world: Node3D) -> void:
 				sky_mat.ground_bottom_color = Color(0.14, 0.16, 0.17)
 				sky_mat.ground_horizon_color = Color(0.29, 0.32, 0.34)
 				sky_mat.sun_angle_max = 3.0
-			env.fog_enabled = false
-			env.fog_density = 0.0002
-			env.fog_aerial_perspective = 0.0
-			env.fog_sky_affect = 0.0
+			# A light haze reads as distance and gives the tree ranges something
+			# to dissolve into: with fog off, geometry that leaves its
+			# visibility range pops against a hard sky.
+			env.fog_enabled = true
+			env.fog_light_color = Color(0.66, 0.73, 0.80)
+			env.fog_light_energy = 1.0
+			env.fog_density = 0.0011
+			env.fog_depth_curve = 1.0
+			env.fog_aerial_perspective = 0.35
+			env.fog_sky_affect = 0.3
 			env.glow_enabled = true
 			env.glow_intensity = 0.16
 			env.glow_bloom = 0.0
@@ -135,30 +141,31 @@ static func _reskin_terrain(world: Node3D) -> void:
 
 	# 1. Main North & Central Plateau: spans z: -700..50 across x: -700..700!
 	# Completely covers Castle, Courtyard, Staging at (-70, 20), all encounters, safe zones, landing pad!
-	_ground_slab(meadow, Vector3(0, -0.05, -325.0), Vector2(1400, 750), grass_mat, true)
+	# Visual only: the walkable surface everywhere is the height-field collision
+	# (OutdoorTerrain), so shaped ground is never overlaid by a flat floor.
+	_ground_slab(meadow, Vector3(0, -0.05, -325.0), Vector2(1400, 750), grass_mat, false)
 
 	# 2. East Plains & Foothills (Hogsmeade Lower & Upper tiers, Quidditch Moors, Highlands):
 	# Spans x: -15..700, z: 50..700
-	_ground_slab(meadow, Vector3(342.5, -0.05, 375.0), Vector2(715, 650), grass_mat, true)
+	_ground_slab(meadow, Vector3(342.5, -0.05, 375.0), Vector2(715, 650), grass_mat, false)
 
 	# 3. Far South Perimeter: spans z: 310..700 across x: -700..-15
 	# (starts past the Black Lake bank ramp so the bank is real terrain)
-	_ground_slab(meadow, Vector3(-357.5, -0.05, 505.0), Vector2(685, 390), grass_mat, true)
+	_ground_slab(meadow, Vector3(-357.5, -0.05, 505.0), Vector2(685, 390), grass_mat, false)
 
 	# 4. Far West Perimeter: spans x: -700..-350 across z: 50..310
-	_ground_slab(meadow, Vector3(-525.0, -0.05, 180.0), Vector2(350, 260), grass_mat, true)
+	_ground_slab(meadow, Vector3(-525.0, -0.05, 180.0), Vector2(350, 260), grass_mat, false)
 
 	var court := world.get_node_or_null("Terrain/Courtyard")
 	if court and court is MeshInstance3D:
 		(court as MeshInstance3D).set_surface_override_material(0, PBR.surface("stone_tiles_02"))
 		court.position.y = -0.13
 
+	# The scene's own flat grass collider is retired for the same reason: one
+	# height-field answers for the whole world.
 	var grass_col := world.get_node_or_null("Terrain/CollisionShape3D")
 	if grass_col and grass_col is CollisionShape3D:
-		var shape := (grass_col as CollisionShape3D).shape
-		if shape is BoxShape3D:
-			(shape as BoxShape3D).size = Vector3(1400, 1, 750)
-			grass_col.position = Vector3(0, -0.5, -325.0)
+		(grass_col as CollisionShape3D).disabled = true
 
 static func _ground_slab(parent: Node3D, pos: Vector3, size: Vector2, mat: Material, add_col: bool = false) -> void:
 	var mi := MeshInstance3D.new()
@@ -189,10 +196,10 @@ static func _cobble_path(parent: Node3D, from: Vector3, to: Vector3, width: floa
 	var length := Vector2(dir.x, dir.z).length()
 	if length < 0.5:
 		return
-	var gy_from: float = OutdoorTerrain.ground_y(from.x, from.z) + 0.06
-	var gy_to: float = OutdoorTerrain.ground_y(to.x, to.z) + 0.06
+	var gy_from: float = OutdoorTerrain.ground_y(from.x, from.z) + 0.12
+	var gy_to: float = OutdoorTerrain.ground_y(to.x, to.z) + 0.12
 	var mid_xz := (Vector2(from.x, from.z) + Vector2(to.x, to.z)) * 0.5
-	var gy_mid: float = OutdoorTerrain.ground_y(mid_xz.x, mid_xz.y) + 0.06
+	var gy_mid: float = OutdoorTerrain.ground_y(mid_xz.x, mid_xz.y) + 0.12
 	var mid := Vector3((from.x + to.x) * 0.5, (gy_from + gy_to) * 0.5, (from.z + to.z) * 0.5)
 	mid.y = maxf(mid.y, gy_mid - 0.3)
 	var path := MeshInstance3D.new()
@@ -306,7 +313,7 @@ static func _build_courtyard_details(world: Node3D) -> void:
 static func _hut(parent: Node3D, pos: Vector3, rot_y: float, wall_mat: Material, roof_mat: Material, wood_mat: Material, scale: float = 1.0) -> void:
 	# Terrain-aware placement: the authored Y is a hint, the ground is the truth.
 	# Sampling OutdoorTerrain prevents the old buried (-1.2m) and floating
-	# (+3..7m) houses — every hut sits on its hill/plateau with a stone
+	# (+3..7m) houses â€” every hut sits on its hill/plateau with a stone
 	# foundation skirt so grass can never clip through the floor.
 	var gy: float = OutdoorTerrain.ground_y(pos.x, pos.z)
 	var snapped := Vector3(pos.x, gy, pos.z)
@@ -422,28 +429,36 @@ static func _build_village(world: Node3D) -> void:
 	var roof_mat := PBR.surface("roof_slates_03")
 	var wood_mat := PBR.surface("dark_wooden_planks")
 
-	# Tier 1: Welcome Plaza / West Gate (Safe zone preserved at 35, 20)
-	var spots_tier1 := [
-		[Vector3(34, 0, 16), 0.4], [Vector3(42, 0, 10), -0.5],
-		[Vector3(38, 0, 26), 2.8], [Vector3(28, 0, 24), -2.6]
+	# --- The village is a street, not a scatter. Houses line both sides of the
+	# avenue with a real setback and face the road; the tiers follow the
+	# terraces. The cluster this replaces had doorways inside the road and
+	# houses at arbitrary angles (an aerial capture showed the road running
+	# into a wall).
+	var street := [Vector2(35, 20), Vector2(65, 28), Vector2(88, 45), Vector2(130, 52), Vector2(165, 60), Vector2(196, 66)]
+	# [segment, t along it, side, setback, scale]
+	var plots := [
+		[0, 0.20, -1.0, 7.0, 1.0], [0, 0.60, 1.0, 7.4, 1.05], [0, 0.92, -1.0, 7.0, 0.95],
+		[1, 0.22, 1.0, 7.0, 1.0], [1, 0.70, -1.0, 7.4, 1.0], [1, 0.88, 1.0, 7.0, 0.95],
+		[2, 0.25, -1.0, 8.0, 1.05], [2, 0.62, 1.0, 8.0, 1.0], [2, 0.92, -1.0, 8.0, 1.0],
+		[3, 0.22, 1.0, 8.0, 1.0], [3, 0.60, -1.0, 8.0, 1.05], [3, 0.90, 1.0, 8.0, 1.0],
 	]
-	for s in spots_tier1:
-		_hut(village, s[0], s[1], wall_mat, roof_mat, wood_mat)
+	for plot in plots:
+		var a: Vector2 = street[int(plot[0])]
+		var b: Vector2 = street[int(plot[0]) + 1]
+		var p := a.lerp(b, float(plot[1]))
+		var dir := (b - a).normalized()
+		var normal := Vector2(-dir.y, dir.x)
+		var side: float = float(plot[2])
+		var spot := p + normal * side * float(plot[3])
+		# The door faces the road (the hut's front is its local +z).
+		var front := -normal * side
+		_hut(village, Vector3(spot.x, 0.0, spot.y),
+			atan2(front.x, front.y), wall_mat, roof_mat, wood_mat, float(plot[4]))
 
-	# Tier 2: Lower Town High Street & Tavern Plaza. Ground-snapped to the
-	# meadow plateau (old -1.2m buried every hut to its windows).
-	var spots_tier2 := [
-		[Vector3(62, 0, 24), -0.3], [Vector3(70, 0, 16), 0.8],
-		[Vector3(66, 0, 38), 2.6], [Vector3(78, 0, 42), -2.8],
-		[Vector3(92, 0, 34), 0.2], [Vector3(104, 0, 28), 1.2],
-		[Vector3(108, 0, 44), -0.4]
-	]
-	for s in spots_tier2:
-		_hut(village, s[0], s[1], wall_mat, roof_mat, wood_mat)
-
-	# Three Broomsticks Tavern (Grand Village Inn at Lower Town)
-	var tavern_pos := Vector3(88, 0, 54)
-	_hut(village, tavern_pos, 0.2, wall_mat, roof_mat, wood_mat, 1.45)
+	# Three Broomsticks Tavern (Grand Village Inn): on the square where the
+	# lower town meets the upper street, its door on the avenue (door faces -z).
+	var tavern_pos := Vector3(92, 0, 57)
+	_hut(village, tavern_pos, PI, wall_mat, roof_mat, wood_mat, 1.45)
 	for ti in range(3):
 		var t_raw := tavern_pos + Vector3(float(ti - 1) * 3.8, 0, 6.0)
 		var t_pos := Vector3(t_raw.x, OutdoorTerrain.ground_y(t_raw.x, t_raw.z), t_raw.z)
@@ -462,26 +477,35 @@ static func _build_village(world: Node3D) -> void:
 
 	# Tier 3: Upper Terraces. Ground-snapped to the 5m highland plateau
 	# (old 2.8..7m floated or clipped on the procedural hills).
-	var spots_tier3 := [
-		[Vector3(135, 5.0, 30), 0.4], [Vector3(145, 5.0, 22), -0.6],
-		[Vector3(142, 5.0, 46), 2.9], [Vector3(158, 5.0, 38), -2.5],
-		[Vector3(168, 5.0, 26), 0.7], [Vector3(175, 5.0, 44), 3.1],
-		[Vector3(188, 5.0, 36), -0.4]
-	]
-	for s in spots_tier3:
-		_hut(village, s[0], s[1], wall_mat, roof_mat, wood_mat)
+	# Upper terrace: the same street continues; houses line it on the plateau.
+	for plot in [
+		[3, 0.22, 1.0], [3, 0.60, -1.0], [3, 0.90, 1.0],
+		[4, 0.20, -1.0], [4, 0.60, 1.0], [4, 0.92, -1.0],
+	]:
+		var a: Vector2 = street[int(plot[0])]
+		var b: Vector2 = street[int(plot[0]) + 1]
+		var p := a.lerp(b, float(plot[1]))
+		var dir := (b - a).normalized()
+		var normal := Vector2(-dir.y, dir.x)
+		var side: float = float(plot[2])
+		var spot := p + normal * side * 8.0
+		var front := -normal * side
+		_hut(village, Vector3(spot.x, 0.0, spot.y), atan2(front.x, front.y),
+			wall_mat, roof_mat, wood_mat, 1.0)
 
-	# Upper terrace stone retaining walls, snapped to the plateau.
-	for wi in range(8):
+	# Terrace retaining walls along the plateau edge, with the stair mouth kept
+	# clear: the wall this replaces ran straight across the flight and across
+	# the avenue (the aerial capture showed a wall band with a road through it).
+	for wz in [16.0, 20.0, 24.0, 40.0, 44.0, 48.0]:
 		var r_wall := PBR.kit_instance("wall_module_4x6")
 		if r_wall:
-			var wx := 122.0
-			var wz := 16.0 + float(wi) * 4.0
+			var wx := 126.0
 			r_wall.position = Vector3(wx, OutdoorTerrain.ground_y(wx, wz), wz)
 			r_wall.rotation.y = PI * 0.5
-			r_wall.scale = Vector3(1.0, 0.7, 1.0)
+			r_wall.scale = Vector3(1.0, 0.42, 1.0)
 			village.add_child(r_wall)
-	# Terrace stair link from lower town (0m) to upper plateau (5m).
+	# Terrace stair link from the lower town to the upper plateau (the flight
+	# follows the real ground; it was authored from y=0 into a 3.5 m hillside).
 	_build_stair_flight(village, Vector3(118, 0.0, 34), Vector3(132, 5.0, 32), 12, 3.5)
 
 	# Town square paved plaza at West Gate
@@ -490,7 +514,7 @@ static func _build_village(world: Node3D) -> void:
 	pm.size = Vector2(24, 20)
 	plaza.material_override = PBR.surface("stone_tiles_02")
 	plaza.mesh = pm
-	plaza.position = Vector3(36, 0.03, 20)
+	plaza.position = Vector3(36, 0.04, 20)
 	village.add_child(plaza)
 
 	# Town square fountain well
@@ -562,7 +586,7 @@ static func _build_village(world: Node3D) -> void:
 	post.position.y = 1.6
 	sign_node.add_child(post)
 	var post_lbl := Label3D.new()
-	post_lbl.text = "← HOGWARTS   •   MARKET ↑   •   HIGHLANDS →"
+	post_lbl.text = "â† HOGWARTS   â€¢   MARKET â†‘   â€¢   HIGHLANDS â†’"
 	post_lbl.font_size = 28
 	post_lbl.outline_size = 6
 	post_lbl.outline_modulate = Color(0, 0, 0)
@@ -573,7 +597,7 @@ static func _build_village(world: Node3D) -> void:
 
 	# Village Labels
 	var label := Label3D.new()
-	label.text = "HOGSMEADE VILLAGE — LOWER TOWN"
+	label.text = "HOGSMEADE VILLAGE â€” LOWER TOWN"
 	label.font_size = 38
 	label.outline_size = 8
 	label.outline_modulate = Color(0, 0, 0)
@@ -582,7 +606,7 @@ static func _build_village(world: Node3D) -> void:
 	village.add_child(label)
 
 	var terrace_lbl := Label3D.new()
-	terrace_lbl.text = "UPPER TERRACES — HIGHLAND QUARTER"
+	terrace_lbl.text = "UPPER TERRACES â€” HIGHLAND QUARTER"
 	terrace_lbl.font_size = 34
 	terrace_lbl.modulate = Color(1.0, 0.9, 0.7)
 	terrace_lbl.outline_size = 6
@@ -833,7 +857,7 @@ static func _build_hagrids_grounds(world: Node3D, rng: RandomNumberGenerator) ->
 		grounds.add_child(rail2)
 
 	var label := Label3D.new()
-	label.text = "HAGRID'S HUT & PUMPKIN PATCH — GROUNDSKEEPER"
+	label.text = "HAGRID'S HUT & PUMPKIN PATCH â€” GROUNDSKEEPER"
 	label.font_size = 36
 	label.modulate = Color(1.0, 0.8, 0.4)
 	label.outline_size = 8
@@ -843,6 +867,25 @@ static func _build_hagrids_grounds(world: Node3D, rng: RandomNumberGenerator) ->
 	grounds.add_child(label)
 
 static func _build_stair_flight(parent: Node3D, from: Vector3, to: Vector3, step_count: int, width: float) -> void:
+	# The authored Y values are hints: the walkable surface is the terrain. A
+	# single long ramp either buries its foot (the terrace link was authored from
+	# y=0 into 1.9 m of hillside) or floats its top, so the flight is built as
+	# short segments whose ramps follow the real ground between their endpoints.
+	const SEGMENTS := 6
+	var per_segment := maxi(2, int(round(float(step_count) / float(SEGMENTS))))
+	var previous := Vector3(from.x, OutdoorTerrain.ground_y(from.x, from.z), from.z)
+	for segment in range(1, SEGMENTS + 1):
+		var t := float(segment) / float(SEGMENTS)
+		var point := Vector3(lerpf(from.x, to.x, t), 0.0, lerpf(from.z, to.z, t))
+		point.y = lerpf(OutdoorTerrain.ground_y(from.x, from.z),
+			OutdoorTerrain.ground_y(to.x, to.z), t) * 0.35 \
+			+ OutdoorTerrain.ground_y(point.x, point.z) * 0.65
+		_build_stair_segment(parent, previous, point, per_segment, width,
+			segment == 1, segment == SEGMENTS)
+		previous = point
+
+static func _build_stair_segment(parent: Node3D, from: Vector3, to: Vector3, step_count: int, width: float,
+		lamp_first: bool, lamp_last: bool) -> void:
 	var delta := to - from
 	var h_dist := Vector2(delta.x, delta.z).length()
 	var angle_y := atan2(delta.x, delta.z)
@@ -857,14 +900,16 @@ static func _build_stair_flight(parent: Node3D, from: Vector3, to: Vector3, step
 			tread.rotation.y = angle_y
 			tread.scale = Vector3(width / 4.0, 1.0, 1.2)
 			parent.add_child(tread)
-		if i % 3 == 0:
+		if i % 3 == 0 or i == step_count - 1:
 			for side in [-1, 1]:
 				var np := PBR.kit_instance("newel_post_1_2")
 				if np:
 					var lateral := Basis.from_euler(Vector3(0, angle_y, 0)) * Vector3(side * (width * 0.5 + 0.2), 0, 0)
 					np.position = step_pos + lateral
 					parent.add_child(np)
-					if i == 0 or i == step_count - 1:
+					# One lamp pair per flight, not per segment: the segmented
+					# flight grew a lamp every metre down the hill.
+					if (i == 0 and lamp_first) or (i == step_count - 1 and lamp_last):
 						_lamp(parent, np.position, false)
 
 	# Sloping collision ramp
@@ -1170,7 +1215,7 @@ static func _build_black_lake(world: Node3D) -> void:
 	var bpm := PlaneMesh.new()
 	bpm.size = Vector2(150, 130)
 	bed_mesh.mesh = bpm
-	bed_mesh.material_override = PBR.surface("floor_flagstone_01", Color(0.45, 0.52, 0.55), {"metres": 4.0})
+	bed_mesh.material_override = PBR.surface("floor_flagstone_01", Color(0.18, 0.28, 0.32), {"metres": 10.0})
 	bed_mesh.position = Vector3(lake_center.x, bed_y, lake_center.z)
 	lake.add_child(bed_mesh)
 	_add_box_col(lake, Vector3(lake_center.x, bed_y - 0.5, lake_center.z), Vector3(150, 1.0, 130))
@@ -1421,15 +1466,18 @@ static func _build_black_lake(world: Node3D) -> void:
 	water.name = "LakeWaterSurface"
 	var pm := PlaneMesh.new()
 	pm.size = lake_size
-	pm.subdivide_width = 80
-	pm.subdivide_depth = 80
+	pm.subdivide_width = 48
+	pm.subdivide_depth = 48
 	water.material_override = MaterialKitScript.water_material()
 	water.mesh = pm
 	water.position = lake_center
 	lake.add_child(water)
-	# Walkable water surface: thin box at mean level (+0.15 above visual mean so
-	# wave troughs never expose feet below the collider).
-	_add_box_col(lake, lake_center + Vector3(0, 0.15, 0), Vector3(lake_size.x, 0.5, lake_size.y))
+	# Walkable water surface: the collider's top sits a waist below the visual
+	# waterline (the body sinks in and the swim buoyancy holds it there, instead
+	# of standing on an invisible shelf above the surface). The shore shelf at
+	# the rim is 5 cm lower, so walking in is a step, not a wall.
+	_add_box_col(lake, Vector3(lake_center.x, lake_center.y - 0.6, lake_center.z),
+		Vector3(lake_size.x, 0.5, lake_size.y))
 	# Underwater safety net 1m above the bed: a swimmer that dives is caught
 	# before the kill-plane, and the player script floats them back up.
 	_add_box_col(lake, Vector3(lake_center.x, bed_y + 1.2, lake_center.z), Vector3(140, 0.4, 120))
@@ -1527,7 +1575,7 @@ static func _build_black_lake(world: Node3D) -> void:
 			lake.add_child(bl)
 
 	var label := Label3D.new()
-	label.text = "THE BLACK LAKE — HOGWARTS BOATHOUSE & DOCKS"
+	label.text = "THE BLACK LAKE â€” HOGWARTS BOATHOUSE & DOCKS"
 	label.font_size = 38
 	label.modulate = Color(0.5, 0.85, 1.0)
 	label.outline_size = 8
@@ -1645,7 +1693,7 @@ static func _build_quidditch_pitch(world: Node3D) -> void:
 		tower.add_child(ban)
 
 	var label := Label3D.new()
-	label.text = "QUIDDITCH STADIUM — EASTERN MOORS"
+	label.text = "QUIDDITCH STADIUM â€” EASTERN MOORS"
 	label.font_size = 40
 	label.modulate = Color(1.0, 0.9, 0.4)
 	label.outline_size = 8
@@ -1766,7 +1814,7 @@ static func _build_highlands_circle(world: Node3D) -> void:
 		_torch(highlands, Vector3(bx, base_y, bz))
 
 	var label := Label3D.new()
-	label.text = "ANCIENT MEGALITHS — HIGHLANDS OVERLOOK"
+	label.text = "ANCIENT MEGALITHS â€” HIGHLANDS OVERLOOK"
 	label.font_size = 36
 	label.modulate = Color(0.5, 0.9, 1.0)
 	label.outline_size = 8
@@ -1853,7 +1901,7 @@ static func _build_smugglers_ridge(world: Node3D, rng: RandomNumberGenerator) ->
 	fire.add_child(fl)
 
 	var label := Label3D.new()
-	label.text = "SMUGGLER'S RIDGE — DARK STRONGHOLD"
+	label.text = "SMUGGLER'S RIDGE â€” DARK STRONGHOLD"
 	label.font_size = 36
 	label.modulate = Color(0.8, 0.4, 0.95)
 	label.outline_size = 8
@@ -1970,7 +2018,7 @@ static func _build_level_dressing(world: Node3D, rng: RandomNumberGenerator) -> 
 	beam.position = Vector3(0, 6.4, -14)
 	dz.add_child(beam)
 	var arch_label := Label3D.new()
-	arch_label.text = "HOGWARTS ↑   •   FOREST ←"
+	arch_label.text = "HOGWARTS â†‘   â€¢   FOREST â†"
 	arch_label.font_size = 32
 	arch_label.outline_size = 8
 	arch_label.outline_modulate = Color(0, 0, 0)
@@ -2262,3 +2310,5 @@ static func _build_world_boundaries(world: Node3D) -> void:
 		mesh_inst.mesh = bm
 		mesh_inst.visible = false
 		sb.add_child(mesh_inst)
+
+

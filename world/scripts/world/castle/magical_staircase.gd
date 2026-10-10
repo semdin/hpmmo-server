@@ -21,11 +21,76 @@ extends HPStaircase
 var _board: Label3D = null
 var _flash_until := 0.0
 
+const PBR = preload("res://scripts/assets/pbr_kit.gd")
+
 func _ready() -> void:
 	super()
 	_build_presentation()
 
+## The moving flight is the one piece of Hogwarts the player rides, and the
+## greybox materials shipped with it made it read as a black wedge wedged into
+## the hall (measured: deck albedo 0.42 under a dim interior ambient). The
+## authority's geometry is untouched; this only dresses the boxes it built.
+func _polish_geometry() -> void:
+	if platform == null or not is_instance_valid(platform):
+		return
+	var stone := PBR.surface("stone_ashlar_01", Color(0.88, 0.86, 0.82), {"metres": 3.0})
+	var wood := PBR.surface("dark_wooden_planks")
+	var rail := PBR.surface("dark_wooden_planks", Color(0.62, 0.56, 0.5))
+	for node in find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance := node as MeshInstance3D
+		var label := String(mesh_instance.name)
+		if label.begins_with("Deck") or label.begins_with("Step"):
+			mesh_instance.material_override = stone
+		elif label.begins_with("Rail"):
+			mesh_instance.material_override = rail
+		elif label.begins_with("Gate"):
+			mesh_instance.material_override = wood
+	# A travelling enchantment: an emissive line along both deck edges, the one
+	# part of the ride that reads at a glance from the hall floor.
+	var glow := StandardMaterial3D.new()
+	glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	glow.albedo_color = Color(0.55, 0.85, 1.0, 0.9)
+	glow.emission_enabled = true
+	glow.emission = Color(0.35, 0.7, 1.0)
+	glow.emission_energy_multiplier = 1.6
+	var flight: Dictionary = spec.get("flight", {})
+	var rise_v := float(flight.get("rise", 6.0))
+	var run_v := float(flight.get("run", 12.0))
+	var width := float(flight.get("width", 3.0))
+	var angle := atan2(rise_v, run_v)
+	var ramp_length := sqrt(rise_v * rise_v + run_v * run_v)
+	var mid := Vector3(0.0, rise_v * 0.5, run_v * 0.5)
+	for side in [-1.0, 1.0]:
+		var line := MeshInstance3D.new()
+		line.name = "EdgeGlow%d" % int(side)
+		var box := BoxMesh.new()
+		box.size = Vector3(0.08, 0.05, ramp_length)
+		box.material = glow
+		line.mesh = box
+		line.position = mid + Vector3(side * (width * 0.5 - 0.04), 0.18, 0.0)
+		line.rotation.x = -angle
+		platform.add_child(line)
+	# Read as a stair, not a ramp: tread strips laid across the deck at the
+	# authored rise. The authority's collision stays the smooth ramp.
+	var treads := maxi(8, int(round(rise_v / 0.42)))
+	var tread_mat := PBR.surface("dark_wooden_planks", Color(0.78, 0.66, 0.48))
+	var along := Vector3(0.0, sin(angle), cos(angle))
+	var normal_v := Vector3(0.0, cos(angle), -sin(angle))
+	for step in range(treads):
+		var s := (float(step) + 0.5) / float(treads) * ramp_length
+		var tread := MeshInstance3D.new()
+		tread.name = "Tread%02d" % step
+		var tread_box := BoxMesh.new()
+		tread_box.size = Vector3(width * 0.97, 0.07, ramp_length / float(treads) * 0.5)
+		tread_box.material = tread_mat
+		tread.mesh = tread_box
+		tread.position = mid + along * (s - ramp_length * 0.5) + normal_v * 0.12
+		tread.rotation.x = -angle
+		platform.add_child(tread)
+
 func _build_presentation() -> void:
+	_polish_geometry()
 	_board = Label3D.new()
 	_board.name = "StateBoard"
 	_board.billboard = BaseMaterial3D.BILLBOARD_ENABLED

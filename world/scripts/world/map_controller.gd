@@ -493,8 +493,8 @@ func _apply_interior_ambience(inside: bool) -> void:
 				"energy": env.ambient_light_energy,
 			})
 		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-		env.ambient_light_color = Color(0.40, 0.36, 0.32)
-		env.ambient_light_energy = 0.62
+		env.ambient_light_color = Color(0.44, 0.40, 0.35)
+		env.ambient_light_energy = 0.78
 	elif env.has_meta("outdoor_ambient"):
 		var saved: Dictionary = env.get_meta("outdoor_ambient")
 		env.ambient_light_source = int(saved["source"])
