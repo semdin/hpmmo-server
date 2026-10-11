@@ -160,6 +160,7 @@ var _pos_history: Array[Vector3] = []
 const MAX_POS_HISTORY := 90
 
 var _cast_seq := 0
+var _replicated_cast_id := -1
 var _predicted_casts: Dictionary = {}   # cast_seq -> {spell_id, aim}
 var _predicted_ward := false
 ## Server-side only: the latest movement intent this player sent. When
@@ -552,11 +553,11 @@ func _physics_process(delta: float) -> void:
 				if hero_anim:
 					hero_anim.set_locomotion("mount%d" % sim_mount_phase, clip_for_mount_phase(sim_mount_phase))
 			elif hero_anim:
-				var moved_dist := (global_position - prev_pos).length()
-				if moved_dist > 0.02:
-					hero_anim.set_locomotion("remote_run", "Running_A")
+				if is_dead:
+					hero_anim.set_locomotion("dead", "Death_A")
 				else:
-					hero_anim.set_locomotion("remote_idle", "Idle")
+					var motion := (global_position - prev_pos) / maxf(delta, 0.001)
+					_update_ground_animation(motion, visuals.rotation.y)
 			return
 	
 	if is_dead:
@@ -704,35 +705,25 @@ func _update_animation_state() -> void:
 			hero_anim.set_locomotion("swim", "Running_A")
 		return
 	if not is_on_floor():
-		hero_anim.set_locomotion("air_up", "Jump_Start" if velocity.y > 0.5 else "Fall")
+		if velocity.y > 0.5:
+			hero_anim.set_locomotion("air_up", "Jump_Start")
+		else:
+			hero_anim.set_locomotion("air_down", "Fall")
 		return
 	if _was_airborne:
 		hero_anim.play_oneshot("Land")
-	var horizontal := Vector2(velocity.x, velocity.z).length()
-	if horizontal < 0.25:
-		hero_anim.set_locomotion("idle", "Idle")
-		return
 	# Classify against the facing the body is heading FOR while it auto-faces its
 	# movement (reaching it takes several frames at 14 rad/s), and against the real
 	# facing when something else owns it - the camera during a right-click orbit, or
 	# replication on a puppet. Using the lagging facing made a forward press start
 	# with Walk_Back/Strafe_R frames.
 	var yaw := _facing_target_yaw if _auto_facing else visuals.rotation.y
+	_update_ground_animation(velocity, yaw)
+
+func _update_ground_animation(motion: Vector3, yaw: float) -> void:
 	var forward := Vector3(sin(yaw), 0, cos(yaw))
 	var left := Vector3(cos(yaw), 0, -sin(yaw))
-	var dir := Vector3(velocity.x, 0, velocity.z).normalized()
-	var along := dir.dot(forward)
-	var lateral := dir.dot(left)
-	if along < -0.5:
-		hero_anim.set_locomotion("walk_back", "Walk_Back")
-	elif lateral > 0.5:
-		hero_anim.set_locomotion("strafe_l", "Strafe_L")
-	elif lateral < -0.5:
-		hero_anim.set_locomotion("strafe_r", "Strafe_R")
-	elif horizontal < walk_speed * 0.55:
-		hero_anim.set_locomotion("walk", "Walk_A")
-	else:
-		hero_anim.set_locomotion("run", "Running_A")
+	hero_anim.set_ground_motion(Vector2(motion.dot(left), motion.dot(forward)))
 
 func _on_animation_event(event_name: String) -> void:
 	animation_events.append(event_name)
@@ -1217,6 +1208,8 @@ func on_cast_answer(cast_seq: int, _cast_id: int, ok: bool, reason: String) -> v
 		_clear_protego_preview()
 	_cast_generation += 1
 	is_casting_anim = false
+	if hero_anim:
+		hero_anim.end_cast()
 	_committed_until = 0.0
 	_reject_feedback(reason)
 
@@ -1243,7 +1236,7 @@ func _reject_feedback(reason: String) -> void:
 ##
 ## `aim` defaults to the body's forward so the cast still points somewhere when a
 ## caller has no aim point (the vfx viewer calls this with no arguments).
-func _play_cast_animation(anim_name: String = "Spellcast_Shoot", aim: Variant = null, spell: String = "", combo: int = 0) -> void:
+func _play_cast_animation(anim_name: String = "Spellcast_Shoot", aim: Variant = null, spell: String = "", combo: int = 0, release_delay := -1.0) -> void:
 	if hero_anim == null and not is_instance_valid(anim_player):
 		return
 	is_casting_anim = true
@@ -1259,11 +1252,18 @@ func _play_cast_animation(anim_name: String = "Spellcast_Shoot", aim: Variant = 
 		hold = 0.48
 	else:
 		hold = float({"incendio": 0.65, "bombarda": 0.55, "expelliarmus": 0.42, "protego": 0.62, "ultimate": 0.72}.get(spell, hold))
+	# Use the same tick-rounded windup as SimAuthority. Gesture recovery can be
+	# longer than the gameplay lock, but extension must meet the actual release.
+	var release := release_delay
+	if release < 0.0:
+		release = float(maxi(1, int(round(HPRules.cast_lock(spell) * 0.5 * HPProtocol.SIM_HZ)))) / HPProtocol.SIM_HZ \
+			if GameData.SPELLS.has(spell) else hold * 0.6
+	release = clampf(release, 0.01, hold - 0.02)
 	if hero_anim:
 		hero_anim.start_cast(upper if hero_anim.has_clip(upper) else anim_name, hold)
 		if hero_anim.cast_layer:
 			hero_anim.cast_layer.set_gesture(spell, combo, hold)
-		hero_anim.align_cast(hold * 0.6, 0.45)
+		hero_anim.align_cast(release, 0.45)
 		# A wand cast points the wand at the target; a melee chop is a SWING, so it
 		# keeps the clip's own arm (holding it on the target would freeze it). The
 		# aim lasts exactly as long as the cast - end_cast releases it.
@@ -1276,12 +1276,11 @@ func _play_cast_animation(anim_name: String = "Spellcast_Shoot", aim: Variant = 
 			anim_player.play(anim_name, 0.08)
 		elif anim_player.has_animation("Spellcast_Shoot"):
 			anim_player.play("Spellcast_Shoot", 0.08)
-	await get_tree().create_timer(hold * 0.6).timeout
+	await get_tree().create_timer(release).timeout
 	if generation != _cast_generation or is_dead:
 		return
-	if animation_events.size() < 32:
-		_on_animation_event("fx:wand_release")
-	await get_tree().create_timer(hold * 0.4).timeout
+	_on_animation_event("fx:wand_release")
+	await get_tree().create_timer(hold - release).timeout
 	if generation == _cast_generation and not is_dead:
 		is_casting_anim = false
 		if hero_anim:
@@ -1290,8 +1289,16 @@ func _play_cast_animation(anim_name: String = "Spellcast_Shoot", aim: Variant = 
 ## A replicated cast: another player's body plays the same gesture, aimed from the
 ## authority's origin and direction rather than from local input. The caster's own
 ## client already predicted this, so only other clients run it.
-func present_replicated_cast(origin: Vector3, dir: Vector3, spell: String = "") -> void:
+func present_replicated_cast_start(cast_id: int, aim: Vector3, spell: String, release_delay: float) -> void:
 	if is_local_player or hero_anim == null or is_dead:
+		return
+	_replicated_cast_id = cast_id
+	_play_cast_animation("Spellcast_Shoot", aim, spell, 0, release_delay)
+
+func present_replicated_cast(origin: Vector3, dir: Vector3, spell: String = "", cast_id := -1) -> void:
+	if is_local_player or hero_anim == null or is_dead:
+		return
+	if cast_id >= 0 and _replicated_cast_id == cast_id:
 		return
 	_play_cast_animation("Spellcast_Shoot", origin + dir * 20.0, spell)
 

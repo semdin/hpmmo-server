@@ -369,6 +369,7 @@ func _on_reward_granted(exp: int, galleons: int, items: Array) -> void:
 		_toast("+%d EXP" % exp, Color(0.5, 1.0, 0.6), "stat_exp")
 	if galleons > 0:
 		_toast("+%d Galleons" % galleons, Color(1.0, 0.85, 0.35), "galleons")
+		_play_ui("ui_coin")
 	for entry in items:
 		if entry is Dictionary:
 			var item_id := String(entry.get("id", "item"))

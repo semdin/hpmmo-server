@@ -47,6 +47,7 @@ var is_switching: bool = false
 func _ready() -> void:
 	# Connect UI buttons
 	_apply_icons()
+	_pin_menu_music()
 	enter_world_btn.pressed.connect(_on_enter_world_pressed)
 	new_char_btn.pressed.connect(_on_new_char_pressed)
 	prev_slot_btn.pressed.connect(func(): _switch_slot((current_slot - 1 + 2) % 2))
@@ -75,6 +76,14 @@ func _exit_tree() -> void:
 		NetworkManager.character_create_result.disconnect(_on_character_create_result)
 	if NetworkManager.character_select_result.is_connected(_on_character_select_result):
 		NetworkManager.character_select_result.disconnect(_on_character_select_result)
+
+## The front end owns a calm classical bed. Entering the world releases the
+## pin: the AudioManager hands the soundtrack to the zone and combat logic as
+## soon as it finds the local player.
+func _pin_menu_music() -> void:
+	var audio := get_node_or_null("/root/AudioManager")
+	if audio != null and audio.has_method("set_music_state"):
+		audio.call("set_music_state", "menu")
 
 ## The house crests on the create-character buttons, and the glyph the plus sign
 ## used to be. The captions stay: the crest says which house, the caption names it.

@@ -325,8 +325,7 @@ func _on_cast_rejected(_cast_seq: int, _spell_id: String, _reason: String) -> vo
 	_play_ui("ui_deny")
 
 func _on_death_sound(is_dead: bool) -> void:
-	if is_dead:
-		_play_ui("ui_cancel")
+	_play_ui("ui_death" if is_dead else "ui_respawn")
 
 func _on_level_sound(_level: int) -> void:
 	_play_ui("ui_levelup")

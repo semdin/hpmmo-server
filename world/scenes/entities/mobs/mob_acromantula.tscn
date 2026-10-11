@@ -25,6 +25,7 @@ aggro_radius = 14.0
 attack_range = 2.8
 exp_reward = 110
 anim_set = "spider"
+voice_set = "spider"
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, 0)

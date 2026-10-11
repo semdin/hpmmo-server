@@ -27,6 +27,11 @@ var animation: Animation = null
 var weight := 0.0
 var time := 0.0
 var playing := false
+var _elapsed := 0.0
+var _release_at := -1.0
+var _release_clip_time := 0.0
+var _duration := 0.0
+var _release_phase := 0.6
 ## Bone name -> tracks that belong to it (index into the Animation).
 var upper_tracks: Array[int] = []
 var lower_prefixes := ["Hips", "Body", "Root", "UpperLeg", "LowerLeg", "Foot", "PT"]
@@ -48,6 +53,7 @@ const AIM_MAX_WRIST_TWIST := 1.2
 ## World-space point the casting arm points at, and whether the aim is in force.
 var aim_point := Vector3.ZERO
 var _aim_active := false
+var _hold_aim := false
 ## Clip rotations used as the blend source for the arm aim in this modifier pass.
 var _clip_rotations := {}
 var gesture_time := 0.0
@@ -94,12 +100,36 @@ func play(clip: Animation, start_time := 0.0) -> void:
 		configure(clip)
 	playing = true
 	time = start_time
+	_elapsed = start_time
+	_release_at = -1.0
+	_release_phase = 0.6
+	_hold_aim = false
 	gesture_time = 0.0
 	gesture_strength = 0.0
 	gesture_spell = ""
 
 func stop() -> void:
+	_hold_aim = _aim_active
 	playing = false
+
+func align_release(seconds: float, clip_fraction: float, duration: float) -> void:
+	if animation == null:
+		return
+	_duration = maxf(0.02, duration)
+	_release_at = clampf(seconds, 0.01, _duration - 0.01)
+	_release_clip_time = animation.length * clip_fraction
+	_release_phase = _release_at / _duration
+	_elapsed = 0.0
+	time = 0.0
+
+## Deterministic mapping also lets captures sample the actual release pose.
+func clip_time_at(elapsed: float) -> float:
+	if _release_at < 0.0 or animation == null:
+		return elapsed
+	if elapsed <= _release_at:
+		return _release_clip_time * clampf(elapsed / _release_at, 0.0, 1.0)
+	return lerpf(_release_clip_time, animation.length,
+		clampf((elapsed - _release_at) / (_duration - _release_at), 0.0, 1.0))
 
 func upper_bone_count() -> int:
 	return upper_tracks.size()
@@ -107,15 +137,20 @@ func upper_bone_count() -> int:
 ## Point the casting arm at `point` (world space) while the cast layer is blended
 ## in. Pass `active = false` to hand the arm back to the clip.
 func set_aim(point: Vector3, active: bool) -> void:
-	aim_point = point
+	if active:
+		aim_point = point
+	elif playing:
+		_hold_aim = false
 	_aim_active = active
 
 func aim_active() -> bool:
 	return _aim_active
 
 func _process_modification_with_delta(delta: float) -> void:
-	time += delta
-	gesture_time += delta
+	if playing:
+		_elapsed += delta
+		time = clip_time_at(_elapsed)
+		gesture_time += delta
 	_apply()
 
 func _apply() -> void:
@@ -123,7 +158,9 @@ func _apply() -> void:
 	if skeleton == null:
 		return
 	_clip_rotations.clear()
-	if playing and animation != null and weight > 0.001:
+	# Retain the final pose while weight fades; stopping sampling immediately
+	# discarded the entire upper-body layer in a single frame.
+	if animation != null and weight > 0.001:
 		var clamped := clampf(time, 0.0, maxf(0.0, animation.length))
 		for track in upper_tracks:
 			var bone := _bone_of(animation.track_get_path(track))
@@ -143,7 +180,7 @@ func _apply() -> void:
 	_apply_aim(skeleton)
 
 func _apply_cast_torso(skeleton: Skeleton3D) -> void:
-	if not playing or weight <= 0.001:
+	if animation == null or weight <= 0.001:
 		return
 	var phase := clampf(gesture_time / maxf(0.05, gesture_duration), 0, 1)
 	var envelope := sin(phase * PI) * weight
@@ -167,7 +204,7 @@ func _apply_cast_torso(skeleton: Skeleton3D) -> void:
 ## Reach the casting arm at `aim_point`, then turn the WRIST so the wand's own
 ## axis - the prop rides the wrist bone, not the forearm - lands on the target.
 func _apply_aim(skeleton: Skeleton3D) -> void:
-	if not _aim_active or weight <= 0.001:
+	if (not _aim_active and not _hold_aim) or weight <= 0.001:
 		return
 	var root := _bone_index(skeleton, AIM_ROOT_BONE)
 	var mid := _bone_index(skeleton, AIM_MID_BONE)
@@ -189,8 +226,8 @@ func _apply_aim(skeleton: Skeleton3D) -> void:
 	# A short elbow draw, quick extension, then recoil. The wrist continues to
 	# aim at the actual target; locomotion and the wand grip remain untouched.
 	var phase := clampf(gesture_time / maxf(0.05, gesture_duration), 0.0, 1.0)
-	var snap := smoothstep(0.0, 0.24, phase)
-	var recoil := smoothstep(0.36, 0.9, phase)
+	var snap := smoothstep(_release_phase * 0.45, _release_phase, phase)
+	var recoil := smoothstep(_release_phase + 0.04, 1.0, phase)
 	var extension := AIM_EXTENSION - gesture_strength * (0.25 * (1.0 - snap) + 0.16 * recoil)
 	var side := towards.normalized().cross(Vector3.UP).normalized()
 	var sweep := sin(phase * PI * 2.0) * (1.0 - snap) * gesture_strength * 0.12 * gesture_side

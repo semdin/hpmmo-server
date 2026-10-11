@@ -198,12 +198,12 @@ static func apply_house_tint(visuals: Node, primary: Color) -> void:
 			MATERIAL_TRIM:
 				var trim := base.duplicate() as StandardMaterial3D
 				trim.albedo_color = primary
-				trim.metallic = 0.35
-				trim.roughness = 0.45
+				trim.metallic = 0.0
+				trim.roughness = 0.87
 				mesh_instance.set_surface_override_material(surface, trim)
 			MATERIAL_ROBE:
 				var robe := base.duplicate() as StandardMaterial3D
-				robe.albedo_color = primary.darkened(0.72)
+				robe.albedo_color = Color("242936").lerp(primary.darkened(0.65), 0.16)
 				mesh_instance.set_surface_override_material(surface, robe)
 
 

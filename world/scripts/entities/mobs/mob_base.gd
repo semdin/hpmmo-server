@@ -58,6 +58,9 @@ signal died(mob: Node3D)
 @export var boss_arena_radius := 0.0
 ## Animation set this body's clips come from ("spider", "wizard", "generic").
 @export var anim_set := "generic"
+## Creature voice family for the move/alert/attack/death cues ("spider",
+## "snatcher", "inferi"). Empty falls back to "spider".
+@export var voice_set := ""
 ## Ground speed the walk cycle was authored for (0 = unknown, no scaling).
 @export var walk_speed := 0.0
 
@@ -121,6 +124,15 @@ const ANIM_SETS := {
 	"generic": {"idle": "Idle", "walk": "Walking_A", "run": "Running_A", "turn": "Running_A",
 		"anticipation": "1H_Melee_Attack_Chop", "attack": "1H_Melee_Attack_Chop",
 		"hit": "Hit_A", "stun": "Hit_A", "death": "Death_A"},
+}
+
+## Creature voices per family: each species in the world gets its own material
+## instead of every monster borrowing the spider's. Bosses use their own alert
+## and death cue regardless of family.
+const VOICE_SETS := {
+	"spider": {"move": "spider_move_%d", "alert": "spider_alert", "attack": "spider_bite", "death": "spider_death"},
+	"snatcher": {"move": "snatcher_move_%d", "alert": "snatcher_alert", "attack": "snatcher_attack", "death": "snatcher_death"},
+	"inferi": {"move": "inferi_move_%d", "alert": "inferi_alert", "attack": "inferi_attack", "death": "inferi_death"},
 }
 
 ## Ordinary attack timing (data-driven patterns replace this for bosses).
@@ -301,7 +313,7 @@ func _physics_process(delta: float) -> void:
 		_voice_timer -= delta
 		if _voice_timer <= 0.0:
 			_voice_timer = randf_range(0.45, 0.9)
-			_play_voice("spider_move_%d" % (randi() % 3 + 1))
+			_play_voice(_voice_key("move", randi() % 3 + 1))
 	if state == State.DEAD:
 		_tick_corpse(delta)
 		return
@@ -547,9 +559,12 @@ func _idle_and_wander(delta: float) -> void:
 func aggro_on(player: Node3D, alert_pack: bool = true) -> void:
 	if state in [State.DEAD, State.RETURN] or not Rules.can_damage(self, player):
 		return
+	var newly_aggroed := state != State.CHASE and state != State.ATTACK
 	target_player = player
 	if state != State.STUNNED:
 		_set_state(State.CHASE)
+	if newly_aggroed:
+		_play_voice("boss_alert" if is_boss else _voice_key("alert"))
 	if alert_pack and pack_id > 0:
 		for mob in get_tree().get_nodes_in_group("mobs"):
 			if mob != self and mob.pack_id == pack_id and global_position.distance_to(mob.global_position) <= assist_radius:
@@ -743,6 +758,20 @@ func _play_voice(key: String) -> void:
 		return
 	audio.call("play_sound_at", key, global_position, self)
 
+
+func _voice_family() -> String:
+	return voice_set if VOICE_SETS.has(voice_set) else "spider"
+
+
+## A key from the body's voice family; "" when the family has no such cue.
+func _voice_key(kind: String, variant: int = 0) -> String:
+	var pattern := String((VOICE_SETS[_voice_family()] as Dictionary).get(kind, ""))
+	if pattern == "":
+		return ""
+	if pattern.contains("%d"):
+		return pattern % maxi(1, variant)
+	return pattern
+
 func _show_warning(plan: Dictionary = {}) -> void:
 	if is_instance_valid(_warning):
 		_warning.queue_free()
@@ -839,7 +868,7 @@ func _resolve_attack(plan: Dictionary) -> void:
 			SimAuthority.mob_projectile(self, "stupefy", dir, power)
 	elif _valid_target() and Rules.has_line_of_sight(self, target_player):
 		if global_position.distance_to(target_player.global_position) <= attack_range + 0.4:
-			_play_voice("spider_bite")
+			_play_voice(_voice_key("attack"))
 			SimAuthority.mob_melee(self, target_player, power)
 
 # ------------------------------------------------------------------- damage
@@ -878,7 +907,7 @@ func on_authoritative_damage(type: String, attacker: Node3D, stun_ms: int, weake
 ## Authority death notification: the engine already paid the rewards and dropped
 ## the loot, so this is the body's part only.
 func on_authoritative_death(killer: Node3D) -> void:
-	_play_voice("boss_death" if is_boss else "spider_death")
+	_play_voice("boss_death" if is_boss else _voice_key("death"))
 	_cancel_attack()
 	_cancel_warning()
 	_set_state(State.DEAD)

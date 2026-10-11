@@ -1,6 +1,6 @@
 extends Node
 
-## AudioManager - the spell effects audio system.
+## AudioManager - the spell effects and music audio system.
 ##
 ## Every sound is a project-original synthesised WAV (tools/audio/synth_spell_sfx.py)
 ## described by `assets/audio/sound_library.json`: bus, base gain, pitch
@@ -14,6 +14,11 @@ extends Node
 ##   * interior/exterior reverb treatment: the SFX and Ambience buses carry a
 ##     reverb whose size, damping and wet mix change per zone, and the Great
 ##     Hall, library and dungeon are acoustically distinct;
+##   * classical music beds driven by where the player is and what they are
+##     doing: the front menu, the overworld map, the castle halls, the dungeon
+##     and combat each own a track, crossfaded on every change - combat
+##     overrides the zone the moment a spell is cast or a blow lands, and hands
+##     the room back once the fight has been quiet for a few seconds;
 ##   * subtle variation (per-play pitch/gain jitter) so repeated footsteps and
 ##     impacts never machine-gun;
 ##   * combat warnings stay audible: warning-priority keys have a reserved slice
@@ -110,6 +115,29 @@ const AMBIENT_SCATTER := {
 const MAX_SPATIAL_VOICES := 24
 const MAX_NONPOSITIONAL_VOICES := 12
 
+## Music states -> library keys. The zone picks the bed; combat overrides it.
+const MUSIC_STATES := {
+	"menu": "music_menu",
+	"map": "music_map",
+	"castle": "music_castle",
+	"dungeon": "music_dungeon",
+	"combat": "music_combat",
+}
+
+## Crossfades: into combat fast (the fight is already happening), back out slow,
+## between rooms unhurried.
+const MUSIC_FADE_IN := 2.0
+const MUSIC_FADE_COMBAT := 0.7
+const MUSIC_FADE_OUT := 2.6
+
+## Combat music lingers this long after the last blow / cast / valid target, so
+## a fight does not stutter between tracks while you are still in it.
+const COMBAT_LINGER := 8.0
+const COMBAT_TARGET_RANGE := 45.0
+
+## Spells whose cast is a commitment to a fight.
+const COMBAT_SPELLS := ["basic_cast", "stupefy", "incendio", "bombarda", "expelliarmus", "ultimate", "protego"]
+
 var library: Dictionary = {}
 var music: Dictionary = {}
 var sfx: Dictionary = {}
@@ -140,6 +168,17 @@ var _reverb_sfx: AudioEffectReverb
 var _reverb_amb: AudioEffectReverb
 var _limiter_sfx: AudioEffectLimiter
 
+## Music: the wanted state, the bed actually playing, and the two crossfade
+## players. A pinned state (the front menu) wins until the world is found.
+var music_state := ""
+var _music_pinned := false
+var _music_active: AudioStreamPlayer = null
+var _music_active_key := ""
+var _music_combat_until := 0.0
+var _music_players: Array[AudioStreamPlayer] = []
+var _music_tweens: Array[Tween] = []
+var _music_last_applied := ""
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -148,6 +187,7 @@ func _ready() -> void:
 	_load_settings()
 	_apply_volumes()
 	_setup_bus_effects()
+	_connect_combat_signals()
 	_apply_zone(zone, true)
 
 
@@ -421,7 +461,8 @@ func stop_player(player: Node) -> void:
 		player.stop()
 
 
-## Every effect and sound stops here: shutdown, map transfer, death.
+## Every effect and sound stops here: shutdown, map transfer, death. Music keeps
+## its state: the poll re-arms the chosen bed as soon as the world is back.
 func stop_everything() -> void:
 	for player in _spatial_pool:
 		if is_instance_valid(player):
@@ -435,6 +476,13 @@ func stop_everything() -> void:
 		if is_instance_valid(player):
 			player.stop()
 			player.stream = null
+	_kill_music_tweens()
+	for player in _music_players:
+		if is_instance_valid(player):
+			player.stop()
+			player.stream = null
+	_music_active = null
+	_music_active_key = ""
 	_loops.clear()
 	_zone_beds.clear()
 	_scatter_timers.clear()
@@ -453,11 +501,18 @@ func _release_streams() -> void:
 	for player in _flat_pool:
 		if is_instance_valid(player):
 			player.stream = null
+	for player in _music_players:
+		if is_instance_valid(player):
+			player.stream = null
 	_spatial_pool.clear()
 	_flat_pool.clear()
 	_zone_beds.clear()
 	_loops.clear()
 	_scatter_timers.clear()
+	_music_players.clear()
+	_music_tweens.clear()
+	_music_active = null
+	_music_active_key = ""
 
 # ------------------------------------------------------------------ zones
 
@@ -475,6 +530,7 @@ func _apply_zone(name: String, immediate: bool) -> void:
 	_apply_reverb(float(config["room_size"]), float(config["damping"]), float(config["wet"]), float(config["dry"]))
 	_start_zone_beds(config["ambience"], immediate)
 	_reset_ambient_scatter(immediate)
+	_apply_music_state(immediate)
 
 
 func _reset_ambient_scatter(immediate: bool) -> void:
@@ -622,6 +678,13 @@ func _find_local_player() -> void:
 			_local_player = node
 			if not node.is_connected("animation_event", Callable(self, "_on_animation_event")):
 				node.connect("animation_event", Callable(self, "_on_animation_event"))
+			# The world owns the soundtrack from here on: combat and the room
+			# the player stands in, not the menu that was pinned at boot.
+			if node.has_signal("spell_cast_signal") and not node.is_connected("spell_cast_signal", Callable(self, "_on_player_spell_cast")):
+				node.connect("spell_cast_signal", Callable(self, "_on_player_spell_cast"))
+			if node.has_signal("target_changed") and not node.is_connected("target_changed", Callable(self, "_on_player_target_changed")):
+				node.connect("target_changed", Callable(self, "_on_player_target_changed"))
+			release_music_pin()
 			return
 
 
@@ -661,6 +724,7 @@ func _process(delta: float) -> void:
 	_find_local_player()
 	if autodetect_zone and _local_player != null:
 		_autodetect_zone()
+	_refresh_music()
 
 
 ## Ride / dismount / broom wind helpers used by the mount presentation.
@@ -670,6 +734,230 @@ func play_mount(mounted: bool, at: Vector3, owner_node: Node) -> void:
 		loop_sound("broom_wind", owner_node, 0.4)
 	else:
 		stop_sound("broom_wind", owner_node)
+
+# ------------------------------------------------------------------ music
+
+## A state (menu / map / castle / dungeon / combat) is a library bed. Setting
+## one pins it: the front menu owns the soundtrack until the world is found.
+func set_music_state(state: String) -> void:
+	if not MUSIC_STATES.has(state):
+		return
+	music_state = state
+	_music_pinned = true
+	_apply_music_state(false)
+
+
+## Hand the soundtrack back to the zone/combat logic (entering the world).
+func release_music_pin() -> void:
+	if not _music_pinned:
+		return
+	_music_pinned = false
+	_apply_music_state(false)
+
+
+func get_music_state() -> String:
+	return music_state
+
+
+## The zone that owns a room -> the state its bed represents.
+func music_state_for_zone(zone_name: String) -> String:
+	if zone_name == "great_hall" or zone_name == "library" or zone_name == "interior":
+		return "castle"
+	if zone_name == "dungeon":
+		return "dungeon"
+	return "map"
+
+
+## A fight started near the local body (a cast, a landed blow, a live target):
+## raise or extend the combat override. Public so gameplay code and the checks
+## can raise it without knowing how the signal plumbing is wired.
+func notify_combat(seconds: float = COMBAT_LINGER) -> void:
+	_music_combat_until = maxf(_music_combat_until, _now() + maxf(0.0, seconds))
+	_apply_music_state(false)
+
+
+func combat_music_active() -> bool:
+	return _music_combat_until > _now()
+
+
+func _now() -> float:
+	return float(Time.get_ticks_msec()) / 1000.0
+
+
+func _connect_combat_signals() -> void:
+	if not is_instance_valid(SimAuthority):
+		return
+	if SimAuthority.has_signal("cast_started"):
+		SimAuthority.cast_started.connect(_on_sim_cast_started)
+	if SimAuthority.has_signal("entity_damaged"):
+		SimAuthority.entity_damaged.connect(_on_sim_entity_damaged)
+
+
+func _local_uid() -> int:
+	return int(SimAuthority.local_uid) if is_instance_valid(SimAuthority) else 0
+
+
+func _on_sim_cast_started(uid: int, _cast_id: int, spell_id: String, _aim: Vector3, _release_tick: int) -> void:
+	if uid == _local_uid() and spell_id in COMBAT_SPELLS:
+		notify_combat()
+
+
+func _on_sim_entity_damaged(uid: int, _amount: int, _hp: int, _spell_id: String, attacker_uid: int) -> void:
+	var local := _local_uid()
+	if local == 0:
+		return
+	if uid == local or attacker_uid == local:
+		notify_combat()
+
+
+func _on_player_spell_cast(spell_id: String, _cooldown: float) -> void:
+	if spell_id in COMBAT_SPELLS:
+		notify_combat()
+
+
+func _on_player_target_changed(_target: Node3D) -> void:
+	if _combat_target_present():
+		notify_combat()
+
+
+## A live hostile in reach is combat intent even before the first blow.
+func _combat_target_present() -> bool:
+	if _local_player == null or not is_instance_valid(_local_player):
+		return false
+	var target = _local_player.get("current_target")
+	if target == null or not is_instance_valid(target) or not (target is Node3D):
+		return false
+	if target.get("is_dead"):
+		return false
+	if not (target.is_in_group("mobs") or target.is_in_group("targetable")):
+		return false
+	var here: Vector3 = (_local_player as Node3D).global_position
+	return here.distance_to((target as Node3D).global_position) <= COMBAT_TARGET_RANGE
+
+
+func _music_target_state() -> String:
+	if _music_pinned:
+		return music_state
+	if _local_player == null or not is_instance_valid(_local_player):
+		return ""
+	if combat_music_active() or _combat_target_present():
+		return "combat"
+	return music_state_for_zone(zone)
+
+
+## Poll-time refresh: keep the combat window honest (expire it, or extend it
+## while a valid target is held) and make sure the right bed is playing - a map
+## transfer or a stop_everything may have silenced the players.
+func _refresh_music() -> void:
+	if combat_music_active() and _combat_target_present():
+		notify_combat()
+	_apply_music_state(false)
+
+
+func _apply_music_state(immediate: bool) -> void:
+	var wanted := _music_target_state()
+	if wanted == _music_last_applied and _music_active != null \
+			and is_instance_valid(_music_active) and _music_active.playing:
+		return
+	_music_last_applied = wanted
+	if wanted == "":
+		_stop_music(0.0 if immediate else MUSIC_FADE_OUT)
+		return
+	var key := String(MUSIC_STATES.get(wanted, ""))
+	if key == "" or not has_sound(key):
+		return
+	var fade := MUSIC_FADE_COMBAT if wanted == "combat" else MUSIC_FADE_IN
+	if _music_active != null and is_instance_valid(_music_active) and _music_active_key == key:
+		# the same bed is already chosen; restart only if it is not sounding
+		if not _music_active.playing and audio_available():
+			_music_active.volume_db = float(library.get(key, {}).get("gain_db", -12.0))
+			_play_if_audible(_music_active)
+		return
+	_start_music(key, 0.0 if immediate else fade)
+
+
+func _start_music(key: String, fade: float) -> void:
+	_music_active_key = key
+	if not audio_available():
+		return
+	var stream := _stream(key)
+	if stream == null:
+		return
+	_ensure_music_players()
+	var outgoing := _music_active
+	var incoming: AudioStreamPlayer = _music_players[0]
+	if _music_players.size() > 1 and outgoing == _music_players[0]:
+		incoming = _music_players[1]
+	_kill_music_tweens()
+	# Settle every other player: a bed that was fading out when a new crossfade
+	# began must be stopped, or it keeps droning under the new one.
+	for player in _music_players:
+		if player == incoming or not is_instance_valid(player) or not player.playing:
+			continue
+		if fade > 0.0 and player == outgoing:
+			var fade_tween := create_tween()
+			fade_tween.tween_property(player, "volume_db", -60.0, minf(fade, MUSIC_FADE_OUT))
+			fade_tween.tween_callback(player.stop)
+			_music_tweens.append(fade_tween)
+		else:
+			player.stop()
+	incoming.stream = stream
+	incoming.bus = "Music"
+	incoming.pitch_scale = 1.0
+	var target_db := float(library.get(key, {}).get("gain_db", -12.0))
+	incoming.volume_db = target_db if fade <= 0.0 else -60.0
+	incoming.set_meta("key", key)
+	_play_if_audible(incoming)
+	if fade > 0.0:
+		var in_tween := create_tween()
+		in_tween.tween_property(incoming, "volume_db", target_db, fade)
+		_music_tweens.append(in_tween)
+	_music_active = incoming
+	_music_active_key = key
+
+
+func _stop_music(fade: float) -> void:
+	if _music_players.is_empty():
+		_music_active = null
+		_music_active_key = ""
+		return
+	_kill_music_tweens()
+	for player in _music_players:
+		if not is_instance_valid(player) or not player.playing:
+			continue
+		if fade > 0.0:
+			var tween := create_tween()
+			tween.tween_property(player, "volume_db", -60.0, fade)
+			tween.tween_callback(player.stop)
+			_music_tweens.append(tween)
+		else:
+			player.stop()
+	_music_active = null
+	_music_active_key = ""
+
+
+func _ensure_music_players() -> void:
+	while _music_players.size() < 2:
+		var player := AudioStreamPlayer.new()
+		player.name = "Music%d" % _music_players.size()
+		player.bus = "Music"
+		player.process_mode = Node.PROCESS_MODE_ALWAYS
+		add_child(player)
+		_music_players.append(player)
+
+
+func _kill_music_tweens() -> void:
+	for tween in _music_tweens:
+		if tween != null and tween.is_valid():
+			tween.kill()
+	_music_tweens.clear()
+
+
+## The bed the player should hear right now ("" when the game has not settled
+## on one): presentation summary for the checks and the settings screen.
+func current_music_key() -> String:
+	return _music_active_key
+
 
 # ------------------------------------------------------------------ compat API
 
@@ -750,4 +1038,9 @@ func describe() -> Dictionary:
 		"priority_keys": WARNING_PRIORITY.size(),
 		"played": played_log.size(),
 		"limiter": _limiter_sfx != null,
+		"music_state": music_state,
+		"music_key": _music_active_key,
+		"music_playing": _music_active != null and is_instance_valid(_music_active) and _music_active.playing,
+		"music_tracks": MUSIC_STATES.size(),
+		"combat_music": combat_music_active(),
 	}

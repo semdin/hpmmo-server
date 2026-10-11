@@ -19,6 +19,7 @@ move_speed = 6.2
 aggro_radius = 12.0
 exp_reward = 60
 weak_to_fire = true
+voice_set = "inferi"
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)

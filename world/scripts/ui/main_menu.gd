@@ -55,6 +55,7 @@ var pending_auth: Dictionary = {} # {"action": "login"|"register", "user": "", "
 func _ready() -> void:
 	_apply_menu_theme()
 	_apply_menu_icons()
+	_pin_menu_music()
 	# Auth Buttons
 	login_btn.pressed.connect(_on_login_pressed)
 	register_btn.pressed.connect(_on_register_pressed)
@@ -90,6 +91,14 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	pass
+
+## The front end owns a calm classical bed. Entering the world releases the
+## pin: the AudioManager hands the soundtrack to the zone and combat logic as
+## soon as it finds the local player.
+func _pin_menu_music() -> void:
+	var audio := get_node_or_null("/root/AudioManager")
+	if audio != null and audio.has_method("set_music_state"):
+		audio.call("set_music_state", "menu")
 
 func _on_network_status(msg: String) -> void:
 	if auth_status_label:

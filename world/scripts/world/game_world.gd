@@ -364,6 +364,7 @@ func _setup_replication() -> void:
 	SimAuthority.entity_despawned.connect(_on_entity_despawned)
 	SimAuthority.entity_moved.connect(_on_entity_moved)
 	SimAuthority.entity_health.connect(_on_entity_health)
+	SimAuthority.cast_started.connect(_on_cast_started)
 	SimAuthority.cast_released.connect(_on_cast_released)
 	SimAuthority.cast_landed.connect(_on_cast_landed)
 	SimAuthority.loot_spawned.connect(_on_loot_spawned)
@@ -474,12 +475,18 @@ func _on_entity_health(uid: int, hp: int, max_hp: int, _flags: int) -> void:
 	if view.has_method("_update_label"):
 		view.call("_update_label")
 
-func _on_cast_released(_cast_id: int, caster_uid: int, spell_id: String, origin: Vector3, dir: Vector3) -> void:
+func _on_cast_started(caster_uid: int, cast_id: int, spell_id: String, aim: Vector3, release_tick: int) -> void:
+	var caster = SimAuthority.record_by_uid(caster_uid).get("node")
+	if is_instance_valid(caster) and caster.has_method("present_replicated_cast_start"):
+		var delay := maxf(0.01, float(release_tick - SimAuthority.sim_tick) / HPProtocol.SIM_HZ)
+		caster.call("present_replicated_cast_start", cast_id, aim, spell_id, delay)
+
+func _on_cast_released(cast_id: int, caster_uid: int, spell_id: String, origin: Vector3, dir: Vector3) -> void:
 	var caster = SimAuthority.record_by_uid(caster_uid).get("node")
 	# Another player's body plays the gesture too, aimed from the authority's
 	# direction, so a replicated cast reads the same as the caster's prediction.
 	if caster != null and is_instance_valid(caster) and caster.has_method("present_replicated_cast"):
-		caster.call("present_replicated_cast", origin, dir, spell_id)
+		caster.call("present_replicated_cast", origin, dir, spell_id, cast_id)
 	if spell_id in ["incendio", "protego"]:
 		preload("res://scripts/spells/skill_fx.gd").play_cast(self, caster if caster is Node3D else null, spell_id, origin, dir)
 		return

@@ -1,16 +1,16 @@
 {
  "schema": 1,
  "generator": "client/tools/audio/synth_spell_sfx.py",
- "generated": "2026-10-09",
- "provenance": "project-original synthesis (deterministic seeded DSP, Python NumPy/SciPy); no downloaded or third-party audio",
- "license": "project-original (CC0-equivalent dedication by the project)",
+ "generated": "2026-10-10",
+ "provenance": "project-original synthesis (deterministic seeded DSP, Python NumPy/SciPy); no sampled, downloaded or third-party recordings. The music beds are original synthesised arrangements of public-domain classical works (Grieg, Pachelbel, Bach, Beethoven, Satie - all d. 1925 or earlier).",
+ "license": "project-original (CC0-equivalent dedication by the project); the classical compositions referenced by the music beds are public domain",
  "buses": [
   "Music",
   "SFX",
   "UI",
   "Ambience"
  ],
- "notes": "Per-file bus, base gain, pitch variation and loop mode. Spatial entries are played on an AudioStreamPlayer3D with attenuation; UI and bed entries play on a non-positional player. Long loops import as IMA-ADPCM with the forward loop flag (see tools/audio/tune_imports.py).",
+ "notes": "Per-file bus, base gain, pitch variation and loop mode. Spatial entries are played on an AudioStreamPlayer3D with attenuation; UI, bed and music entries play on a non-positional player. Long loops import as IMA-ADPCM with the forward loop flag; stereo music keeps PCM (see tools/audio/tune_imports.py).",
  "sounds": {
   "amb_bird_chirp_1": {
    "path": "assets/audio/ambience/birds/bird_chirp_01.wav",
@@ -143,6 +143,30 @@
    "sample_rate": 44100,
    "seconds": 2.6,
    "purpose": "scatter: subterranean stone shift"
+  },
+  "amb_dungeon_whisper_1": {
+   "path": "assets/audio/ambience/dungeon/whisper_01.wav",
+   "bus": "sfx",
+   "gain_db": -20.0,
+   "pitch_variation": 0.09,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 1.9,
+   "purpose": "scatter: ghostly dungeon whisper"
+  },
+  "amb_dungeon_whisper_2": {
+   "path": "assets/audio/ambience/dungeon/whisper_02.wav",
+   "bus": "sfx",
+   "gain_db": -21.0,
+   "pitch_variation": 0.09,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 2.3,
+   "purpose": "scatter: distant sighing draft"
   },
   "amb_exterior_birds": {
    "path": "assets/audio/ambience/exterior_birds.wav",
@@ -312,6 +336,18 @@
    "seconds": 2.4,
    "purpose": "scatter: rolling meadow wind swell"
   },
+  "boss_alert": {
+   "path": "assets/audio/monsters/boss_alert.wav",
+   "bus": "sfx",
+   "gain_db": -4.0,
+   "pitch_variation": 0.03,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 2.1,
+   "purpose": "boss alert: monolith-stone awakening roar"
+  },
   "boss_death": {
    "path": "assets/audio/monsters/boss_death.wav",
    "bus": "sfx",
@@ -396,6 +432,78 @@
    "seconds": 0.85,
    "purpose": "heavy medieval door opening creak"
   },
+  "inferi_alert": {
+   "path": "assets/audio/monsters/inferi_alert.wav",
+   "bus": "sfx",
+   "gain_db": -6.0,
+   "pitch_variation": 0.04,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 1.4,
+   "purpose": "inferi alert: rising hollow moan"
+  },
+  "inferi_attack": {
+   "path": "assets/audio/monsters/inferi_attack.wav",
+   "bus": "sfx",
+   "gain_db": -5.5,
+   "pitch_variation": 0.06,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 0.6,
+   "purpose": "inferi attack: grasping bite"
+  },
+  "inferi_death": {
+   "path": "assets/audio/monsters/inferi_death.wav",
+   "bus": "sfx",
+   "gain_db": -5.0,
+   "pitch_variation": 0.04,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 1.9,
+   "purpose": "inferi death: long collapsing exhale"
+  },
+  "inferi_move_1": {
+   "path": "assets/audio/monsters/inferi_move_01.wav",
+   "bus": "sfx",
+   "gain_db": -14.5,
+   "pitch_variation": 0.07,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 0.9,
+   "purpose": "inferi ghoul moan 1"
+  },
+  "inferi_move_2": {
+   "path": "assets/audio/monsters/inferi_move_02.wav",
+   "bus": "sfx",
+   "gain_db": -14.5,
+   "pitch_variation": 0.07,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 0.9,
+   "purpose": "inferi ghoul moan 2"
+  },
+  "inferi_move_3": {
+   "path": "assets/audio/monsters/inferi_move_03.wav",
+   "bus": "sfx",
+   "gain_db": -14.5,
+   "pitch_variation": 0.07,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 0.9,
+   "purpose": "inferi ghoul moan 3"
+  },
   "landing": {
    "path": "assets/audio/character/landing.wav",
    "bus": "sfx",
@@ -432,6 +540,66 @@
    "seconds": 0.5,
    "purpose": "mount: broom whoosh and hop"
   },
+  "music_castle": {
+   "path": "assets/audio/music/castle_canon.wav",
+   "bus": "music",
+   "gain_db": -10.0,
+   "pitch_variation": 0.0,
+   "loop": true,
+   "loop_mode": "forward",
+   "spatial": false,
+   "sample_rate": 44100,
+   "seconds": 45.0,
+   "purpose": "castle interior: Pachelbel canon for the halls"
+  },
+  "music_combat": {
+   "path": "assets/audio/music/combat_fate.wav",
+   "bus": "music",
+   "gain_db": -8.5,
+   "pitch_variation": 0.0,
+   "loop": true,
+   "loop_mode": "forward",
+   "spatial": false,
+   "sample_rate": 44100,
+   "seconds": 26.667,
+   "purpose": "combat: Beethoven fifth motif battle loop"
+  },
+  "music_dungeon": {
+   "path": "assets/audio/music/dungeon_toccata.wav",
+   "bus": "music",
+   "gain_db": -10.5,
+   "pitch_variation": 0.0,
+   "loop": true,
+   "loop_mode": "forward",
+   "spatial": false,
+   "sample_rate": 44100,
+   "seconds": 49.655,
+   "purpose": "dungeon: Bach toccata mood for the deep stone"
+  },
+  "music_map": {
+   "path": "assets/audio/music/map_pastoral.wav",
+   "bus": "music",
+   "gain_db": -10.0,
+   "pitch_variation": 0.0,
+   "loop": true,
+   "loop_mode": "forward",
+   "spatial": false,
+   "sample_rate": 44100,
+   "seconds": 40.0,
+   "purpose": "grounds: Morning Mood pastoral for the open map"
+  },
+  "music_menu": {
+   "path": "assets/audio/music/menu_gymnopedie.wav",
+   "bus": "music",
+   "gain_db": -11.0,
+   "pitch_variation": 0.0,
+   "loop": true,
+   "loop_mode": "forward",
+   "spatial": false,
+   "sample_rate": 44100,
+   "seconds": 37.895,
+   "purpose": "menu: Gymnopedie-flavoured waltz for the front-end"
+  },
   "robe_1": {
    "path": "assets/audio/character/robe_move_01.wav",
    "bus": "sfx",
@@ -467,6 +635,78 @@
    "sample_rate": 44100,
    "seconds": 0.5,
    "purpose": "robe movement 3"
+  },
+  "snatcher_alert": {
+   "path": "assets/audio/monsters/snatcher_alert.wav",
+   "bus": "sfx",
+   "gain_db": -5.5,
+   "pitch_variation": 0.04,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 1.1,
+   "purpose": "snatcher alert: rising hooded snarl"
+  },
+  "snatcher_attack": {
+   "path": "assets/audio/monsters/snatcher_attack.wav",
+   "bus": "sfx",
+   "gain_db": -5.5,
+   "pitch_variation": 0.05,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 0.55,
+   "purpose": "snatcher attack: lunging curse release"
+  },
+  "snatcher_death": {
+   "path": "assets/audio/monsters/snatcher_death.wav",
+   "bus": "sfx",
+   "gain_db": -5.0,
+   "pitch_variation": 0.04,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 1.7,
+   "purpose": "snatcher death: choked rasp and collapse"
+  },
+  "snatcher_move_1": {
+   "path": "assets/audio/monsters/snatcher_move_01.wav",
+   "bus": "sfx",
+   "gain_db": -14.0,
+   "pitch_variation": 0.07,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 0.55,
+   "purpose": "snatcher rasping breath 1"
+  },
+  "snatcher_move_2": {
+   "path": "assets/audio/monsters/snatcher_move_02.wav",
+   "bus": "sfx",
+   "gain_db": -14.0,
+   "pitch_variation": 0.07,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 0.55,
+   "purpose": "snatcher rasping breath 2"
+  },
+  "snatcher_move_3": {
+   "path": "assets/audio/monsters/snatcher_move_03.wav",
+   "bus": "sfx",
+   "gain_db": -14.0,
+   "pitch_variation": 0.07,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 0.55,
+   "purpose": "snatcher rasping breath 3"
   },
   "spell_basic_cast_cast": {
    "path": "assets/audio/spells/basic_cast/cast.wav",
@@ -840,6 +1080,18 @@
    "seconds": 0.75,
    "purpose": "raging plasma roar in flight"
   },
+  "spider_alert": {
+   "path": "assets/audio/monsters/spider_alert.wav",
+   "bus": "sfx",
+   "gain_db": -6.0,
+   "pitch_variation": 0.05,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 0.5,
+   "purpose": "spider alert: agitated hiss and chitin rattle"
+  },
   "spider_bite": {
    "path": "assets/audio/monsters/spider_bite.wav",
    "bus": "sfx",
@@ -909,7 +1161,7 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.23,
+   "seconds": 0.3,
    "purpose": "dirt footstep variant 1"
   },
   "step_dirt_2": {
@@ -921,7 +1173,7 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.23,
+   "seconds": 0.3,
    "purpose": "dirt footstep variant 2"
   },
   "step_dirt_3": {
@@ -933,7 +1185,7 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.23,
+   "seconds": 0.3,
    "purpose": "dirt footstep variant 3"
   },
   "step_grass_1": {
@@ -945,7 +1197,7 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.24,
+   "seconds": 0.32,
    "purpose": "grass footstep variant 1"
   },
   "step_grass_2": {
@@ -957,7 +1209,7 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.24,
+   "seconds": 0.32,
    "purpose": "grass footstep variant 2"
   },
   "step_grass_3": {
@@ -969,7 +1221,7 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.24,
+   "seconds": 0.32,
    "purpose": "grass footstep variant 3"
   },
   "step_stone_1": {
@@ -981,7 +1233,7 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.21,
+   "seconds": 0.26,
    "purpose": "stone footstep variant 1"
   },
   "step_stone_2": {
@@ -993,7 +1245,7 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.21,
+   "seconds": 0.26,
    "purpose": "stone footstep variant 2"
   },
   "step_stone_3": {
@@ -1005,7 +1257,7 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.21,
+   "seconds": 0.26,
    "purpose": "stone footstep variant 3"
   },
   "step_water_1": {
@@ -1017,7 +1269,7 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.28,
+   "seconds": 0.36,
    "purpose": "water footstep variant 1"
   },
   "step_water_2": {
@@ -1029,7 +1281,7 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.28,
+   "seconds": 0.36,
    "purpose": "water footstep variant 2"
   },
   "step_water_3": {
@@ -1041,7 +1293,7 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.28,
+   "seconds": 0.36,
    "purpose": "water footstep variant 3"
   },
   "step_wood_1": {
@@ -1053,7 +1305,7 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.23,
+   "seconds": 0.3,
    "purpose": "wood footstep variant 1"
   },
   "step_wood_2": {
@@ -1065,7 +1317,7 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.23,
+   "seconds": 0.3,
    "purpose": "wood footstep variant 2"
   },
   "step_wood_3": {
@@ -1077,7 +1329,7 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.23,
+   "seconds": 0.3,
    "purpose": "wood footstep variant 3"
   },
   "ui_button": {
@@ -1089,7 +1341,7 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 0.09,
+   "seconds": 0.15,
    "purpose": "UI button"
   },
   "ui_cancel": {
@@ -1101,7 +1353,7 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 0.2,
+   "seconds": 0.34,
    "purpose": "UI cancel"
   },
   "ui_chat": {
@@ -1113,7 +1365,7 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 0.07,
+   "seconds": 0.08,
    "purpose": "UI chat"
   },
   "ui_close": {
@@ -1125,8 +1377,20 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 0.14,
+   "seconds": 0.24,
    "purpose": "UI close"
+  },
+  "ui_coin": {
+   "path": "assets/audio/ui/coin.wav",
+   "bus": "ui",
+   "gain_db": -9.0,
+   "pitch_variation": 0.05,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": false,
+   "sample_rate": 44100,
+   "seconds": 0.28,
+   "purpose": "UI galleons added"
   },
   "ui_confirm": {
    "path": "assets/audio/ui/confirm.wav",
@@ -1137,8 +1401,20 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 0.22,
+   "seconds": 0.4,
    "purpose": "UI confirm"
+  },
+  "ui_death": {
+   "path": "assets/audio/ui/death.wav",
+   "bus": "ui",
+   "gain_db": -5.0,
+   "pitch_variation": 0.05,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": false,
+   "sample_rate": 44100,
+   "seconds": 1.9,
+   "purpose": "player death: low gong and dark swell"
   },
   "ui_deny": {
    "path": "assets/audio/ui/deny.wav",
@@ -1149,7 +1425,7 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 0.3,
+   "seconds": 0.45,
    "purpose": "UI deny"
   },
   "ui_equip": {
@@ -1185,7 +1461,7 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 0.06,
+   "seconds": 0.09,
    "purpose": "UI hover"
   },
   "ui_levelup": {
@@ -1197,7 +1473,7 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 0.75,
+   "seconds": 1.0,
    "purpose": "UI levelup"
   },
   "ui_loot": {
@@ -1209,7 +1485,7 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 0.22,
+   "seconds": 0.32,
    "purpose": "UI loot"
   },
   "ui_open": {
@@ -1221,7 +1497,7 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 0.14,
+   "seconds": 0.24,
    "purpose": "UI open"
   },
   "ui_potion": {
@@ -1245,8 +1521,20 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 0.45,
+   "seconds": 0.6,
    "purpose": "UI quest"
+  },
+  "ui_respawn": {
+   "path": "assets/audio/ui/respawn.wav",
+   "bus": "ui",
+   "gain_db": -7.0,
+   "pitch_variation": 0.05,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": false,
+   "sample_rate": 44100,
+   "seconds": 1.25,
+   "purpose": "respawn: warm rising shimmer and chime arpeggio"
   },
   "ui_unequip": {
    "path": "assets/audio/ui/unequip.wav",
@@ -1269,7 +1557,7 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 0.5,
+   "seconds": 0.55,
    "purpose": "UI upgrade_fail"
   },
   "ui_upgrade_success": {
@@ -1281,7 +1569,7 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 0.55,
+   "seconds": 0.7,
    "purpose": "UI upgrade_success"
   }
  }
