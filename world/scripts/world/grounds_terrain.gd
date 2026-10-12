@@ -28,6 +28,8 @@ const MATERIAL := "res://assets/terrain/grounds_material.tres"
 const SERVER_ASSETS := "res://assets/terrain/grounds_server_assets.tres"
 
 static var _active: GroundsTerrain
+## Foliage density the instances were added with (-1: none added yet).
+var _vegetation_density := -1.0
 
 
 func _init() -> void:
@@ -79,7 +81,7 @@ func _add_vegetation(density: float = -1.0) -> void:
 		if asset == null or asset.name == "":
 			continue
 		var data := GroundsScatter.instances(asset.name)
-		var thin := density < 1.0 and (asset.name.begins_with("fern") or asset.name == "shrub" or asset.name.begins_with("rock_moss"))
+		var thin := density < 1.0 and (_is_small_plant(asset.name) or asset.name.begins_with("rock_moss"))
 		var xforms: Array[Transform3D] = []
 		for k in data.size() / 5:
 			if thin and float(k % 100) / 100.0 >= density:
@@ -87,6 +89,50 @@ func _add_vegetation(density: float = -1.0) -> void:
 			xforms.append(GroundsScatter.transform_of(data, k))
 		if not xforms.is_empty():
 			instancer.add_transforms(i, xforms, PackedColorArray(), true)
+	_vegetation_density = density
+
+
+## Quality preset (QualityPreset.apply): terrain clipmap size, how far every
+## vegetation LOD reaches, which LODs cast shadows, and how much of the small
+## stuff is drawn. The catalogue's LOD distances are kept in metadata, so
+## switching presets never compounds.
+func apply_quality(preset: Dictionary) -> void:
+	if Engine.is_editor_hint() or DisplayServer.get_name() == "headless":
+		return
+	var size := int(preset.get("terrain_mesh_size", mesh_size))
+	if size != mesh_size:
+		mesh_size = size
+	var lod_scale := float(preset.get("vegetation_lod_scale", 1.0))
+	var far_scale := float(preset.get("vegetation_far_scale", lod_scale))
+	var shadow_lod := int(preset.get("vegetation_shadow_lod", 1))
+	var small_shadows := bool(preset.get("small_plant_shadows", true))
+	for i in assets.get_mesh_count():
+		var asset := assets.get_mesh_asset(i)
+		if asset == null:
+			continue
+		if not asset.has_meta("base_ranges"):
+			var base: Array = []
+			for l in asset.get_lod_count():
+				base.append(asset.get_lod_range(l))
+			asset.set_meta("base_ranges", base)
+		var ranges: Array = asset.get_meta("base_ranges")
+		for l in ranges.size():
+			var last := l == asset.last_lod
+			asset.set_lod_range(l, float(ranges[l]) * (far_scale if last else lod_scale))
+		asset.last_shadow_lod = mini(shadow_lod, asset.last_lod)
+		if _is_small_plant(asset.name):
+			asset.cast_shadows = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if small_shadows else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var density := float(preset.get("foliage_density", 1.0))
+	if _vegetation_density >= 0.0 and not is_equal_approx(density, _vegetation_density):
+		for i in assets.get_mesh_count():
+			instancer.clear_by_mesh(i)
+		_add_vegetation(density)
+	elif _vegetation_density >= 0.0:
+		instancer.update_mmis(true)
+
+
+static func _is_small_plant(variant: String) -> bool:
+	return variant.begins_with("fern") or variant == "shrub"
 
 
 ## The loaded grounds terrain, or null when the current map has none.

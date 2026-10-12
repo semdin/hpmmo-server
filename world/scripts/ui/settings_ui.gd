@@ -1,7 +1,9 @@
 extends Control
 class_name SettingsUI
 
-## Interface settings screen (): scalable UI, key
+const QualityPreset = preload("res://scripts/world/quality_preset.gd")
+
+## Interface settings screen (): graphics quality, scalable UI, key
 ## rebinding, mouse sensitivity, and independent shake / flash / volume
 ## controls - persisted under `user://` by `GameSettings`.
 ##
@@ -17,6 +19,7 @@ var panel: Panel = null
 var _sliders: Dictionary = {}
 var _value_labels: Dictionary = {}
 var _bind_buttons: Dictionary = {}
+var _graphics: OptionButton = null
 var _status: Label = null
 var _listening_action := ""
 var _built := false
@@ -77,22 +80,37 @@ func _build() -> void:
 	title_icon.position = Vector2(14, 12)
 	panel.add_child(title_icon)
 
-	# --- display and input ---
+	# --- graphics ---
 	var y := 46.0
+	_label(panel, "Graphics quality", 13, Color(0.88, 0.9, 0.95), Vector2(16, y + 2))
+	_graphics = OptionButton.new()
+	_graphics.name = "GraphicsQuality"
+	_graphics.focus_mode = Control.FOCUS_NONE
+	_graphics.position = Vector2(190, y)
+	_graphics.custom_minimum_size = Vector2(288, 24)
+	_graphics.add_theme_font_size_override("font_size", 12)
+	for choice in GameSettings.GRAPHICS_CHOICES:
+		_graphics.add_item(_graphics_label(choice))
+	_graphics.tooltip_text = "Auto picks Low on integrated graphics and High on a dedicated GPU"
+	_graphics.item_selected.connect(_on_graphics_selected)
+	panel.add_child(_graphics)
+	y += 32
+
+	# --- display and input ---
 	_add_slider(panel, "ui_scale", "UI scale", GameSettings.UI_SCALE_MIN, GameSettings.UI_SCALE_MAX, 0.05, y)
-	y += 30
+	y += 26
 	_add_slider(panel, "mouse_sensitivity", "Mouse sensitivity", GameSettings.SENSITIVITY_MIN, GameSettings.SENSITIVITY_MAX, 0.05, y)
-	y += 30
+	y += 26
 	_add_slider(panel, "shake", "Screen shake", GameSettings.INTENSITY_MIN, GameSettings.INTENSITY_MAX, 0.05, y)
-	y += 30
+	y += 26
 	_add_slider(panel, "flash", "Screen flash", GameSettings.INTENSITY_MIN, GameSettings.INTENSITY_MAX, 0.05, y)
-	y += 34
+	y += 30
 
 	_label(panel, "Volume", 15, Color(0.95, 0.92, 0.8), Vector2(16, y))
 	y += 24
 	for bus_name in GameSettings.BUSES:
 		_add_slider(panel, "vol_%s" % bus_name, "%s volume" % bus_name, 0.0, 1.0, 0.05, y, "audio_%s" % String(bus_name).to_lower())
-		y += 28
+		y += 24
 	y += 8
 
 	_label(panel, "Key bindings", 15, Color(0.95, 0.92, 0.8), Vector2(40, y), "ui_help")
@@ -200,8 +218,24 @@ func _on_slider_changed(value: float, key: String) -> void:
 	settings_written += 1
 	_refresh_all()
 
+func _graphics_label(choice: String) -> String:
+	if choice == "auto":
+		return "Auto (%s)" % QualityPreset.detect().capitalize()
+	return choice.capitalize()
+
+func _on_graphics_selected(index: int) -> void:
+	var choice: String = GameSettings.GRAPHICS_CHOICES[index]
+	var terrain := GroundsTerrain.active()
+	var world: Node3D = terrain.get_parent() as Node3D if terrain != null else get_tree().current_scene as Node3D
+	QualityPreset.choose(choice, world)
+	settings_written += 1
+	_status.text = "Graphics: %s" % QualityPreset.current().capitalize()
+	_refresh_all()
+
 func _refresh_all() -> void:
 	var settings := GameSettings.instance()
+	if _graphics != null:
+		_graphics.select(maxi(0, GameSettings.GRAPHICS_CHOICES.find(settings.graphics_quality)))
 	for key in _sliders:
 		var slider: HSlider = _sliders[key]
 		slider.set_value_no_signal(_setting_value(settings, key))

@@ -14,7 +14,9 @@ class_name GameSettings
 ##   * independent screen-shake and screen-flash intensity (1.0 = authored,
 ##     0.0 = off, up to 1.5 = stronger), consumed by `screen_fx.gd`;
 ##   * key rebinding for the gameplay actions, applied to the live InputMap and
-##     persisted.
+##     persisted;
+##   * the graphics quality ("auto" or a QualityPreset name), read by
+##     quality_preset.gd.
 ##
 ## Persistence is a ConfigFile under `user://` - user data, never inside the
 ## versioned game files (res://). The game reads it back on the next launch.
@@ -38,6 +40,8 @@ const FLASH_DEFAULT := 1.0
 const INTENSITY_MIN := 0.0
 const INTENSITY_MAX := 1.5
 const BUSES := ["Music", "SFX", "UI", "Ambience"]
+const GRAPHICS_CHOICES := ["auto", "low", "medium", "high"]
+const GRAPHICS_DEFAULT := "auto"
 
 ## Actions the settings screen may rebind, with the key GameData registers by
 ## default. Only these are offered: the screen never invents an action, and a
@@ -71,6 +75,7 @@ var ui_scale: float = UI_SCALE_DEFAULT
 var mouse_sensitivity: float = SENSITIVITY_DEFAULT
 var shake_intensity: float = SHAKE_DEFAULT
 var flash_intensity: float = FLASH_DEFAULT
+var graphics_quality: String = GRAPHICS_DEFAULT
 var bindings: Dictionary = {}
 var load_error: String = ""
 
@@ -119,6 +124,7 @@ func load_from_disk() -> void:
 	mouse_sensitivity = SENSITIVITY_DEFAULT
 	shake_intensity = SHAKE_DEFAULT
 	flash_intensity = FLASH_DEFAULT
+	graphics_quality = GRAPHICS_DEFAULT
 	bindings.clear()
 	load_error = ""
 	for action in BINDABLE_ACTIONS:
@@ -135,6 +141,8 @@ func load_from_disk() -> void:
 	mouse_sensitivity = clampf(float(config.get_value(SECTION_GENERAL, "mouse_sensitivity", SENSITIVITY_DEFAULT)), SENSITIVITY_MIN, SENSITIVITY_MAX)
 	shake_intensity = clampf(float(config.get_value(SECTION_GENERAL, "shake", SHAKE_DEFAULT)), INTENSITY_MIN, INTENSITY_MAX)
 	flash_intensity = clampf(float(config.get_value(SECTION_GENERAL, "flash", FLASH_DEFAULT)), INTENSITY_MIN, INTENSITY_MAX)
+	var quality := String(config.get_value(SECTION_GENERAL, "graphics_quality", GRAPHICS_DEFAULT))
+	graphics_quality = quality if GRAPHICS_CHOICES.has(quality) else GRAPHICS_DEFAULT
 	for action in BINDABLE_ACTIONS:
 		var stored := int(config.get_value(SECTION_BINDINGS, action, int(BINDABLE_ACTIONS[action])))
 		if stored <= 0:
@@ -148,6 +156,7 @@ func save_to_disk() -> void:
 	config.set_value(SECTION_GENERAL, "mouse_sensitivity", mouse_sensitivity)
 	config.set_value(SECTION_GENERAL, "shake", shake_intensity)
 	config.set_value(SECTION_GENERAL, "flash", flash_intensity)
+	config.set_value(SECTION_GENERAL, "graphics_quality", graphics_quality)
 	for action in bindings:
 		config.set_value(SECTION_BINDINGS, action, int(bindings[action]))
 	var error := config.save(SETTINGS_PATH)
@@ -172,6 +181,11 @@ func set_shake_intensity(value: float) -> void:
 
 func set_flash_intensity(value: float) -> void:
 	flash_intensity = clampf(value, INTENSITY_MIN, INTENSITY_MAX)
+	save_to_disk()
+
+## "auto" or a preset name; QualityPreset.choose() applies it to the live world.
+func set_graphics_quality(choice: String) -> void:
+	graphics_quality = choice if GRAPHICS_CHOICES.has(choice) else GRAPHICS_DEFAULT
 	save_to_disk()
 
 ## The four audio buses are owned by AudioManager (Spell effects), which already
@@ -268,6 +282,7 @@ func describe() -> Dictionary:
 		"mouse_sensitivity": mouse_sensitivity,
 		"shake": shake_intensity,
 		"flash": flash_intensity,
+		"graphics_quality": graphics_quality,
 		"bindings": bindings.duplicate(),
 		"volumes": volumes,
 		"load_error": load_error,

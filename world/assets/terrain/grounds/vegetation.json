@@ -1,5 +1,5 @@
 {
- "_comment": "Vegetation and rock catalogue for the grounds. scatter.py splits each scatter kind's points among its variants (weights) and writes one instance file per variant; the client build (tools/terrain/build_grounds.gd) cooks each variant's game model (tools/terrain/cook_vegetation.gd) and registers it with the Terrain3D instancer. `scale` multiplies the scatter scale (the source scans are life-size; the broadleaf scans are young trees). `collider` makes trunks/boulders solid for players and mobs (server and client build the same colliders from the same files). LOD distances are metres: [LOD0 end, LOD1 end, visibility end].",
+ "_comment": "Vegetation and rock catalogue for the grounds. scatter.py splits each scatter kind's points among its variants (weights) and writes one instance file per variant; the client build (tools/terrain/build_grounds.gd) cooks each variant's game model (tools/terrain/cook_vegetation.gd) and registers it with the Terrain3D instancer. `scale` multiplies the scatter scale (the source scans are life-size; the broadleaf scans are young trees). `collider` makes trunks/boulders solid for players and mobs (server and client build the same colliders from the same files). LOD distances are metres: [LOD0 end, LOD1 end, visibility end]; with two LODs the model disappears at LOD1 end. `simplify` (optional) rebuilds the LOD chain from the source LOD0 at those triangle fractions (cook_vegetation.gd). The quality preset scales every distance at runtime.",
  "kinds": {
   "tree_pine": {
    "variants": {
@@ -279,9 +279,9 @@
    "model": "rock_boulder",
    "scale": 1.0,
    "lod": [
-    45,
-    160,
-    600
+    40,
+    120,
+    350
    ],
    "collider": {
     "sphere": 0.6
@@ -291,106 +291,151 @@
    "model": "rock_slab",
    "scale": 1.2,
    "lod": [
-    45,
-    160,
-    600
+    40,
+    120,
+    350
    ],
    "collider": {
     "sphere": 0.45
-   }
+   },
+   "simplify": [
+    1.0,
+    0.19,
+    0.05
+   ]
   },
   "rock_moss_a0": {
    "model": "rock_moss_a0",
    "scale": 0.8,
    "lod": [
-    45,
-    160,
-    600
+    40,
+    120,
+    350
    ],
    "collider": {
     "sphere": 0.8
-   }
+   },
+   "simplify": [
+    1.0,
+    0.2,
+    0.05
+   ]
   },
   "rock_moss_a1": {
    "model": "rock_moss_a1",
    "scale": 0.8,
    "lod": [
-    45,
-    160,
-    600
+    40,
+    120,
+    350
    ],
    "collider": {
     "sphere": 0.8
-   }
+   },
+   "simplify": [
+    1.0,
+    0.2,
+    0.05
+   ]
   },
   "rock_moss_a2": {
    "model": "rock_moss_a2",
    "scale": 0.8,
    "lod": [
-    45,
-    160,
-    600
+    40,
+    120,
+    350
    ],
    "collider": {
     "sphere": 0.8
-   }
+   },
+   "simplify": [
+    1.0,
+    0.2,
+    0.05
+   ]
   },
   "rock_moss_b0": {
    "model": "rock_moss_b0",
    "scale": 1.0,
    "lod": [
-    45,
-    160,
-    600
+    40,
+    120,
+    350
    ],
    "collider": {
     "sphere": 0.6
-   }
+   },
+   "simplify": [
+    1.0,
+    0.2,
+    0.05
+   ]
   },
   "rock_moss_b1": {
    "model": "rock_moss_b1",
    "scale": 1.0,
    "lod": [
-    45,
-    160,
-    600
+    40,
+    120,
+    350
    ],
    "collider": {
     "sphere": 0.6
-   }
+   },
+   "simplify": [
+    1.0,
+    0.2,
+    0.05
+   ]
   },
   "rock_moss_b2": {
    "model": "rock_moss_b2",
    "scale": 1.0,
    "lod": [
-    45,
-    160,
-    600
+    40,
+    120,
+    350
    ],
    "collider": {
     "sphere": 0.6
-   }
+   },
+   "simplify": [
+    1.0,
+    0.2,
+    0.05
+   ]
   },
   "stump": {
    "model": "stump",
    "scale": 1.0,
    "lod": [
-    30,
-    80,
-    160
+    25,
+    70,
+    140
    ],
    "collider": {
     "radius": 0.45,
     "height": 0.6
-   }
+   },
+   "simplify": [
+    1.0,
+    0.24,
+    0.06
+   ]
   },
   "log": {
    "model": "log",
    "scale": 1.0,
    "lod": [
-    30,
-    80,
-    160
+    25,
+    70,
+    140
+   ],
+   "simplify": [
+    1.0,
+    0.24,
+    0.06
    ]
   }
  }

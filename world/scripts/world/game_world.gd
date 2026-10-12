@@ -84,6 +84,8 @@ func _process(delta: float) -> void:
 		_particle_sweep = 1.0
 		if QualityPresetScript.particle_scale() != 1.0:
 			QualityPresetScript.tune_particles(self)
+		# The player camera appears after the world is built (and on respawn).
+		QualityPresetScript.apply_camera(get_viewport().get_camera_3d())
 	var candles := get_node_or_null("FloatingCandles")
 	if candles:
 		for c in candles.get_children():
