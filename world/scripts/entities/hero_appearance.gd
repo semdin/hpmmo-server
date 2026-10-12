@@ -9,9 +9,10 @@ class_name HeroAppearance
 ## KayKit model (`wizard.glb`) and tinted a `Mage_Cape` node that only that model
 ## has, so the podium showed a character nobody could ever play.
 ##
-## The tint is material-only and keyed on material name, so it survives a
-## re-export of the GLB: `Hero_Trim` takes the house primary, `Hero_Robe` a
-## darkened house primary. Nothing is duplicated onto the rig.
+## The body (art/hero, Rigify-rigged) is ONE baked PBR surface, `Hero_Body`, so
+## there is no separate trim/robe material to recolour. The tint stays keyed on
+## material name: a body that ships `Hero_Trim` / `Hero_Robe` slots (or a future
+## house-mask material) is tinted, and the current body is left as authored.
 
 const MODEL := preload("res://assets/models/characters/hero_wizard.glb")
 const WAND := preload("res://assets/models/props/wand.gltf")
@@ -33,15 +34,8 @@ static func wand_grip_transform(skeleton: Skeleton3D) -> Transform3D:
 	return Transform3D(Basis(Quaternion(Vector3.UP, grip.basis.x)), grip.origin)
 
 
-## The bone index for `bone`, accepting the importer's sanitised spelling
-## (`Foot.L` -> `Foot_L`) so a renamed track cannot silently drop the grip.
 static func _bone_index(skeleton: Skeleton3D, bone: String) -> int:
-	var index := skeleton.find_bone(bone)
-	if index < 0:
-		index = skeleton.find_bone(bone.replace(".", "_"))
-	if index < 0:
-		index = skeleton.find_bone(bone.replace("_", "."))
-	return index
+	return RigIK.bone_index(skeleton, bone)
 
 
 ## The tip of the equipped wand, as a live node that rides the animation, or null
@@ -76,9 +70,8 @@ static func show_equipped_wand(root: Node, entry: Dictionary) -> void:
 		return
 	var skeleton: Skeleton3D = _skeleton(root)
 	if skeleton == null: return
-	var bone := "Wrist.R"
-	if skeleton.find_bone(bone) < 0: bone = "Wrist_R"
-	if skeleton.find_bone(bone) < 0: return
+	var bone := HeroBones.hand("R")
+	if RigIK.bone_index(skeleton, bone) < 0: return
 
 	# Curl fingers of right hand to firmly grasp the wand
 	if wand_grip == null:
@@ -186,6 +179,7 @@ static func apply_house_tint(visuals: Node, primary: Color) -> void:
 	if not (body is MeshInstance3D):
 		return
 	var mesh_instance := body as MeshInstance3D
+	dress_body(mesh_instance)
 	var mesh: Mesh = mesh_instance.mesh
 	if mesh == null:
 		return
@@ -205,6 +199,58 @@ static func apply_house_tint(visuals: Node, primary: Color) -> void:
 				var robe := base.duplicate() as StandardMaterial3D
 				robe.albedo_color = Color("242936").lerp(primary.darkened(0.65), 0.16)
 				mesh_instance.set_surface_override_material(surface, robe)
+
+
+## ---------------------------------------------------------------- lighting
+
+## Render layer (1-based 20) that only characters sit on, so a character light
+## can brighten them without touching the world.
+const CHARACTER_LAYER := 1 << 19
+## The world's sky ambient is tuned for bright stone; dark clothing facing away
+## from the sun reads as a black silhouette under it. A soft, shadowless light
+## from the camera lifts only characters (light_cull_mask), the usual
+## third-person "character fill".
+const FILL_ENERGY := 0.4
+const FILL_COLOR := Color(0.92, 0.95, 1.0)
+## Woven cloth scatters light at grazing angles; a little rim gives the
+## silhouette an edge against the background.
+const CLOTH_RIM := 0.3
+const CLOTH_RIM_TINT := 0.5
+
+static var _dressed_material: StandardMaterial3D = null
+
+
+## Put the body on the character layer and give its material the cloth rim.
+## Idempotent; every hero shares one dressed material.
+static func dress_body(body: MeshInstance3D) -> void:
+	body.layers |= CHARACTER_LAYER
+	var source := body.mesh.surface_get_material(0) if body.mesh else null
+	if not (source is StandardMaterial3D) or body.mesh.get_surface_count() != 1:
+		return
+	if _dressed_material == null:
+		_dressed_material = (source as StandardMaterial3D).duplicate()
+		_dressed_material.rim_enabled = true
+		_dressed_material.rim = CLOTH_RIM
+		_dressed_material.rim_tint = CLOTH_RIM_TINT
+	if body.get_surface_override_material(0) == null:
+		body.set_surface_override_material(0, _dressed_material)
+
+
+## Attach the character fill to `camera` (once) and return it.
+static func add_character_fill(camera: Camera3D) -> DirectionalLight3D:
+	var existing := camera.get_node_or_null("CharacterFill")
+	if existing is DirectionalLight3D:
+		return existing
+	var fill := DirectionalLight3D.new()
+	fill.name = "CharacterFill"
+	fill.light_cull_mask = CHARACTER_LAYER
+	fill.light_energy = FILL_ENERGY
+	fill.light_color = FILL_COLOR
+	fill.shadow_enabled = false
+	fill.light_specular = 0.2
+	fill.rotation_degrees = Vector3(-12, 18, 0)
+	camera.add_child(fill)
+	return fill
 
 
 ## The body's animation player, wherever the importer put it.

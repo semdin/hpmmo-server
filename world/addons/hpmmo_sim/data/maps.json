@@ -1,22 +1,42 @@
 {
   "_comment": "Server-owned map catalog. Maps, spawn points, safe-zone references, entity sets and the portals between maps. The authority validates every transfer against this file; clients load one map at a time and build trigger volumes, landing pads and floor labels from the same data, so the two sides share contracts and nothing else.",
-  "_membership": "A map is a y-band (y_min..y_max). The grounds own everything below 185; the castle interior is authored above it, so the two maps never overlap in space and the server can keep both registered while a client has one loaded.",
+  "_membership": "A map is a y-band (y_min..y_max). The grounds own everything from -30 (below the Black Lake bed) to 185; the castle interior is authored above it, so the two maps never overlap in space and the server can keep both registered while a client has one loaded.",
   "maps": {
     "grounds": {
       "display": "Hogwarts Grounds",
       "available": true,
       "flight_allowed": true,
       "capacity": 64,
-      "y_min": -10.0,
+      "y_min": -30.0,
       "y_max": 185.0,
-      "safe_zones": ["courtyard", "castle_approach", "village_square"],
+      "safe_zones": [
+        "courtyard",
+        "castle_approach",
+        "village_square"
+      ],
       "entity_set": "grounds",
       "respawn_spawn": "courtyard",
       "spawn_points": {
-        "default": [0.0, 0.5, 5.0],
-        "courtyard": [0.0, 0.5, 5.0],
-        "castle_approach": [0.0, 0.6, -40.0],
-        "castle_landing_pad": [0.0, 0.6, -36.0]
+        "default": [
+          0.0,
+          57.86,
+          78.0
+        ],
+        "courtyard": [
+          0.0,
+          57.86,
+          78.0
+        ],
+        "castle_approach": [
+          0.0,
+          58.49,
+          20.0
+        ],
+        "castle_landing_pad": [
+          40.0,
+          58.56,
+          15.0
+        ]
       }
     },
     "castle_interior": {
@@ -30,8 +50,16 @@
       "entity_set": "castle_interior",
       "respawn_spawn": "vestibule",
       "spawn_points": {
-        "default": [0.0, 200.5, 30.0],
-        "vestibule": [0.0, 200.5, 30.0]
+        "default": [
+          0.0,
+          200.5,
+          30.0
+        ],
+        "vestibule": [
+          0.0,
+          200.5,
+          30.0
+        ]
       }
     }
   },
@@ -42,8 +70,24 @@
       "to_map": "castle_interior",
       "to_spawn": "vestibule",
       "label": "Hogwarts Entrance",
-      "trigger": {"center": [0.0, 1.1, -46.0], "radius": 2.5, "y_min": -1.0, "y_max": 5.0},
-      "landing": {"center": [0.0, 0.6, -40.0], "radius": 4.0}
+      "trigger": {
+        "center": [
+          0.0,
+          58.93,
+          6.5
+        ],
+        "radius": 2.5,
+        "y_min": 55.83,
+        "y_max": 63.83
+      },
+      "landing": {
+        "center": [
+          0.0,
+          58.56,
+          14.0
+        ],
+        "radius": 4.0
+      }
     },
     {
       "id": "vestibule_exit",
@@ -51,7 +95,16 @@
       "to_map": "grounds",
       "to_spawn": "castle_approach",
       "label": "Grounds",
-      "trigger": {"center": [0.0, 201.6, 30.0], "radius": 2.5, "y_min": 185.0, "y_max": 212.0},
+      "trigger": {
+        "center": [
+          0.0,
+          201.6,
+          30.0
+        ],
+        "radius": 2.5,
+        "y_min": 185.0,
+        "y_max": 212.0
+      },
       "landing": null
     }
   ]

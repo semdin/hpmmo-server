@@ -1,0 +1,328 @@
+extends RefCounted
+class_name GroundsBuilder
+
+## Builds the outdoor map ("grounds") into the game world: sky and sun, the
+## Terrain3D ground, the Black Lake, the castle shell, the courtyard, the sites
+## (Hogsmeade, Hagrid's hut...), vegetation colliders, a far horizon and the map
+## edge. Replaces the old procedural valley (world_builder.gd / outdoor_terrain.gd).
+##
+## The terrain is the world's ground collider and stays loaded for the life of the
+## world (the server simulates bodies on it whichever map a client shows). The
+## scenery listed in BUILT_NODES is what map transfer frees and rebuilds:
+## `teardown()` before the castle interior loads, `build()` when the player
+## comes back out. On a headless process (dedicated server, tests) visuals are
+## skipped but every collider is built, so client and server collide alike.
+
+const QualityPreset = preload("res://scripts/world/quality_preset.gd")
+const PBR = preload("res://scripts/assets/pbr_kit.gd")
+const TERRAIN_SCENE := preload("res://scenes/world/grounds_terrain.tscn")
+
+const TERRAIN_NODE := "GroundsTerrain"
+## Scenery freed by teardown(); the terrain is not in this list on purpose.
+const BUILT_NODES := ["HogwartsCastle", "Courtyard", "BroomLanding", "Sites", "Lake",
+	"VegetationColliders", "WorldBoundaries", "Horizon", "RoadLamps", "SafeZoneWards"]
+
+## The broom landing pad (maps.json `castle_door.landing` / `castle_landing_pad`).
+const LANDING_PAD := Vector2(40.0, 15.0)
+const LANDING_RADIUS := 4.0
+## Map edge: invisible walls just inside the terrain's 2048 m square.
+const EDGE := 1010.0
+
+
+static func is_headless() -> bool:
+	return DisplayServer.get_name() == "headless"
+
+
+static func build(world: Node3D) -> void:
+	if world.has_node("HogwartsCastle"):
+		return
+	var visuals := not is_headless()
+	var terrain := ensure_terrain(world)
+	terrain.visible = true
+	_apply_sky_and_sun(world)
+	CastleExterior.build(world, visuals)
+	_courtyard(world, visuals)
+	_broom_landing(world, visuals)
+	GroundsSites.build_all(world, visuals)
+	if visuals:
+		var lake := Node3D.new()
+		lake.name = "Lake"
+		world.add_child(lake)
+		GroundsLake.build(lake)
+		GroundsHorizon.build(world)
+		_road_lamps(world)
+	var colliders := Node3D.new()
+	colliders.name = "VegetationColliders"
+	world.add_child(colliders)
+	GroundsScatter.build_colliders(colliders)
+	_boundaries(world)
+	_ward_lines(world)
+	QualityPreset.apply(world)
+
+
+## The persistent ground. Created once per world.
+static func ensure_terrain(world: Node3D) -> GroundsTerrain:
+	var t := world.get_node_or_null(TERRAIN_NODE) as GroundsTerrain
+	if t == null:
+		t = TERRAIN_SCENE.instantiate()
+		t.name = TERRAIN_NODE
+		world.add_child(t)
+	return t
+
+
+static func teardown(world: Node3D) -> void:
+	if world == null or not is_instance_valid(world):
+		return
+	for node_name in BUILT_NODES:
+		var node := world.get_node_or_null(node_name)
+		if node == null:
+			continue
+		world.remove_child(node)
+		node.queue_free()
+	# Inside the castle nothing of the grounds is visible; the ground keeps its
+	# collision (other players are still out there on the server).
+	var t := world.get_node_or_null(TERRAIN_NODE) as Node3D
+	if t:
+		t.visible = false
+
+
+# ------------------------------------------------------------------ sky
+
+static func _apply_sky_and_sun(world: Node3D) -> void:
+	var env_node := world.get_node_or_null("WorldEnvironment") as WorldEnvironment
+	if env_node and env_node.environment:
+		var env := env_node.environment
+		env.background_mode = Environment.BG_SKY
+		if env.sky == null:
+			env.sky = Sky.new()
+		var sky_mat := env.sky.sky_material as ProceduralSkyMaterial
+		if sky_mat == null:
+			sky_mat = ProceduralSkyMaterial.new()
+			env.sky.sky_material = sky_mat
+		sky_mat.sky_top_color = Color(0.24, 0.35, 0.49)
+		sky_mat.sky_horizon_color = Color(0.60, 0.66, 0.72)
+		sky_mat.ground_bottom_color = Color(0.20, 0.23, 0.22)
+		sky_mat.ground_horizon_color = Color(0.46, 0.52, 0.55)
+		sky_mat.sun_angle_max = 3.0
+		env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+		env.ambient_light_energy = 0.62
+		env.tonemap_mode = Environment.TONE_MAPPER_ACES
+		env.tonemap_exposure = 0.92
+		# A 2 km valley: light exponential fog plus aerial perspective, and a
+		# height falloff so the view from a broom stays clear above the haze.
+		env.fog_enabled = true
+		env.fog_mode = Environment.FOG_MODE_EXPONENTIAL
+		env.fog_light_color = Color(0.66, 0.73, 0.80)
+		env.fog_light_energy = 1.0
+		env.fog_density = 0.00032
+		env.fog_height = 40.0
+		env.fog_height_density = 0.004
+		env.fog_aerial_perspective = 0.35
+		env.fog_sky_affect = 0.25
+		env.glow_enabled = true
+		env.glow_intensity = 0.16
+		env.glow_bloom = 0.0
+		env.glow_hdr_threshold = 1.35
+		env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
+		env.ssao_enabled = true
+		env.ssao_intensity = 1.35
+		env.ssao_radius = 0.9
+	var sun := world.get_node_or_null("DirectionalLight3D") as DirectionalLight3D
+	if sun:
+		sun.light_color = Color(1.0, 0.96, 0.89)
+		sun.light_energy = 1.1
+		sun.shadow_enabled = true
+		sun.rotation_degrees = Vector3(-38, -30, 0)
+		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+		sun.directional_shadow_max_distance = 180.0
+		sun.directional_shadow_blend_splits = true
+		sun.shadow_normal_bias = 0.8
+
+
+# ------------------------------------------------------------- courtyard
+
+## The courtyard before the castle doors: a fountain, Ollivander's stall, benches
+## and the four house pillars with banners.
+static func _courtyard(world: Node3D, visuals: bool) -> void:
+	var c := GroundsLayout.landmark("courtyard")
+	if c == Vector3.INF:
+		c = GroundsLayout.ground(0, 65)
+	var kit := ArchKit.new()
+	# fountain
+	kit.cylinder(c + Vector3(0, -0.3, 0), 3.4, 1.1, "stone", 24)
+	kit.cylinder(c + Vector3(0, 0.75, 0), 3.0, 0.08, "water", 24, false)
+	kit.cylinder(c + Vector3(0, 0.6, 0), 0.5, 2.4, "stone", 12, true, 0.32)
+	kit.cylinder(c + Vector3(0, 2.9, 0), 1.2, 0.3, "stone", 16, false, 0.9)
+	# Ollivander's stall (east side): counter, posts, awning
+	var o := GroundsLayout.ground(c.x + 16.0, c.z + 5.0)
+	kit.box(o + Vector3(0, 0.55, 0), Vector3(4.2, 1.1, 1.4), 0.0, "wood")
+	for sx in [-1, 1]:
+		for sz in [-1, 1]:
+			kit.box(o + Vector3(sx * 2.0, 1.4, sz * 0.9 - 0.4), Vector3(0.18, 2.8, 0.18), 0.0, "timber", false)
+	kit.gable(o + Vector3(0, 2.8, -0.4), Vector2(4.8, 2.8), 0.9, 0.0, "cloth_blue", "cloth_blue", 0.2)
+	# benches around the fountain
+	for i in 6:
+		var a := TAU * i / 6.0 + 0.5
+		var p := GroundsLayout.ground(c.x + cos(a) * 9.0, c.z + sin(a) * 9.0)
+		kit.box(p + Vector3(0, 0.42, 0), Vector3(2.4, 0.12, 0.6), -a + PI * 0.5, "wood")
+		kit.box(p + Vector3(0, 0.2, 0), Vector3(2.0, 0.4, 0.3), -a + PI * 0.5, "stone", false)
+	# house pillars at the courtyard's north edge, facing south
+	var houses := ["cloth_red", "cloth_yellow", "cloth_blue", "cloth_green"]
+	for i in 4:
+		var p := GroundsLayout.ground(c.x - 15.0 + i * 10.0, c.z - 26.0)
+		kit.box(p + Vector3(0, 3.0, 0), Vector3(1.4, 6.0, 1.4), 0.0, "stone")
+		kit.box(p + Vector3(0, 4.0, 0.8), Vector3(1.2, 3.2, 0.06), 0.0, houses[i], false)
+	var mats := {}
+	if visuals:
+		mats = GroundsSites.materials().duplicate()
+		var water := StandardMaterial3D.new()
+		water.albedo_color = Color(0.10, 0.22, 0.28)
+		water.roughness = 0.05
+		water.metallic_specular = 0.9
+		mats["water"] = water
+	var root := kit.finish(world, mats, "Courtyard", 1, visuals)
+	root.name = "Courtyard"
+	if visuals:
+		var fl := OmniLight3D.new()
+		fl.light_color = Color(0.45, 0.70, 1.0)
+		fl.light_energy = 1.0
+		fl.omni_range = 9.0
+		fl.position = c + Vector3(0, 2.2, 0)
+		root.add_child(fl)
+
+
+static func _broom_landing(world: Node3D, visuals: bool) -> void:
+	var p := GroundsLayout.ground(LANDING_PAD.x, LANDING_PAD.y)
+	var pad := Node3D.new()
+	pad.name = "BroomLanding"
+	pad.position = p
+	world.add_child(pad)
+	if not visuals:
+		return
+	var disc := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = LANDING_RADIUS
+	cm.bottom_radius = LANDING_RADIUS + 0.2
+	cm.height = 0.5
+	cm.material = PBR.surface("stone_tiles_02")
+	disc.mesh = cm
+	disc.position.y = -0.18
+	pad.add_child(disc)
+	var ring := MeshInstance3D.new()
+	var tm := TorusMesh.new()
+	tm.inner_radius = LANDING_RADIUS - 0.6
+	tm.outer_radius = LANDING_RADIUS - 0.3
+	var gold := StandardMaterial3D.new()
+	gold.albedo_color = Color(0.95, 0.75, 0.25)
+	gold.metallic = 0.9
+	gold.roughness = 0.25
+	gold.emission_enabled = true
+	gold.emission = Color(0.9, 0.65, 0.2)
+	gold.emission_energy_multiplier = 0.4
+	tm.material = gold
+	ring.mesh = tm
+	ring.position.y = 0.1
+	pad.add_child(ring)
+	var label := Label3D.new()
+	label.text = "BROOM LANDING"
+	label.font_size = 30
+	label.outline_size = 8
+	label.outline_modulate = Color(0, 0, 0)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.position = Vector3(0, 3.2, 0)
+	pad.add_child(label)
+
+
+## Lamp posts along the roads near the castle and Hogsmeade (positions baked by
+## art/map/scripts/scatter.py into scatter/lamp.bin).
+static func _road_lamps(world: Node3D) -> void:
+	var data := GroundsScatter.instances("lamp")
+	var root := Node3D.new()
+	root.name = "RoadLamps"
+	world.add_child(root)
+	var kit := ArchKit.new(false)
+	for i in data.size() / 5:
+		var o := i * 5
+		var at := Vector3(data[o], data[o + 1], data[o + 2])
+		kit.box(at + Vector3(0, 1.6, 0), Vector3(0.16, 3.2, 0.16), 0.0, "metal", false)
+		kit.box(at + Vector3(0, 3.35, 0), Vector3(0.45, 0.5, 0.45), 0.0, "glass", false)
+		kit.pyramid(at + Vector3(0, 3.6, 0), Vector2(0.55, 0.55), 0.35, 0.0, "metal", 0.05)
+		var l := OmniLight3D.new()
+		l.light_color = Color(1.0, 0.78, 0.48)
+		l.light_energy = 0.9
+		l.omni_range = 9.0
+		l.distance_fade_enabled = true
+		l.distance_fade_begin = 90.0
+		l.distance_fade_length = 30.0
+		l.position = at + Vector3(0, 3.3, 0)
+		l.add_to_group("torch_lights")
+		root.add_child(l)
+	kit.finish(root, GroundsSites.materials(), "LampPosts", 1, true)
+
+
+## Invisible walls at the map edge (the mountain ring is the visual boundary;
+## these stop a body that flies or climbs past it).
+static func _boundaries(world: Node3D) -> void:
+	var bounds := Node3D.new()
+	bounds.name = "WorldBoundaries"
+	world.add_child(bounds)
+	var h := 500.0
+	for spec in [
+		[Vector3(0, h * 0.5 - 50.0, -EDGE - 10.0), Vector3(EDGE * 2 + 40, h, 20)],
+		[Vector3(0, h * 0.5 - 50.0, EDGE + 10.0), Vector3(EDGE * 2 + 40, h, 20)],
+		[Vector3(-EDGE - 10.0, h * 0.5 - 50.0, 0), Vector3(20, h, EDGE * 2 + 40)],
+		[Vector3(EDGE + 10.0, h * 0.5 - 50.0, 0), Vector3(20, h, EDGE * 2 + 40)],
+	]:
+		var sb := StaticBody3D.new()
+		sb.collision_layer = 1
+		sb.collision_mask = 0
+		sb.position = spec[0]
+		var col := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = spec[1]
+		col.shape = box
+		sb.add_child(col)
+		bounds.add_child(sb)
+
+
+## The safe zones' edges: a thin glowing line that follows the ground, so a
+## player can see where enemies will not follow.
+static func _ward_lines(world: Node3D) -> void:
+	var root := Node3D.new()
+	root.name = "SafeZoneWards"
+	world.add_child(root)
+	var zones: Array = []
+	if GameData != null and GameData.get("SAFE_ZONES") is Dictionary:
+		zones = (GameData.SAFE_ZONES as Dictionary).get("zones", [])
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.55, 0.85, 1.0, 0.85)
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	for zone in zones:
+		var radius := float(zone.get("radius", 0.0))
+		var c: Array = zone.get("center", [0.0, 0.0, 0.0])
+		var cx := float(c[0])
+		var cz := float(c[2]) if c.size() > 2 else 0.0
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		var segs := maxi(48, int(TAU * radius / 1.5))
+		var prev_in := Vector3.ZERO
+		var prev_out := Vector3.ZERO
+		for i in segs + 1:
+			var a := TAU * i / segs
+			var dir := Vector3(cos(a), 0, sin(a))
+			var pin := GroundsLayout.ground(cx + dir.x * (radius - 0.12), cz + dir.z * (radius - 0.12)) + Vector3.UP * 0.07
+			var pout := GroundsLayout.ground(cx + dir.x * (radius + 0.12), cz + dir.z * (radius + 0.12)) + Vector3.UP * 0.07
+			if i > 0:
+				for v in [prev_in, prev_out, pout, prev_in, pout, pin]:
+					st.set_normal(Vector3.UP)
+					st.add_vertex(v)
+			prev_in = pin
+			prev_out = pout
+		var node := MeshInstance3D.new()
+		node.name = "WardLine_%s" % String(zone.get("id", "zone"))
+		node.mesh = st.commit()
+		node.material_override = mat
+		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(node)

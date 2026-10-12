@@ -40,7 +40,7 @@ scale_amount_min = 0.5
 scale_amount_max = 1.2
 
 [node name="NameplateLabel3D" type="Label3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.18, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.09, 0)
 billboard = 1
 double_sided = false
 text = "[Gryffindor]

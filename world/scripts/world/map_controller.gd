@@ -34,7 +34,6 @@ extends Node
 ## HPMaps. The constants below are the same values written out, used as a
 ## fallback when the catalog cannot answer.
 
-const WorldBuilderScript = preload("res://scripts/world/world_builder.gd")
 const INTERIOR_PATH := "res://scenes/world/castle_interior.tscn"
 const STAIRCASE_PATH := "res://scenes/world/castle/staircase.tscn"
 const MAPS_PATH := "res://addons/hpmmo_sim/maps.gd"
@@ -49,7 +48,7 @@ const PROMPT_KEY := "F"
 const PORTALS := {
 	"grounds": [{
 		"id": "castle_door", "to_map": "castle_interior", "to_spawn": "vestibule",
-		"center": Vector3(0.0, 1.1, -46.0), "radius": 2.5, "y_min": -1.0, "y_max": 5.0,
+		"center": Vector3(0.0, 58.93, 6.5), "radius": 2.5, "y_min": 55.83, "y_max": 63.83,
 		"label": "Hogwarts Entrance",
 	}],
 	"castle_interior": [{
@@ -61,10 +60,10 @@ const PORTALS := {
 
 const SPAWN_POINTS := {
 	"grounds": {
-		"default": Vector3(0.0, 0.5, 5.0),
-		"courtyard": Vector3(0.0, 0.5, 5.0),
-		"castle_approach": Vector3(0.0, 0.6, -40.0),
-		"castle_landing_pad": Vector3(0.0, 0.6, -36.0),
+		"default": Vector3(0.0, 57.86, 78.0),
+		"courtyard": Vector3(0.0, 57.86, 78.0),
+		"castle_approach": Vector3(0.0, 58.49, 20.0),
+		"castle_landing_pad": Vector3(40.0, 58.56, 15.0),
 	},
 	"castle_interior": {
 		"default": Vector3(0.0, 200.5, 30.0),
@@ -74,9 +73,9 @@ const SPAWN_POINTS := {
 
 ## The broom landing area in front of the castle: the same circle the catalog
 ## authors for `castle_door.landing` and `castle_landing_pad`. Flight is refused
-## indoors, so the pad is where a rider lands and dismounts; world_builder draws
+## indoors, so the pad is where a rider lands and dismounts; GroundsBuilder draws
 ## it. Kept collision-free so it cannot trip the approach route.
-const LANDING_PAD_CENTRE := Vector3(0.0, 0.0, -40.0)
+const LANDING_PAD_CENTRE := Vector3(40.0, 58.5, 15.0)
 const LANDING_PAD_RADIUS := 4.0
 
 ## Containers in the grounds scene that hold live entities. They are hidden, not
@@ -431,7 +430,7 @@ func _unload_map(map_id: String) -> void:
 	# Grounds: free the scenery WorldBuilder created and hide the entity
 	# containers. Terrain (the ground collider) and the sim entities stay: they
 	# are the world's collision/state, not its map resources.
-	WorldBuilderScript.teardown(world)
+	GroundsBuilder.teardown(world)
 	for node_name in GROUNDS_ENTITY_NODES:
 		var node := world.get_node_or_null(node_name)
 		if node is Node3D and (node as Node3D).visible:
@@ -446,7 +445,7 @@ func _load_map(map_id: String) -> bool:
 	if map_id == MAP_GROUNDS:
 		# Rebuild the outdoor scenery. build() is idempotent and cheap (it only
 		# runs when the castle node is absent, which teardown guarantees).
-		WorldBuilderScript.build(world)
+		GroundsBuilder.build(world)
 		for node_name in _hidden.keys():
 			var node := world.get_node_or_null(String(node_name))
 			if node is Node3D:
@@ -598,7 +597,7 @@ func _spawn_point(map_id: String, spawn_id: String) -> Vector3:
 	var table: Dictionary = SPAWN_POINTS.get(map_id, {})
 	if table.has(spawn_id):
 		return table[spawn_id]
-	return table.get("default", Vector3(0, 0.5, 5))
+	return table.get("default", Vector3(0.0, 57.86, 78.0))
 
 ## Floor-aware location label. The shared catalog carries no floor plan yet, so
 ## the interior's own floor table answers (castle_interior.gd::FLOORS); when the
@@ -692,7 +691,7 @@ func _update_labels() -> void:
 	if current_map == MAP_GROUNDS and is_instance_valid(local_player):
 		var flat := Vector2(local_player.global_position.x - LANDING_PAD_CENTRE.x,
 			local_player.global_position.z - LANDING_PAD_CENTRE.z)
-		if flat.length() <= LANDING_PAD_RADIUS and absf(y) < 4.0:
+		if flat.length() <= LANDING_PAD_RADIUS and absf(y - LANDING_PAD_CENTRE.y) < 4.0:
 			text += "   |   Broom landing pad"
 	_location_label.text = text
 	_prompt_label.text = _active_label

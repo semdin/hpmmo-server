@@ -3,8 +3,15 @@ class_name BroomGripModifier
 
 ## Solve the rider onto the shaft after the animated pose and cast layer.
 ## Bone poses are temporary inside this pass: never reapply them deferred.
-const LEAN_SHARE := {"Abdomen": 0.5, "Torso": 0.3, "Chest": 0.2}
-const LEAN_DEG := 50.0
+const LEAN_SHARE := {"Spine": 0.5, "Chest": 0.3, "UpperChest": 0.2}
+## The rider's spine (hips -> neck) may lean anywhere in this band; each broom
+## clip authors its own lean (sitting up to brake, flat to dive) and the solver
+## only pulls it back inside the band, where the hands can still reach the wood.
+const LEAN_MIN_DEG := 22.0
+const LEAN_MAX_DEG := 48.0
+## Where the hands hold the shaft, measured forward from the seat along it.
+## (GripSocket sits 0.55 m ahead, out of reach of an upright rider.)
+const GRIP_AHEAD := 0.38
 const GRIP_SPREAD := 0.065
 const PALM_DEPTH := 0.039
 # The imported shaft curves above its socket baseline: the wood rings in the
@@ -12,8 +19,8 @@ const PALM_DEPTH := 0.039
 const SHAFT_RISE := 0.045
 
 const ARMS := [
-	{"side": "L", "root": "UpperArm.L", "mid": "LowerArm.L", "end": "Wrist.L", "offset": -GRIP_SPREAD},
-	{"side": "R", "root": "UpperArm.R", "mid": "LowerArm.R", "end": "Wrist.R", "offset": GRIP_SPREAD},
+	{"side": "L", "root": "LeftUpperArm", "mid": "LeftLowerArm", "end": "LeftHand", "offset": -GRIP_SPREAD},
+	{"side": "R", "root": "RightUpperArm", "mid": "RightLowerArm", "end": "RightHand", "offset": GRIP_SPREAD},
 ]
 
 ## The broom rig to solve onto (a BroomFlight). Set once by player.gd.
@@ -84,10 +91,21 @@ func _lean(skeleton: Skeleton3D) -> void:
 	var neck := RigIK.bone_index(skeleton, "Neck")
 	var up: Vector3 = shaft["up"]
 	var forward: Vector3 = shaft["direction"]
-	var wanted := up * cos(deg_to_rad(LEAN_DEG)) + forward * sin(deg_to_rad(LEAN_DEG))
 	for _iteration in range(5):
 		var current := (skeleton.get_bone_global_pose(neck).origin - skeleton.get_bone_global_pose(hips).origin).normalized()
-		var correction := Quaternion(current, wanted)
+		var lean := atan2(current.dot(forward), current.dot(up))
+		var clamped := clampf(lean, deg_to_rad(LEAN_MIN_DEG), deg_to_rad(LEAN_MAX_DEG))
+		# Lean only as far as the hands need to reach the wood.
+		var deficit := _reach_deficit(skeleton, shaft)
+		if deficit > 0.0:
+			clamped = minf(deg_to_rad(LEAN_MAX_DEG), maxf(clamped, lean + deficit * 1.4))
+		if absf(clamped - lean) < 0.002:
+			break
+		# Keep the clip's sideways (bank) component; correct only the forward lean.
+		var lateral := current - up * current.dot(up) - forward * current.dot(forward)
+		var in_plane := sqrt(maxf(0.0, 1.0 - lateral.length_squared()))
+		var wanted := lateral + (up * cos(clamped) + forward * sin(clamped)) * in_plane
+		var correction := Quaternion(current, wanted.normalized())
 		for bone in LEAN_SHARE:
 			var index := RigIK.bone_index(skeleton, bone)
 			if index >= 0:
@@ -101,6 +119,27 @@ func _lean(skeleton: Skeleton3D) -> void:
 		var global_basis := upright * skeleton.get_bone_global_rest(index).basis.orthonormalized()
 		var local := skeleton.get_bone_global_pose(parent).basis.orthonormalized().inverse() * global_basis
 		RigIK.write_rotation(skeleton, index, local.get_rotation_quaternion(), weight, _bases[index])
+
+
+## How far (m) the farther hand's grip point is beyond what that arm can reach
+## from where its shoulder is now; 0 when both hands can hold the shaft.
+func _reach_deficit(skeleton: Skeleton3D, shaft: Dictionary) -> float:
+	var worst := 0.0
+	for arm in ARMS:
+		var root := RigIK.bone_index(skeleton, String(arm["root"]))
+		var mid := RigIK.bone_index(skeleton, String(arm["mid"]))
+		var end := RigIK.bone_index(skeleton, String(arm["end"]))
+		if root < 0 or mid < 0 or end < 0:
+			continue
+		var shoulder := skeleton.get_bone_global_pose(root).origin
+		var elbow := skeleton.get_bone_global_pose(mid).origin
+		var wrist := skeleton.get_bone_global_pose(end).origin
+		var palm := RigIK.grip_frame(skeleton, String(arm["side"]), PALM_DEPTH).origin.length()
+		# Keep a little bend in the elbow: 96% of the straight-arm reach.
+		var reach := (shoulder.distance_to(elbow) + elbow.distance_to(wrist) + palm) * 0.96
+		var target: Vector3 = shaft["hold"] + (shaft["direction"] as Vector3) * float(arm["offset"])
+		worst = maxf(worst, shoulder.distance_to(target) - reach)
+	return worst
 
 
 ## Match the palm's full frame to the handle, then solve the wrist position.
@@ -121,7 +160,7 @@ func _grip(skeleton: Skeleton3D) -> void:
 		if root < 0 or mid < 0 or end < 0:
 			continue
 		var shoulder := skeleton.get_bone_global_pose(root).origin
-		var palm_point: Vector3 = shaft["grip"] + direction * (float(arm["offset"]) - 0.08)
+		var palm_point: Vector3 = shaft["hold"] + direction * float(arm["offset"])
 		var down := palm_point - shoulder
 		down = (down - direction * down.dot(direction)).normalized()
 		var grip := RigIK.grip_frame(skeleton, String(arm["side"]), PALM_DEPTH)
@@ -166,5 +205,6 @@ func _shaft(skeleton: Skeleton3D) -> Dictionary:
 	direction = direction.normalized()
 	# The seat sits `drop` above the centreline.
 	var drop := absf((seat_socket as Node3D).position.y - (grip_socket as Node3D).position.y)
-	return {"origin": seat - up * (drop - SHAFT_RISE), "direction": direction,
-		"up": up, "grip": grip + up * SHAFT_RISE}
+	var origin := seat - up * (drop - SHAFT_RISE)
+	return {"origin": origin, "direction": direction,
+		"up": up, "grip": grip + up * SHAFT_RISE, "hold": origin + direction * GRIP_AHEAD}

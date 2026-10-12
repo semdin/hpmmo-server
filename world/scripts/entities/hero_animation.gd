@@ -44,6 +44,14 @@ const ALIASES := {
 	"Stun_Loop": "Stun",
 }
 
+## Whole-body one-shots that only dress a transition. They hand the body back to
+## the stride as soon as it is actually travelling: a full-weight landing pose
+## held under an 8 m/s run read as the hero sliding across the ground (measured
+## 1.2 s of planted feet after every dismount and every running jump).
+const MOTION_INTERRUPTIBLE := ["Land", "Dismount_Broom", "Broom_Land"]
+## Ground speed (m/s) above which those one-shots yield to locomotion.
+const INTERRUPT_SPEED := 1.2
+
 ## Nominal length used when a clip is missing entirely, so a machine-driven game
 ## loop never divides by zero on a bad import.
 const FALLBACK_LENGTH := 0.5
@@ -138,7 +146,7 @@ func setup(animation_player: AnimationPlayer, skeleton_node: Skeleton3D, host: N
 			anim.loop_mode = Animation.LOOP_LINEAR
 	for one_shot in ["Jump_Start", "Land", "Mount_Broom", "Dismount_Broom", "Revive",
 			"Death_A", "Hit_A", "Hit_B", "Interact", "Melee_Chop_A", "Melee_Chop_B",
-			"Spellcast_Shoot", "Spellcast_Raise", "Cast_Exit", "Broom_Takeoff", "Broom_Land"]:
+			"Spellcast_Shoot", "Spellcast_Raise", "Spellcast_Heavy", "Cast_Exit", "Broom_Takeoff", "Broom_Land"]:
 		var anim := _animation(one_shot)
 		if anim:
 			anim.loop_mode = Animation.LOOP_NONE
@@ -151,10 +159,8 @@ func setup(animation_player: AnimationPlayer, skeleton_node: Skeleton3D, host: N
 				for t in range(anim.get_track_count() - 1, -1, -1):
 					if anim.track_get_type(t) == Animation.TYPE_POSITION_3D:
 						var path := String(anim.track_get_path(t))
-						for f in ["Index", "Middle", "Ring", "Pinky", "Thumb"]:
-							if f in path:
-								anim.remove_track(t)
-								break
+						if HeroBones.is_digit(path.get_slice(":", path.get_slice_count(":") - 1)):
+							anim.remove_track(t)
 
 
 ## Restrict the cast layer to the bone paths an upper-body clip owns, so every
@@ -169,18 +175,7 @@ func _configure_upper_filter() -> void:
 		var first := String(probe_clip.track_get_path(0))
 		if first.contains(":"):
 			prefix = first.split(":")[0] + ":"
-	var bones: Array[String] = ["Abdomen", "Torso", "Chest", "Neck", "Head"]
-	for side in ["L", "R"]:
-		for bone in ["Shoulder", "UpperArm", "LowerArm", "Wrist"]:
-			bones.append("%s_%s" % [bone, side])
-			bones.append("%s.%s" % [bone, side])
-		for finger in ["Index", "Middle", "Ring", "Pinky"]:
-			for n in range(1, 5):
-				bones.append("%s%d_%s" % [finger, n, side])
-				bones.append("%s%d.%s" % [finger, n, side])
-		for n in range(1, 4):
-			bones.append("Thumb%d_%s" % [n, side])
-			bones.append("Thumb%d.%s" % [n, side])
+	var bones: Array[String] = HeroBones.upper_body()
 	for bone in bones:
 		upper_node.set_filter_path(NodePath(prefix + bone), true)
 
@@ -252,6 +247,8 @@ func set_ground_motion(local_velocity: Vector2) -> void:
 	if not enabled:
 		return
 	_ground_speed = local_velocity.length()
+	if oneshot_left > 0.0 and _ground_speed > INTERRUPT_SPEED and oneshot_clip in MOTION_INTERRUPTIBLE:
+		cancel_oneshot()
 	var direction := local_velocity / maxf(0.001, absf(local_velocity.x) + absf(local_velocity.y))
 	# Gait follows actual metres/second, not the current gameplay speed cap.
 	var strength := clampf(_ground_speed / RUN_REFERENCE_SPEED, 0.0, 1.0)
@@ -443,9 +440,7 @@ func _scan_footsteps(delta: float) -> void:
 			_foot_high.clear()
 			return
 	for side in ["L", "R"]:
-		var idx := skeleton.find_bone("Foot_%s" % side)
-		if idx < 0:
-			idx = skeleton.find_bone("Foot.%s" % side)
+		var idx := RigIK.bone_index(skeleton, HeroBones.foot(side))
 		if idx < 0:
 			continue
 		var y := skeleton.get_bone_global_pose(idx).origin.y

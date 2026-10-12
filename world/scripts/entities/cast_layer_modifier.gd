@@ -34,13 +34,12 @@ var _duration := 0.0
 var _release_phase := 0.6
 ## Bone name -> tracks that belong to it (index into the Animation).
 var upper_tracks: Array[int] = []
-var lower_prefixes := ["Hips", "Body", "Root", "UpperLeg", "LowerLeg", "Foot", "PT"]
 
-## The casting hand's bone chain. `UpperArm.R` is the shoulder joint: the clavicle
-## (Shoulder.R -> UpperArm.R) is left to the clip so the aim never dislocates it.
-const AIM_ROOT_BONE := "UpperArm.R"
-const AIM_MID_BONE := "LowerArm.R"
-const AIM_END_BONE := "Wrist.R"
+## The casting hand's bone chain. The upper arm is the shoulder joint: the
+## clavicle (RightShoulder) is left to the clip so the aim never dislocates it.
+const AIM_ROOT_BONE := "RightUpperArm"
+const AIM_MID_BONE := "RightLowerArm"
+const AIM_END_BONE := "RightHand"
 ## How far short of full extension the aim targets the wrist, so the elbow keeps a
 ## natural bend instead of locking.
 const AIM_EXTENSION := 0.97
@@ -90,10 +89,7 @@ func configure(clip: Animation) -> void:
 		upper_tracks.append(i)
 
 func _is_lower(bone: String) -> bool:
-	for prefix in lower_prefixes:
-		if bone.begins_with(prefix):
-			return true
-	return false
+	return HeroBones.is_lower_body(bone)
 
 func play(clip: Animation, start_time := 0.0) -> void:
 	if clip != null and clip != animation:
@@ -192,7 +188,7 @@ func _apply_cast_torso(skeleton: Skeleton3D) -> void:
 		"expelliarmus": yaw = 0.17 * sin(phase * TAU) * envelope
 		"protego": pitch = 0.08 * envelope
 		"ultimate": pitch = -0.19 * envelope
-	for name in ["Chest", "Torso", "Abdomen"]:
+	for name in [HeroBones.UPPER_CHEST, HeroBones.CHEST, HeroBones.SPINE]:
 		var index := _bone_index(skeleton, name)
 		if index >= 0 and _clip_rotations.has(skeleton.get_bone_name(index)):
 			var rotation := skeleton.get_bone_pose_rotation(index)

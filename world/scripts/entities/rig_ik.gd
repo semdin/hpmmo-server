@@ -22,8 +22,8 @@ class_name RigIK
 ## otherwise - reading straight after a write would return the previous pose.
 
 
-## The bone index for `bone`, accepting the importer's sanitised spelling
-## (`Foot.L` -> `Foot_L`).
+## The bone index for `bone` (see HeroBones), also accepting an importer-sanitised
+## spelling (`.` <-> `_`) for skeletons from other sources.
 static func bone_index(skeleton: Skeleton3D, bone: String) -> int:
 	if skeleton == null:
 		return -1
@@ -155,20 +155,21 @@ static func distance_to_line(point: Vector3, a: Vector3, direction: Vector3) -> 
 	return (offset - dir * offset.dot(dir)).length()
 
 
-## Index1 etc. are metacarpals starting beside the wrist. The actual knuckles
-## are Index2 etc.; construct a grip across those, on the palm side of the skin.
+## A grip across the knuckles (the heads of the proximal phalanges), on the
+## palm side of the skin, in the hand bone's frame: x across the palm (little ->
+## index), y along the hand toward the fingers.
 static func grip_frame(skeleton: Skeleton3D, side: String, palm_depth := 0.026) -> Transform3D:
-	var wrist := bone_index(skeleton, "Wrist." + side)
+	var wrist := bone_index(skeleton, HeroBones.hand(side))
 	var to_wrist := skeleton.get_bone_global_rest(wrist).affine_inverse()
 	var knuckles: Array[Vector3] = []
-	for finger in ["Index", "Middle", "Ring", "Pinky"]:
+	for finger in HeroBones.FINGERS:
 		knuckles.append((to_wrist * skeleton.get_bone_global_rest(
-			bone_index(skeleton, finger + "2." + side))).origin)
+			bone_index(skeleton, HeroBones.finger(side, finger, 0)))).origin)
 	var across := (knuckles[0] - knuckles[3]).normalized()
 	var forward := Vector3.UP
 	forward = (forward - across * forward.dot(across)).normalized()
 	var normal := across.cross(forward).normalized()
-	if normal.z > 0.0:
+	if normal.dot(HeroBones.palm_axis(side)) < 0.0:
 		normal = -normal
 	var centre := (knuckles[0] + knuckles[1] + knuckles[2] + knuckles[3]) * 0.25
 	centre += normal * palm_depth - forward * 0.008
@@ -176,27 +177,32 @@ static func grip_frame(skeleton: Skeleton3D, side: String, palm_depth := 0.026) 
 
 
 static func close_hand(skeleton: Skeleton3D, side: String, weight: float, palm_depth := 0.026) -> void:
-	for finger in ["Index", "Middle", "Ring", "Pinky", "Thumb"]:
-		var angles := [0.0, -65.0, -85.0, -45.0]
-		if palm_depth > 0.03:
-			angles = [0.0, -50.0, -70.0, -40.0]
-		if finger == "Thumb":
-			angles = [0.0, -25.0, -35.0]
+	# Proximal, intermediate, distal flexion in degrees; a deeper palm (a thicker
+	# handle) opens the fist a little.
+	var finger_angles := [65.0, 85.0, 45.0]
+	if palm_depth > 0.03:
+		finger_angles = [50.0, 70.0, 40.0]
+	var thumb_angles := [0.0, 25.0, 35.0]
+	for finger in HeroBones.FINGERS + ["Thumb"]:
+		var angles: Array = thumb_angles if finger == "Thumb" else finger_angles
 		for k in range(angles.size()):
-			var index := bone_index(skeleton, "%s%d.%s" % [finger, k + 1, side])
+			var name := HeroBones.thumb(side, k) if finger == "Thumb" else HeroBones.finger(side, finger, k)
+			var index := bone_index(skeleton, name)
 			if index < 0:
 				continue
 			var rest := skeleton.get_bone_rest(index)
-			var rotation := rest.basis.get_rotation_quaternion() * Quaternion(Vector3.RIGHT, deg_to_rad(angles[k]))
+			var sign := HeroBones.THUMB_CURL_SIGN if finger == "Thumb" else HeroBones.CURL_SIGN
+			var rotation := rest.basis.get_rotation_quaternion() \
+				* Quaternion(Vector3.RIGHT, deg_to_rad(angles[k]) * sign)
 			skeleton.set_bone_pose_position(index, skeleton.get_bone_pose_position(index).lerp(rest.origin, weight))
 			skeleton.set_bone_pose_rotation(index, skeleton.get_bone_pose_rotation(index).slerp(rotation, weight))
 	skeleton.force_update_all_bone_transforms()
 	# Oppose the thumb across the handle instead of leaving it extended beside it.
-	var wrist := skeleton.get_bone_global_pose(bone_index(skeleton, "Wrist." + side))
+	var wrist := skeleton.get_bone_global_pose(bone_index(skeleton, HeroBones.hand(side)))
 	var grip := grip_frame(skeleton, side, palm_depth)
-	var thumb1 := bone_index(skeleton, "Thumb1." + side)
-	var thumb2 := bone_index(skeleton, "Thumb2." + side)
-	var thumb3 := bone_index(skeleton, "Thumb3." + side)
+	var thumb1 := bone_index(skeleton, HeroBones.thumb(side, 0))
+	var thumb2 := bone_index(skeleton, HeroBones.thumb(side, 1))
+	var thumb3 := bone_index(skeleton, HeroBones.thumb(side, 2))
 	var base_target := wrist * (grip.origin + grip.basis.x * 0.04 - grip.basis.y * 0.035)
 	aim_bone(skeleton, thumb1, thumb2, base_target - skeleton.get_bone_global_pose(thumb1).origin, weight)
 	var tip_target := wrist * (grip.origin - grip.basis.x * 0.005)

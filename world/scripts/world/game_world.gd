@@ -17,7 +17,6 @@ const INFERI_SCENE = preload("res://scenes/entities/mobs/mob_inferi.tscn")
 const ACROMANTULA_SCENE = preload("res://scenes/entities/mobs/mob_acromantula.tscn")
 const SNATCHER_SCENE = preload("res://scenes/entities/mobs/mob_darksnatcher.tscn")
 const OVERLAY_SCRIPT = preload("res://scripts/ui/mmorpg_overlay.gd")
-const WorldBuilderScript = preload("res://scripts/world/world_builder.gd")
 const MapControllerScript = preload("res://scripts/world/map_controller.gd")
 const QualityPresetScript = preload("res://scripts/world/quality_preset.gd")
 const NPCScript = preload("res://scripts/world/npc.gd")
@@ -45,10 +44,7 @@ func _enter_tree() -> void:
 			canvas.free()
 
 func _ready() -> void:
-	var old_front := get_node_or_null("CastleFront")
-	if old_front:
-		old_front.queue_free()
-	WorldBuilderScript.build(self)
+	GroundsBuilder.build(self)
 	SimAuthority.attach_world(self)
 	var authority := SimAuthority.is_authority()
 	if not NetworkManager.is_dedicated_server:
@@ -110,14 +106,6 @@ func _process(delta: float) -> void:
 	for b in get_tree().get_nodes_in_group("castle_banners"):
 		if b is MeshInstance3D:
 			(b as MeshInstance3D).rotation.y = sin(_candle_t * 1.6) * 0.12
-	var lake := get_node_or_null("BlackLake")
-	if lake:
-		# Bob only the water surface + foam, never the docks, collision or
-		# lakebed: moving the whole lake moved its StaticBodies every frame and
-		# jittered any body standing on the piers.
-		var surface := lake.get_node_or_null("LakeWaterSurface")
-		if surface:
-			surface.position.y = -7.0 + sin(_candle_t * 0.8) * 0.05
 
 var _offline_save_timer: float = 15.0
 
@@ -130,9 +118,10 @@ func _spawn_local_player() -> void:
 	
 	if not NetworkManager.local_character_data.is_empty():
 		var c: Dictionary = NetworkManager.local_character_data
-		var px: float = float(c.get("pos_x", 0.0))
-		var py: float = float(c.get("pos_y", 0.5))
-		var pz: float = float(c.get("pos_z", 5.0))
+		var fallback := HPMaps.default_spawn(HPProtocol.DEFAULT_MAP)
+		var px: float = float(c.get("pos_x", fallback.x))
+		var py: float = float(c.get("pos_y", fallback.y))
+		var pz: float = float(c.get("pos_z", fallback.z))
 		# The account service's sheet (what a bound session receives) carries the
 		# position as `pos: [x, y, z]`; the offline save format uses pos_x/y/z.
 		# Either way the body starts where the character last was, which is what
@@ -149,8 +138,8 @@ func _spawn_local_player() -> void:
 			local_player.player_name, local_player.global_position, local_player.level, local_player.wand_tier, local_player.galleons
 		])
 	else:
-		local_player.global_position = Vector3(0, 0.5, 5.0)
-		local_player.visuals.rotation.y = PI
+		local_player.global_position = HPMaps.default_spawn(HPProtocol.DEFAULT_MAP)
+		local_player.visuals.rotation.y = 0.0
 	
 	# The authority owns this body from here on: register it before anything can
 	# act on it (casts, damage, snapshots all resolve through the registry).
@@ -266,28 +255,33 @@ func _setup_npcs() -> void:
 	var npcs := Node3D.new()
 	npcs.name = "NPCs"
 	add_child(npcs)
-	_spawn_npc(npcs, "Professor Fig", Vector3(-6, 0, 8),
+	_spawn_npc(npcs, "Professor Fig", _on_ground(-12, 72),
 		["Ah, a new student! Hogwarts needs brave wizards.",
-		"Acromantulas infest the west woods. Inferi haunt the forest edge.",
+		"Acromantulas infest the Forbidden Forest to the west. Inferi haunt its edge, past Hagrid's hut.",
 		"Break a Dark Monolith (follow the purple beams), refine your wand (O), then fly to the Quidditch Pitch (Shift to mount)."],
 		Color(0.2, 0.25, 0.5))
-	_spawn_npc(npcs, "Ollivander", Vector3(10.5, 0, 5),
+	_spawn_npc(npcs, "Ollivander", _on_ground(16, 68.6),
 		["Wands choose the wizard... but Galleons refine them!",
 		"Press O anywhere to open my workshop. Bring Phoenix Ash, Heartstrings, Thestral Hair.",
 		"+4 glows blue, +7 crackles gold, +9 burns with phoenix fire!"],
 		Color(0.45, 0.3, 0.15))
-	_spawn_npc(npcs, "Madam Rosmerta", Vector3(35, 0, 20),
-		["Welcome to Hogsmeade, dearie! Rest here — low levels are safe near the village.",
+	_spawn_npc(npcs, "Madam Rosmerta", _on_ground(684, -174),
+		["Welcome to Hogsmeade, dearie! Rest here - the village square is safe.",
 		"Buy Wiggenweld before heading to the Forbidden Forest. Trust me."],
 		Color(0.5, 0.15, 0.2))
-	_spawn_npc(npcs, "Hagrid", Vector3(-48, 0, -18),
-		["Yeh shouldn' be this deep in the forest... brave though!",
-		"Inferi fear fire — hit 'em with Incendio (2). Stupefy (1) stuns 'em cold."],
+	_spawn_npc(npcs, "Hagrid", _on_ground(-278, -11),
+		["Yeh shouldn' go into the forest alone... brave though!",
+		"Inferi fear fire - hit 'em with Incendio (2). Stupefy (1) stuns 'em cold."],
 		Color(0.25, 0.3, 0.15))
-	_spawn_npc(npcs, "Madam Pince", Vector3(-31, 0.08, -82),
-		["Welcome to the library. Keep the cross aisle clear, and mind the books.", "The Great Hall is through the eastern passage. Charms is across the hall."], Color(0.2, 0.15, 0.3))
-	_spawn_npc(npcs, "Professor Flitwick", Vector3(26, 0.08, -84),
-		["Welcome to Charms! Stupefy interrupts, Incendio burns, and Expelliarmus weakens attacks.", "Practice at the courtyard dummies, then pull a pack together. Watch the boss's warning circle."], Color(0.1, 0.24, 0.4))
+	_spawn_npc(npcs, "Madam Pince", _on_ground(-22, 20),
+		["The library is inside, past the great doors. Mind the books.", "The Great Hall is through the entrance hall. Charms is across the hall."], Color(0.2, 0.15, 0.3))
+	_spawn_npc(npcs, "Professor Flitwick", _on_ground(22, 20),
+		["Welcome! Stupefy interrupts, Incendio burns, and Expelliarmus weakens attacks.", "Practise at the dummies east of the courtyard, then pull a pack together. Watch the boss's warning circle."], Color(0.1, 0.24, 0.4))
+
+## A point on the grounds terrain (the authored NPC spots are x, z only).
+func _on_ground(x: float, z: float) -> Vector3:
+	var h := GroundsTerrain.height_at(x, z)
+	return Vector3(x, 0.0 if is_nan(h) else h + 0.05, z)
 
 func _spawn_npc(parent: Node3D, npc_name: String, pos: Vector3, dialogue: Array, robe: Color) -> void:
 	var npc = NPCScript.new()
@@ -336,13 +330,10 @@ func _check_external_models() -> void:
 		NetworkManager.send_chat("[System] External models found: %s (procedural rigs kept for stability)" % ", ".join(found))
 
 func _setup_monoliths_and_mobs() -> void:
-	var monolith_locations = [
-		Vector3(44, 0, -76.0),
-		Vector3(45.0, 0, -25.0),
-		Vector3(-45.0, 0, -28.0),
-		Vector3(-58, 0, -50), # deep forest boss
-	]
-	for pos in monolith_locations:
+	# Positions are the authority's data (spawn_tables.json "monoliths").
+	for entry in HPRules.spawn_tables().get("monoliths", []):
+		var raw: Array = entry.get("pos", [0.0, 0.0, 0.0])
+		var pos := _on_ground(float(raw[0]), float(raw[2]))
 		var monolith = MONOLITH_SCENE.instantiate()
 		monoliths_container.add_child(monolith)
 		monolith.global_position = pos

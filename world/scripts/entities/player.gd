@@ -17,12 +17,13 @@ signal equipment_answer(result: Dictionary)
 signal animation_event(event_name: String)
 
 ## --------------------------------------------------------------- the rig body
-## Measured from hero_wizard.glb (hooded adventurer, 1.835 m crown). Every
+## Measured from hero_wizard.glb (the Rigify hero, 1.75 m crown; art/hero). Every
 ## distance that depends on body size is derived from these, so a second resize
-## is a constant change, not a hunt through the file.
-const HERO_CROWN_HEIGHT := 1.84
+## is a constant change, not a hunt through the file. The capsule and camera are
+## gameplay values and deliberately unchanged by the art swap.
+const HERO_CROWN_HEIGHT := 1.75
 const CAMERA_HEIGHT := 1.55          # pivot at chest/eye level of the new body
-const NAMEPLATE_HEIGHT := 2.18       # crown + 0.34 headroom for the label
+const NAMEPLATE_HEIGHT := 2.09       # crown + 0.34 headroom for the label
 const CAPSULE_RADIUS := 0.35         # art-direction section 2 silhouette
 const CAPSULE_HEIGHT := 1.85
 const CAST_ORIGIN_HEIGHT := 1.25     # wand hand height when standing
@@ -85,18 +86,18 @@ var gravity: float = 24.0
 ## frame; the animation state reads it to play a paddle instead of a fall.
 var is_swimming: bool = false
 var _was_swimming: bool = false
-## Black Lake swim datum (mirrors OutdoorTerrain.LAKE_*; duplicated here so the
-## entity script never preloads the world builder).
-const LAKE_CENTER_X := -220.0
-const LAKE_CENTER_Z := 185.0
-const LAKE_HALF_X := 85.0
-const LAKE_HALF_Z := 75.0
-const WATER_SURFACE_Y := -7.0
-## Where the swim buoyancy holds the body: the water collider's top, a third of
-## a metre under the visual waterline, so a swimmer is in the water rather than
-## standing on it.
-const SWIM_FLOAT_Y := -7.35
-const KILL_PLANE_Y := -16.0
+## Black Lake swimming: the water line is the grounds' datum (y = 0) and a body is
+## in the water wherever GroundsLake says the bed is deep enough under it.
+const WATER_SURFACE_Y := 0.0
+## Where the swim buoyancy holds the body: a third of a metre under the
+## waterline, so a swimmer is in the water rather than standing on it.
+const SWIM_FLOAT_Y := -0.35
+## Below the lake bed (-16 m) with margin; matches the grounds band in maps.json.
+const KILL_PLANE_Y := -30.0
+## Broom ceiling: at most this high above the ground under the rider, and never
+## above the absolute cap (the castle interior map is authored from y = 185 up).
+const FLIGHT_MAX_ABOVE_GROUND := 120.0
+const FLIGHT_CEILING_Y := 175.0
 ## How tall a ledge the body can walk up. `move_and_slide` treats anything
 ## above the floor snap as a wall, so without this a 0.2 m stair tread stops the
 ## body dead: every authored flight (world and castle) relied on a separate ramp
@@ -143,6 +144,8 @@ var _facing_target_yaw := 0.0
 var _auto_facing := false
 ## Spells whose recovery commits the caster in place.
 const COMMITTED_SPELLS := {"bombarda": 0.35, "ultimate": 0.5}
+## Spells cast with both hands (Spellcast_Heavy); every other cast is one-handed.
+const HEAVY_CAST_SPELLS := ["bombarda", "ultimate"]
 const COMMITTED_MELEE := 0.45
 ## Deceleration (m/s^2) once a WALKING body's movement input is released. The
 ## authored value was `walk_speed * 12` = 102, which left 0.28 m of glide over 4
@@ -180,12 +183,12 @@ const BroomGripModifierScript = preload("res://scripts/entities/broom_grip_modif
 ## Rig socket convention: one socket per attachment point, bound to the
 ## skeleton by bone name.
 const SOCKET_BONES := {
-	"Socket_Wand": "Wrist.R",
-	"Socket_Hand_L": "Wrist.L",
-	"Socket_Hand_R": "Wrist.R",
-	"Socket_Foot_L": "Foot.L",
-	"Socket_Foot_R": "Foot.R",
-	"Socket_Torso": "Chest",
+	"Socket_Wand": "RightHand",
+	"Socket_Hand_L": "LeftHand",
+	"Socket_Hand_R": "RightHand",
+	"Socket_Foot_L": "LeftFoot",
+	"Socket_Foot_R": "RightFoot",
+	"Socket_Torso": "UpperChest",
 	"Socket_Head": "Head",
 	"Socket_Hips": "Hips",
 }
@@ -248,6 +251,8 @@ func _ready() -> void:
 	_setup_sockets()
 	
 	_setup_character_model()
+	if is_local_player and camera:
+		HeroAppearance.add_character_fill(camera)
 	if broom_particles:
 		ParticleKit.configure(broom_particles, true)
 		broom_particles.amount = 55
@@ -299,13 +304,8 @@ func _setup_sockets() -> void:
 	for socket_name in SOCKET_BONES.keys():
 		var bone: String = SOCKET_BONES[socket_name]
 		if skeleton.find_bone(bone) < 0:
-			# Godot sanitises dots in bone names (`Foot.L` -> `Foot_L`); accept
-			# either spelling rather than silently missing a socket.
-			var dotted := bone.replace("_L", ".L").replace("_R", ".R")
-			if skeleton.find_bone(dotted) >= 0:
-				bone = dotted
-			else:
-				continue
+			push_warning("Hero skeleton has no bone %s for %s" % [bone, socket_name])
+			continue
 		var attachment := BoneAttachment3D.new()
 		attachment.name = socket_name
 		attachment.bone_name = bone
@@ -508,12 +508,21 @@ func _spawn_water_splash() -> void:
 	tw.tween_property(ring_mat, "albedo_color:a", 0.0, 1.0)
 	tw.chain().tween_callback(fx.queue_free)
 
+## Highest a rider may climb here: terrain-relative over the grounds, capped
+## below the castle interior band.
+func _flight_ceiling() -> float:
+	var ground := GroundsTerrain.height_at(global_position.x, global_position.z)
+	if is_nan(ground):
+		return FLIGHT_CEILING_Y
+	return minf(ground + FLIGHT_MAX_ABOVE_GROUND, FLIGHT_CEILING_Y)
+
+
 func _physics_process(delta: float) -> void:
-	# World Boundaries & Safeguards: fall kill-plane matches grounds y_min (-16).
-	# The lakebed (-13.5) and the swim volume (-7) both sit above it, so swimming
-	# never triggers a rescue; only a genuine void fall does.
+	# World Boundaries & Safeguards: the fall kill-plane sits below the grounds
+	# band (the lake bed is -16 m, the water line 0), so swimming never triggers a
+	# rescue; only a genuine void fall does.
 	if is_local_player and SimAuthority.is_authority() and global_position.y < KILL_PLANE_Y:
-		global_position = Vector3(0, 1.0, 5.0) # Courtyard Fountain
+		global_position = HPRules.respawn_position()
 		velocity = Vector3.ZERO
 		current_hp = max_hp
 		_spawn_floating_text("Kadim Koruma Kalkanı Seni Kurtardı!", Color(0.3, 0.8, 1.0), 1.6)
@@ -522,10 +531,9 @@ func _physics_process(delta: float) -> void:
 	# Black Lake swim state: inside the lake rect and at/below water level.
 	# The water surface now has collision, so the body stands on it instead of
 	# falling through; buoyancy + drag here make it feel like water, not stone.
-	var in_lake_rect := absf(global_position.x - LAKE_CENTER_X) <= LAKE_HALF_X \
-		and absf(global_position.z - LAKE_CENTER_Z) <= LAKE_HALF_Z
-	is_swimming = in_lake_rect and not is_mounted and global_position.y < SWIM_FLOAT_Y + 0.7 \
-		and global_position.y > WATER_SURFACE_Y - 3.0
+	is_swimming = not is_mounted and global_position.y < SWIM_FLOAT_Y + 0.7 \
+		and global_position.y > WATER_SURFACE_Y - 3.0 \
+		and GroundsLake.is_water_at(global_position.x, global_position.z)
 	if is_swimming != _was_swimming:
 		_was_swimming = is_swimming
 		_spawn_water_splash()
@@ -582,7 +590,7 @@ func _physics_process(delta: float) -> void:
 		var ground := _ground_below(3.0)
 		if not ground.is_empty() and global_position.y - ground.position.y < 1.4 and vertical >= 0:
 			vertical = 0.5
-		if global_position.y > 45.0:
+		if global_position.y > _flight_ceiling():
 			vertical = minf(vertical, -0.5)
 		velocity.y = move_toward(velocity.y, vertical * 7.0, delta * 18.0)
 	elif not input_blocked() and _intent_jump_edge() and not is_swimming:
@@ -1242,7 +1250,11 @@ func _play_cast_animation(anim_name: String = "Spellcast_Shoot", aim: Variant = 
 	is_casting_anim = true
 	_cast_generation += 1
 	var generation := _cast_generation
-	if spell in ["protego", "ultimate"]:
+	# A wand cast is one-handed (the wand hand). The power spells add the off
+	# hand: wand raised back, both hands thrust together.
+	if spell in HEAVY_CAST_SPELLS:
+		anim_name = "Spellcast_Heavy"
+	elif spell == "protego":
 		anim_name = "Spellcast_Raise"
 	var upper := anim_name + "_Upper"
 	var hold := 0.42

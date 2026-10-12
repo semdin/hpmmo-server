@@ -109,7 +109,9 @@ func _placement_refusal(anchor: Vector3, pack: Dictionary) -> String:
 	# dynamic ones (other packs, players): a refusal names the most fundamental
 	# reason, which is what the checks below assert on.
 	for offset in pack.get("offsets", []):
-		var point: Vector3 = anchor + offset
+		var point := _on_ground(anchor + offset)
+		if GroundsLake.is_water_at(point.x, point.z):
+			return "water"
 		if HPRules.is_spawn_blocked(point):
 			return "safe_zone"
 		var excluded := HPRules.exclusion_at(point)
@@ -130,8 +132,8 @@ func _placement_refusal(anchor: Vector3, pack: Dictionary) -> String:
 			return "player_nearby"
 	return ""
 
-## Standable ground: a floor hit with a sane normal, and not perched on shaped
-## terrain (cliffs). The flat playable core sits at y ~ 0; a hill is rejected.
+## Standable ground: a floor hit with a sane normal (no cliffs), within a step
+## of the terrain height at that spot (not on a roof or a rock).
 func _ground_ok(point: Vector3) -> bool:
 	var space := container.get_world_3d().direct_space_state
 	var from := point + Vector3.UP * 3.0
@@ -139,10 +141,19 @@ func _ground_ok(point: Vector3) -> bool:
 	var query := PhysicsRayQueryParameters3D.create(from, to, 1)
 	var hit := space.intersect_ray(query)
 	if hit.is_empty():
+		# Also the answer far from a client's camera, where the terrain has no
+		# collision yet: the pack defers until someone is near enough for its
+		# members to have ground to stand on.
 		return false
 	if (hit["normal"] as Vector3).dot(Vector3.UP) < 0.72:
 		return false
 	return absf((hit["position"] as Vector3).y - point.y) <= 1.2
+
+## The point dropped onto the grounds terrain (+0.1 m); unchanged where there is
+## no terrain (e.g. a test world without the grounds).
+func _on_ground(point: Vector3) -> Vector3:
+	var h := GroundsTerrain.height_at(point.x, point.z)
+	return point if is_nan(h) else Vector3(point.x, h + 0.1, point.z)
 
 func _member_clear_of_geometry(point: Vector3) -> bool:
 	var shape := SphereShape3D.new()
@@ -171,8 +182,8 @@ func _sample_anchor(pack: Dictionary) -> Vector3:
 	var attempts := int(HPRules.pack_tuning("placement_attempts", 40.0))
 	var area: Rect2 = pack["area"]
 	for _attempt in range(attempts):
-		var point := Vector3(rng.randf_range(area.position.x, area.end.x), 0.1,
-			rng.randf_range(area.position.y, area.end.y))
+		var point := _on_ground(Vector3(rng.randf_range(area.position.x, area.end.x), 0.0,
+			rng.randf_range(area.position.y, area.end.y)))
 		if not _formation_clear(point, int(pack["count"])):
 			continue
 		if _placement_refusal(point, pack) != "":
@@ -217,7 +228,7 @@ func _spawn_pack(index: int) -> void:
 		if members.size() <= i:
 			var mob = pack.scene.instantiate()
 			mob.name = "Pack%dMember%d" % [index + 1, i]
-			mob.position = anchor + offset
+			mob.position = _on_ground(anchor + offset)
 			mob.pack_anchor = anchor
 			mob.pack_id = int(pack.get("pack_id", index + 1))
 			mob.managed_respawn = true
@@ -245,7 +256,7 @@ func _spawn_pack(index: int) -> void:
 			SimAuthority.register_mob(mob, int(pack.get("pack_id", index + 1)), String(pack.get("zone", "")))
 		else:
 			var mob = members[i]
-			mob.spawn_point = anchor + offset
+			mob.spawn_point = _on_ground(anchor + offset)
 			mob.pack_anchor = anchor
 			mob.escort_count = int(pack.get("escorts", 0))
 			mob._respawn()

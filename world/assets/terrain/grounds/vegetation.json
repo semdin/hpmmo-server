@@ -1,0 +1,397 @@
+{
+ "_comment": "Vegetation and rock catalogue for the grounds. scatter.py splits each scatter kind's points among its variants (weights) and writes one instance file per variant; the client build (tools/terrain/build_grounds.gd) cooks each variant's game model (tools/terrain/cook_vegetation.gd) and registers it with the Terrain3D instancer. `scale` multiplies the scatter scale (the source scans are life-size; the broadleaf scans are young trees). `collider` makes trunks/boulders solid for players and mobs (server and client build the same colliders from the same files). LOD distances are metres: [LOD0 end, LOD1 end, visibility end].",
+ "kinds": {
+  "tree_pine": {
+   "variants": {
+    "fir_a": 1.0,
+    "fir_b": 1.0,
+    "pine_a": 0.9,
+    "pine_b": 0.9,
+    "pine_c": 0.7
+   }
+  },
+  "tree_broad": {
+   "variants": {
+    "broadleaf_a": 1.0,
+    "broadleaf_b": 1.0
+   }
+  },
+  "tree_pine_sparse": {
+   "variants": {
+    "pine_c": 1.0,
+    "fir_c": 1.0
+   }
+  },
+  "bush": {
+   "variants": {
+    "fern_a": 1.0,
+    "fern_b": 1.0,
+    "shrub": 0.6
+   }
+  },
+  "rock": {
+   "variants": {
+    "rock_boulder": 1.0,
+    "rock_slab": 0.8,
+    "rock_moss_a0": 0.6,
+    "rock_moss_a1": 0.6,
+    "rock_moss_a2": 0.6,
+    "rock_moss_b0": 0.6,
+    "rock_moss_b1": 0.6,
+    "rock_moss_b2": 0.6
+   }
+  },
+  "deadwood": {
+   "variants": {
+    "stump": 1.0,
+    "log": 0.7
+   }
+  }
+ },
+ "variants": {
+  "fir_a": {
+   "model": "fir_a",
+   "scale": 1.0,
+   "leaf_tint": [
+    0.36,
+    0.46,
+    0.31
+   ],
+   "wood_tint": [
+    0.85,
+    0.8,
+    0.76
+   ],
+   "lod": [
+    36,
+    130,
+    1100
+   ],
+   "collider": {
+    "radius": 0.32,
+    "height": 6.0
+   }
+  },
+  "fir_b": {
+   "model": "fir_b",
+   "scale": 1.0,
+   "leaf_tint": [
+    0.34,
+    0.44,
+    0.3
+   ],
+   "wood_tint": [
+    0.85,
+    0.8,
+    0.76
+   ],
+   "lod": [
+    36,
+    130,
+    1100
+   ],
+   "collider": {
+    "radius": 0.3,
+    "height": 6.0
+   }
+  },
+  "fir_c": {
+   "model": "fir_c",
+   "scale": 1.0,
+   "leaf_tint": [
+    0.39,
+    0.48,
+    0.33
+   ],
+   "wood_tint": [
+    0.85,
+    0.8,
+    0.76
+   ],
+   "lod": [
+    36,
+    130,
+    1100
+   ],
+   "collider": {
+    "radius": 0.25,
+    "height": 6.0
+   }
+  },
+  "pine_a": {
+   "model": "pine_a",
+   "scale": 1.0,
+   "leaf_tint": [
+    0.42,
+    0.5,
+    0.34
+   ],
+   "wood_tint": [
+    0.9,
+    0.8,
+    0.72
+   ],
+   "lod": [
+    36,
+    130,
+    1100
+   ],
+   "collider": {
+    "radius": 0.3,
+    "height": 6.0
+   }
+  },
+  "pine_b": {
+   "model": "pine_b",
+   "scale": 1.0,
+   "leaf_tint": [
+    0.42,
+    0.5,
+    0.34
+   ],
+   "wood_tint": [
+    0.9,
+    0.8,
+    0.72
+   ],
+   "lod": [
+    36,
+    130,
+    1100
+   ],
+   "collider": {
+    "radius": 0.28,
+    "height": 6.0
+   }
+  },
+  "pine_c": {
+   "model": "pine_c",
+   "scale": 1.0,
+   "leaf_tint": [
+    0.42,
+    0.5,
+    0.34
+   ],
+   "wood_tint": [
+    0.9,
+    0.8,
+    0.72
+   ],
+   "lod": [
+    36,
+    130,
+    1100
+   ],
+   "collider": {
+    "radius": 0.28,
+    "height": 6.0
+   }
+  },
+  "broadleaf_a": {
+   "model": "broadleaf_a",
+   "scale": 2.1,
+   "leaf_tint": [
+    0.62,
+    0.7,
+    0.5
+   ],
+   "wood_tint": [
+    0.85,
+    0.8,
+    0.76
+   ],
+   "lod": [
+    32,
+    110,
+    800
+   ],
+   "collider": {
+    "radius": 0.22,
+    "height": 4.0
+   }
+  },
+  "broadleaf_b": {
+   "model": "broadleaf_b",
+   "scale": 2.2,
+   "leaf_tint": [
+    0.6,
+    0.68,
+    0.48
+   ],
+   "wood_tint": [
+    0.85,
+    0.8,
+    0.76
+   ],
+   "lod": [
+    32,
+    110,
+    800
+   ],
+   "collider": {
+    "radius": 0.45,
+    "height": 4.0
+   }
+  },
+  "fern_a": {
+   "model": "fern_a",
+   "scale": 1.3,
+   "leaf_tint": [
+    0.7,
+    0.78,
+    0.62
+   ],
+   "lod": [
+    18,
+    45,
+    70
+   ]
+  },
+  "fern_b": {
+   "model": "fern_b",
+   "scale": 1.3,
+   "leaf_tint": [
+    0.7,
+    0.78,
+    0.62
+   ],
+   "lod": [
+    18,
+    45,
+    70
+   ]
+  },
+  "shrub": {
+   "model": "shrub",
+   "scale": 2.6,
+   "leaf_tint": [
+    0.7,
+    0.76,
+    0.6
+   ],
+   "lod": [
+    20,
+    50,
+    80
+   ]
+  },
+  "rock_boulder": {
+   "model": "rock_boulder",
+   "scale": 1.0,
+   "lod": [
+    45,
+    160,
+    600
+   ],
+   "collider": {
+    "sphere": 0.6
+   }
+  },
+  "rock_slab": {
+   "model": "rock_slab",
+   "scale": 1.2,
+   "lod": [
+    45,
+    160,
+    600
+   ],
+   "collider": {
+    "sphere": 0.45
+   }
+  },
+  "rock_moss_a0": {
+   "model": "rock_moss_a0",
+   "scale": 0.8,
+   "lod": [
+    45,
+    160,
+    600
+   ],
+   "collider": {
+    "sphere": 0.8
+   }
+  },
+  "rock_moss_a1": {
+   "model": "rock_moss_a1",
+   "scale": 0.8,
+   "lod": [
+    45,
+    160,
+    600
+   ],
+   "collider": {
+    "sphere": 0.8
+   }
+  },
+  "rock_moss_a2": {
+   "model": "rock_moss_a2",
+   "scale": 0.8,
+   "lod": [
+    45,
+    160,
+    600
+   ],
+   "collider": {
+    "sphere": 0.8
+   }
+  },
+  "rock_moss_b0": {
+   "model": "rock_moss_b0",
+   "scale": 1.0,
+   "lod": [
+    45,
+    160,
+    600
+   ],
+   "collider": {
+    "sphere": 0.6
+   }
+  },
+  "rock_moss_b1": {
+   "model": "rock_moss_b1",
+   "scale": 1.0,
+   "lod": [
+    45,
+    160,
+    600
+   ],
+   "collider": {
+    "sphere": 0.6
+   }
+  },
+  "rock_moss_b2": {
+   "model": "rock_moss_b2",
+   "scale": 1.0,
+   "lod": [
+    45,
+    160,
+    600
+   ],
+   "collider": {
+    "sphere": 0.6
+   }
+  },
+  "stump": {
+   "model": "stump",
+   "scale": 1.0,
+   "lod": [
+    30,
+    80,
+    160
+   ],
+   "collider": {
+    "radius": 0.45,
+    "height": 0.6
+   }
+  },
+  "log": {
+   "model": "log",
+   "scale": 1.0,
+   "lod": [
+    30,
+    80,
+    160
+   ]
+  }
+ }
+}

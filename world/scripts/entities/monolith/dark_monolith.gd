@@ -135,6 +135,9 @@ func _spawn_wave(wave_num: int, target_player: Node3D) -> void:
 			var angle := rng.randf() * TAU
 			var dist := rng.randf_range(dist_min, dist_max)
 			var spawn_pos := global_position + Vector3(cos(angle) * dist, 0.5, sin(angle) * dist)
+			var ground := GroundsTerrain.height_at(spawn_pos.x, spawn_pos.z)
+			if not is_nan(ground):
+				spawn_pos.y = ground + 0.3
 			mob.position = get_parent().to_local(spawn_pos)
 			mob.summoned = true
 			mob.level = int(group.get("level", 12))

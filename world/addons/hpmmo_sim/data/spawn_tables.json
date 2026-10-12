@@ -87,9 +87,9 @@
       "id": "courtyard",
       "center": [
         0.0,
-        0.0
+        65.0
       ],
-      "radius": 40.0,
+      "radius": 45.0,
       "weight": 0.0,
       "pack_count": 0,
       "spawn_area": [
@@ -103,9 +103,9 @@
       "id": "castle",
       "center": [
         0.0,
-        -80.0
+        -40.0
       ],
-      "radius": 48.0,
+      "radius": 95.0,
       "weight": 0.0,
       "pack_count": 0,
       "spawn_area": [
@@ -118,113 +118,113 @@
     {
       "id": "village",
       "center": [
-        35.0,
-        20.0
+        520.0,
+        10.0
       ],
-      "radius": 28.0,
+      "radius": 30.0,
       "weight": 1.0,
       "pack_count": 1,
       "spawn_area": [
-        20.0,
-        9.0,
-        26.0,
-        22.0
+        506.0,
+        -4.0,
+        28.0,
+        28.0
       ]
     },
     {
       "id": "forest_sw",
       "center": [
-        17.0,
-        -25.0
+        -345.0,
+        30.0
       ],
       "radius": 30.0,
       "weight": 1.0,
       "pack_count": 1,
       "spawn_area": [
-        10.0,
-        -40.0,
+        -359.0,
+        16.0,
         28.0,
-        24.0
+        28.0
       ]
     },
     {
       "id": "forest_e",
       "center": [
-        46.0,
-        -57.0
+        -400.0,
+        -440.0
       ],
-      "radius": 26.0,
+      "radius": 30.0,
       "weight": 1.0,
       "pack_count": 1,
       "spawn_area": [
-        34.0,
-        -72.0,
-        24.0,
-        20.0
+        -414.0,
+        -454.0,
+        28.0,
+        28.0
       ]
     },
     {
       "id": "forest_w",
       "center": [
-        -37.0,
-        -28.0
+        -540.0,
+        -10.0
       ],
-      "radius": 30.0,
+      "radius": 60.0,
       "weight": 1.0,
       "pack_count": 1,
       "spawn_area": [
-        -52.0,
-        -43.0,
-        26.0,
-        24.0
+        -554.0,
+        -24.0,
+        28.0,
+        28.0
       ]
     },
     {
       "id": "forest_deep",
       "center": [
-        -69.0,
-        -48.0
+        -690.0,
+        -230.0
       ],
       "radius": 30.0,
       "weight": 1.0,
       "pack_count": 1,
       "spawn_area": [
-        -84.0,
-        -64.0,
-        26.0,
-        24.0
+        -704.0,
+        -244.0,
+        28.0,
+        28.0
       ]
     },
     {
       "id": "boss_w",
       "center": [
-        -91.0,
-        -74.0
+        -700.0,
+        430.0
       ],
       "radius": 30.0,
       "weight": 1.0,
       "pack_count": 1,
       "spawn_area": [
-        -104.0,
-        -88.0,
-        26.0,
-        26.0
+        -714.0,
+        416.0,
+        28.0,
+        28.0
       ]
     },
     {
       "id": "boss_e",
       "center": [
-        53.0,
-        -91.0
+        -440.0,
+        -690.0
       ],
       "radius": 30.0,
       "weight": 1.0,
       "pack_count": 1,
       "spawn_area": [
-        40.0,
-        -104.0,
-        26.0,
-        26.0
+        -454.0,
+        -704.0,
+        28.0,
+        28.0
       ]
     }
   ],
@@ -236,10 +236,10 @@
       "template": "pack_three",
       "zone": "forest_sw",
       "area": [
-        17.0,
-        -33.0,
-        15.0,
-        15.0
+        -354.0,
+        21.0,
+        18.0,
+        18.0
       ],
       "mob": "inferi",
       "level": 3,
@@ -255,10 +255,10 @@
       "template": "pack_three",
       "zone": "village",
       "area": [
-        8.0,
-        31.0,
-        19.0,
-        15.0
+        511.0,
+        1.0,
+        18.0,
+        18.0
       ],
       "mob": "acromantula",
       "level": 4,
@@ -274,10 +274,10 @@
       "template": "pack_five",
       "zone": "forest_w",
       "area": [
-        -37.0,
-        -28.0,
-        14.0,
-        16.0
+        -529.0,
+        -69.0,
+        18.0,
+        18.0
       ],
       "mob": "acromantula",
       "level": 8,
@@ -293,10 +293,10 @@
       "template": "pack_three",
       "zone": "forest_e",
       "area": [
-        46.0,
-        -57.0,
-        17.0,
-        15.0
+        -409.0,
+        -449.0,
+        18.0,
+        18.0
       ],
       "mob": "darksnatcher",
       "level": 12,
@@ -312,10 +312,10 @@
       "template": "pack_five",
       "zone": "forest_deep",
       "area": [
-        -69.0,
-        -48.0,
-        16.0,
-        19.0
+        -699.0,
+        -239.0,
+        18.0,
+        18.0
       ],
       "mob": "inferi",
       "level": 14,
@@ -331,8 +331,8 @@
       "template": "boss_solo",
       "zone": "boss_w",
       "area": [
-        -91.0,
-        -74.0,
+        -708.0,
+        422.0,
         16.0,
         16.0
       ],
@@ -351,10 +351,10 @@
       "template": "boss_escorted",
       "zone": "boss_e",
       "area": [
-        53.0,
-        -91.0,
+        -449.0,
+        -699.0,
         18.0,
-        15.0
+        18.0
       ],
       "mob": "darksnatcher",
       "level": 20,
@@ -383,10 +383,10 @@
         }
       ],
       "area": [
-        -37.0,
-        -28.0,
-        14.0,
-        16.0
+        -569.0,
+        31.0,
+        18.0,
+        18.0
       ],
       "mob": "acromantula",
       "level": 9,
@@ -398,19 +398,8 @@
       "_dormant": true
     }
   ],
-  "_exclusions_note": "Volumes an encounter formation may never occupy (Creature pass placement rule): water the mobs cannot stand in, and arrival pads fed by map portals. Safe zones and their buffer come from safe_zones.json.",
+  "_exclusions_note": "Authored keep-outs on the new grounds. Lake water needs no entry: the encounter director rejects any point over water (GroundsLake.is_water_at) and steep ground.",
   "exclusions": [
-    {
-      "id": "black_lake",
-      "kind": "water",
-      "shape": "cylinder",
-      "center": [
-        -38.0,
-        0.0,
-        30.0
-      ],
-      "radius": 21.0
-    },
     {
       "id": "courtyard_fountain",
       "kind": "water",
@@ -418,9 +407,9 @@
       "center": [
         0.0,
         0.0,
-        0.0
+        65.0
       ],
-      "radius": 4.0
+      "radius": 4.5
     },
     {
       "id": "castle_door_arrival",
@@ -429,9 +418,20 @@
       "center": [
         0.0,
         0.0,
-        -40.0
+        14.0
       ],
       "radius": 6.0
+    },
+    {
+      "id": "castle",
+      "kind": "structure",
+      "shape": "cylinder",
+      "center": [
+        0.0,
+        0.0,
+        -40.0
+      ],
+      "radius": 80.0
     }
   ],
   "pack_tuning": {
@@ -480,36 +480,36 @@
     {
       "id": 1,
       "pos": [
-        44.0,
-        0.0,
-        -76.0
+        -330.0,
+        46.22,
+        -560.0
       ],
       "zone": "forest_e"
     },
     {
       "id": 2,
       "pos": [
-        45.0,
-        0.0,
-        -25.0
+        -600.0,
+        17.6,
+        280.0
       ],
       "zone": "forest_sw"
     },
     {
       "id": 3,
       "pos": [
-        -45.0,
-        0.0,
-        -28.0
+        -600.0,
+        26.54,
+        10.0
       ],
       "zone": "forest_w"
     },
     {
       "id": 4,
       "pos": [
-        -58.0,
-        0.0,
-        -50.0
+        -760.0,
+        20.94,
+        -300.0
       ],
       "zone": "forest_deep"
     }
@@ -580,25 +580,25 @@
     {
       "id": 1,
       "pos": [
-        -14.0,
-        0.0,
-        -2.0
+        97.0,
+        57.73,
+        72.0
       ]
     },
     {
       "id": 2,
       "pos": [
-        -11.0,
-        0.0,
-        -2.0
+        105.0,
+        58.03,
+        74.0
       ]
     },
     {
       "id": 3,
       "pos": [
-        -8.0,
-        0.0,
-        -2.0
+        113.0,
+        58.31,
+        76.0
       ]
     }
   ],

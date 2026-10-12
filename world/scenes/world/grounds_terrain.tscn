@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/grounds_terrain.gd" id="1_script"]
+
+[node name="GroundsTerrain" type="Terrain3D"]
+data_directory = "res://assets/terrain/grounds/data"
+script = ExtResource("1_script")

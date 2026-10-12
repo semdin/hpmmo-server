@@ -96,6 +96,52 @@ const PBR_SETS := {
 		"maps": {"albedo": "diff", "normal": "nor_gl", "rough": "rough", "ao": "ao"},
 		"metres": 3.0, "source": "polyhaven-cc0",
 	},
+	# Grounds pass (2026-10-12): castle exterior, Hogsmeade and outdoor sites.
+	"castle_wall_varriation": {
+		"dir": "res://assets/textures/pbr/castle_wall_varriation", "res": "2k", "ext": "jpg",
+		"maps": {"albedo": "diff", "normal": "nor_gl", "rough": "rough", "ao": "ao"},
+		"metres": 4.0, "source": "polyhaven-cc0",
+	},
+	"roof_slates_02": {
+		"dir": "res://assets/textures/pbr/roof_slates_02", "res": "2k", "ext": "jpg",
+		"maps": {"albedo": "diff", "normal": "nor_gl", "rough": "rough", "ao": "ao"},
+		"metres": 3.0, "source": "polyhaven-cc0",
+	},
+	"medieval_wood": {
+		"dir": "res://assets/textures/pbr/medieval_wood", "res": "2k", "ext": "jpg",
+		"maps": {"albedo": "diff", "normal": "nor_gl", "rough": "rough", "ao": "ao"},
+		"metres": 2.5, "source": "polyhaven-cc0",
+	},
+	"white_rough_plaster": {
+		"dir": "res://assets/textures/pbr/white_rough_plaster", "res": "2k", "ext": "jpg",
+		"maps": {"albedo": "diff", "normal": "nor_gl", "rough": "rough", "ao": "ao"},
+		"metres": 3.0, "source": "polyhaven-cc0",
+	},
+	"wooden_planks": {
+		"dir": "res://assets/textures/pbr/wooden_planks", "res": "2k", "ext": "jpg",
+		"maps": {"albedo": "diff", "normal": "nor_gl", "rough": "rough", "ao": "ao"},
+		"metres": 2.5, "source": "polyhaven-cc0",
+	},
+	"mossy_stone_wall": {
+		"dir": "res://assets/textures/pbr/mossy_stone_wall", "res": "2k", "ext": "jpg",
+		"maps": {"albedo": "diff", "normal": "nor_gl", "rough": "rough", "ao": "ao"},
+		"metres": 3.0, "source": "polyhaven-cc0",
+	},
+	"cobblestone_floor_04": {
+		"dir": "res://assets/textures/pbr/cobblestone_floor_04", "res": "2k", "ext": "jpg",
+		"maps": {"albedo": "diff", "normal": "nor_gl", "rough": "rough", "ao": "ao"},
+		"metres": 4.0, "source": "polyhaven-cc0",
+	},
+	"stone_wall": {
+		"dir": "res://assets/textures/pbr/stone_wall", "res": "2k", "ext": "jpg",
+		"maps": {"albedo": "diff", "normal": "nor_gl", "rough": "rough", "ao": "ao"},
+		"metres": 4.0, "source": "polyhaven-cc0",
+	},
+	"grey_roof_tiles": {
+		"dir": "res://assets/textures/pbr/grey_roof_tiles", "res": "2k", "ext": "jpg",
+		"maps": {"albedo": "diff", "normal": "nor_gl", "rough": "rough", "ao": "ao"},
+		"metres": 3.0, "source": "polyhaven-cc0",
+	},
 }
 
 # ------------------------------------------------------------------ slots

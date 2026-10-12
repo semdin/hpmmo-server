@@ -1,0 +1,947 @@
+{
+ "meta": {
+  "title": "Hogwarts Grounds - 2x2 km layout v1",
+  "size_m": 2048,
+  "min_xz": [
+   -1024,
+   -1024
+  ],
+  "cell_m": 1.0,
+  "axes": "Godot: +x east, +z south, north is -z",
+  "vertical_datum": "Black Lake surface = 0 m",
+  "y_range": [
+   -18,
+   165
+  ],
+  "notes": "Grounds map y-band must stay below 185 (castle interior band). Flight ceiling becomes terrain-relative with an absolute cap at 170."
+ },
+ "base": {
+  "meadow_y": 24,
+  "noise_amp": 14,
+  "north_rise": {
+   "from_z": -330,
+   "to_z": -880,
+   "add_y": 70
+  },
+  "mountain_ring": {
+   "inner": 760,
+   "outer": 990,
+   "target_y": 122,
+   "height_var_m": 24,
+   "ridge_amp": 26,
+   "warp_m": 110,
+   "soft_cap_from": 145,
+   "note": "Raises the ground TOWARD target_y (+variation, ridges); never lowers it, so the north rise does not stack on top. Heights above soft_cap_from are compressed smoothly into y_range[1]."
+  }
+ },
+ "lake": {
+  "id": "black_lake",
+  "name": "Kara Göl",
+  "center": [
+   0,
+   330
+  ],
+  "radii": [
+   560,
+   300
+  ],
+  "surface_y": 0,
+  "bed_y": -16,
+  "shelf_m": 70,
+  "beach_band_m": 60,
+  "shore_y": 2.0,
+  "shore_noise": 0.08
+ },
+ "features": [
+  {
+   "id": "castle_promontory",
+   "kind": "plateau",
+   "center": [
+    0,
+    20
+   ],
+   "radius": 150,
+   "falloff": 34,
+   "y": 58,
+   "noise": 1.0,
+   "edge_noise": 0.16,
+   "ledges": 3
+  },
+  {
+   "id": "greenhouse_terrace",
+   "kind": "plateau",
+   "center": [
+    -175,
+    -120
+   ],
+   "radius": 55,
+   "falloff": 45,
+   "y": 46
+  },
+  {
+   "id": "hagrid_glade",
+   "kind": "plateau",
+   "center": [
+    -280,
+    -20
+   ],
+   "radius": 55,
+   "falloff": 70,
+   "y": 22
+  },
+  {
+   "id": "quidditch_meadow",
+   "kind": "plateau",
+   "center": [
+    330,
+    -330
+   ],
+   "radius": 125,
+   "falloff": 90,
+   "y": 32
+  },
+  {
+   "id": "hogsmeade_plateau",
+   "kind": "plateau",
+   "center": [
+    680,
+    -140
+   ],
+   "radius": 170,
+   "falloff": 120,
+   "y": 38,
+   "noise": 1.5,
+   "edge_noise": 0.12
+  },
+  {
+   "id": "station_shore",
+   "kind": "plateau",
+   "center": [
+    610,
+    260
+   ],
+   "radius": 55,
+   "falloff": 60,
+   "y": 3
+  },
+  {
+   "id": "boathouse",
+   "kind": "plateau",
+   "center": [
+    -190,
+    64
+   ],
+   "radius": 22,
+   "falloff": 14,
+   "y": 1.0
+  },
+  {
+   "id": "highlands_top",
+   "kind": "hill",
+   "center": [
+    280,
+    -760
+   ],
+   "radius": 70,
+   "falloff": 140,
+   "y": 116
+  },
+  {
+   "id": "smugglers_ridge",
+   "kind": "hill",
+   "center": [
+    -440,
+    -720
+   ],
+   "radius": 85,
+   "falloff": 120,
+   "y": 100,
+   "noise": 4.0,
+   "edge_noise": 0.25
+  },
+  {
+   "id": "crypt_knoll",
+   "kind": "hill",
+   "center": [
+    -640,
+    -180
+   ],
+   "radius": 35,
+   "falloff": 70,
+   "y": 42
+  },
+  {
+   "id": "spider_hollow",
+   "kind": "hollow",
+   "center": [
+    -700,
+    430
+   ],
+   "radius": 85,
+   "falloff": 70,
+   "y": 11
+  },
+  {
+   "id": "forest_roughness",
+   "kind": "region_noise",
+   "region": "forbidden_forest",
+   "amp": 11
+  }
+ ],
+ "regions": [
+  {
+   "id": "forbidden_forest",
+   "name": "Yasak Orman",
+   "biome": "forest",
+   "polygon": [
+    [
+     -300,
+     -450
+    ],
+    [
+     -1024,
+     -560
+    ],
+    [
+     -1024,
+     1024
+    ],
+    [
+     -120,
+     1024
+    ],
+    [
+     -230,
+     690
+    ],
+    [
+     -330,
+     140
+    ],
+    [
+     -330,
+     -160
+    ]
+   ]
+  },
+  {
+   "id": "north_moor",
+   "name": "Yaylalar",
+   "biome": "moor",
+   "polygon": [
+    [
+     -150,
+     -520
+    ],
+    [
+     1024,
+     -520
+    ],
+    [
+     1024,
+     -1024
+    ],
+    [
+     -150,
+     -1024
+    ]
+   ]
+  },
+  {
+   "id": "hogsmeade",
+   "name": "Hogsmeade",
+   "biome": "village",
+   "polygon": [
+    [
+     540,
+     -280
+    ],
+    [
+     820,
+     -280
+    ],
+    [
+     820,
+     0
+    ],
+    [
+     540,
+     0
+    ]
+   ]
+  }
+ ],
+ "roads": [
+  {
+   "id": "castle_east",
+   "width": 6,
+   "points": [
+    [
+     0,
+     65
+    ],
+    [
+     95,
+     45
+    ],
+    [
+     170,
+     -15
+    ],
+    [
+     255,
+     -130
+    ],
+    [
+     320,
+     -250
+    ],
+    [
+     470,
+     -210
+    ],
+    [
+     600,
+     -160
+    ],
+    [
+     680,
+     -140
+    ]
+   ]
+  },
+  {
+   "id": "castle_west",
+   "width": 5,
+   "points": [
+    [
+     0,
+     65
+    ],
+    [
+     -90,
+     30
+    ],
+    [
+     -180,
+     -10
+    ],
+    [
+     -280,
+     -20
+    ]
+   ]
+  },
+  {
+   "id": "forest_trail",
+   "width": 4,
+   "points": [
+    [
+     -280,
+     -20
+    ],
+    [
+     -420,
+     -60
+    ],
+    [
+     -520,
+     -90
+    ],
+    [
+     -640,
+     -180
+    ]
+   ]
+  },
+  {
+   "id": "hogsmeade_station",
+   "width": 5,
+   "points": [
+    [
+     680,
+     -140
+    ],
+    [
+     705,
+     0
+    ],
+    [
+     665,
+     150
+    ],
+    [
+     610,
+     260
+    ]
+   ]
+  },
+  {
+   "id": "highlands_path",
+   "width": 3,
+   "points": [
+    [
+     680,
+     -140
+    ],
+    [
+     570,
+     -400
+    ],
+    [
+     410,
+     -620
+    ],
+    [
+     480,
+     -660
+    ],
+    [
+     440,
+     -740
+    ],
+    [
+     340,
+     -720
+    ],
+    [
+     280,
+     -760
+    ]
+   ],
+   "max_grade_deg": 20,
+   "max_cut_m": 5.0
+  },
+  {
+   "id": "ridge_path",
+   "width": 3,
+   "points": [
+    [
+     -420,
+     -60
+    ],
+    [
+     -400,
+     -300
+    ],
+    [
+     -420,
+     -500
+    ],
+    [
+     -500,
+     -560
+    ],
+    [
+     -370,
+     -600
+    ],
+    [
+     -470,
+     -660
+    ],
+    [
+     -440,
+     -720
+    ]
+   ],
+   "max_grade_deg": 20,
+   "max_cut_m": 5.0
+  },
+  {
+   "id": "hollow_path",
+   "width": 3,
+   "points": [
+    [
+     -520,
+     -90
+    ],
+    [
+     -560,
+     150
+    ],
+    [
+     -640,
+     320
+    ],
+    [
+     -700,
+     430
+    ]
+   ]
+  },
+  {
+   "id": "greenhouse_path",
+   "width": 3,
+   "points": [
+    [
+     -90,
+     30
+    ],
+    [
+     -140,
+     -60
+    ],
+    [
+     -175,
+     -120
+    ]
+   ]
+  },
+  {
+   "id": "boathouse_stairs",
+   "width": 3,
+   "points": [
+    [
+     -110,
+     80
+    ],
+    [
+     -150,
+     70
+    ],
+    [
+     -190,
+     64
+    ]
+   ],
+   "stairs": true
+  }
+ ],
+ "landmarks": [
+  {
+   "id": "castle",
+   "name": "Şato (dış kabuk)",
+   "pos": [
+    0,
+    -55
+   ]
+  },
+  {
+   "id": "courtyard",
+   "name": "Avlu · doğma",
+   "pos": [
+    0,
+    65
+   ]
+  },
+  {
+   "id": "castle_door",
+   "name": "Şato kapısı (portal)",
+   "pos": [
+    0,
+    5
+   ]
+  },
+  {
+   "id": "training",
+   "name": "Antrenman alanı",
+   "pos": [
+    105,
+    74
+   ]
+  },
+  {
+   "id": "greenhouses",
+   "name": "Seralar",
+   "pos": [
+    -175,
+    -120
+   ]
+  },
+  {
+   "id": "boathouse",
+   "name": "Kayıkhane",
+   "pos": [
+    -190,
+    64
+   ]
+  },
+  {
+   "id": "hagrid_hut",
+   "name": "Hagrid'in kulübesi",
+   "pos": [
+    -280,
+    -20
+   ]
+  },
+  {
+   "id": "quidditch",
+   "name": "Quidditch sahası",
+   "pos": [
+    330,
+    -330
+   ]
+  },
+  {
+   "id": "hogsmeade_square",
+   "name": "Hogsmeade meydanı",
+   "pos": [
+    680,
+    -140
+   ]
+  },
+  {
+   "id": "station",
+   "name": "Hogsmeade istasyonu",
+   "pos": [
+    610,
+    260
+   ]
+  },
+  {
+   "id": "stone_circle",
+   "name": "Yayla taş çemberi",
+   "pos": [
+    280,
+    -760
+   ]
+  },
+  {
+   "id": "smugglers_camp",
+   "name": "Kaçakçı Sırtı · Commander",
+   "pos": [
+    -440,
+    -720
+   ]
+  },
+  {
+   "id": "spider_hollow",
+   "name": "Örümcek Çukuru · Matriarch",
+   "pos": [
+    -700,
+    430
+   ]
+  },
+  {
+   "id": "crypt",
+   "name": "Lanetli Mahzen",
+   "pos": [
+    -640,
+    -180
+   ]
+  }
+ ],
+ "gameplay_migration": {
+  "spawn_points": {
+   "courtyard": [
+    [
+     0,
+     0.5,
+     5
+    ],
+    [
+     0,
+     65
+    ]
+   ],
+   "castle_approach": [
+    [
+     0,
+     0.6,
+     -40
+    ],
+    [
+     0,
+     20
+    ]
+   ],
+   "castle_landing_pad": [
+    [
+     0,
+     0.6,
+     -36
+    ],
+    [
+     40,
+     15
+    ]
+   ]
+  },
+  "safe_zones": {
+   "courtyard": [
+    [
+     0,
+     0,
+     0
+    ],
+    21,
+    [
+     0,
+     65
+    ],
+    34
+   ],
+   "castle_approach": [
+    [
+     0,
+     0,
+     -28
+    ],
+    12,
+    [
+     0,
+     15
+    ],
+    16
+   ],
+   "village_square": [
+    [
+     35,
+     0,
+     20
+    ],
+    9,
+    [
+     680,
+     -140
+    ],
+    30
+   ]
+  },
+  "npcs": {
+   "Professor Fig": [
+    [
+     -6,
+     8
+    ],
+    [
+     -12,
+     72
+    ]
+   ],
+   "Ollivander": [
+    [
+     10.5,
+     5
+    ],
+    [
+     16,
+     70
+    ]
+   ],
+   "Madam Rosmerta": [
+    [
+     35,
+     20
+    ],
+    [
+     690,
+     -125
+    ]
+   ],
+   "Hagrid": [
+    [
+     -48,
+     -18
+    ],
+    [
+     -270,
+     -5
+    ]
+   ],
+   "Madam Pince": [
+    [
+     -31,
+     -82
+    ],
+    [
+     -22,
+     20
+    ]
+   ],
+   "Professor Flitwick": [
+    [
+     26,
+     -84
+    ],
+    [
+     22,
+     20
+    ]
+   ]
+  },
+  "dummies": [
+   [
+    [
+     -14,
+     -2
+    ],
+    [
+     85,
+     48
+    ]
+   ],
+   [
+    [
+     -11,
+     -2
+    ],
+    [
+     93,
+     50
+    ]
+   ],
+   [
+    [
+     -8,
+     -2
+    ],
+    [
+     101,
+     52
+    ]
+   ]
+  ],
+  "packs": {
+   "enc_forest_sw_inferi_a": {
+    "level": 3,
+    "old": [
+     17,
+     -33
+    ],
+    "new": [
+     -345,
+     30
+    ],
+    "zone": "forest_edge"
+   },
+   "enc_village_acromantula_a": {
+    "level": 4,
+    "old": [
+     8,
+     31
+    ],
+    "new": [
+     520,
+     10
+    ],
+    "zone": "hogsmeade_outskirts"
+   },
+   "enc_forest_w_acromantula_a": {
+    "level": 8,
+    "old": [
+     -37,
+     -28
+    ],
+    "new": [
+     -520,
+     -60
+    ],
+    "zone": "forest_trail"
+   },
+   "enc_forest_w_acromantula_b": {
+    "level": 9,
+    "old": [
+     -37,
+     -28
+    ],
+    "new": [
+     -560,
+     40
+    ],
+    "zone": "forest_trail"
+   },
+   "enc_forest_e_darksnatcher_a": {
+    "level": 12,
+    "old": [
+     46,
+     -57
+    ],
+    "new": [
+     -400,
+     -440
+    ],
+    "zone": "ridge_approach"
+   },
+   "enc_forest_deep_inferi_a": {
+    "level": 14,
+    "old": [
+     -69,
+     -48
+    ],
+    "new": [
+     -690,
+     -230
+    ],
+    "zone": "cursed_crypt"
+   },
+   "enc_boss_e_commander": {
+    "level": 20,
+    "old": [
+     53,
+     -91
+    ],
+    "new": [
+     -440,
+     -720
+    ],
+    "zone": "smugglers_ridge"
+   },
+   "enc_boss_w_matriarch": {
+    "level": 25,
+    "old": [
+     -91,
+     -74
+    ],
+    "new": [
+     -700,
+     430
+    ],
+    "zone": "spider_hollow"
+   }
+  },
+  "monoliths": {
+   "1": [
+    [
+     44,
+     -76
+    ],
+    [
+     -330,
+     -560
+    ]
+   ],
+   "2": [
+    [
+     45,
+     -25
+    ],
+    [
+     -600,
+     280
+    ]
+   ],
+   "3": [
+    [
+     -45,
+     -28
+    ],
+    [
+     -600,
+     10
+    ]
+   ],
+   "4": [
+    [
+     -58,
+     -50
+    ],
+    [
+     -760,
+     -300
+    ]
+   ]
+  },
+  "portal_castle_door": [
+   [
+    0,
+    -40
+   ],
+   [
+    0,
+    5
+   ]
+  ]
+ }
+}
