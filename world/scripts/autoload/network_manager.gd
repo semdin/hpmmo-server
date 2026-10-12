@@ -233,6 +233,16 @@ func send_chat(message: String) -> void:
 		return
 	SimNet.submit_chat(message)
 
+## A system line (no speaker): the authority broadcasts it to every player, a
+## client only shows it locally. Never routed as the local player's speech.
+func system_chat(message: String) -> void:
+	if message.strip_edges().is_empty():
+		return
+	if SimAuthority.is_authority():
+		SimNet.broadcast_system_chat(message)
+	else:
+		SimAuthority.emit_signal("chat", message)
+
 ## -------------------------------------------------------------------
 ## AUTHENTICATION & CHARACTER PERSISTENCE RPCs (PostgreSQL & SQLite)
 ## -------------------------------------------------------------------

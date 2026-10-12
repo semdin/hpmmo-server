@@ -67,6 +67,12 @@ const BINDABLE_ACTIONS := {
 	"spell_4": KEY_4,
 	"spell_q": KEY_Q,
 	"spell_e": KEY_E,
+	"quickslot_1": KEY_F1,
+	"quickslot_2": KEY_F2,
+	"quickslot_3": KEY_F3,
+	"quickslot_4": KEY_F4,
+	"toggle_map": KEY_M,
+	"toggle_onboarding": KEY_J,
 }
 
 static var _instance: GameSettings = null

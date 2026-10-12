@@ -3,19 +3,41 @@ class_name SettingsUI
 
 const QualityPreset = preload("res://scripts/world/quality_preset.gd")
 
-## Interface settings screen (): graphics quality, scalable UI, key
-## rebinding, mouse sensitivity, and independent shake / flash / volume
-## controls - persisted under `user://` by `GameSettings`.
+## Settings, opened from the Esc menu: graphics quality, interface scale, mouse
+## sensitivity, screen shake and flash, the four volume buses and key
+## rebinding - persisted under `user://` by `GameSettings`.
 ##
-## While the screen is open it registers itself as a UI input blocker, so keys
-## typed here can never also cast a spell or mount the broom. Key capture is
-## explicit: a row starts listening only after its button is pressed, and the
-## very next key (or Escape to cancel) is consumed and never reaches gameplay.
+## Three tabs (Graphics, Audio, Controls) in one window sized to the screen, so
+## nothing spills off it the way the single long panel did; the key list scrolls
+## inside its tab.
+##
+## While open it registers as a UI input blocker, so keys typed here can never
+## also cast a spell or mount the broom. Key capture is explicit: a row listens
+## only after its button is pressed, and the very next key (or Escape to cancel)
+## is consumed and never reaches gameplay.
 
-const ROW_HEIGHT := 22
-const SCROLL_HEIGHT := 210
+const WINDOW_SIZE := Vector2(660, 540)
 
-var panel: Panel = null
+## Player-facing names for the bindable actions.
+const ACTION_NAMES := {
+	"move_forward": "Move forward", "move_backward": "Move backward",
+	"move_left": "Move left", "move_right": "Move right",
+	"jump": "Jump / rise", "flight_descend": "Descend (broom)",
+	"mount_broom": "Mount / dismount broom", "target_cycle": "Next target",
+	"pickup_loot": "Pick up loot", "interact": "Talk / interact",
+	"toggle_inventory": "Bag", "toggle_ollivander": "Ollivander's forge",
+	"toggle_chat": "Chat", "toggle_map": "World map", "toggle_onboarding": "Guide",
+	"spell_1": "Spell slot 1", "spell_2": "Spell slot 2", "spell_3": "Spell slot 3",
+	"spell_4": "Spell slot 4", "spell_q": "Spell slot Q", "spell_e": "Spell slot E",
+	"quickslot_1": "Quick slot 1", "quickslot_2": "Quick slot 2",
+	"quickslot_3": "Quick slot 3", "quickslot_4": "Quick slot 4",
+}
+
+## `panel` is the window card (kept under this name for the layout reports).
+var panel: Control = null
+var _window: HudWindow = null
+var _pages: Dictionary = {}
+var _tab_buttons: Dictionary = {}
 var _sliders: Dictionary = {}
 var _value_labels: Dictionary = {}
 var _bind_buttons: Dictionary = {}
@@ -31,19 +53,19 @@ var settings_written: int = 0
 
 func open() -> void:
 	_build()
-	panel.show()
+	_window.open()
 	opens += 1
 	UIFocus.block(self)
 	_refresh_all()
 
 func close() -> void:
-	if panel != null:
-		panel.hide()
+	if _window != null:
+		_window.close()
 	_listening_action = ""
 	UIFocus.unblock(self)
 
 func is_open() -> bool:
-	return panel != null and panel.visible
+	return _window != null and _window.visible
 
 func toggle() -> void:
 	if is_open():
@@ -59,145 +81,182 @@ func _build() -> void:
 	_built = true
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel = Panel.new()
+	_window = HudWindow.new("Settings", WINDOW_SIZE)
+	_window.closed.connect(func():
+		_listening_action = ""
+		UIFocus.unblock(self))
+	add_child(_window)
+	panel = _window.card
 	panel.name = "SettingsPanel"
-	panel.set_anchors_preset(Control.PRESET_CENTER)
-	UILayout.place_centred(panel, Vector2(560, 480))
-	panel.custom_minimum_size = Vector2(560, 480)
-	panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.045, 0.05, 0.075, 0.97)
-	style.border_color = Color(0.85, 0.72, 0.32, 0.95)
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(10)
-	panel.add_theme_stylebox_override("panel", style)
-	add_child(panel)
 
-	var title := _label(panel, "Settings", 20, Color(1.0, 0.88, 0.55), Vector2(44, 10))
-	title.name = "Title"
-	var title_icon := UITheme.icon_rect("ui_settings", 22.0)
-	title_icon.name = "TitleIcon"
-	title_icon.position = Vector2(14, 12)
-	panel.add_child(title_icon)
+	var tabs := HBoxContainer.new()
+	tabs.add_theme_constant_override("separation", 6)
+	_window.body.add_child(tabs)
+	var pages := MarginContainer.new()
+	pages.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_window.body.add_child(pages)
+	for spec in [["graphics", "Graphics"], ["audio", "Audio"], ["controls", "Controls"]]:
+		var key := String(spec[0])
+		var b := HudKit.button(String(spec[1]), 15)
+		b.toggle_mode = true
+		b.custom_minimum_size = Vector2(130, 34)
+		b.pressed.connect(_show_page.bind(key))
+		tabs.add_child(b)
+		_tab_buttons[key] = b
+		var page := VBoxContainer.new()
+		page.add_theme_constant_override("separation", 12)
+		page.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		pages.add_child(page)
+		_pages[key] = page
 
-	# --- graphics ---
-	var y := 46.0
-	_label(panel, "Graphics quality", 13, Color(0.88, 0.9, 0.95), Vector2(16, y + 2))
+	# --- graphics & interface ---
+	var g: VBoxContainer = _pages["graphics"]
+	g.add_child(_section("Display"))
+	var row := _row("Graphics quality")
 	_graphics = OptionButton.new()
 	_graphics.name = "GraphicsQuality"
 	_graphics.focus_mode = Control.FOCUS_NONE
-	_graphics.position = Vector2(190, y)
-	_graphics.custom_minimum_size = Vector2(288, 24)
-	_graphics.add_theme_font_size_override("font_size", 12)
+	_graphics.custom_minimum_size = Vector2(280, 32)
+	_graphics.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	HudKit.style_button(_graphics, 14)
 	for choice in GameSettings.GRAPHICS_CHOICES:
 		_graphics.add_item(_graphics_label(choice))
 	_graphics.tooltip_text = "Auto picks Low on integrated graphics and High on a dedicated GPU"
 	_graphics.item_selected.connect(_on_graphics_selected)
-	panel.add_child(_graphics)
-	y += 32
+	row.add_child(_graphics)
+	g.add_child(row)
+	g.add_child(_slider_row("ui_scale", "Interface scale", GameSettings.UI_SCALE_MIN, GameSettings.UI_SCALE_MAX, 0.05))
+	g.add_child(_section("Camera & effects"))
+	g.add_child(_slider_row("mouse_sensitivity", "Mouse sensitivity", GameSettings.SENSITIVITY_MIN, GameSettings.SENSITIVITY_MAX, 0.05))
+	g.add_child(_slider_row("shake", "Screen shake", GameSettings.INTENSITY_MIN, GameSettings.INTENSITY_MAX, 0.05))
+	g.add_child(_slider_row("flash", "Screen flash", GameSettings.INTENSITY_MIN, GameSettings.INTENSITY_MAX, 0.05))
 
-	# --- display and input ---
-	_add_slider(panel, "ui_scale", "UI scale", GameSettings.UI_SCALE_MIN, GameSettings.UI_SCALE_MAX, 0.05, y)
-	y += 26
-	_add_slider(panel, "mouse_sensitivity", "Mouse sensitivity", GameSettings.SENSITIVITY_MIN, GameSettings.SENSITIVITY_MAX, 0.05, y)
-	y += 26
-	_add_slider(panel, "shake", "Screen shake", GameSettings.INTENSITY_MIN, GameSettings.INTENSITY_MAX, 0.05, y)
-	y += 26
-	_add_slider(panel, "flash", "Screen flash", GameSettings.INTENSITY_MIN, GameSettings.INTENSITY_MAX, 0.05, y)
-	y += 30
-
-	_label(panel, "Volume", 15, Color(0.95, 0.92, 0.8), Vector2(16, y))
-	y += 24
+	# --- audio ---
+	var a: VBoxContainer = _pages["audio"]
+	a.add_child(_section("Volume"))
 	for bus_name in GameSettings.BUSES:
-		_add_slider(panel, "vol_%s" % bus_name, "%s volume" % bus_name, 0.0, 1.0, 0.05, y, "audio_%s" % String(bus_name).to_lower())
-		y += 24
-	y += 8
+		a.add_child(_slider_row("vol_%s" % bus_name, "%s" % _bus_title(String(bus_name)), 0.0, 1.0, 0.05, "audio_%s" % String(bus_name).to_lower()))
 
-	_label(panel, "Key bindings", 15, Color(0.95, 0.92, 0.8), Vector2(40, y), "ui_help")
-	y += 22
-
-	var scroll := ScrollContainer.new()
-	scroll.position = Vector2(16, y)
-	scroll.custom_minimum_size = Vector2(396, SCROLL_HEIGHT)
-	panel.add_child(scroll)
-	var rows := VBoxContainer.new()
-	rows.custom_minimum_size = Vector2(380, 0)
-	rows.add_theme_constant_override("separation", 2)
-	scroll.add_child(rows)
-	for action in GameSettings.BINDABLE_ACTIONS:
-		var row := HBoxContainer.new()
-		row.custom_minimum_size = Vector2(376, ROW_HEIGHT)
-		var name_label := _label(row, action.replace("_", " "), 12, Color(0.88, 0.9, 0.95), Vector2.ZERO)
-		name_label.custom_minimum_size = Vector2(220, ROW_HEIGHT)
-		var button := Button.new()
-		button.custom_minimum_size = Vector2(140, ROW_HEIGHT)
-		button.focus_mode = Control.FOCUS_NONE
-		button.add_theme_font_size_override("font_size", 11)
-		button.pressed.connect(_on_bind_pressed.bind(action))
-		row.add_child(button)
-		rows.add_child(row)
-		_bind_buttons[action] = button
-
-	var reset := Button.new()
-	reset.text = "Reset keys"
-	reset.focus_mode = Control.FOCUS_NONE
-	reset.position = Vector2(424, y)
-	reset.custom_minimum_size = Vector2(120, 26)
+	# --- controls ---
+	var c: VBoxContainer = _pages["controls"]
+	var head := HBoxContainer.new()
+	var caption := _section("Key bindings")
+	caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(caption)
+	var reset := HudKit.button("Reset keys", 14)
 	reset.pressed.connect(_on_reset_pressed)
-	panel.add_child(reset)
+	head.add_child(reset)
+	c.add_child(head)
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	c.add_child(scroll)
+	var rows := VBoxContainer.new()
+	rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rows.add_theme_constant_override("separation", 4)
+	scroll.add_child(rows)
+	var index := 0
+	for action in GameSettings.BINDABLE_ACTIONS:
+		var r := HBoxContainer.new()
+		r.custom_minimum_size.y = 34
+		var stripe := PanelContainer.new()
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color(1, 1, 1, 0.035 if index % 2 == 0 else 0.0)
+		sb.set_corner_radius_all(4)
+		sb.content_margin_left = 10
+		sb.content_margin_right = 6
+		stripe.add_theme_stylebox_override("panel", sb)
+		stripe.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		stripe.add_child(r)
+		var name_label := HudKit.label(String(ACTION_NAMES.get(action, String(action).replace("_", " ").capitalize())), 15, HudKit.TEXT, HudKit.body(), 0)
+		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		r.add_child(name_label)
+		var button := HudKit.button("", 14)
+		button.custom_minimum_size = Vector2(150, 30)
+		button.pressed.connect(_on_bind_pressed.bind(action))
+		r.add_child(button)
+		rows.add_child(stripe)
+		_bind_buttons[action] = button
+		index += 1
 
-	_status = _label(panel, "", 12, Color(1.0, 0.8, 0.5), Vector2(16, 440))
-	_status.custom_minimum_size = Vector2(400, 20)
-	var close_button := Button.new()
-	close_button.text = "Close (F1)"
-	close_button.focus_mode = Control.FOCUS_NONE
-	close_button.position = Vector2(446, 440)
-	close_button.custom_minimum_size = Vector2(100, 26)
-	close_button.tooltip_text = "Close the settings (F1)"
-	UITheme.set_button_icon(close_button, "ui_close")
+	# --- footer ---
+	var footer := HBoxContainer.new()
+	_window.body.add_child(footer)
+	_status = HudKit.label("", 14, HudKit.GOLD_LT, HudKit.body(), 2)
+	_status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_status.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	footer.add_child(_status)
+	var close_button := HudKit.button("Close", 15)
+	close_button.custom_minimum_size = Vector2(120, 34)
+	close_button.tooltip_text = "Close the settings (Esc)"
 	close_button.pressed.connect(_on_close_pressed)
-	panel.add_child(close_button)
-	panel.hide()
+	footer.add_child(close_button)
+	_show_page("graphics")
 
-## A caption, optionally with an icon in front of it. `at` is the caption's own
-## position, so an icon shifts it (never the other way around).
-func _label(parent: Node, text: String, size: int, color: Color, at: Vector2, icon_id: String = "") -> Label:
-	if icon_id != "":
-		var icon := UITheme.icon_rect(icon_id, float(size) + 4.0)
-		icon.position = at - Vector2(float(size) + 6.0, 1.0)
-		parent.add_child(icon)
-	var label := Label.new()
-	label.text = text
-	label.position = at
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	label.add_theme_font_size_override("font_size", size)
-	label.add_theme_color_override("font_color", color)
-	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
-	label.add_theme_constant_override("outline_size", 4)
-	parent.add_child(label)
-	return label
+func _show_page(key: String) -> void:
+	for k in _pages:
+		(_pages[k] as Control).visible = k == key
+		(_tab_buttons[k] as Button).set_pressed_no_signal(k == key)
 
-func _add_slider(parent: Node, key: String, title: String, minimum: float, maximum: float, step: float, y: float, icon_id: String = "") -> void:
-	var label_at := Vector2(38, y) if icon_id != "" else Vector2(16, y)
-	var label := _label(parent, title, 13, Color(0.9, 0.92, 0.96), label_at)
-	label.custom_minimum_size = Vector2(148, 20)
+func _section(text: String) -> Label:
+	var l := HudKit.label(text.to_upper(), 14, HudKit.GOLD, HudKit.title(), 2)
+	return l
+
+func _row(title: String, icon_id: String = "") -> HBoxContainer:
+	var r := HBoxContainer.new()
+	r.add_theme_constant_override("separation", 12)
+	r.custom_minimum_size.y = 32
 	if icon_id != "":
-		var icon := UITheme.icon_rect(icon_id, 16.0)
-		icon.position = Vector2(16, y + 1)
-		parent.add_child(icon)
-	var value_label := _label(parent, "", 12, Color(1.0, 0.9, 0.6), Vector2(486, y))
-	value_label.custom_minimum_size = Vector2(56, 20)
+		r.add_child(UITheme.icon_rect(icon_id, 20.0))
+	var l := HudKit.label(title, 15, HudKit.TEXT, HudKit.body(), 0)
+	l.custom_minimum_size.x = 190 if icon_id == "" else 158
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	r.add_child(l)
+	return r
+
+func _slider_row(key: String, title: String, minimum: float, maximum: float, step: float, icon_id: String = "") -> HBoxContainer:
+	var r := _row(title, icon_id)
 	var slider := HSlider.new()
-	slider.position = Vector2(190, y + 2)
-	slider.custom_minimum_size = Vector2(288, 16)
 	slider.min_value = minimum
 	slider.max_value = maximum
 	slider.step = step
 	slider.focus_mode = Control.FOCUS_NONE
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var track := StyleBoxFlat.new()
+	track.bg_color = Color(0.02, 0.025, 0.04)
+	track.border_color = Color(0, 0, 0)
+	track.set_border_width_all(1)
+	track.set_corner_radius_all(3)
+	track.content_margin_top = 3
+	track.content_margin_bottom = 3
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = HudKit.GOLD
+	fill.set_corner_radius_all(3)
+	fill.content_margin_top = 3
+	fill.content_margin_bottom = 3
+	slider.add_theme_stylebox_override("slider", track)
+	slider.add_theme_stylebox_override("grabber_area", fill)
+	slider.add_theme_stylebox_override("grabber_area_highlight", fill)
 	slider.value_changed.connect(_on_slider_changed.bind(key))
-	parent.add_child(slider)
+	r.add_child(slider)
+	var value_label := HudKit.label("", 14, HudKit.GOLD_HI, HudKit.bold(), 0)
+	value_label.custom_minimum_size.x = 58
+	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	value_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	r.add_child(value_label)
 	_sliders[key] = slider
 	_value_labels[key] = value_label
+	return r
+
+static func _bus_title(bus: String) -> String:
+	match bus:
+		"SFX":
+			return "Effects"
+		"UI":
+			return "Interface"
+	return bus
 
 ## ---------------------------------------------------------------- controls
 
@@ -243,7 +302,7 @@ func _refresh_all() -> void:
 	for action in _bind_buttons:
 		var button: Button = _bind_buttons[action]
 		if action == _listening_action:
-			button.text = "press a key..."
+			button.text = "press a key…"
 		else:
 			button.text = OS.get_keycode_string(settings.binding_keycode(action))
 
@@ -273,7 +332,7 @@ func _format_value(key: String, value: float) -> String:
 
 func _on_bind_pressed(action: String) -> void:
 	_listening_action = action
-	_status.text = "Press a key for '%s' (Esc cancels)" % action.replace("_", " ")
+	_status.text = "Press a key for '%s' (Esc cancels)" % String(ACTION_NAMES.get(action, action))
 	_refresh_all()
 
 func _on_close_pressed() -> void:
@@ -304,7 +363,7 @@ func _input(event: InputEvent) -> void:
 	_listening_action = ""
 	if error == "":
 		rebinds_applied += 1
-		_status.text = "'%s' is now %s." % [action.replace("_", " "), OS.get_keycode_string(key_event.physical_keycode)]
+		_status.text = "'%s' is now %s." % [String(ACTION_NAMES.get(action, action)), OS.get_keycode_string(key_event.physical_keycode)]
 	else:
 		_status.text = "Refused: %s." % error
 	_refresh_all()

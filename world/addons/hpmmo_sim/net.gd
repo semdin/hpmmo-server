@@ -445,10 +445,48 @@ func sim_chat_request(text: String) -> void:
 	if now - int(_last_chat_ms.get(peer_id, 0)) < CHAT_MIN_INTERVAL_MS:
 		return   # one line per interval: chat shares the reliable channel
 	_last_chat_ms[peer_id] = now
-	var clean := text.strip_edges().substr(0, 200)
+	route_chat(record, text)
+
+## Route one player line: "!text" is a shout to every connected player, any other
+## line is local - delivered to the players on the speaker's map within
+## HPProtocol.CHAT_LOCAL_RADIUS (the speaker included). Runs on the authority
+## only; offline and hosting players route their own lines through it too.
+func route_chat(record: Dictionary, text: String) -> void:
+	var clean := text.strip_edges().substr(0, HPProtocol.CHAT_MAX_LENGTH)
+	var channel := "local"
+	if clean.begins_with(HPProtocol.CHAT_SHOUT_PREFIX):
+		channel = "shout"
+		clean = clean.substr(HPProtocol.CHAT_SHOUT_PREFIX.length()).strip_edges()
 	if clean.is_empty():
 		return
-	sim_chat_event.rpc("[%s] %s" % [String(record.get("name", "Wizard")), clean])
+	var uid := int(record.get("uid", 0))
+	var sender := String(record.get("name", "Wizard"))
+	var house := String(record.get("house", ""))
+	# The authority's own presentation (offline / hosting player).
+	if channel == "shout" or _hears(SimAuthority.player_record(local_peer_id), record):
+		SimAuthority.emit_signal("chat_line", channel, uid, sender, house, clean)
+	if not has_peers():
+		return
+	for peer_id in multiplayer.get_peers():
+		var listener := SimAuthority.player_record(peer_id)
+		if listener.is_empty():
+			continue
+		if channel == "local" and not _hears(listener, record):
+			continue
+		sim_chat_line.rpc_id(peer_id, channel, uid, sender, house, clean)
+
+static func _hears(listener: Dictionary, speaker: Dictionary) -> bool:
+	if listener.is_empty() or speaker.is_empty():
+		return false
+	if is_same(listener, speaker):
+		return true
+	if String(listener.get("map_id", HPProtocol.DEFAULT_MAP)) != String(speaker.get("map_id", HPProtocol.DEFAULT_MAP)):
+		return false
+	var a = listener.get("node")
+	var b = speaker.get("node")
+	if a == null or b == null or not is_instance_valid(a) or not is_instance_valid(b):
+		return false
+	return (a as Node3D).global_position.distance_to((b as Node3D).global_position) <= HPProtocol.CHAT_LOCAL_RADIUS
 
 # Server -> client (authority only). A client calling these is ignored.
 
@@ -528,6 +566,10 @@ func sim_reward_event(character_id: int, exp: int, galleons: int, items: Array, 
 @rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
 func sim_chat_event(text: String) -> void:
 	SimAuthority.emit_signal("chat", text)
+
+@rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
+func sim_chat_line(channel: String, uid: int, sender: String, house: String, text: String) -> void:
+	SimAuthority.emit_signal("chat_line", channel, uid, sender, house, text)
 
 @rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
 func sim_notice(kind: String, detail: String) -> void:
@@ -712,8 +754,19 @@ func submit_chat(text: String) -> void:
 	if is_client:
 		sim_chat_request.rpc_id(1, text)
 		return
+	# Offline / hosting: the local body speaks through the same router.
+	var record := SimAuthority.player_record(local_peer_id)
+	if record.is_empty():
+		SimAuthority.emit_signal("chat", text)
+		if has_peers():
+			sim_chat_event.rpc(text)
+		return
+	route_chat(record, text)
+
+## A system line (no speaker) for every connected player and the local view.
+func broadcast_system_chat(text: String) -> void:
 	SimAuthority.emit_signal("chat", text)
-	if has_peers():
+	if not is_client and has_peers():
 		sim_chat_event.rpc(text)
 
 ## True once a peer is attached (offline and dedicated-without-clients return

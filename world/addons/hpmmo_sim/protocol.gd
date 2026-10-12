@@ -20,7 +20,11 @@ class_name HPProtocol
 ##     exchange lets a session that joined without one name the character it
 ##     wants (the server proves ownership before binding). A v6 client would
 ##     join unbound and never save, so the mismatch is refused like any other.
-const PROTOCOL_VERSION := 8
+## v9: chat channels - `sim_chat_line(channel, uid, name, house, text)` carries
+##     a routed player line ("local" to players within CHAT_LOCAL_RADIUS on the
+##     speaker's map, "shout" - a line starting with "!" - to everyone); the
+##     plain `sim_chat_event` stays for system text only.
+const PROTOCOL_VERSION := 9
 
 ## Simulation / replication rates.
 const SIM_HZ := 20
@@ -227,6 +231,12 @@ const MSG_STATS := "stats"
 const MSG_STAT_DELTA := "stat_delta"
 const MSG_ENTITY_EVENT := "entity_event"
 const MSG_CHAT := "chat"
+const MSG_CHAT_LINE := "chat_line"
+## Local chat is heard this far from the speaker (same map only).
+const CHAT_LOCAL_RADIUS := 40.0
+## A line starting with this is shouted to the whole server.
+const CHAT_SHOUT_PREFIX := "!"
+const CHAT_MAX_LENGTH := 200
 
 ## Stat delta keys carry the amount and the new absolute value so a client that
 ## missed an ordered delta still converges on the next full stats message.

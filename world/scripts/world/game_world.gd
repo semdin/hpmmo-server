@@ -208,6 +208,12 @@ func _setup_overlay() -> void:
 	overlay.set_script(OVERLAY_SCRIPT)
 	add_child(overlay)
 	overlay.attach(local_player)
+	# The objective tracker under the minimap opens the quest scroll and the
+	# training guide in the HUD.
+	if hud != null and overlay.get("tracker") != null:
+		overlay.tracker.onboarding = hud.onboarding
+		overlay.tracker.quest_opened.connect(hud.open_quest_scroll)
+		overlay.tracker.guide_opened.connect(hud.open_guide)
 
 func _connect_ui_signals() -> void:
 	hud.inventory_button.pressed.connect(_toggle_inventory)
@@ -224,7 +230,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("toggle_ollivander"):
 		_toggle_ollivander()
 	elif event.is_action_pressed("toggle_chat"):
-		hud.chat_input.grab_focus()
+		hud.open_chat()
+		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("interact"):
 		var nearest: Node3D = null
 		var distance := 4.0
@@ -236,10 +243,16 @@ func _unhandled_input(event: InputEvent) -> void:
 		if nearest and not local_player.is_dead:
 			overlay.show_dialogue(nearest.npc_name, nearest.talk(local_player))
 	elif event.is_action_pressed("ui_cancel"):
-		inventory_ui.hide()
-		ollivander_ui.hide()
-		if overlay:
-			overlay._dialog_panel.hide()
+		# One Esc chain for the whole HUD: close the top-most open thing, or
+		# open the game menu when nothing is open.
+		if hud != null and hud.has_method("handle_escape"):
+			hud.handle_escape(self)
+		else:
+			inventory_ui.hide()
+			ollivander_ui.hide()
+			if overlay:
+				overlay._dialog_panel.hide()
+		get_viewport().set_input_as_handled()
 
 func _toggle_inventory() -> void:
 	if inventory_ui.visible:
@@ -310,8 +323,10 @@ func _setup_training_grounds() -> void:
 			SimAuthority.register(HPProtocol.Kind.DUMMY, d, {
 				"hp": d.current_hp, "max_hp": d.max_hp, "dummy_id": int(entry.get("id", index)),
 			})
-	# Update Fig's hint to mention dummies
-	NetworkManager.send_chat("[System] Training dummies placed in the courtyard — practice skills safely!")
+	# A local hint only: this used to be SENT as chat, so every player saw it as
+	# a line spoken by whoever loaded the world.
+	if hud != null and hud.has_method("add_system_chat"):
+		hud.add_system_chat("Training dummies stand in the courtyard - practise your spells there safely.")
 
 func _check_external_models() -> void:
 	# Drop-in CC0 model support: put .glb/.gltf in assets/models/ (see README).
@@ -329,7 +344,7 @@ func _check_external_models() -> void:
 		f = dir.get_next()
 	dir.list_dir_end()
 	if found.size() > 0:
-		NetworkManager.send_chat("[System] External models found: %s (procedural rigs kept for stability)" % ", ".join(found))
+		print("[World] external models found: %s" % ", ".join(found))
 
 func _setup_monoliths_and_mobs() -> void:
 	# Positions are the authority's data (spawn_tables.json "monoliths").
@@ -362,6 +377,7 @@ func _setup_replication() -> void:
 	SimAuthority.cast_landed.connect(_on_cast_landed)
 	SimAuthority.loot_spawned.connect(_on_loot_spawned)
 	SimAuthority.chat.connect(_on_chat)
+	SimAuthority.chat_line.connect(_on_chat_line)
 	if is_instance_valid(local_player):
 		SimAuthority.cast_ack.connect(local_player.on_cast_answer)
 
@@ -536,4 +552,28 @@ func _on_loot_spawned(uid: int, item_id: String, amount: int, pos: Vector3) -> v
 	_views[uid] = node
 
 func _on_chat(text: String) -> void:
-	NetworkManager.chat_message_received.emit("[Server]", "", text)
+	if hud != null and hud.has_method("add_system_chat"):
+		hud.add_system_chat(text)
+	else:
+		NetworkManager.chat_message_received.emit("", "", text)
+
+## A routed player line: into the chat log, and - for local speech - over the
+## speaker's head as a bubble everyone nearby sees.
+func _on_chat_line(channel: String, uid: int, sender: String, house: String, text: String) -> void:
+	if hud != null and hud.has_method("add_chat_line"):
+		hud.add_chat_line(channel, sender, house, text)
+	NetworkManager.chat_message_received.emit(sender, house, text)
+	if channel != "local":
+		return
+	var speaker: Node3D = null
+	if uid == SimAuthority.local_uid and is_instance_valid(local_player):
+		speaker = local_player
+	elif _views.has(uid) and is_instance_valid(_views[uid]):
+		speaker = _views[uid]
+	else:
+		var record: Dictionary = SimAuthority.entities.get(uid, {})
+		var node = record.get("node")
+		if node is Node3D and is_instance_valid(node):
+			speaker = node
+	if speaker != null:
+		SpeechBubble.say(speaker, text, 2.62)

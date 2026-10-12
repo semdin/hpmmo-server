@@ -48,6 +48,9 @@ var done: Array = []
 var current_index: int = 0
 var visible_panel := true
 var expanded_guide := false
+## Set by the HUD: the collapsed guide lives in the objective tracker, so the
+## small card is not drawn; only the expanded guide window is.
+var compact_hidden := false
 var _body_scroll: ScrollContainer
 
 var _panel: Panel = null
@@ -183,8 +186,10 @@ func toggle_panel() -> void:
 func _refresh() -> void:
 	if _panel == null:
 		return
-	if not visible_panel:
+	if not visible_panel or (compact_hidden and not expanded_guide):
 		_panel.hide()
+		if expanded_guide:
+			UIFocus.unblock(self)
 		return
 	_panel.show()
 	var canvas := get_viewport().get_visible_rect().size
@@ -195,7 +200,7 @@ func _refresh() -> void:
 		var mark := "Done" if index < current_index else ("Next" if index == current_index else "Later")
 		lines.append("%s: %s" % [mark, entry.title])
 	if not is_complete(): lines.append("\n" + String(STEPS[current_index].hint))
-	lines.append("\nCONTROLS\nWASD move · Right-drag camera · Wheel zoom\nLMB attack · 1–4 / Q / E spells · Tab target\nShift mount · Space rise · Ctrl descend\nF talk · Z loot · I inventory · O forge\nJ guide · F1 settings · Enter chat\n\nEQUIPMENT\nSelect to compare. Right-click, double-click, or drag to equip. Changes require five seconds out of combat. Dismount to change brooms.")
+	lines.append("\nCONTROLS\nWASD move · Right-drag camera · Wheel zoom\nLMB attack · 1–4 / Q / E spells · F1–F4 potions · Tab target\nShift mount · Space rise · Ctrl descend\nF talk · Z loot · I bag · O forge · M map\nJ guide · Esc menu & settings · Enter chat (!text shouts)\n\nEQUIPMENT\nSelect to compare. Right-click, double-click, or drag to equip. Changes require five seconds out of combat. Dismount to change brooms.")
 	_body.text = "\n".join(lines) if expanded_guide else ("Training complete" if is_complete() else String(STEPS[current_index].title))
 	_title.text = "GUIDE (%d/%d)" % [current_index, STEPS.size()]
 	var width := minf(420, canvas.x - 32) if expanded_guide else 210.0

@@ -36,6 +36,7 @@ its own state. `server_relay` is off, so clients cannot address each other.
 | `sim_loot_despawn` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | uid: int |
 | `sim_reward_event` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | character_id: int, exp: int, galleons: int, items: Array, op_id: String |
 | `sim_chat_event` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | text: String |
+| `sim_chat_line` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | channel: String, uid: int, sender: String, house: String, text: String |
 | `sim_notice` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | kind: String, detail: String |
 | `sim_maintenance_event` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | state: String, reason: String, seconds_remaining: int |
 | `sim_transfer_granted` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | token: int, map_id: String, spawn_id: String |
@@ -50,7 +51,7 @@ its own state. `server_relay` is off, so clients cannot address each other.
 | `sim_equipment_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | request_id: int, revision: int, operation: String, slot: String, item_id: String, tier: int |
 | `sim_equipment_result` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | answer: Dictionary |
 
-Surface entries: 38. Hash of this document is pinned in the workspace lock;
+Surface entries: 39. Hash of this document is pinned in the workspace lock;
 Canonical gameplay catalogs live in `world/addons/hpmmo_sim/data/`; client content schemas live in `contracts/schemas/`.
 
-Surface hash: `6785ed74ff1eca99172c02b88ed8a269101f233efcf1b4477a9599f12b44cbdd`
+Surface hash: `d4a9c881aad47a0a27515aa9216fa7c9fe2b83e31ff147c2265113acf9b8bc4d`

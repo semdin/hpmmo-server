@@ -37,6 +37,14 @@ var _vignette: ColorRect = null
 var _player: Node3D = null
 var _last_zone := ""
 var _binder: UIStateBinder = null
+## The player's arrow + camera cone, the minimap's place-name line and the
+## objective tracker under it.
+var _marker: MapMarker = null
+var _map_title: Label = null
+var tracker: HudTracker = null
+var _zone_banner_sub: Label = null
+## Place names from the grounds layout (regions, the lake, terrain features).
+var _layout: Dictionary = {}
 
 func attach(player: Node3D) -> void:
 	_player = player
@@ -118,17 +126,26 @@ func _build() -> void:
 	ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_map.add_child(ring)
 
-	var title := UITheme.heading("HOGWARTS VALLEY", UITheme.FS_TINY, UITheme.c("gold_lt"))
-	# Below the disc: at the top edge it collided with the ring and the compass,
-	# and half of it fell outside the screen.
-	title.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	title.offset_left = -90.0
-	title.offset_right = 90.0
-	title.offset_top = 30.0
-	title.offset_bottom = 46.0
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_map.add_child(title)
+	# The player's arrow and view cone sit over the map, under the bezel.
+	_marker = MapMarker.new()
+	_marker.name = "PlayerMarker"
+	_marker.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_marker.cone_length = MAP_PX * 0.36
+	_map.add_child(_marker)
+	_map.move_child(_marker, _map.get_child_count() - 2)
+
+	# Where you are, under the disc: the place name in the map's own lettering.
+	# (It replaces the fixed "HOGWARTS VALLEY" caption and the top-centre line.)
+	_map_title = HudKit.label("Hogwarts Valley", 15, HudKit.GOLD_HI, HudKit.deco(), 5)
+	_map_title.name = "PlaceName"
+	_map_title.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_map_title.offset_left = -130.0
+	_map_title.offset_right = 130.0
+	_map_title.offset_top = 30.0
+	_map_title.offset_bottom = 52.0
+	_map_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_map_title.clip_text = true
+	_map.add_child(_map_title)
 
 	_build_map_buttons()
 	add_child(_map)
@@ -163,24 +180,36 @@ func _build() -> void:
 	_quest_label.custom_minimum_size = Vector2(UITheme.RIGHT_COL_W - 18, 44)
 	quest_column.add_child(_quest_label)
 	add_child(_quest_panel)
+	# The old always-open quest card is replaced by the collapsible tracker.
+	_quest_panel.hide()
+	tracker = HudTracker.new()
+	tracker.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	add_child(tracker)
 
 	# --- zone banner (top center, above the target frame) ---
-	_zone_label = Label.new()
+	# The zone announcement: a large engraved title that fades in when you
+	# cross into a new place and fades away again (the persistent name lives
+	# under the minimap).
+	_zone_label = HudKit.label("", 40, HudKit.GOLD_HI, HudKit.deco(), 8)
+	_zone_label.name = "ZoneBanner"
 	_zone_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	_zone_label.offset_left = -260.0
-	_zone_label.offset_top = 6.0
-	_zone_label.offset_right = 260.0
-	_zone_label.offset_bottom = 32.0
+	_zone_label.offset_left = -420.0
+	_zone_label.offset_top = 96.0
+	_zone_label.offset_right = 420.0
+	_zone_label.offset_bottom = 150.0
 	_zone_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_zone_label.add_theme_font_override("font", UITheme.font_title())
-	_zone_label.add_theme_font_size_override("font_size", UITheme.FS_TITLE)
-	_zone_label.add_theme_color_override("font_color", UITheme.c("gold_lt"))
-	_zone_label.add_theme_color_override("font_outline_color", UITheme.c("shadow"))
-	_zone_label.add_theme_constant_override("outline_size", 5)
+	_zone_label.add_theme_color_override("font_outline_color", Color(0.12, 0.07, 0.02, 0.9))
 	_zone_label.modulate.a = 0.0
-	# TravelFeedback owns the single persistent location row.
-	_zone_label.hide()
 	add_child(_zone_label)
+	_zone_banner_sub = HudKit.label("", 15, HudKit.PARCHMENT, HudKit.title(), 4)
+	_zone_banner_sub.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_zone_banner_sub.offset_left = -300.0
+	_zone_banner_sub.offset_top = 148.0
+	_zone_banner_sub.offset_right = 300.0
+	_zone_banner_sub.offset_bottom = 172.0
+	_zone_banner_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_zone_banner_sub.modulate.a = 0.0
+	add_child(_zone_banner_sub)
 
 	# --- boss bar (top center under banner) ---
 	_boss_panel = Panel.new()
@@ -413,9 +442,13 @@ func _dot(key: String, icon_id: String, size: float) -> Control:
 func _update_minimap() -> void:
 	if _map == null:
 		return
-	var player_size := 16.0
-	var pd := _dot("__player", "minimap_player", player_size)
-	pd.position = _world_to_map(_player.global_position) - Vector2(player_size, player_size) * 0.5
+	if _marker != null:
+		var visuals: Node3D = _player.get("visuals")
+		var yaw := visuals.rotation.y if visuals != null else 0.0
+		_marker.facing = Vector2(sin(yaw), cos(yaw))
+		var cam_yaw := deg_to_rad(float(_player.get("camera_rot_y")))
+		_marker.camera_dir = Vector2(-sin(cam_yaw), -cos(cam_yaw))
+		_marker.queue_redraw()
 	# mobs: the crown for a world boss, the shard for the rest
 	for m in get_tree().get_nodes_in_group("mobs"):
 		if not is_instance_valid(m):
@@ -455,20 +488,49 @@ func _update_minimap() -> void:
 				_dots[key].queue_free()
 				_dots.erase(key)
 
+## The place at a point on the grounds, from the grounds layout itself
+## (assets/terrain/grounds/layout.json): the lake, the castle promontory and its
+## courtyard, the authored glades and the named regions. The old table still
+## pointed at the first prototype map, so everywhere read "Hogwarts Grounds".
 func zone_at(pos: Vector3) -> String:
-	if pos.z < -47 and pos.z > -102 and absf(pos.x) < 38:
-		return "Hogwarts Library" if pos.x < -20 else ("Charms Classroom" if pos.x > 20 else "Hogwarts • Great Hall")
-	if pos.distance_to(Vector3(35, 0, 17)) < 22.0:
-		return "Hogsmeade Village"
-	if pos.x < -35.0 and pos.z < -8.0:
-		return "Forbidden Forest"
-	if pos.distance_to(Vector3(-38, 0, 30)) < 20.0:
-		return "Black Lake"
-	if pos.distance_to(Vector3(52, 0, 26)) < 24.0:
-		return "Quidditch Pitch"
-	if pos.distance_to(Vector3(0, 0, 5)) < 20.0:
+	var xz := Vector2(pos.x, pos.z)
+	var layout := _grounds_layout()
+	if xz.distance_to(Vector2(0, 65)) < 34.0:
 		return "Hogwarts Courtyard"
-	return "Hogwarts Grounds"
+	var lake: Dictionary = layout.get("lake", {})
+	if not lake.is_empty():
+		var c := Vector2(float(lake.center[0]), float(lake.center[1]))
+		var r := Vector2(float(lake.radii[0]), float(lake.radii[1]))
+		var d := (xz - c) / r
+		if d.length() < 1.0:
+			return "Black Lake"
+	var feature_names := {"castle_promontory": "Hogwarts Castle", "greenhouse_terrace": "Greenhouses", "hagrid_glade": "Hagrid's Hut"}
+	for f in layout.get("features", []):
+		var id := String(f.get("id", ""))
+		if feature_names.has(id) and xz.distance_to(Vector2(float(f.center[0]), float(f.center[1]))) < float(f.get("radius", 0.0)):
+			return String(feature_names[id])
+	var region_names := {"forbidden_forest": "Forbidden Forest", "north_moor": "Northern Moors", "hogsmeade": "Hogsmeade Village"}
+	for region in layout.get("regions", []):
+		var poly := PackedVector2Array()
+		for p in region.get("polygon", []):
+			poly.append(Vector2(float(p[0]), float(p[1])))
+		if poly.size() >= 3 and Geometry2D.is_point_in_polygon(xz, poly):
+			return String(region_names.get(String(region.get("id", "")), String(region.get("name", ""))))
+	if xz.length() > 760.0:
+		return "Mountain Pass"
+	return "Hogwarts Valley"
+
+func _grounds_layout() -> Dictionary:
+	if not _layout.is_empty():
+		return _layout
+	var path := "res://assets/terrain/grounds/layout.json"
+	if FileAccess.file_exists(path):
+		var parsed = JSON.parse_string(FileAccess.get_file_as_string(path))
+		if parsed is Dictionary:
+			_layout = parsed
+	if _layout.is_empty():
+		_layout = {"_": true}
+	return _layout
 
 ## The banner announces the place the player actually is. Indoors the
 ## outdoor zones do not apply, so the floor name from the map controller's
@@ -489,18 +551,29 @@ func _map_controller() -> Node:
 func _update_zone() -> void:
 	var z := location_for_banner()
 	if z != _last_zone:
+		var first := _last_zone == ""
 		_last_zone = z
+		if _map_title != null:
+			_map_title.text = z
 		_zone_label.text = z
-		_zone_timer = 3.0
-		_zone_label.modulate.a = 1.0
+		if _zone_banner_sub != null:
+			_zone_banner_sub.text = ""
+		# Announce crossings, not the place you logged in at.
+		_zone_timer = 0.0 if first else 3.2
 		if z == "Quidditch Pitch" and has_node("/root/QuestManager"):
 			QuestManager.add_visit("Quidditch Pitch")
+	var dt := get_process_delta_time()
 	if _zone_timer > 0.0:
-		_zone_timer -= get_process_delta_time()
-		if _zone_timer <= 0.0:
-			_zone_label.modulate.a = 0.0
+		_zone_timer -= dt
+		# fade in quickly, hold, fade out over the last second
+		var a := clampf((3.2 - _zone_timer) / 0.35, 0.0, 1.0) * clampf(_zone_timer / 1.0, 0.0, 1.0)
+		_zone_label.modulate.a = a
+		if _zone_banner_sub != null:
+			_zone_banner_sub.modulate.a = a * 0.9
 	else:
-		_zone_label.modulate.a = maxf(0.0, _zone_label.modulate.a - get_process_delta_time() * 0.8)
+		_zone_label.modulate.a = 0.0
+		if _zone_banner_sub != null:
+			_zone_banner_sub.modulate.a = 0.0
 
 func _update_boss() -> void:
 	var t: Node = _player.get("current_target") as Node
@@ -557,6 +630,9 @@ func _arcane_overlay_layout() -> void:
 		_quest_label.max_lines_visible = 2 if compact else 4
 		_quest_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		_quest_panel.clip_contents = true
+	if tracker != null:
+		var w := HudTracker.WIDTH
+		UILayout.place(tracker, Vector2(-w - 16, 14 + MAP_PX * scale_factor + 50), Vector2(w, 10))
 	if _boss_panel != null:
 		_boss_panel.custom_minimum_size = Vector2.ZERO
 		UILayout.place(_boss_panel, Vector2(-120 if compact else -180,102), Vector2(240 if compact else 360,40))

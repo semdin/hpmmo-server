@@ -65,6 +65,7 @@ func _ready() -> void:
 	NetworkManager.character_create_result.connect(_on_character_create_result)
 	NetworkManager.character_select_result.connect(_on_character_select_result)
 
+	_restyle()
 	_select_modal_house("Gryffindor")
 	create_modal.hide()
 
@@ -145,7 +146,8 @@ func _switch_slot(new_slot: int) -> void:
 	_update_slot_display(true)
 
 func _update_slot_display(_animated: bool = true) -> void:
-	slot_label.text = "BÜYÜCÜ SEÇİMİ — YUVA %d / 2" % [current_slot + 1]
+	slot_label.text = "YUVA %d / 2" % [current_slot + 1]
+	_refresh_roster()
 
 	var has_character = current_slot < characters.size()
 	var total_chars = characters.size()
@@ -171,31 +173,36 @@ func _update_slot_display(_animated: bool = true) -> void:
 		var c_max_mana: int = c.get("max_mana", 300)
 
 		char_name_label.text = c_name
-		char_house_label.text = "[ %s ]" % c_house
+		char_house_label.text = c_house
 		if GameData.HOUSES.has(c_house):
 			var house_data = GameData.HOUSES[c_house]
-			char_house_label.modulate = house_data.primary_color
+			char_house_label.modulate = (house_data.primary_color as Color).lightened(0.3)
 			_apply_rune_color(house_data.primary_color)
-		
-		char_stats_label.text = "Seviye: %d  |  Can: %d/%d  |  Mana: %d/%d" % [c_level, c_hp, c_max_hp, c_mana, c_max_mana]
-		char_wand_label.text = "Asa: +%d Büyü Gücü" % c_wand
-		char_galleons_label.text = "Servet: %d Galleon" % c_galleons
-		char_location_label.text = "Konum: Hogwarts Avlusu"
+		if _crest != null:
+			_crest.texture = UITheme.chrome("house_" + c_house.to_lower())
+			_crest.visible = true
+
+		char_stats_label.text = "Seviye %d\nCan  %d / %d\nMana  %d / %d" % [c_level, c_hp, c_max_hp, c_mana, c_max_mana]
+		char_wand_label.text = "Asa  +%d" % c_wand
+		char_galleons_label.text = "Galleon  %d" % c_galleons
+		char_location_label.text = "Hogwarts Vadisi"
 
 		enter_world_btn.visible = true
 		enter_world_btn.disabled = false
-		enter_world_btn.text = "'%s' İLE DÜNYAYA GİR" % c_name
-		UITheme.set_button_icon(enter_world_btn, "ui_portal", 20.0)
+		enter_world_btn.text = "DÜNYAYA GİR"
+		enter_world_btn.icon = null
 
 		_spawn_podium_character(c)
 	else:
-		char_name_label.text = "[ BOŞ YUVA ]"
+		char_name_label.text = "Boş Yuva"
 		char_house_label.text = "Yeni bir büyücü oluşturun"
 		char_house_label.modulate = Color(0.7, 0.7, 0.7)
-		char_stats_label.text = "Seviye: —  |  HP: —  |  Mana: —"
-		char_wand_label.text = "Asa: Yok"
-		char_galleons_label.text = "Galleon: 0"
-		char_location_label.text = "Konum: Henüz Başlanmadı"
+		if _crest != null:
+			_crest.visible = false
+		char_stats_label.text = "—"
+		char_wand_label.text = ""
+		char_galleons_label.text = ""
+		char_location_label.text = ""
 
 		enter_world_btn.visible = false
 		_clear_podium_character()
@@ -229,6 +236,9 @@ func _clear_podium_character() -> void:
 	current_anim_player = null
 
 func _apply_rune_color(col: Color) -> void:
+	var embers := get_node_or_null("Podium/EmbersParticles") as CPUParticles3D
+	if embers != null:
+		embers.color = col.lightened(0.35)
 	if podium_light:
 		podium_light.light_color = col
 	if rune_ring and rune_ring.get_surface_override_material(0):
@@ -265,7 +275,7 @@ func _on_enter_world_pressed() -> void:
 		enter_world_btn.text = previous_text
 		slot_label.text = "Hata: %s" % _bind_reason_text(String(result.get("reason", "")))
 		return
-	get_tree().change_scene_to_file("res://scenes/world/game_world.tscn")
+	WorldLoader.enter_world(get_tree())
 
 ## A binding refusal must say what happened; these are the server's own reasons.
 func _bind_reason_text(reason: String) -> String:
@@ -289,7 +299,7 @@ func _on_character_select_result(success: bool, message: String, _char_data: Dic
 		slot_label.text = "Hata: %s" % message
 		return
 	
-	get_tree().change_scene_to_file("res://scenes/world/game_world.tscn")
+	WorldLoader.enter_world(get_tree())
 
 func _on_new_char_pressed() -> void:
 	if characters.size() >= 2:
@@ -303,7 +313,7 @@ func _select_modal_house(h_name: String) -> void:
 	if GameData.HOUSES.has(h_name):
 		var data = GameData.HOUSES[h_name]
 		modal_house_desc.text = "%s - \"%s\"\n%s" % [data.name, data.motto, data.trait]
-		modal_house_desc.modulate = data.primary_color
+		modal_house_desc.modulate = (data.primary_color as Color).lightened(0.45)
 
 	gryf_btn.flat = (h_name != "Gryffindor")
 	slyth_btn.flat = (h_name != "Slytherin")
@@ -381,3 +391,245 @@ func _on_character_create_result(success: bool, message: String, char_data: Dict
 func _on_logout_pressed() -> void:
 	NetworkManager.disconnect_game()
 	get_tree().change_scene_to_file("res://scenes/main/main_menu.tscn")
+
+
+## ===================================================================== look
+## The character screen in the HUD's frame language: the key art behind a dark
+## stone dais lit in the house colour, the roster of your wizards on the left,
+## the chosen wizard's sheet on the right and one clear "Enter world" button.
+## The scene's nodes (and their paths) stay; this restyles and arranges them.
+
+var _crest: TextureRect = null
+var _roster: VBoxContainer = null
+var _roster_title: Label = null
+var _drag_turn := false
+
+func _restyle() -> void:
+	var canvas: CanvasLayer = $CanvasLayer
+	# --- backdrop: key art behind the 3D stage
+	var env_node := get_node_or_null("WorldEnvironment") as WorldEnvironment
+	if env_node != null and env_node.environment != null:
+		var env := env_node.environment.duplicate() as Environment
+		env.background_mode = Environment.BG_CANVAS
+		env.glow_enabled = true
+		env.glow_intensity = 0.6
+		env_node.environment = env
+	var back := CanvasLayer.new()
+	back.layer = -1
+	add_child(back)
+	var art_path := "res://assets/branding/hpmmo_banner.jpg"
+	if ResourceLoader.exists(art_path):
+		var art := TextureRect.new()
+		art.texture = load(art_path)
+		art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		art.modulate = Color(0.42, 0.42, 0.5)
+		back.add_child(art)
+	var vignette := ColorRect.new()
+	vignette.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	vignette.color = Color(0.0, 0.0, 0.02, 0.35)
+	back.add_child(vignette)
+	# --- the dais: dressed stone, a slim glowing rune ring
+	var dais := get_node_or_null("Podium/PodiumMesh") as MeshInstance3D
+	if dais != null:
+		var cyl := CylinderMesh.new()
+		cyl.top_radius = 1.35
+		cyl.bottom_radius = 1.48
+		cyl.height = 0.5
+		cyl.radial_segments = 64
+		dais.mesh = cyl
+		var stone := StandardMaterial3D.new()
+		var base := "res://assets/textures/pbr/floor_flagstone_01/floor_flagstone_01_"
+		if ResourceLoader.exists(base + "albedo_2k.png"):
+			stone.albedo_texture = load(base + "albedo_2k.png")
+			stone.normal_enabled = true
+			stone.normal_texture = load(base + "normal_2k.png")
+			stone.uv1_triplanar = true
+			stone.uv1_scale = Vector3(0.9, 0.9, 0.9)
+		stone.albedo_color = Color(0.3, 0.29, 0.32)
+		stone.roughness = 0.85
+		dais.material_override = stone
+	if rune_ring != null:
+		var torus := TorusMesh.new()
+		torus.inner_radius = 1.22
+		torus.outer_radius = 1.27
+		torus.rings = 96
+		rune_ring.mesh = torus
+		var glow := StandardMaterial3D.new()
+		glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		glow.emission_enabled = true
+		glow.emission_energy_multiplier = 1.4
+		rune_ring.set_surface_override_material(0, glow)
+	if podium_light != null:
+		podium_light.light_energy = 1.4
+	# --- top: title and logout
+	var top := $CanvasLayer/TopBar as Control
+	var title := $CanvasLayer/TopBar/TitleLabel as Label
+	title.text = "HOGWARTS"
+	HudKit.style_label(title, 38, HudKit.GOLD_HI, HudKit.deco(), 8)
+	title.add_theme_color_override("font_outline_color", Color(0.1, 0.06, 0.02, 0.9))
+	HudKit.style_label(slot_label, 16, HudKit.PARCHMENT, HudKit.title(), 4)
+	HudKit.style_button(logout_btn, 15)
+	logout_btn.text = "Çıkış Yap"
+	logout_btn.custom_minimum_size = Vector2(130, 40)
+	top.offset_top = 22
+	# --- roster on the left
+	var roster_panel := PanelContainer.new()
+	roster_panel.name = "Roster"
+	roster_panel.add_theme_stylebox_override("panel", HudKit.panel(0.82, 8))
+	roster_panel.set_anchors_preset(Control.PRESET_CENTER_LEFT)
+	UILayout.place(roster_panel, Vector2(36, -170), Vector2(320, 0))
+	canvas.add_child(roster_panel)
+	_roster = VBoxContainer.new()
+	_roster.add_theme_constant_override("separation", 10)
+	roster_panel.add_child(_roster)
+	_roster_title = HudKit.label("BÜYÜCÜLERİN", 15, HudKit.GOLD, HudKit.title(), 3)
+	_roster.add_child(_roster_title)
+	# --- character sheet on the right
+	var info := $CanvasLayer/InfoCard as PanelContainer
+	info.add_theme_stylebox_override("panel", HudKit.panel(0.82, 8))
+	info.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+	UILayout.place(info, Vector2(-356, -170), Vector2(320, 300))
+	HudKit.style_label(char_name_label, 30, HudKit.GOLD_HI, HudKit.deco(), 6)
+	HudKit.style_label(char_house_label, 16, HudKit.PARCHMENT, HudKit.title(), 3)
+	for l in [char_stats_label, char_wand_label, char_location_label]:
+		HudKit.style_label(l, 16, HudKit.TEXT, HudKit.body(), 2)
+	HudKit.style_label(char_galleons_label, 16, HudKit.GOLD_LT, HudKit.bold(), 2)
+	char_stats_label.add_theme_constant_override("line_spacing", 4)
+	var vbox := char_name_label.get_parent() as VBoxContainer
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 12)
+	vbox.add_child(head)
+	vbox.move_child(head, 0)
+	_crest = TextureRect.new()
+	_crest.custom_minimum_size = Vector2(56, 56)
+	_crest.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_crest.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	head.add_child(_crest)
+	var names := VBoxContainer.new()
+	names.add_theme_constant_override("separation", 0)
+	head.add_child(names)
+	char_name_label.reparent(names)
+	char_house_label.reparent(names)
+	# --- enter world: one big gold button, bottom centre
+	var bottom := $CanvasLayer/BottomBar as BoxContainer
+	bottom.alignment = BoxContainer.ALIGNMENT_CENTER
+	bottom.offset_top = -104
+	bottom.offset_bottom = -40
+	HudKit.style_button(enter_world_btn, 22)
+	for state in ["normal", "hover", "pressed"]:
+		var sb := HudKit.button_box(state).duplicate() as StyleBoxFlat
+		sb.bg_color = Color(0.36, 0.25, 0.08) if state == "normal" else (Color(0.48, 0.34, 0.1) if state == "hover" else Color(0.26, 0.18, 0.06))
+		sb.border_color = HudKit.GOLD_HI if state == "hover" else HudKit.GOLD_LT
+		sb.set_border_width_all(2)
+		sb.set_corner_radius_all(6)
+		sb.shadow_color = Color(0, 0, 0, 0.5)
+		sb.shadow_size = 8
+		enter_world_btn.add_theme_stylebox_override(state, sb)
+	enter_world_btn.add_theme_font_override("font", HudKit.title())
+	enter_world_btn.add_theme_color_override("font_color", HudKit.GOLD_HI)
+	enter_world_btn.custom_minimum_size = Vector2(380, 60)
+	# Creating a wizard lives in the roster now.
+	new_char_btn.visible = false
+	# --- slot arrows: small round buttons beside the dais
+	for b in [prev_slot_btn, next_slot_btn]:
+		HudKit.style_button(b, 20)
+		b.custom_minimum_size = Vector2(52, 52)
+	# --- create modal
+	create_modal.add_theme_stylebox_override("panel", HudKit.window())
+	var modal_title := create_modal.get_node_or_null("Margin/VBox/ModalTitle") as Label
+	if modal_title != null:
+		modal_title.text = "Yeni Büyücü"
+		HudKit.style_label(modal_title, 26, HudKit.GOLD_HI, HudKit.deco(), 5)
+		modal_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var name_lbl := create_modal.get_node_or_null("Margin/VBox/NameRow/NameLbl") as Label
+	if name_lbl != null:
+		HudKit.style_label(name_lbl, 16, HudKit.PARCHMENT, HudKit.body(), 2)
+	var field := StyleBoxFlat.new()
+	field.bg_color = Color(0.02, 0.027, 0.043, 0.9)
+	field.border_color = HudKit.GOLD.darkened(0.2)
+	field.set_border_width_all(1)
+	field.set_corner_radius_all(4)
+	field.content_margin_left = 10
+	field.content_margin_top = 6
+	field.content_margin_bottom = 6
+	for state in ["normal", "focus"]:
+		new_name_input.add_theme_stylebox_override(state, field)
+	new_name_input.add_theme_font_override("font", HudKit.body())
+	new_name_input.add_theme_font_size_override("font_size", 17)
+	for b in [gryf_btn, slyth_btn, raven_btn, huff_btn]:
+		HudKit.style_button(b, 14)
+		b.custom_minimum_size = Vector2(110, 84)
+		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		b.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
+		b.expand_icon = false
+	gryf_btn.icon = UITheme.chrome_at("house_gryffindor", 44.0)
+	slyth_btn.icon = UITheme.chrome_at("house_slytherin", 44.0)
+	raven_btn.icon = UITheme.chrome_at("house_ravenclaw", 44.0)
+	huff_btn.icon = UITheme.chrome_at("house_hufflepuff", 44.0)
+	HudKit.style_label(modal_house_desc, 15, HudKit.TEXT, HudKit.body(), 2)
+	HudKit.style_button(confirm_create_btn, 16)
+	HudKit.style_button(cancel_create_btn, 16)
+	UILayout.place(create_modal, Vector2(-300, -190), Vector2(600, 380))
+
+## One card per slot: crest, name, level and house; the empty slot creates.
+func _refresh_roster() -> void:
+	if _roster == null:
+		return
+	for child in _roster.get_children():
+		if child != _roster_title:
+			child.queue_free()
+	_roster_title.text = "BÜYÜCÜLERİN  (%d / 2)" % characters.size()
+	for i in range(2):
+		var card := Button.new()
+		card.focus_mode = Control.FOCUS_NONE
+		card.custom_minimum_size = Vector2(290, 70)
+		card.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		card.add_theme_constant_override("h_separation", 12)
+		var selected := i == current_slot
+		var normal := StyleBoxFlat.new()
+		normal.bg_color = Color(0.09, 0.11, 0.17, 0.9) if selected else Color(0.05, 0.06, 0.09, 0.7)
+		normal.border_color = HudKit.GOLD_LT if selected else Color(HudKit.GOLD.r, HudKit.GOLD.g, HudKit.GOLD.b, 0.35)
+		normal.set_border_width_all(2 if selected else 1)
+		normal.set_corner_radius_all(6)
+		normal.content_margin_left = 12
+		normal.content_margin_right = 10
+		var hover := normal.duplicate() as StyleBoxFlat
+		hover.border_color = HudKit.GOLD_HI
+		card.add_theme_stylebox_override("normal", normal)
+		card.add_theme_stylebox_override("hover", hover)
+		card.add_theme_stylebox_override("pressed", hover)
+		card.add_theme_stylebox_override("focus", HudKit.empty())
+		card.add_theme_font_override("font", HudKit.bold())
+		card.add_theme_font_size_override("font_size", 16)
+		card.add_theme_color_override("font_color", HudKit.PARCHMENT)
+		card.add_theme_color_override("font_hover_color", HudKit.GOLD_HI)
+		if i < characters.size():
+			var c: Dictionary = characters[i]
+			var house := String(c.get("house", "Gryffindor"))
+			card.icon = UITheme.chrome_at("house_" + house.to_lower(), 46.0)
+			card.text = "%s\nSeviye %d  ·  %s" % [String(c.get("name", "Wizard")), int(c.get("level", 1)), house]
+			var index := i
+			card.pressed.connect(func(): _switch_slot(index))
+		else:
+			card.icon = UITheme.chrome_at("minimap_zoom_in", 30.0)
+			card.text = "Yeni Büyücü Oluştur"
+			card.add_theme_color_override("font_color", HudKit.GOLD_LT)
+			card.pressed.connect(func():
+				if current_slot != i and i < 2:
+					current_slot = i
+					_update_slot_display(false)
+				_on_new_char_pressed())
+		_roster.add_child(card)
+
+## Drag on the stage to turn the wizard on the dais.
+func _input(event: InputEvent) -> void:
+	if create_modal.visible:
+		return
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		var vp := get_viewport().get_visible_rect().size
+		var x: float = event.position.x
+		_drag_turn = event.pressed and x > vp.x * 0.3 and x < vp.x * 0.7 and event.position.y < vp.y - 120
+	elif event is InputEventMouseMotion and _drag_turn and is_instance_valid(model_anchor):
+		model_anchor.rotation.y += event.relative.x * 0.01

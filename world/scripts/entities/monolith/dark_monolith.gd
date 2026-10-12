@@ -107,7 +107,7 @@ func _flash_red() -> void:
 
 func _spawn_wave(wave_num: int, target_player: Node3D) -> void:
 	# Zone notification
-	NetworkManager.send_chat("[Dark Monolith] A wave of dark creatures emerges from the ground! (Wave %d/3)" % wave_num)
+	NetworkManager.system_chat("Dark Monolith: a wave of dark creatures emerges from the ground! (Wave %d/3)" % wave_num)
 	
 	# Visual burst
 	if dark_light:
@@ -161,7 +161,7 @@ func _destroy_monolith(shatterer: Node3D) -> void:
 		shatterer_name = shatterer.player_name
 	# EXP and the loot shower are granted by the authority (one reward per kill);
 	# this node only reports the event to the players nearby.
-	NetworkManager.send_chat("[Server] The Dark Monolith has been shattered by %s! Riches shower the realm!" % shatterer_name)
+	NetworkManager.system_chat("The Dark Monolith has been shattered by %s! Riches shower the realm!" % shatterer_name)
 
 	# Disappear & schedule respawn through a child timer: it is freed with this
 	# node, so a scene change can never resume a coroutine on a freed instance.
@@ -194,7 +194,7 @@ func _respawn() -> void:
 	# consider this monolith dead and refuse damage on the next wave.
 	if SimAuthority.is_authority():
 		SimAuthority.refresh_mob(self)
-	NetworkManager.send_chat("[Dark Monolith] A new Dark Monolith has manifested in the realm!")
+	NetworkManager.system_chat("A new Dark Monolith has manifested in the realm!")
 
 func _add_sky_beam() -> void:
 	# tall purple beacon so players can find world bosses from anywhere

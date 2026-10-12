@@ -17,6 +17,9 @@ extends Node
 ## intents; this engine answers.
 
 signal chat(text: String)
+## A player's chat line, already routed: channel "local" (heard within
+## HPProtocol.CHAT_LOCAL_RADIUS on the speaker's map) or "shout" (every player).
+signal chat_line(channel: String, uid: int, sender: String, house: String, text: String)
 signal notice(text: String, color: Color)
 signal entity_replicating(record: Dictionary)      # presentation: create a view
 signal entity_despawned(uid: int)

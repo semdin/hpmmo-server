@@ -295,7 +295,7 @@ func _on_enter_world_pressed() -> void:
 		select_status_label.text = "Could not start that character: %s" % _bind_reason_text(String(result.get("reason", "")))
 		return
 	if is_inside_tree() and get_tree():
-		get_tree().change_scene_to_file("res://scenes/world/game_world.tscn")
+		WorldLoader.enter_world(get_tree())
 
 func _bind_reason_text(reason: String) -> String:
 	match reason:
@@ -317,7 +317,7 @@ func _on_character_select_result(success: bool, message: String, _char_data: Dic
 		return
 	
 	if is_inside_tree() and get_tree():
-		get_tree().change_scene_to_file("res://scenes/world/game_world.tscn")
+		WorldLoader.enter_world(get_tree())
 
 func _on_new_char_pressed() -> void:
 	create_status_label.text = ""
@@ -420,7 +420,7 @@ func _on_solo_pressed() -> void:
 		}
 	
 	if is_inside_tree() and get_tree():
-		get_tree().change_scene_to_file("res://scenes/world/game_world.tscn")
+		WorldLoader.enter_world(get_tree())
 
 ## The port carried by an account-service URL, or 0 when it does not carry one.
 func _api_port_from_url(url: String) -> int:

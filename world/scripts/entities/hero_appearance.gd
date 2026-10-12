@@ -210,12 +210,14 @@ const CHARACTER_LAYER := 1 << 19
 ## from the sun reads as a black silhouette under it. A soft, shadowless light
 ## from the camera lifts only characters (light_cull_mask), the usual
 ## third-person "character fill".
-const FILL_ENERGY := 0.4
+const FILL_ENERGY := 0.28
 const FILL_COLOR := Color(0.92, 0.95, 1.0)
 ## Woven cloth scatters light at grazing angles; a little rim gives the
 ## silhouette an edge against the background.
-const CLOTH_RIM := 0.3
-const CLOTH_RIM_TINT := 0.5
+## The body is ONE material (cloth and skin share the atlas), so the rim also
+## lands on the face: at 0.3 it washed the cheeks and brow out to a grey sheen.
+const CLOTH_RIM := 0.1
+const CLOTH_RIM_TINT := 0.25
 
 static var _dressed_material: StandardMaterial3D = null
 
@@ -247,8 +249,11 @@ static func add_character_fill(camera: Camera3D) -> DirectionalLight3D:
 	fill.light_energy = FILL_ENERGY
 	fill.light_color = FILL_COLOR
 	fill.shadow_enabled = false
-	fill.light_specular = 0.2
-	fill.rotation_degrees = Vector3(-12, 18, 0)
+	# No specular from the fill: a highlight that follows the camera is what made
+	# the face look wet and plastic. Lift it from above-left so the face keeps
+	# its modelling instead of being flattened by a light on the view axis.
+	fill.light_specular = 0.0
+	fill.rotation_degrees = Vector3(-32, 28, 0)
 	camera.add_child(fill)
 	return fill
 

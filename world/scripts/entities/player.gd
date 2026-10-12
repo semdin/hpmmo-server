@@ -15,6 +15,11 @@ signal equipment_answer(result: Dictionary)
 ## Spell effects consumes for audio. Emitted from measured contact, never from a
 ## hardcoded frame number.
 signal animation_event(event_name: String)
+## A short player-facing notice ("Descend near level ground first"), shown by the
+## HUD's notice banner instead of a floating world label that drifts away.
+signal notice(text: String, kind: String)
+## The timed effects on this body changed (a buff started, ended or refreshed).
+signal buffs_changed
 
 ## --------------------------------------------------------------- the rig body
 ## Measured from hero_wizard.glb (the Rigify hero, 1.75 m crown; art/hero). Every
@@ -105,6 +110,28 @@ const FLIGHT_CEILING_Y := 175.0
 const STEP_UP_HEIGHT := 0.45
 const STEP_UP_PROBE := 0.4
 const STEP_UP_MIN_SPEED := 0.6
+## A step is a WALL at foot height (a tread, a sill). A blocking surface whose
+## normal points this far up is ground on a slope, never a step: lifting the body
+## over it is what made climbing a hill hop, fall and slide back.
+const STEP_WALL_MAX_NORMAL_Y := 0.35
+
+## ----------------------------------------------------------- floor & slopes
+## Walkable slope limit. Steeper ground is not floor: the body slides down it
+## smoothly instead of standing, and cannot walk up it.
+const FLOOR_MAX_ANGLE_DEG := 48.0
+## How far the body is pulled down onto the ground while walking. Long enough
+## to hold it on a descending terrain at full run speed (8.5 m/s down a 45°
+## slope drops ~0.15 m per physics frame), so a run downhill never goes airborne.
+const FLOOR_SNAP_LENGTH := 0.45
+## Short gaps under the feet (a terrain crease, the frame a slope changes) are
+## not a fall. The animation only leaves the ground state after this long in the
+## air, or when the body is clearly rising (a jump).
+const AIR_GRACE := 0.14
+## Only a real fall earns the landing one-shot; a crease does not.
+const LAND_MIN_AIR := 0.35
+## Steep-slope sliding: downhill speed builds with this acceleration up to the cap.
+const STEEP_SLIDE_ACCEL := 14.0
+const STEEP_SLIDE_MAX := 7.5
 
 # Decoupled Camera Orbit
 var camera_rot_x: float = -20.0
@@ -133,6 +160,22 @@ var _cast_generation := 0
 var _basic_held := false
 var _hit_recovery := 0.0
 var _was_airborne := false
+## Seconds the body has been off the floor (0 while grounded).
+var _air_time := 0.0
+## Air time of the fall that just ended (read once by the landing check).
+var _last_air_time := 0.0
+## Normal of the too-steep ground the body is resting on, and how fresh it is.
+var _steep_normal := Vector3.ZERO
+var _steep_time := 0.0
+var _slide_speed := 0.0
+## Seconds the local body has been standing still (reconciliation settle window).
+var _standing_time := 0.0
+## Smoothed camera boom length: obstacles pull it in quickly and it eases back
+## out, so foliage brushing the boom no longer makes the camera jump.
+var _boom_length := 8.0
+## Timed effects on this body, for the buff bar: id -> {until_ms (0 = while it
+## lasts), duration, icon, title, desc}.
+var active_buffs: Dictionary = {}
 ## Committed attacks: movement is explicitly restricted until this expires
 ## ("explicit movement restrictions for committed attacks").
 var _committed_until := 0.0
@@ -158,6 +201,9 @@ const GROUND_STOP_DECEL := 180.0
 ## disagreement. Real discrepancies (walls, knockback, platforms, teleports) are
 ## larger than this and are corrected. The vertical axis is never tolerated.
 const STANDING_TOLERANCE := 0.5
+## How long after stopping a snapshot that lies on our own recent path is still
+## treated as the server catching up (two snapshot intervals + a generous RTT).
+const STANDING_SETTLE := 0.9
 ## Rolling history of local positions used for latency-tolerant reconciliation.
 var _pos_history: Array[Vector3] = []
 const MAX_POS_HISTORY := 90
@@ -232,6 +278,11 @@ const FT_SCENE = preload("res://scenes/ui/floating_text.tscn")
 
 func _ready() -> void:
 	add_to_group("players")
+	floor_max_angle = deg_to_rad(FLOOR_MAX_ANGLE_DEG)
+	floor_snap_length = FLOOR_SNAP_LENGTH
+	floor_constant_speed = true
+	floor_stop_on_slope = true
+	floor_block_on_wall = true
 	
 	if is_local_player:
 		var nm = get_node_or_null("/root/NetworkManager")
@@ -263,8 +314,12 @@ func _ready() -> void:
 		broom_particles.initial_velocity_max = 3.0
 		broom_particles.gravity = Vector3(0, 0.35, 0)
 	if spring_arm:
-		spring_arm.collision_mask = 1
+		# The boom's own collision snapped its length every frame a branch or a
+		# leaf card crossed it - the camera "shook" whenever the player stopped
+		# among trees. The length is resolved here instead (see `_update_boom`).
+		spring_arm.collision_mask = 0
 		spring_arm.add_excluded_object(get_rid())
+		_boom_length = camera_distance
 	_apply_house_customization()
 	_apply_wand_aura()
 	_update_nameplate()
@@ -364,11 +419,51 @@ func _apply_house_customization() -> void:
 		max_mana = 375
 		current_mana = 375
 
+## MMO nameplate: the name on its own line in a clean bold face, and under it
+## a smaller "Lv. 10 · Gryffindor" line in the house colour. Both are
+## billboarded, outlined and drawn over the world so hair and hats never cut
+## them; the local player's name is a soft gold, everyone else's is white.
+var _nameplate_sub: Label3D = null
+
 func _update_nameplate() -> void:
-	if nameplate:
-		nameplate.text = "[%s]\n%s (Lv.%d)" % [house, player_name, level]
-		if GameData.HOUSES.has(house):
-			nameplate.modulate = GameData.HOUSES[house].secondary_color
+	if nameplate == null:
+		return
+	var bold_path := "res://assets/fonts/Philosopher-Bold.ttf"
+	var font: Font = load(bold_path) if ResourceLoader.exists(bold_path) else null
+	nameplate.text = player_name
+	nameplate.position.y = NAMEPLATE_HEIGHT + 0.13
+	nameplate.font_size = 46
+	nameplate.outline_size = 12
+	nameplate.pixel_size = 0.0034
+	nameplate.no_depth_test = true
+	nameplate.render_priority = 5
+	nameplate.outline_render_priority = 4
+	nameplate.outline_modulate = Color(0.04, 0.03, 0.02, 0.88)
+	nameplate.modulate = Color(1.0, 0.88, 0.58) if is_local_player else Color(0.96, 0.96, 0.94)
+	if font != null:
+		nameplate.font = font
+	if _nameplate_sub == null:
+		_nameplate_sub = Label3D.new()
+		_nameplate_sub.name = "NameplateSub"
+		_nameplate_sub.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		_nameplate_sub.double_sided = false
+		_nameplate_sub.no_depth_test = true
+		_nameplate_sub.render_priority = 5
+		_nameplate_sub.outline_render_priority = 4
+		# A child of the name, so hiding the nameplate hides both lines.
+		nameplate.add_child(_nameplate_sub)
+	_nameplate_sub.position = Vector3(0, -0.13, 0)
+	_nameplate_sub.text = "Lv. %d  ·  %s" % [level, house]
+	_nameplate_sub.font_size = 30
+	_nameplate_sub.outline_size = 9
+	_nameplate_sub.pixel_size = 0.0034
+	_nameplate_sub.outline_modulate = Color(0.04, 0.03, 0.02, 0.85)
+	var tint := Color(0.85, 0.85, 0.85)
+	if GameData.HOUSES.has(house):
+		tint = (GameData.HOUSES[house].primary_color as Color).lightened(0.42)
+	_nameplate_sub.modulate = tint
+	if font != null:
+		_nameplate_sub.font = font
 
 func _init_starter_inventory() -> void:
 	inventory.clear()
@@ -388,12 +483,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_RIGHT:
 			mouse_orbit_active = event.pressed
+			CursorKit.set_rotating(event.pressed)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			camera_distance = clamp(camera_distance - 0.8, 3.0, 16.0)
-			spring_arm.spring_length = camera_distance
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			camera_distance = clamp(camera_distance + 0.8, 3.0, 16.0)
-			spring_arm.spring_length = camera_distance
 		elif event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 			_basic_held = true
 			_try_click_target()
@@ -413,6 +507,8 @@ func _input(event: InputEvent) -> void:
 			_basic_held = false
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
 			mouse_orbit_active = false
+			if is_local_player:
+				CursorKit.set_rotating(false)
 
 func _process(delta: float) -> void:
 	# Tick spell cooldowns
@@ -432,6 +528,7 @@ func _process(delta: float) -> void:
 	_mount_notice_cd = maxf(0.0, _mount_notice_cd - delta)
 	_queue_time = maxf(0.0, _queue_time - delta)
 	_combat_until = maxf(0.0, _combat_until - delta)
+	_expire_buffs()
 	_update_flight_pose(delta)
 	if hero_anim:
 		hero_anim.tick(delta)
@@ -544,6 +641,7 @@ func _physics_process(delta: float) -> void:
 		camera_pivot.rotation_degrees.y = camera_rot_y
 		if spring_arm:
 			spring_arm.rotation_degrees.x = camera_rot_x
+			_update_boom(delta)
 
 	if not is_local_player:
 		# Another player's body. On a client it is a view that follows the
@@ -571,7 +669,16 @@ func _physics_process(delta: float) -> void:
 	if is_dead:
 		velocity = Vector3.ZERO
 		return
-	_was_airborne = not is_on_floor() and not is_mounted and not is_swimming
+	var grounded_now := is_on_floor() or is_mounted or is_swimming
+	_was_airborne = _air_time > LAND_MIN_AIR and grounded_now
+	if grounded_now:
+		if _air_time > 0.0:
+			_last_air_time = _air_time
+		_air_time = 0.0
+	else:
+		_air_time += delta
+	_steep_time = maxf(0.0, _steep_time - delta)
+	var on_steep := _steep_time > 0.0 and not is_on_floor() and not is_mounted and not is_swimming
 	# Gravity, swimming & mounting. Swimming overrides gravity with buoyancy:
 	# the body floats toward SWIM_FLOAT_Y and paddles with jump, never sinks to
 	# the lakebed.
@@ -588,12 +695,16 @@ func _physics_process(delta: float) -> void:
 		if not input_blocked():
 			vertical = float(_intent_jump()) - float(_intent_descend())
 		var ground := _ground_below(3.0)
-		if not ground.is_empty() and global_position.y - ground.position.y < 1.4 and vertical >= 0:
-			vertical = 0.5
+		if not ground.is_empty() and vertical >= 0:
+			# Proportional hover instead of an on/off kick at 1.4 m: the on/off
+			# version bobbed the rider every time the probe crossed the threshold
+			# (or a branch below it), which read as jitter after stopping.
+			var clearance: float = global_position.y - float(ground.position.y)
+			vertical = maxf(vertical, clampf((1.45 - clearance) * 1.6, 0.0, 0.5))
 		if global_position.y > _flight_ceiling():
 			vertical = minf(vertical, -0.5)
 		velocity.y = move_toward(velocity.y, vertical * 7.0, delta * 18.0)
-	elif not input_blocked() and _intent_jump_edge() and not is_swimming:
+	elif not input_blocked() and _intent_jump_edge() and not is_swimming and is_on_floor():
 		velocity.y = 8.0
 
 	# Input direction relative to camera yaw
@@ -644,13 +755,49 @@ func _physics_process(delta: float) -> void:
 			var cam_yaw: float = deg_to_rad(_intent_yaw())
 			visuals.rotation.y = lerp_angle(visuals.rotation.y, cam_yaw, 10.0 * delta)
 
+	if on_steep:
+		_apply_steep_slide(delta)
+	else:
+		_slide_speed = 0.0
 	_step_up()
 	move_and_slide()
+	_record_steep_contact()
+	if is_local_player and not sim_server_controlled:
+		var planar_speed := Vector2(velocity.x, velocity.z).length()
+		if planar_speed < 0.25 and _intent_move().length_squared() < 0.01:
+			_standing_time += delta
+		else:
+			_standing_time = 0.0
 	if is_local_player:
 		_pos_history.append(global_position)
 		if _pos_history.size() > MAX_POS_HISTORY:
 			_pos_history.pop_front()
 	_update_animation_state()
+
+const BOOM_PROBE_RADIUS := 0.22
+## Resolve the camera boom against the world with a sphere cast, then ease the
+## length: in fast (never let the camera sit inside a wall) and out slowly (a
+## branch passing the boom no longer yanks the camera back and forth).
+func _update_boom(delta: float) -> void:
+	var wanted := camera_distance
+	var space := get_world_3d().direct_space_state
+	if space != null:
+		var origin := camera_pivot.global_position
+		var back := spring_arm.global_basis.z.normalized()
+		var shape := SphereShape3D.new()
+		shape.radius = BOOM_PROBE_RADIUS
+		var params := PhysicsShapeQueryParameters3D.new()
+		params.shape = shape
+		params.transform = Transform3D(Basis.IDENTITY, origin)
+		params.motion = back * camera_distance
+		params.collision_mask = 1
+		params.exclude = [get_rid()]
+		var fractions := space.cast_motion(params)
+		if fractions.size() == 2 and fractions[0] < 1.0:
+			wanted = maxf(1.2, camera_distance * fractions[0] - 0.1)
+	var rate := 18.0 if wanted < _boom_length else 3.5
+	_boom_length = lerpf(_boom_length, wanted, 1.0 - exp(-rate * delta))
+	spring_arm.spring_length = _boom_length
 
 ## Walk up a ledge instead of stopping dead against it. The body is pushed
 ## forward by its intent, so a tread, a doorstep, the shoreline shelf or the
@@ -669,7 +816,12 @@ func _step_up() -> void:
 		return
 	var motion := planar / speed * STEP_UP_PROBE
 	var probe := global_transform
-	if not test_move(probe, motion):
+	var blocker := KinematicCollision3D.new()
+	if not test_move(probe, motion, blocker):
+		return
+	# Ground rising ahead (a slope) is not a ledge: floor snapping walks it, and
+	# a slope too steep to walk must stay unclimbable.
+	if blocker.get_normal().y > STEP_WALL_MAX_NORMAL_Y:
 		return
 	if test_move(probe.translated(Vector3(0.0, STEP_UP_HEIGHT, 0.0)), motion):
 		return
@@ -686,6 +838,9 @@ func _step_up() -> void:
 		return
 	var rise: float = float(hit["position"].y) - global_position.y
 	if rise <= 0.03 or rise > STEP_UP_HEIGHT:
+		return
+	# Only land on walkable ground.
+	if (hit["normal"] as Vector3).y < cos(floor_max_angle):
 		return
 	# Take the step; the next slide crosses onto the ledge and gravity settles.
 	global_position.y += rise + 0.02
@@ -712,13 +867,14 @@ func _update_animation_state() -> void:
 		else:
 			hero_anim.set_locomotion("swim", "Running_A")
 		return
-	if not is_on_floor():
+	if _is_airborne_for_animation():
 		if velocity.y > 0.5:
 			hero_anim.set_locomotion("air_up", "Jump_Start")
 		else:
 			hero_anim.set_locomotion("air_down", "Fall")
 		return
 	if _was_airborne:
+		_was_airborne = false
 		hero_anim.play_oneshot("Land")
 	# Classify against the facing the body is heading FOR while it auto-faces its
 	# movement (reaching it takes several frames at 14 rad/s), and against the real
@@ -727,6 +883,61 @@ func _update_animation_state() -> void:
 	# with Walk_Back/Strafe_R frames.
 	var yaw := _facing_target_yaw if _auto_facing else visuals.rotation.y
 	_update_ground_animation(velocity, yaw)
+
+## Airborne for the animation graph: a real jump or fall, never the frame a
+## terrain crease or a slope change lifts the feet, and never a slide down a
+## too-steep bank (that keeps the ground pose while the body slides).
+func _is_airborne_for_animation() -> bool:
+	if is_on_floor():
+		return false
+	if _steep_time > 0.0:
+		return false
+	if velocity.y > 1.0:
+		return true
+	if _air_time < AIR_GRACE:
+		return false
+	# Ground just under the feet: a step down or a slope edge, not a fall.
+	var below := _ground_below(0.55)
+	return below.is_empty()
+
+## Too-steep ground under the body: no walking into it, and a smooth slide down
+## its fall line that builds speed instead of the stutter of gravity, collision
+## and snap fighting each frame.
+func _apply_steep_slide(delta: float) -> void:
+	var n := _steep_normal
+	var across := Vector3(n.x, 0.0, n.z)
+	if across.length_squared() < 0.0001:
+		return
+	across = across.normalized()   # points downhill, away from the bank
+	var planar := Vector3(velocity.x, 0.0, velocity.z)
+	var into := planar.dot(across)
+	if into < 0.0:
+		planar -= across * into     # cannot push uphill into the bank
+	var downhill := (Vector3.DOWN - n * n.dot(Vector3.DOWN)).normalized()
+	_slide_speed = minf(STEEP_SLIDE_MAX, _slide_speed + STEEP_SLIDE_ACCEL * delta)
+	velocity = planar + downhill * _slide_speed
+
+## Remember a too-steep contact from the last slide so the next frame can slide
+## down it. Floors and walls are ignored: only ground that is too steep to stand.
+func _record_steep_contact() -> void:
+	if is_on_floor() or is_mounted or is_swimming:
+		return
+	var min_y := cos(floor_max_angle)
+	for i in range(get_slide_collision_count()):
+		var normal := get_slide_collision(i).get_normal()
+		if normal.y > 0.2 and normal.y < min_y:
+			_steep_normal = normal
+			_steep_time = 0.15
+			return
+	# Sliding parallel to the bank often reports no contact for a frame; the
+	# ground is still right under the feet, so keep the slide alive.
+	if _steep_time > 0.0:
+		var below := _ground_below(1.1)
+		if not below.is_empty():
+			var n: Vector3 = below.normal
+			if n.y > 0.2 and n.y < min_y:
+				_steep_normal = n
+				_steep_time = 0.15
 
 func _update_ground_animation(motion: Vector3, yaw: float) -> void:
 	var forward := Vector3(sin(yaw), 0, cos(yaw))
@@ -827,7 +1038,9 @@ func toggle_broom_mount() -> void:
 	if is_mounted:
 		var dismount_reason := dismount_block_reason()
 		if dismount_reason != "":
-			_spawn_floating_text(dismount_reason, Color(1, 0.7, 0.3))
+			if _mount_notice_cd <= 0.0:
+				_mount_notice_cd = 0.8
+				show_notice(dismount_reason)
 			return
 		_apply_mount_state(false)
 	else:
@@ -835,7 +1048,7 @@ func toggle_broom_mount() -> void:
 		if mount_reason != "":
 			if _mount_notice_cd <= 0.0:
 				_mount_notice_cd = 0.8
-				_spawn_floating_text(mount_reason, Color(1, 0.7, 0.3))
+				show_notice(mount_reason)
 			return
 		_apply_mount_state(true)
 		velocity.y = 3.0
@@ -935,6 +1148,10 @@ func _apply_mount_state(mounted: bool) -> void:
 	if broom:
 		broom.set_flying(mounted)
 	_align_broom_to_hips()
+	if mounted:
+		add_buff("broom", 0.0, "broom_nimbus2000", "Broom Flight", "Space rises · Ctrl descends · Shift dismounts on level ground.")
+	else:
+		remove_buff("broom")
 	if mounted:
 		if hero_anim:
 			hero_anim.play_oneshot("Mount_Broom")
@@ -1132,7 +1349,7 @@ func cast_spell(spell_id: String) -> void:
 		_basic_held = false
 		if _mount_notice_cd <= 0.0:
 			_mount_notice_cd = 1.0
-			_spawn_floating_text("Not while mounted!", Color(1.0, 0.8, 0.4))
+			show_notice("Not while mounted!")
 		return
 
 	var s_data: Dictionary = GameData.SPELLS[spell_id]
@@ -1146,7 +1363,9 @@ func cast_spell(spell_id: String) -> void:
 
 	var cost: int = int(s_data.get("mana_cost", 0))
 	if current_mana < cost:
-		_spawn_floating_text("Not enough Mana!", Color(0.3, 0.6, 1.0))
+		if _mount_notice_cd <= 0.0:
+			_mount_notice_cd = 0.6
+			show_notice("Not enough mana", "mana")
 		return
 
 	# --- predicted feedback. The world server decides; everything below is the
@@ -1222,6 +1441,10 @@ func on_cast_answer(cast_seq: int, _cast_id: int, ok: bool, reason: String) -> v
 	_reject_feedback(reason)
 
 func _reject_feedback(reason: String) -> void:
+	# With a HUD attached, the combat feedback banner already words every
+	# refusal; a second floating label on top of it was noise.
+	if not notice.get_connections().is_empty():
+		return
 	match reason:
 		"no_mana":
 			_spawn_floating_text("Not enough Mana!", Color(0.3, 0.6, 1.0))
@@ -1320,10 +1543,71 @@ func _activate_protego_preview() -> void:
 	p_shield.name = "ProtegoPreview"
 	add_child(p_shield)
 	p_shield.setup(self)
+	# The ward ends when the shield does. Nothing cleared the flag before, so the
+	# status icon outlived the effect forever.
+	p_shield.tree_exited.connect(_on_protego_shield_gone)
+	var spell: Dictionary = GameData.SPELLS.get("protego", {})
+	var seconds := float(spell.get("duration_ms", 3500)) / 1000.0
+	add_buff("protego", seconds, "protego", "Protego", "Reflects projectiles; other damage reduced by 60%.")
 	_spawn_floating_text("PROTEGO!", Color(0.2, 0.8, 1.0), 1.2)
+
+func _on_protego_shield_gone() -> void:
+	if not is_inside_tree():
+		return
+	var other := get_node_or_null("ProtegoPreview")
+	if other != null and is_instance_valid(other) and not other.is_queued_for_deletion():
+		return
+	is_protego_active = false
+	remove_buff("protego")
+
+## ------------------------------------------------------------------- buffs
+
+func add_buff(id: String, seconds: float, icon_id: String, title: String, desc: String) -> void:
+	active_buffs[id] = {
+		"until_ms": Time.get_ticks_msec() + int(seconds * 1000.0) if seconds > 0.0 else 0,
+		"duration": seconds,
+		"icon": icon_id,
+		"title": title,
+		"desc": desc,
+	}
+	buffs_changed.emit()
+
+func remove_buff(id: String) -> void:
+	if active_buffs.erase(id):
+		buffs_changed.emit()
+
+## Seconds left on a timed buff, 0 when it is gone, -1 for one with no timer.
+func buff_remaining(id: String) -> float:
+	if not active_buffs.has(id):
+		return 0.0
+	var until := int(active_buffs[id].get("until_ms", 0))
+	if until == 0:
+		return -1.0
+	return maxf(0.0, float(until - Time.get_ticks_msec()) / 1000.0)
+
+func _expire_buffs() -> void:
+	if active_buffs.is_empty():
+		return
+	var now := Time.get_ticks_msec()
+	for id in active_buffs.keys():
+		var until := int(active_buffs[id].get("until_ms", 0))
+		if until != 0 and now >= until:
+			active_buffs.erase(id)
+			if id == "protego":
+				is_protego_active = false
+			buffs_changed.emit()
+
+## A player-facing notice. The HUD shows it as a banner; without a HUD listening
+## (tests, the dedicated server) it falls back to the floating label.
+func show_notice(text: String, kind: String = "warn") -> void:
+	if notice.get_connections().is_empty():
+		_spawn_floating_text(text, Color(1, 0.7, 0.3))
+	else:
+		notice.emit(text, kind)
 
 func _clear_protego_preview() -> void:
 	is_protego_active = false
+	remove_buff("protego")
 	var preview = get_node_or_null("ProtegoPreview")
 	if preview and is_instance_valid(preview):
 		preview.queue_free()
@@ -1396,13 +1680,25 @@ func apply_authoritative_position(pos: Vector3, rot_y: float) -> void:
 		min_path_dist = direct_dist
 		closest_pt = global_position
 
-	var is_standing := velocity.length_squared() < 0.04 and _intent_move().length_squared() < 0.01
+	var is_standing := Vector2(velocity.x, velocity.z).length_squared() < 0.06 and _intent_move().length_squared() < 0.01
 
 	if is_standing:
-		# Vertical is never tolerated: a carriage, a lift or a fall rescue moves the
-		# body through the server, and only the server knows where it went.
-		if absf(pos.y - global_position.y) > 0.005:
+		# Vertical: a carriage, a lift or a fall rescue moves the body through the
+		# server, and only the server knows where it went. On the floor a few
+		# centimetres are terrain sampling and snapshot age, not disagreement -
+		# pulling 25% toward them every snapshot is what made a body standing on
+		# a slope tremble.
+		var dy := pos.y - global_position.y
+		var vertical_tolerance := 0.3 if (is_on_floor() or is_mounted) else 0.005
+		if absf(dy) > vertical_tolerance:
 			global_position.y = lerpf(global_position.y, pos.y, 0.25)
+		# The server is still finishing the path we already walked (snapshot
+		# age + its own deceleration): a snapshot that lies ON our recent path
+		# inside the settle window is the past, not a correction. Pulling toward
+		# it dragged the body back and then forward again - the stop "shudder",
+		# worst on the broom where 15 m/s of lag is a couple of metres.
+		if _standing_time < STANDING_SETTLE and min_path_dist < 0.75 and direct_dist < 6.0:
+			return
 		# Horizontally, a snapshot taken while we were still decelerating sits a
 		# fraction of a metre behind us. Pulling 25% of the way toward it every
 		# snapshot dragged the body on after the key was released, which is the
@@ -1410,13 +1706,13 @@ func apply_authoritative_position(pos: Vector3, rot_y: float) -> void:
 		# through the same deceleration land both sides on the same point within a
 		# few ticks, so a residual inside the stopping distance is latency, not
 		# disagreement - correct only what is genuinely elsewhere.
-		if direct_dist > 2.0:
+		if direct_dist > 4.0:
 			global_position = pos
 			velocity = Vector3.ZERO
 			_pos_history.clear()
 		elif direct_dist > STANDING_TOLERANCE:
-			global_position.x = lerpf(global_position.x, pos.x, 0.25)
-			global_position.z = lerpf(global_position.z, pos.z, 0.25)
+			global_position.x = lerpf(global_position.x, pos.x, 0.2)
+			global_position.z = lerpf(global_position.z, pos.z, 0.2)
 	else:
 		# When moving:
 		# If the server's snapshot position is along our recent path (within tolerance),

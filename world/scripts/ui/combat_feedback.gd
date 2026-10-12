@@ -88,6 +88,9 @@ var _death_seconds := 0.0
 var _shake_until := 0.0
 var _shake_strength := 0.0
 var last_reason_text := ""
+## When set (by the HUD), refusals and warnings go to the centre notice banner
+## instead of the old bottom label.
+var notice_sink: Callable
 
 ## Evidence counters for the checks.
 var casts_shown: int = 0
@@ -326,6 +329,10 @@ func _dummy_countdown(ms: int) -> String:
 func show_feedback(text: String, color: Color) -> void:
 	last_reason_text = text
 	reasons_shown += 1
+	if notice_sink.is_valid():
+		var kind := "mana" if text.to_lower().find("mana") >= 0 else "warn"
+		notice_sink.call(text, kind)
+		return
 	_feedback_label.text = text
 	_feedback_label.add_theme_color_override("font_color", color)
 	_feedback_label.show()

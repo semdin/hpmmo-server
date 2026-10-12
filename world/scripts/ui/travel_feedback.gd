@@ -393,7 +393,12 @@ func _update_mounted() -> void:
 	_mounted_panel.tooltip_text = text
 	# A bright broom remains legible; a separate shape conveys landing state.
 	_landing_badge.texture = _landing_blocked_texture if reason != "" else _landing_ready_texture
-	_mounted_panel.show()
+	# The broom now lives in the buff row next to the other effects (its tooltip
+	# carries these flight notes); the separate bottom-left badge is retired.
+	_mounted_panel.hide()
+	var buffs = player.get("active_buffs")
+	if buffs is Dictionary and (buffs as Dictionary).has("broom"):
+		buffs["broom"]["desc"] = text
 
 ## ------------------------------------------------------------ helpers
 
@@ -448,6 +453,9 @@ func _arcane_layout() -> void:
 	var canvas := get_viewport().get_visible_rect().size
 	var compact := canvas.x < 1000 or canvas.y < 560
 	UILayout.place_centred(_location_label, Vector2(240 if compact else 320,24), Vector2(0,20))
+	# The place name is shown under the minimap and announced by the overlay's
+	# zone banner; this line stays as the data source the checks read.
+	_location_label.visible = false
 	_location_label.add_theme_font_size_override("font_size",15 if compact else 16)
 	_stairs_panel.custom_minimum_size = Vector2.ZERO
 	UILayout.place_centred(_stairs_panel,Vector2(240 if compact else 360,48),Vector2(0,172))

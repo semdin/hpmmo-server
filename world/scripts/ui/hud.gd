@@ -59,6 +59,18 @@ var travel: TravelFeedback = null
 var maintenance: MaintenanceUI = null
 var onboarding: OnboardingUI = null
 var settings: SettingsUI = null
+## The MMO frame: unit frame, buff row, action bar with quick slots, centre
+## notices, Metin2-style chat, the Esc menu, the world map and the quest scroll.
+var unit_frame: HudUnitFrame = null
+var buff_bar: HudBuffBar = null
+var action_bar: HudActionBar = null
+var notices: HudNotices = null
+var chat: HudChat = null
+var game_menu: HudGameMenu = null
+var world_map: HudWorldMap = null
+var quest_scroll: HudQuestScroll = null
+var _exp_ticks: Control = null
+var _level := 1
 
 var _hp_stat: StatBar = null
 var _mana_stat: StatBar = null
@@ -73,9 +85,11 @@ func _ready() -> void:
 	target_panel.hide()
 	_apply_theme()
 	_build_player_plate()
-	_build_chat_badge()
 	chat_input.text_submitted.connect(_on_chat_submitted)
-	NetworkManager.chat_message_received.connect(_on_chat_received)
+	chat = HudChat.new()
+	chat.name = "Chat"
+	add_child(chat)
+	chat.setup($ChatContainer, chat_history, chat_input)
 
 	slot_1.pressed.connect(func(): _trigger_player_spell("stupefy"))
 	slot_2.pressed.connect(func(): _trigger_player_spell("incendio"))
@@ -87,9 +101,9 @@ func _ready() -> void:
 	mount_button.pressed.connect(func(): if is_instance_valid(player): player.toggle_broom_mount())
 
 	_setup_panels()
-	_build_arcane_layout()
-	_add_system_chat("Welcome to HPMMO! Cast spells with 1-4, Q, E. Shift mounts/dismounts. Space rises, Ctrl descends.")
-	_add_system_chat("Target Dark Monoliths and mobs with Left Click or Tab. Destroy Monoliths for massive loot!")
+	_build_mmo_layout()
+	_add_system_chat("Welcome to Hogwarts! Spells on 1-4, Q, E · potions on F1-F4 · Shift mounts the broom.")
+	_add_system_chat("Enter to chat, start a line with ! to shout to everyone. M opens the map, Esc the menu.")
 
 ## Interface wiring: the animation layers, the authoritative binder and the
 ## panels. Built at runtime so the scene file keeps its node paths (other
@@ -132,10 +146,41 @@ func _setup_panels() -> void:
 	settings.name = "SettingsUI"
 	add_child(settings)
 
-	_add_quick_button("SettingsBtn", "ui_settings", "Settings", "[F1] Settings", func(): settings.toggle())
-	_add_quick_button("JournalBtn", "ui_journal", "Guide", "[J] Guide", func(): onboarding.toggle_panel())
-	_ensure_ui_action("toggle_settings", KEY_F1)
+	notices = HudNotices.new()
+	add_child(notices)
+	feedback.notice_sink = show_notice
+
+	unit_frame = HudUnitFrame.new()
+	add_child(unit_frame)
+	move_child(unit_frame, 0)   # behind the gauges it frames
+	buff_bar = HudBuffBar.new()
+	add_child(buff_bar)
+	action_bar = HudActionBar.new()
+
+	# Windows live on their own canvas layer above every HUD and overlay layer
+	# (the minimap and tracker are on the overlay's layer), so a window is never
+	# drawn under the map or a notice.
+	var modal := CanvasLayer.new()
+	modal.name = "Windows"
+	modal.layer = 20
+	add_child(modal)
+	for window in [settings, onboarding]:
+		remove_child(window)
+		modal.add_child(window)
+	world_map = HudWorldMap.new()
+	modal.add_child(world_map)
+	quest_scroll = HudQuestScroll.new()
+	modal.add_child(quest_scroll)
+	game_menu = HudGameMenu.new()
+	modal.add_child(game_menu)
+	game_menu.settings_requested.connect(func(): settings.open())
+	game_menu.map_requested.connect(func(): world_map.open())
+
+	_add_quick_button("JournalBtn", "ui_journal", "Guide", "[J] Training guide", open_guide)
+	_add_quick_button("MapBtn", "ui_portal", "Map", "[M] World map", func(): world_map.toggle())
+	_add_quick_button("MenuBtn", "ui_settings", "Menu", "[Esc] Menu - settings, change character, quit", func(): game_menu.toggle())
 	_ensure_ui_action("toggle_onboarding", KEY_J)
+	_ensure_ui_action("toggle_map", KEY_M)
 
 ## Name, house and purse, on a small brass plate in the top-left corner.
 ## Previously a bare label that overlapped the chat log.
@@ -212,22 +257,37 @@ func _ensure_ui_action(action: String, keycode: int) -> void:
 	InputMap.action_add_event(action, event)
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("toggle_settings"):
-		if settings != null:
-			settings.toggle()
+	var focus := get_viewport().gui_get_focus_owner()
+	if focus is LineEdit or focus is TextEdit:
+		return
+	if event.is_action_pressed("toggle_onboarding"):
+		open_guide()
 		get_viewport().set_input_as_handled()
-	elif event.is_action_pressed("toggle_onboarding"):
-		if onboarding != null:
-			onboarding.toggle_panel()
+	elif event.is_action_pressed("toggle_map"):
+		if settings != null and settings.is_open():
+			return
+		world_map.toggle()
 		get_viewport().set_input_as_handled()
 
 func bind_player(p_player: Node3D) -> void:
 	if player == p_player and binder != null and binder.player == p_player:
 		player.emit_stats()
 		return
+	if is_instance_valid(player) and player.has_signal("notice") and player.notice.is_connected(show_notice):
+		player.notice.disconnect(show_notice)
 	player = p_player
 	if binder != null:
 		binder.bind(player)
+	if player.has_signal("notice") and not player.notice.is_connected(show_notice):
+		player.notice.connect(show_notice)
+	if action_bar != null:
+		action_bar.bind(self, player)
+	if buff_bar != null:
+		buff_bar.bind(player, binder)
+	if world_map != null:
+		world_map.player = player
+	if unit_frame != null:
+		unit_frame.set_identity(String(player.player_name), String(player.house), int(player.level))
 	if feedback != null:
 		feedback.player = player
 	var world := _find_world()
@@ -284,8 +344,11 @@ func _on_binder_stats(stats: Dictionary) -> void:
 	_mana_stat.set_value(mana, max_mana)
 	mana_label.text = "%d / %d" % [mana, max_mana]
 	_exp_stat.set_value(exp, max_exp)
-	var exp_pct := int((float(exp) / maxf(1.0, float(max_exp))) * 100.0)
-	exp_label.text = "EXP: %d / %d (%d%%)" % [exp, max_exp, exp_pct]
+	var exp_pct := (float(exp) / maxf(1.0, float(max_exp))) * 100.0
+	_level = int(stats.get("level", _level))
+	exp_label.text = "Level %d   ·   %d / %d EXP   ·   %.1f%%" % [_level, exp, max_exp, exp_pct]
+	if unit_frame != null and is_instance_valid(player):
+		unit_frame.set_identity(String(player.player_name), String(player.house), _level)
 	var galleons := int(stats.get("galleons", -1))
 	if String(stats.get("source", "")) == "authority":
 		# Once the server has spoken about currency, its number is the one the
@@ -314,6 +377,8 @@ func _on_stats_changed(hp: int, max_hp: int, mana: int, max_mana: int, exp: int,
 func _update_currency() -> void:
 	if not is_instance_valid(player):
 		return
+	if unit_frame != null:
+		unit_frame.set_galleons(_last_galleons)
 	_currency.text = "%s · %s\n%d Galleons" % [player.player_name, player.house, _last_galleons]
 	_house_crest.texture = UITheme.chrome("house_" + player.house.to_lower())
 
@@ -518,16 +583,78 @@ func _on_chat_submitted(text: String) -> void:
 	chat_input.clear()
 	chat_input.release_focus()
 
-func _on_chat_received(sender_name: String, sender_house: String, message: String) -> void:
-	var color_hex = "ffffff"
-	if GameData.HOUSES.has(sender_house):
-		color_hex = GameData.HOUSES[sender_house].primary_color.to_html(false)
+## Chat entry points (game world -> HUD).
+func open_chat() -> void:
+	if chat != null:
+		chat.open()
+	else:
+		chat_input.grab_focus()
 
-	var line = "[color=#%s][%s] %s:[/color] %s\n" % [color_hex, sender_house, sender_name, message]
-	chat_history.append_text(line)
+func add_chat_line(channel: String, sender: String, house: String, text: String) -> void:
+	if chat != null:
+		chat.add_player_line(channel, sender, house, text)
+
+func add_system_chat(msg: String) -> void:
+	_add_system_chat(msg)
 
 func _add_system_chat(msg: String) -> void:
-	chat_history.append_text("[color=#e6b800][System] %s[/color]\n" % msg)
+	if chat != null:
+		chat.add_system_line(msg)
+	else:
+		chat_history.append_text("%s\n" % msg)
+
+## ------------------------------------------------------ notices, menus, Esc
+
+func show_notice(text: String, kind: String = "warn") -> void:
+	if notices != null:
+		notices.show_notice(text, kind)
+
+func open_guide() -> void:
+	if onboarding != null:
+		onboarding.toggle_panel()
+
+func open_quest_scroll() -> void:
+	if quest_scroll != null:
+		quest_scroll.open()
+
+## Esc closes the top-most thing that is open; with nothing open it opens the
+## game menu. `world` supplies the game world's own windows (bag, forge,
+## dialogue). Returns what it did, for the checks.
+func handle_escape(world: Node = null) -> String:
+	if chat != null and chat.is_open():
+		chat.close()
+		return "chat"
+	if settings != null and settings.is_open():
+		settings.close()
+		return "settings"
+	if game_menu != null and game_menu.is_open():
+		game_menu.close()
+		return "menu"
+	if world_map != null and world_map.is_open():
+		world_map.close()
+		return "map"
+	if quest_scroll != null and quest_scroll.is_open():
+		quest_scroll.close()
+		return "quest"
+	if onboarding != null and onboarding.expanded_guide:
+		onboarding.toggle_panel()
+		return "guide"
+	if world != null:
+		for key in ["inventory_ui", "ollivander_ui"]:
+			var w = world.get(key)
+			if w is CanvasItem and (w as CanvasItem).visible:
+				(w as CanvasItem).hide()
+				return key
+		var overlay = world.get("overlay")
+		if overlay != null and is_instance_valid(overlay) and overlay._dialog_panel != null and overlay._dialog_panel.visible:
+			overlay._dialog_panel.hide()
+			return "dialogue"
+	if is_instance_valid(player) and player.get("current_target") != null and is_instance_valid(player.get("current_target")):
+		player.set_target(null)
+		return "target"
+	if game_menu != null:
+		game_menu.open()
+	return "open_menu"
 
 ## Every HUD surface draws through `UITheme`, so the bars, the frames and the
 ## hotbar cells are the same generated kit the bag and the menus use. The
@@ -609,78 +736,158 @@ func _attach_bar_icon(bar: Control, id: String) -> void:
 
 var _player_frame: Panel
 
-func _build_arcane_layout() -> void:
+## The MMO layout. Every HUD node keeps its scene path (the walkthroughs and
+## other systems address them); this builds the new frame around them and
+## places everything for the current canvas.
+func _build_mmo_layout() -> void:
 	_player_frame = Panel.new()
 	_player_frame.name = "PlayerFrame"
-	_player_frame.theme_type_variation = &"ArcaneCard"
+	_player_frame.visible = false
 	_player_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_player_frame)
-	move_child(_player_frame, 0)
-	ArcaneSkin.decorate(_player_frame)
 	$BottomBar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	$BottomBar.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	$PlayerPlate.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
-	_currency.add_theme_font_size_override("font_size", 13)
-	_currency.add_theme_constant_override("outline_size", 0)
+	$PlayerPlate.visible = false
+	# Gauges: glossy fills, numbers in the bold face.
+	HudKit.style_gauge(hp_bar, Color(0.86, 0.13, 0.11))
+	HudKit.style_gauge(mana_bar, Color(0.18, 0.42, 0.92))
+	HudKit.style_gauge(exp_bar, Color(0.90, 0.66, 0.16))
+	HudKit.style_gauge(target_hp_bar, Color(0.86, 0.13, 0.11))
+	for label in [hp_label, mana_label]:
+		HudKit.style_label(label, 13, Color(1, 1, 1), HudKit.bold(), 3)
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	HudKit.style_label(exp_label, 11, HudKit.PARCHMENT, HudKit.bold(), 3)
+	# The numbers above the lag band StatBar adds as a later child.
+	for pair in [[hp_bar, hp_label], [mana_bar, mana_label], [exp_bar, exp_label]]:
+		(pair[0] as Node).move_child(pair[1], -1)
+	exp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	exp_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	for bar in [hp_bar, mana_bar, exp_bar, target_hp_bar]:
+		var bar_icon: Node = bar.get_node_or_null("Icon")
+		if bar_icon is CanvasItem:
+			(bar_icon as CanvasItem).visible = false
+	(hp_bar.get_parent() as BoxContainer).add_theme_constant_override("separation", 4)
+	# EXP segment ticks over the full-width bar.
+	_exp_ticks = ExpTicks.new()
+	_exp_ticks.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	exp_bar.add_child(_exp_ticks)
+	exp_bar.move_child(_exp_ticks, 0)
+	# Action bar replaces the old spell cells (kept, hidden, for their paths).
+	var hotbar := $BottomBar/Hotbar as Control
 	for slot in [slot_1, slot_2, slot_3, slot_4, slot_q, slot_e]:
-		slot.theme_type_variation = &"ArcaneSlot"
-	target_panel.theme_type_variation = &"ArcaneCard"
+		slot.visible = false
+	hotbar.add_child(action_bar)
+	action_bar.bind(self, player)
+	# Menu buttons, bottom-right.
 	for button in $BottomBar/QuickBar.get_children():
 		if button is Button:
 			button.theme_type_variation = &"ArcaneButton"
 			button.text = ""
 			button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			button.expand_icon = true
-			button.add_theme_constant_override("icon_max_width", 24)
-	chat_input.focus_entered.connect(_arcane_layout)
-	chat_input.focus_exited.connect(_arcane_layout)
-	get_viewport().size_changed.connect(_arcane_layout)
-	_arcane_layout()
+			button.add_theme_constant_override("icon_max_width", 26)
+			button.custom_minimum_size = Vector2(40, 40)
+	# Target frame.
+	target_panel.theme_type_variation = &""
+	target_panel.add_theme_stylebox_override("panel", HudKit.panel(0.86, 6))
+	HudKit.style_label(target_name_label, 16, HudKit.PARCHMENT, HudKit.title(), 4)
+	target_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	if _target_icon != null:
+		_target_icon.visible = false
+	# Chat sits over the world now; no badge.
+	if feedback != null:
+		feedback._status_row.visible = false
+		feedback._feedback_label.visible = false
+		if feedback._toast_panel != null:
+			feedback._toast_panel.add_theme_stylebox_override("panel", HudKit.panel(0.7, 6, 0.5))
+		if feedback._cast_panel != null:
+			feedback._cast_panel.add_theme_stylebox_override("panel", HudKit.panel(0.85, 5))
+			if feedback._cast_bar != null:
+				HudKit.style_gauge(feedback._cast_bar, Color(0.86, 0.66, 0.2))
+	if onboarding != null:
+		onboarding.compact_hidden = true
+	chat_input.focus_entered.connect(_mmo_layout)
+	chat_input.focus_exited.connect(_mmo_layout)
+	get_viewport().size_changed.connect(_mmo_layout)
+	_mmo_layout()
 
-func _arcane_layout() -> void:
-	if _player_frame == null: return
+func _mmo_layout() -> void:
+	if unit_frame == null:
+		return
 	var canvas := get_viewport().get_visible_rect().size
 	var compact := canvas.x < 1000 or canvas.y < 560
-	var rail := 210.0 if compact else 280.0
-	UILayout.place(_player_frame, Vector2(16, 12), Vector2(rail, 60))
-	$PlayerPlate.visible = false
+	# Unit frame + gauges, top-left.
+	unit_frame.position = Vector2(12, 8)
+	var gauges := unit_frame.gauge_rect()
 	var status := $BottomBar/StatusBars as Control
 	status.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	status.custom_minimum_size.x = 0
-	UILayout.place(status, Vector2(24, 18), Vector2(rail - 16, 48))
+	status.custom_minimum_size = Vector2.ZERO
+	UILayout.place(status, unit_frame.position + gauges.position, Vector2(gauges.size.x, 40))
+	hp_bar.custom_minimum_size = Vector2(0, 21)
+	mana_bar.custom_minimum_size = Vector2(0, 15)
+	# Buffs under the frame.
+	buff_bar.position = unit_frame.position + Vector2(HudUnitFrame.MEDALLION + 14, 112)
+	# EXP across the bottom edge.
+	exp_bar.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	exp_bar.offset_left = 0
+	exp_bar.offset_right = 0
+	exp_bar.offset_top = -14
+	exp_bar.offset_bottom = 0
+	exp_bar.custom_minimum_size = Vector2(0, 14)
+	# Action bar, centred above it.
 	var hotbar := $BottomBar/Hotbar as Control
 	hotbar.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	UILayout.place(hotbar, Vector2(-166,-88), Vector2(332,54))
-	for slot in [slot_1,slot_2,slot_3,slot_4,slot_q,slot_e]: slot.custom_minimum_size = Vector2(48,48)
-	UILayout.place(exp_bar, Vector2(-166,-26), Vector2(332,14))
+	var bw := action_bar.bar_width()
+	UILayout.place(hotbar, Vector2(-bw * 0.5, -14 - 12 - HudActionBar.SLOT), Vector2(bw, HudActionBar.SLOT))
+	action_bar.queue_redraw()
+	# Menu buttons, bottom-right.
 	var quick := $BottomBar/QuickBar as GridContainer
-	quick.columns = 3 if compact else 5
+	var n := 0
+	for b in quick.get_children():
+		if b is Button and b.visible:
+			n += 1
+	quick.columns = n if not compact else 3
+	quick.add_theme_constant_override("h_separation", 4)
 	quick.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	for button in quick.get_children():
-		if button is Button:
-			button.custom_minimum_size = Vector2(36,36)
-	var quick_height := 76.0 if compact else 36.0
-	UILayout.place(quick, Vector2(-132 if compact else -212,-16-quick_height), Vector2(116 if compact else 196,quick_height))
-	var chat := $ChatContainer as Control
-	chat.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	var chat_h := 180.0 if chat_input.has_focus() else (86.0 if compact else 120.0)
-	UILayout.place(chat, Vector2(16,-84-chat_h), Vector2(rail,chat_h))
+	var qw := float(quick.columns) * 44.0
+	var qh: float = 40.0 * ceilf(float(n) / float(quick.columns)) + (4.0 if compact else 0.0)
+	UILayout.place(quick, Vector2(-qw - 14, -14 - 12 - qh), Vector2(qw, qh))
+	# Chat, bottom-left.
+	var chat_box := $ChatContainer as Control
+	chat_box.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	var chat_w := 280.0 if compact else 360.0
+	var chat_h := (240.0 if not compact else 170.0) if chat_input.has_focus() else (110.0 if compact else 170.0)
+	UILayout.place(chat_box, Vector2(12, -14 - 14 - chat_h), Vector2(chat_w, chat_h))
 	chat_history.custom_minimum_size.y = 0
-	if has_node("ChatBadge"): $ChatBadge.position = chat.position + Vector2(4,-9)
-	UILayout.place(target_panel, Vector2(-120 if compact else -160,42), Vector2(240 if compact else 320,50))
+	# Target frame, top centre.
+	UILayout.place(target_panel, Vector2(-(130 if compact else 170), 12), Vector2(260 if compact else 340, 56))
+	# Notices, top centre under the zone banner.
+	notices.position = Vector2(canvas.x * 0.5, 186 if not compact else 120)
 	if feedback != null:
-		feedback._status_row.position = Vector2(20, 78)
 		feedback._safe_label.custom_minimum_size = Vector2.ZERO
-		feedback._safe_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		UILayout.place_centred(feedback._safe_row,Vector2(230,22),Vector2(0,-198))
-		feedback._feedback_label.custom_minimum_size = Vector2.ZERO
-		feedback._feedback_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		feedback._safe_label.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		feedback._safe_row.alignment = BoxContainer.ALIGNMENT_CENTER
+		HudKit.style_label(feedback._safe_label, 14, Color(0.6, 0.95, 0.6), HudKit.bold(), 4)
+		UILayout.place_centred(feedback._safe_row, Vector2(320, 22), Vector2(0, -14 - 12 - HudActionBar.SLOT - 52))
 		feedback._cast_panel.custom_minimum_size = Vector2.ZERO
-		UILayout.place(feedback._cast_panel, Vector2(-140,-144), Vector2(280,46))
-		UILayout.place_centred(feedback._feedback_label, Vector2(minf(460,canvas.x-32),26), Vector2(0,-164))
+		UILayout.place(feedback._cast_panel, Vector2(-150, -14 - 12 - HudActionBar.SLOT - 26 - 46), Vector2(300, 42))
 		if feedback._toast_panel != null:
 			feedback._toast_panel.custom_minimum_size = Vector2.ZERO
-			UILayout.place(feedback._toast_panel, Vector2(-196 if compact else -rail-16,-140 if compact else -230), Vector2(180 if compact else rail,40 if compact else 120))
-			feedback._toast_box.custom_minimum_size = Vector2(162 if compact else rail-18,0)
-			feedback._toast_box.size.x = 162 if compact else rail-18
+			var tw := 200.0 if compact else 250.0
+			UILayout.place(feedback._toast_panel, Vector2(-tw - 14, -14 - 12 - qh - 12 - 120), Vector2(tw, 120))
+			feedback._toast_box.custom_minimum_size = Vector2(tw - 18, 0)
+			feedback._toast_box.size.x = tw - 18
 			feedback._toast_panel.clip_contents = true
+
+
+## Ten segment ticks over the experience bar, the MMO way of reading progress.
+class ExpTicks extends Control:
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+	func _draw() -> void:
+		for i in range(1, 10):
+			var x := floorf(size.x * float(i) / 10.0)
+			draw_line(Vector2(x, 2), Vector2(x, size.y - 1), Color(0, 0, 0, 0.55), 2.0)
+			draw_line(Vector2(x + 1, 2), Vector2(x + 1, size.y - 1), Color(1, 0.9, 0.6, 0.18), 1.0)
+		draw_line(Vector2(0, 0.5), Vector2(size.x, 0.5), Color(HudKit.GOLD.r, HudKit.GOLD.g, HudKit.GOLD.b, 0.8), 1.0)

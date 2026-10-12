@@ -240,6 +240,13 @@ func _register_input_actions() -> void:
 	_ensure_action("spell_4", [KEY_4])
 	_ensure_action("spell_q", [KEY_Q])
 	_ensure_action("spell_e", [KEY_E])
+	# Quick slots (potions) and the windows.
+	_ensure_action("quickslot_1", [KEY_F1])
+	_ensure_action("quickslot_2", [KEY_F2])
+	_ensure_action("quickslot_3", [KEY_F3])
+	_ensure_action("quickslot_4", [KEY_F4])
+	_ensure_action("toggle_map", [KEY_M])
+	_ensure_action("toggle_onboarding", [KEY_J])
 
 func _ensure_action(action_name: String, key_codes: Array) -> void:
 	if not InputMap.has_action(action_name):

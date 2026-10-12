@@ -8,7 +8,8 @@ class_name UITheme
 ## matching button-state geometry for the HUD and inventory.
 ## Layout and gameplay feedback remain control-driven; artwork is chrome only.
 ##
-## Text uses Cinzel (headings) and Alegreya Sans (body/UI), both SIL OFL 1.1 with
+## Text uses Cinzel (headings), Cinzel Decorative (place names) and Philosopher
+## (body/UI), all SIL OFL 1.1 with
 ## the licence vendored beside each face in `assets/fonts/`.
 
 const DIR := "res://assets/ui/"
@@ -21,9 +22,8 @@ const TITLE_FONT_FILE := "Cinzel-Variable.ttf"
 ## The body face is not variable, so a requested weight resolves to the nearest
 ## shipped cut. Each entry is `[highest weight this cut covers, file stem]`.
 const BODY_FONT_CUTS := [
-	[499, "AlegreyaSans-Regular"],
-	[649, "AlegreyaSans-Medium"],
-	[1000, "AlegreyaSans-Bold"],
+	[600, "Philosopher-Regular"],
+	[1000, "Philosopher-Bold"],
 ]
 
 ## Type-variation names. A widget asks for a role by setting
