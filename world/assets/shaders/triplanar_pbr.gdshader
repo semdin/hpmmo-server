@@ -27,6 +27,10 @@ uniform vec3 tint : source_color = vec3(1.0, 1.0, 1.0);
 uniform float world_scale = 0.125;      // texture repeats per metre (1 / metres per tile)
 uniform float normal_strength : hint_range(0.0, 3.0) = 1.0;
 uniform float rough_min : hint_range(0.0, 1.0) = 0.03;
+// Low-preset path: skip the roughness and AO maps (two of the four texture
+// reads per pixel - the castle interior's measured cost on integrated GPUs).
+uniform bool lite = false;
+uniform float lite_roughness : hint_range(0.0, 1.0) = 0.82;
 uniform float rough_max : hint_range(0.0, 1.0) = 1.0;
 uniform float ao_strength : hint_range(0.0, 1.0) = 1.0;
 uniform float metallic_amount : hint_range(0.0, 1.0) = 0.0;
@@ -77,8 +81,12 @@ void fragment() {
 		b = vec3(0.0, 1.0, 0.0);
 	}
 	vec3 albedo = texture(albedo_tex, uv).rgb * tint;
-	float rough = texture(rough_tex, uv).r;
-	float ao = texture(ao_tex, uv).r;
+	float rough = lite_roughness;
+	float ao = 1.0;
+	if (!lite) {
+		rough = texture(rough_tex, uv).r;
+		ao = texture(ao_tex, uv).r;
+	}
 
 	ALBEDO = albedo * vertex_color_factor;
 	// Sampling builds a world-space normal; Godot's lighting consumes view space.

@@ -132,6 +132,31 @@ const PBR_SETS := {
 		"maps": {"albedo": "diff", "normal": "nor_gl", "rough": "rough", "ao": "ao"},
 		"metres": 4.0, "source": "polyhaven-cc0",
 	},
+	"large_sandstone_blocks_01": {
+		"dir": "res://assets/textures/pbr/large_sandstone_blocks_01", "res": "2k", "ext": "jpg",
+		"maps": {"albedo": "diff", "normal": "nor_gl", "rough": "rough", "ao": "ao"},
+		"metres": 3.5, "source": "polyhaven-cc0",
+	},
+	"sandstone_blocks_08": {
+		"dir": "res://assets/textures/pbr/sandstone_blocks_08", "res": "2k", "ext": "jpg",
+		"maps": {"albedo": "diff", "normal": "nor_gl", "rough": "rough", "ao": "ao"},
+		"metres": 2.5, "source": "polyhaven-cc0",
+	},
+	"plaster_grey_04": {
+		"dir": "res://assets/textures/pbr/plaster_grey_04", "res": "2k", "ext": "jpg",
+		"maps": {"albedo": "diff", "normal": "nor_gl", "rough": "rough", "ao": "ao"},
+		"metres": 3.0, "source": "polyhaven-cc0",
+	},
+	"large_floor_tiles_02": {
+		"dir": "res://assets/textures/pbr/large_floor_tiles_02", "res": "2k", "ext": "jpg",
+		"maps": {"albedo": "diff", "normal": "nor_gl", "rough": "rough", "ao": "ao"},
+		"metres": 4.0, "source": "polyhaven-cc0",
+	},
+	"medieval_blocks_03": {
+		"dir": "res://assets/textures/pbr/medieval_blocks_03", "res": "2k", "ext": "jpg",
+		"maps": {"albedo": "diff", "normal": "nor_gl", "rough": "rough", "ao": "ao"},
+		"metres": 3.0, "source": "polyhaven-cc0",
+	},
 	"stone_wall": {
 		"dir": "res://assets/textures/pbr/stone_wall", "res": "2k", "ext": "jpg",
 		"maps": {"albedo": "diff", "normal": "nor_gl", "rough": "rough", "ao": "ao"},

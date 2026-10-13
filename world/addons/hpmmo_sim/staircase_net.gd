@@ -9,7 +9,9 @@ class_name HPStaircaseNet
 ## fixed name, so `/root/SimNet/HPStaircaseNet` exists on the server and on every
 ## client, and `publish()` reaches all of them.
 ##
-## The payload is the documented minimal authority shape (see `staircase.gd`).
+## The payload is the documented minimal authority shape (see `staircase.gd`);
+## every staircase on a map has its own object id and each replica keeps only
+## the payloads addressed to it.
 ## If the addon owner replaces the staircase runtime, this relay can be dropped
 ## along with it - nothing else references it.
 
@@ -38,12 +40,22 @@ static func ensure() -> Node:
 
 ## Authority -> every client. Reliable: a missed state change would leave a
 ## client showing a platform that is not where the server says it is.
-func publish(payload: Dictionary) -> void:
+##
+## `map_id`: only the players on that map receive it (a client on another map
+## has no staircase - nor this relay - loaded, and maps do not leak state into
+## each other). Empty: every peer, as before.
+func publish(payload: Dictionary, object_id: int = HPStaircase.OBJECT_ID, map_id: String = "") -> void:
 	if not is_inside_tree():
 		return
 	if SimNet.is_client or not SimNet.has_peers():
 		return
-	sim_staircase_state.rpc(HPStaircase.OBJECT_ID, payload)
+	if map_id == "":
+		sim_staircase_state.rpc(object_id, payload)
+		return
+	for peer_id in SimAuthority.players_by_peer.keys():
+		var record := SimAuthority.player_record(int(peer_id))
+		if String(record.get("map_id", HPProtocol.DEFAULT_MAP)) == map_id:
+			sim_staircase_state.rpc_id(int(peer_id), object_id, payload)
 
 @rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
 func sim_staircase_state(object_id: int, payload: Dictionary) -> void:

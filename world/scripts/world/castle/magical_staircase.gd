@@ -44,7 +44,7 @@ func _polish_geometry() -> void:
 			mesh_instance.material_override = stone
 		elif label.begins_with("Rail"):
 			mesh_instance.material_override = rail
-		elif label.begins_with("Gate"):
+		elif label.begins_with("Gate") or label.begins_with("TongueGate"):
 			mesh_instance.material_override = wood
 	# A travelling enchantment: an emissive line along both deck edges, the one
 	# part of the ride that reads at a glance from the hall floor.
@@ -91,6 +91,10 @@ func _polish_geometry() -> void:
 
 func _build_presentation() -> void:
 	_polish_geometry()
+	if bool(spec.get("map_geometry", false)):
+		# The castle's seven flights: no debug board over each one (the HUD
+		# carries the entry-refused notice).
+		return
 	_board = Label3D.new()
 	_board.name = "StateBoard"
 	_board.billboard = BaseMaterial3D.BILLBOARD_ENABLED

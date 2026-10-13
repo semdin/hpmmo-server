@@ -34,6 +34,7 @@ extends Node
 ## HPMaps. The constants below are the same values written out, used as a
 ## fallback when the catalog cannot answer.
 
+const CastleAtmosphere = preload("res://scripts/world/castle/castle_atmosphere.gd")
 const INTERIOR_PATH := "res://scenes/world/castle_interior.tscn"
 const STAIRCASE_PATH := "res://scenes/world/castle/staircase.tscn"
 const MAPS_PATH := "res://addons/hpmmo_sim/maps.gd"
@@ -53,7 +54,7 @@ const PORTALS := {
 	}],
 	"castle_interior": [{
 		"id": "vestibule_exit", "to_map": "grounds", "to_spawn": "castle_approach",
-		"center": Vector3(0.0, 201.6, 30.0), "radius": 2.5, "y_min": 185.0, "y_max": 212.0,
+		"center": Vector3(0.0, 201.6, 62.8), "radius": 3.0, "y_min": 199.0, "y_max": 209.0,
 		"label": "Grounds",
 	}],
 }
@@ -66,8 +67,8 @@ const SPAWN_POINTS := {
 		"castle_landing_pad": Vector3(40.0, 58.56, 15.0),
 	},
 	"castle_interior": {
-		"default": Vector3(0.0, 200.5, 30.0),
-		"vestibule": Vector3(0.0, 200.5, 30.0),
+		"default": Vector3(0.0, 200.5, 58.0),
+		"vestibule": Vector3(0.0, 200.5, 58.0),
 	},
 }
 
@@ -473,10 +474,10 @@ func _load_map(map_id: String) -> bool:
 	_apply_interior_ambience(true)
 	return true
 
-## An interior is not lit by the open sky. While the castle interior
-## is the resident map the ambient is a dim warm fill, so the torch fixtures
-## and the baked occlusion give the rooms contrast instead of a cold wash. The
-## outdoor sky ambient is restored on the way out.
+## An interior is not lit by the open sky. While the castle interior is the
+## resident map the environment is the castle's (castle/castle_atmosphere.gd:
+## dim ambient, AO, indirect light, volumetric fog, glow - by quality); the
+## outdoor values are restored on the way out.
 func _apply_interior_ambience(inside: bool) -> void:
 	var env_node := world.get_node_or_null("WorldEnvironment")
 	if env_node == null or not (env_node is WorldEnvironment):
@@ -486,19 +487,9 @@ func _apply_interior_ambience(inside: bool) -> void:
 		return
 	if inside:
 		if not env.has_meta("outdoor_ambient"):
-			env.set_meta("outdoor_ambient", {
-				"source": env.ambient_light_source,
-				"color": env.ambient_light_color,
-				"energy": env.ambient_light_energy,
-			})
-		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-		env.ambient_light_color = Color(0.44, 0.40, 0.35)
-		env.ambient_light_energy = 0.78
+			env.set_meta("outdoor_ambient", CastleAtmosphere.apply(env))
 	elif env.has_meta("outdoor_ambient"):
-		var saved: Dictionary = env.get_meta("outdoor_ambient")
-		env.ambient_light_source = int(saved["source"])
-		env.ambient_light_color = saved["color"]
-		env.ambient_light_energy = float(saved["energy"])
+		CastleAtmosphere.restore(env, env.get_meta("outdoor_ambient"))
 		env.remove_meta("outdoor_ambient")
 
 func _free_interior() -> void:

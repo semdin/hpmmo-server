@@ -177,11 +177,20 @@ func _dev_pack_spawn() -> Vector3:
 ## Dev spawn points are given in map x/z; the height is the ground's. A point
 ## authored for an older, flat map would otherwise sit under the terrain and the
 ## fall rescue would throw the body back to the courtyard.
+##
+## The floor UNDER the given point wins: a cast from the sky lands on the
+## topmost surface, which put every body spawned beside the dev staircase on its
+## 12 m landing plate. Only a point with nothing under it (buried by the terrain)
+## falls back to the cast from above.
 func _dev_on_ground(at: Vector3) -> Vector3:
 	var world = SimAuthority.world
 	if world == null or not (world is Node3D) or not (world as Node3D).is_inside_tree():
 		return at
 	var space := (world as Node3D).get_world_3d().direct_space_state
+	var under := PhysicsRayQueryParameters3D.create(at + Vector3(0.0, 1.0, 0.0), Vector3(at.x, -60.0, at.z))
+	var floor_hit := space.intersect_ray(under)
+	if not floor_hit.is_empty():
+		return Vector3(at.x, maxf(at.y, float((floor_hit.position as Vector3).y) + 0.6), at.z)
 	var query := PhysicsRayQueryParameters3D.create(Vector3(at.x, 400.0, at.z), Vector3(at.x, -60.0, at.z))
 	var hit := space.intersect_ray(query)
 	if hit.is_empty():

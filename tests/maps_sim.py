@@ -484,8 +484,12 @@ def test_cross_map(out_dir, port, server, stub):
           "the interior client is sent nothing from the grounds")
     check(int(ines.get("replica_count", 0)) == 1,
           "the interior client's whole replica set is its own body (%s)" % ines.get("replica_count"))
-    check(int(gwen.get("replica_count", 0)) > 1,
-          "the grounds client was sent the outdoor entities (%s replicas)" % gwen.get("replica_count"))
+    # Measured on the shared mid-flight snapshot, not at exit: on the Terrain3D
+    # grounds nothing but players is within the interest radius of the castle
+    # door (packs and dummies are 90+ m away), and by exit gale has left.
+    check(len(seen["gwen"].get("uids", [])) > 1,
+          "the grounds client was sent the outdoor entities (%d replicas mid-flight)"
+          % len(seen["gwen"].get("uids", [])))
     # A client-side teleport claim across maps is corrected, not obeyed.
     claims = by_event(gwen_records, "teleport_claim")
     after = by_event(gwen_records, "teleport_after")
@@ -526,8 +530,9 @@ def test_happy(out_dir, port, server, stub):
     check(final.get("refusal", "") == "" and float(final.get("commit_at", -1)) >= 0.0,
           "the transfer completed without a refusal")
     position = final.get("authoritative_pos", [])
-    check(len(position) == 3 and float(position[1]) >= 185.0 and abs(float(position[0])) < 3
-          and abs(float(position[2]) - 30.0) < 3,
+    vestibule = spawn_point("castle_interior", "vestibule")
+    check(len(position) == 3 and float(position[1]) >= 185.0 and abs(float(position[0]) - vestibule[0]) < 3
+          and abs(float(position[2]) - vestibule[2]) < 3,
           "the authoritative body is inside the interior map (%s)" % position)
     # And the server agrees about the map: its periodic status lines name every
     # connected player's map.
@@ -842,7 +847,14 @@ def main():
 
     ines_pos = spawn_point("castle_interior", "vestibule")
     ground_pos = MAPS["portals"][0]["trigger"]["center"]
-    ground_stand = [ground_pos[0], 0.6, ground_pos[2] + 1.5]
+    # Stand points are derived from the door, never absolute: the grounds moved
+    # onto the Terrain3D map (the approach is on the ~58 m castle plateau), and a
+    # hardcoded valley-floor y = 0.6 seeded every character ~57 m underground, so
+    # the body fell, was rescued to the courtyard 70 m away and ran out of time
+    # walking back. The trigger centre is 0.5 m above the approach (as before).
+    ground_stand = [ground_pos[0], ground_pos[1] - 0.5, ground_pos[2] + 1.5]
+    # A second grounds player 12 m in front of the door (the same-map positive control).
+    ground_near = [ground_pos[0], ground_pos[1] - 0.5, ground_pos[2] + 12.0]
 
     # --- core server: cross-map, happy path, round trips, opposite, mounted,
     # --- interrupted transfer + relog (one boot, sequential sessions).
@@ -858,7 +870,7 @@ def main():
             return 1
         check(True, "core world server is listening")
         stub.add_character("gwen", seeded_character(101, "gwen", ground_stand, "grounds"))
-        stub.add_character("gale", seeded_character(102, "gale", [0.0, 0.6, -34.0], "grounds"))
+        stub.add_character("gale", seeded_character(102, "gale", ground_near, "grounds"))
         stub.add_character("ines", seeded_character(103, "ines", ines_pos, "castle_interior"))
         stub.add_character("hank", seeded_character(104, "hank", ground_stand, "grounds"))
         stub.add_character("rob", seeded_character(110, "rob", ground_stand, "grounds"))

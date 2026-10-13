@@ -53,12 +53,12 @@
         "default": [
           0.0,
           200.5,
-          30.0
+          58.0
         ],
         "vestibule": [
           0.0,
           200.5,
-          30.0
+          58.0
         ]
       }
     }
@@ -99,13 +99,602 @@
         "center": [
           0.0,
           201.6,
-          30.0
+          62.8
         ],
-        "radius": 2.5,
-        "y_min": 185.0,
-        "y_max": 212.0
+        "radius": 3.0,
+        "y_min": 199.0,
+        "y_max": 209.0
       },
       "landing": null
     }
-  ]
+  ],
+  "staircases": [
+    {
+      "id": 11,
+      "map_id": "castle_interior",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "pivot": [
+        0.0,
+        -6.0
+      ],
+      "map_geometry": true,
+      "flight": {
+        "rise": 10.0,
+        "run": 30.0,
+        "width": 5.0,
+        "step_height": 0.2
+      },
+      "timing": {
+        "dwell_ms": 12000,
+        "warning_ms": 2000,
+        "moving_ms": 6000,
+        "docking_ms": 1500
+      },
+      "start_delay_ms": 0,
+      "timing_scale_env": "HPMMO_DEV_STAIR_SCALE",
+      "docks": [
+        {
+          "id": "storey0_yaw0",
+          "bottom": [
+            -3.0,
+            0.0,
+            9.0
+          ],
+          "yaw": 180.0,
+          "bottom_landing": [
+            -3.0,
+            0.1,
+            10.5
+          ],
+          "top_landing": [
+            -3.0,
+            10.1,
+            -22.5
+          ],
+          "connects": [
+            "L0",
+            "L1"
+          ],
+          "gates": [
+            "top"
+          ]
+        },
+        {
+          "id": "storey0_yaw90",
+          "bottom": [
+            -15.0,
+            0.0,
+            -9.0
+          ],
+          "yaw": 90.0,
+          "bottom_landing": [
+            -16.5,
+            0.1,
+            -9.0
+          ],
+          "top_landing": [
+            16.5,
+            10.1,
+            -9.0
+          ],
+          "connects": [
+            "L0",
+            "L1"
+          ],
+          "gates": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "map_id": "castle_interior",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "pivot": [
+        0.0,
+        -6.0
+      ],
+      "map_geometry": true,
+      "flight": {
+        "rise": 10.0,
+        "run": 30.0,
+        "width": 5.0,
+        "step_height": 0.2
+      },
+      "timing": {
+        "dwell_ms": 12000,
+        "warning_ms": 2000,
+        "moving_ms": 6000,
+        "docking_ms": 1500
+      },
+      "start_delay_ms": 10750,
+      "timing_scale_env": "HPMMO_DEV_STAIR_SCALE",
+      "docks": [
+        {
+          "id": "storey1_yaw270",
+          "bottom": [
+            15.0,
+            10.0,
+            -3.0
+          ],
+          "yaw": 270.0,
+          "bottom_landing": [
+            16.5,
+            10.1,
+            -3.0
+          ],
+          "top_landing": [
+            -16.5,
+            20.1,
+            -3.0
+          ],
+          "connects": [
+            "L1",
+            "L2"
+          ],
+          "gates": [
+            "bottom",
+            "top"
+          ]
+        },
+        {
+          "id": "storey1_yaw0",
+          "bottom": [
+            -3.0,
+            10.0,
+            9.0
+          ],
+          "yaw": 180.0,
+          "bottom_landing": [
+            -3.0,
+            10.1,
+            10.5
+          ],
+          "top_landing": [
+            -3.0,
+            20.1,
+            -22.5
+          ],
+          "connects": [
+            "L1",
+            "L2"
+          ],
+          "gates": [
+            "bottom",
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "map_id": "castle_interior",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "pivot": [
+        0.0,
+        -6.0
+      ],
+      "map_geometry": true,
+      "flight": {
+        "rise": 10.0,
+        "run": 30.0,
+        "width": 5.0,
+        "step_height": 0.2
+      },
+      "timing": {
+        "dwell_ms": 12000,
+        "warning_ms": 2000,
+        "moving_ms": 6000,
+        "docking_ms": 1500
+      },
+      "start_delay_ms": 0,
+      "timing_scale_env": "HPMMO_DEV_STAIR_SCALE",
+      "docks": [
+        {
+          "id": "storey2_yaw180",
+          "bottom": [
+            3.0,
+            20.0,
+            -21.0
+          ],
+          "yaw": 0.0,
+          "bottom_landing": [
+            3.0,
+            20.1,
+            -22.5
+          ],
+          "top_landing": [
+            3.0,
+            30.1,
+            10.5
+          ],
+          "connects": [
+            "L2",
+            "L3"
+          ],
+          "gates": [
+            "bottom",
+            "top"
+          ]
+        },
+        {
+          "id": "storey2_yaw270",
+          "bottom": [
+            15.0,
+            20.0,
+            -3.0
+          ],
+          "yaw": 270.0,
+          "bottom_landing": [
+            16.5,
+            20.1,
+            -3.0
+          ],
+          "top_landing": [
+            -16.5,
+            30.1,
+            -3.0
+          ],
+          "connects": [
+            "L2",
+            "L3"
+          ],
+          "gates": [
+            "bottom",
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "map_id": "castle_interior",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "pivot": [
+        0.0,
+        -6.0
+      ],
+      "map_geometry": true,
+      "flight": {
+        "rise": 10.0,
+        "run": 30.0,
+        "width": 5.0,
+        "step_height": 0.2
+      },
+      "timing": {
+        "dwell_ms": 12000,
+        "warning_ms": 2000,
+        "moving_ms": 6000,
+        "docking_ms": 1500
+      },
+      "start_delay_ms": 10750,
+      "timing_scale_env": "HPMMO_DEV_STAIR_SCALE",
+      "docks": [
+        {
+          "id": "storey3_yaw90",
+          "bottom": [
+            -15.0,
+            30.0,
+            -9.0
+          ],
+          "yaw": 90.0,
+          "bottom_landing": [
+            -16.5,
+            30.1,
+            -9.0
+          ],
+          "top_landing": [
+            16.5,
+            40.1,
+            -9.0
+          ],
+          "connects": [
+            "L3",
+            "L4"
+          ],
+          "gates": [
+            "bottom",
+            "top"
+          ]
+        },
+        {
+          "id": "storey3_yaw180",
+          "bottom": [
+            3.0,
+            30.0,
+            -21.0
+          ],
+          "yaw": 0.0,
+          "bottom_landing": [
+            3.0,
+            30.1,
+            -22.5
+          ],
+          "top_landing": [
+            3.0,
+            40.1,
+            10.5
+          ],
+          "connects": [
+            "L3",
+            "L4"
+          ],
+          "gates": [
+            "bottom",
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "map_id": "castle_interior",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "pivot": [
+        0.0,
+        -6.0
+      ],
+      "map_geometry": true,
+      "flight": {
+        "rise": 10.0,
+        "run": 30.0,
+        "width": 5.0,
+        "step_height": 0.2
+      },
+      "timing": {
+        "dwell_ms": 12000,
+        "warning_ms": 2000,
+        "moving_ms": 6000,
+        "docking_ms": 1500
+      },
+      "start_delay_ms": 0,
+      "timing_scale_env": "HPMMO_DEV_STAIR_SCALE",
+      "docks": [
+        {
+          "id": "storey4_yaw0",
+          "bottom": [
+            -3.0,
+            40.0,
+            9.0
+          ],
+          "yaw": 180.0,
+          "bottom_landing": [
+            -3.0,
+            40.1,
+            10.5
+          ],
+          "top_landing": [
+            -3.0,
+            50.1,
+            -22.5
+          ],
+          "connects": [
+            "L4",
+            "L5"
+          ],
+          "gates": [
+            "bottom",
+            "top"
+          ]
+        },
+        {
+          "id": "storey4_yaw90",
+          "bottom": [
+            -15.0,
+            40.0,
+            -9.0
+          ],
+          "yaw": 90.0,
+          "bottom_landing": [
+            -16.5,
+            40.1,
+            -9.0
+          ],
+          "top_landing": [
+            16.5,
+            50.1,
+            -9.0
+          ],
+          "connects": [
+            "L4",
+            "L5"
+          ],
+          "gates": [
+            "bottom",
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "map_id": "castle_interior",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "pivot": [
+        0.0,
+        -6.0
+      ],
+      "map_geometry": true,
+      "flight": {
+        "rise": 10.0,
+        "run": 30.0,
+        "width": 5.0,
+        "step_height": 0.2
+      },
+      "timing": {
+        "dwell_ms": 12000,
+        "warning_ms": 2000,
+        "moving_ms": 6000,
+        "docking_ms": 1500
+      },
+      "start_delay_ms": 10750,
+      "timing_scale_env": "HPMMO_DEV_STAIR_SCALE",
+      "docks": [
+        {
+          "id": "storey5_yaw270",
+          "bottom": [
+            15.0,
+            50.0,
+            -3.0
+          ],
+          "yaw": 270.0,
+          "bottom_landing": [
+            16.5,
+            50.1,
+            -3.0
+          ],
+          "top_landing": [
+            -16.5,
+            60.1,
+            -3.0
+          ],
+          "connects": [
+            "L5",
+            "L6"
+          ],
+          "gates": [
+            "bottom",
+            "top"
+          ]
+        },
+        {
+          "id": "storey5_yaw0",
+          "bottom": [
+            -3.0,
+            50.0,
+            9.0
+          ],
+          "yaw": 180.0,
+          "bottom_landing": [
+            -3.0,
+            50.1,
+            10.5
+          ],
+          "top_landing": [
+            -3.0,
+            60.1,
+            -22.5
+          ],
+          "connects": [
+            "L5",
+            "L6"
+          ],
+          "gates": [
+            "bottom",
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "map_id": "castle_interior",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "pivot": [
+        0.0,
+        -6.0
+      ],
+      "map_geometry": true,
+      "flight": {
+        "rise": 10.0,
+        "run": 30.0,
+        "width": 5.0,
+        "step_height": 0.2
+      },
+      "timing": {
+        "dwell_ms": 12000,
+        "warning_ms": 2000,
+        "moving_ms": 6000,
+        "docking_ms": 1500
+      },
+      "start_delay_ms": 0,
+      "timing_scale_env": "HPMMO_DEV_STAIR_SCALE",
+      "docks": [
+        {
+          "id": "storey6_yaw180",
+          "bottom": [
+            3.0,
+            60.0,
+            -21.0
+          ],
+          "yaw": 0.0,
+          "bottom_landing": [
+            3.0,
+            60.1,
+            -22.5
+          ],
+          "top_landing": [
+            3.0,
+            70.1,
+            10.5
+          ],
+          "connects": [
+            "L6",
+            "L7"
+          ],
+          "gates": [
+            "bottom",
+            "top"
+          ]
+        },
+        {
+          "id": "storey6_yaw270",
+          "bottom": [
+            15.0,
+            60.0,
+            -3.0
+          ],
+          "yaw": 270.0,
+          "bottom_landing": [
+            16.5,
+            60.1,
+            -3.0
+          ],
+          "top_landing": [
+            -16.5,
+            70.1,
+            -3.0
+          ],
+          "connects": [
+            "L6",
+            "L7"
+          ],
+          "gates": [
+            "bottom",
+            "top"
+          ]
+        }
+      ]
+    }
+  ],
+  "_staircases": "Castle Grand Staircase: one moving flight per storey, generated by art/castle/scripts/export_catalog.py from art/castle/layout.json (clash-checked by stair_solver.py). The single `staircase` block / DEFAULT_SPEC stays the dev/test hook's."
 }

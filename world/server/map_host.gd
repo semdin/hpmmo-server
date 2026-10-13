@@ -12,9 +12,9 @@ extends Node
 ## (authority.gd::_check_fall_protection).
 ##
 ## It is built with `collision_only` on purpose: a dedicated server draws
-## nothing, so the map's builder creates the same colliders and none of the
-## surfaces, kit props, lights or PBR textures (castle_interior.gd /
-## castle_interior_builder.gd). The grounds map itself is always resident.
+## nothing, so the map loads the same blockout colliders and strips its
+## surfaces and lights (castle_interior.gd / castle/castle_blockout.gd). The
+## grounds map itself is always resident.
 ##
 ## Built lazily on first use so a server nobody takes indoors pays nothing, and
 ## kept once built: the two maps never overlap in space and rebuilding the

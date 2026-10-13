@@ -2,17 +2,25 @@ extends Node3D
 
 ## CastleInterior - the separate indoor map.
 ##
-## This scene is built procedurally on entry and freed on the way out, so an
-## outdoor world and an indoor world are never both resident. It owns no
-## gameplay state: entities, the player body and the HUD belong to the world
-## scene that hosts it (`map_controller.gd` moves the body and keeps the HUD).
+## This scene is built on entry and freed on the way out, so an outdoor world
+## and an indoor world are never both resident. It owns no gameplay state:
+## entities, the player body and the HUD belong to the world scene that hosts it
+## (`map_controller.gd` moves the body and keeps the HUD).
 ##
-## The floor levels and the stair profile mirror the shared map contract in
-## `addons/hpmmo_sim/data/maps.json`. If that contract is present (Map transfer sync),
-## `HPMaps` is asked for the floor names; otherwise the documented values are
-## used, so the interior keeps working with today's offline build.
+## Geometry: the HP-scale blockout (docs/castle-interior.md, F1) -
+## art/castle/layout.json built by Blender into assets/castle/castle_blockout.glb,
+## placed so layout L0 is world y 200. The glb carries one convex collider per
+## piece, so the world server builds the very same walkable map with the visual
+## meshes stripped. The Grand Staircase's seven moving flights are HPStaircase
+## instances, one per `staircases` entry of the map catalog.
+##
+## Spawn points, the exit portal and the staircase specs are the shared map
+## contract in `addons/hpmmo_sim/data/maps.json` (written from the layout by
+## art/castle/scripts/export_catalog.py); the values below are the documented
+## fallback for a build without the synced catalog.
 
-const Builder = preload("res://scripts/world/castle_interior_builder.gd")
+const Blockout = preload("res://scripts/world/castle/castle_blockout.gd")
+const Decor = preload("res://scripts/world/castle/castle_decor.gd")
 
 ## The world server builds this map with collision only (server/world/server/
 ## map_host.gd sets this before the node enters the tree): a dedicated server
@@ -21,26 +29,55 @@ var collision_only := false
 
 const MAP_ID := "castle_interior"
 const DISPLAY_NAME := "Hogwarts Castle"
+## Layout L0 in world space.
+const MAP_Y := 200.0
 
-## Documented floor plan (maps.json "floors"), used when HPMaps is not synced.
+## Floor plan (layout levels, storey 10 m).
 const FLOORS := [
-	{"id": "basement", "name": "Dungeon Level", "y": 194.0},
+	{"id": "dungeons", "name": "Dungeons", "y": 190.0},
 	{"id": "ground", "name": "Ground Floor", "y": 200.0},
-	{"id": "first", "name": "First Floor", "y": 206.0},
-	{"id": "second", "name": "Second Floor", "y": 212.0},
+	{"id": "first", "name": "First Floor", "y": 210.0},
+	{"id": "second", "name": "Second Floor", "y": 220.0},
+	{"id": "third", "name": "Third Floor", "y": 230.0},
+	{"id": "fourth", "name": "Fourth Floor", "y": 240.0},
+	{"id": "fifth", "name": "Fifth Floor", "y": 250.0},
+	{"id": "sixth", "name": "Sixth Floor", "y": 260.0},
+	{"id": "seventh", "name": "Seventh Floor", "y": 270.0},
 ]
 
 ## Authored arrival points (maps.json "spawn_points.castle_interior").
 const SPAWN_POINTS := {
-	"default": Vector3(0.0, 200.5, 30.0),
-	"vestibule": Vector3(0.0, 200.5, 30.0),
+	"default": Vector3(0.0, 200.5, 58.0),
+	"vestibule": Vector3(0.0, 200.5, 58.0),
 }
 
 func _ready() -> void:
 	build()
 
 func build() -> void:
-	Builder.build(self, collision_only)
+	if has_node("InteriorStructure"):
+		return
+	var structure := Blockout.instantiate()
+	if structure == null:
+		push_error("[CastleInterior] %s is missing from this build" % Blockout.BLOCKOUT)
+		return
+	structure.name = "InteriorStructure"
+	structure.position.y = MAP_Y
+	add_child(structure)
+	if collision_only:
+		Blockout.strip_visuals(structure)
+		return
+	Blockout.restyle(structure)
+	# Lights and decor live under the structure so `teardown` takes them with
+	# it; the structure is offset by MAP_Y, so they are placed in layout space.
+	# A low fill only: the candles, chandeliers and moonlight carry the rooms.
+	Blockout.add_room_lights(structure, Blockout.load_layout(), 0.0, 0.55)
+	Decor.build(structure, 0.0)
+	Blockout.add_occluders(structure)
+	# The decor's moonlight replaces the scene's flat fill light.
+	var fill := get_node_or_null("SkyLight") as DirectionalLight3D
+	if fill != null:
+		fill.visible = false
 
 ## Remove everything this map put in the tree. The map controller then frees the
 ## scene root itself; keeping both paths means a map can also be cleared in
@@ -95,9 +132,10 @@ func route_clear(from: Vector3, to: Vector3, mask: int = 1) -> bool:
 	var query := PhysicsRayQueryParameters3D.create(from, to, mask)
 	return space.intersect_ray(query).is_empty()
 
-## Where the moving staircase will be placed. The marker is created empty, and
-## the staircase scene is instantiated only when it exists in this build; the
-## staircase itself is owned by a different workstream.
+## The Grand Staircase: one staircase scene per `staircases` entry of the map
+## catalog, all under the StaircaseSlot (which stands at the layout origin, so
+## the catalog's coordinates are layout-local). A catalog without the list gets
+## the single prototype staircase, as before.
 func attach_staircase() -> bool:
 	var slot := get_node_or_null("StaircaseSlot") as Node3D
 	if slot == null:
@@ -107,5 +145,13 @@ func attach_staircase() -> bool:
 	var packed: PackedScene = load("res://scenes/world/castle/staircase.tscn")
 	if packed == null:
 		return false
-	slot.add_child(packed.instantiate())
+	var count := HPStaircase.catalog_staircase_count()
+	if count == 0:
+		slot.add_child(packed.instantiate())
+		return true
+	for index in range(count):
+		var stair := packed.instantiate()
+		stair.name = "MagicalStaircase%d" % index
+		stair.set("spec_index", index)
+		slot.add_child(stair)
 	return true

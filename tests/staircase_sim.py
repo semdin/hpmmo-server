@@ -44,22 +44,30 @@ CLIENT_DIR = os.environ.get("HPMMO_CLIENT_DIR", os.path.join(WORKSPACE, "client"
 GODOT = os.environ.get("HPMMO_GODOT", "godot")
 
 # Where the dev hook places the staircase in the outdoor world and where the
-# probes spawn. The site must sit inside the art pass FLAT CORE
-# (outdoor_terrain.gd: x in [-110, 110], z in [-125, 70], the 6 m edge fade
-# included) and away from every encounter region, or the hill ring the art pass
-# terrain pass raises outside that core intersects the staircase: the old site
-# (150, 0, 120) is in the hill ring and the terrain there is ~8 m high, which
-# wedged the fallback walker between the flight and the hillside and left the
-# rider walking under the raised deck. (90, 0, -15) is on the flat core, clear
-# of the courtyard, village, forest, lake and pitch; a ray scan over the whole
-# footprint finds nothing but the y = 0 terrain.
-STAIR_ORIGIN = "90,0,-15"
-STAIR_SPAWN = "90,0.6,-27"
+# probes spawn. The site must be flat ground clear of every collider (castle,
+# site buildings, tree trunks, rocks) and of every encounter region, with the
+# whole footprint - landing plates x in [-20, 22], z in [-15, 15] around the
+# origin - at or just below the origin's y, or the terrain pokes through the
+# plates and the flights.
+#
+# History: (150, 0, 120) sat in the old valley's hill ring; (90, 0, -15) was on
+# the old valley's flat core. The Terrain3D grounds map (Oct 12) put the castle
+# plateau (~58 m) there, so y = 0 buried the staircase and the spawn ~57 m
+# underground: the rider could not board and the fallback walker never reached
+# a waypoint. The centre of the Quidditch pitch is the flattest open ground on
+# the new map: art/map/out/height.npy gives 31.79..32.25 m over the footprint,
+# no scatter instance within 30 m, hoops 70 m and spectator towers >= 40 m away,
+# no encounter region or safe zone. The origin sits just above the highest
+# terrain sample so the ground-level plates cover the grass.
+STAIR_ORIGIN_XYZ = (330.0, 32.3, -330.0)
+STAIR_ORIGIN = "%g,%g,%g" % STAIR_ORIGIN_XYZ
+STAIR_SPAWN = "%g,%g,%g" % (STAIR_ORIGIN_XYZ[0], STAIR_ORIGIN_XYZ[1] + 0.6, STAIR_ORIGIN_XYZ[2] - 12.0)
 # Shorten the server-owned timing so a full dock cycle fits in a test window.
 STAIR_SCALE = "0.25"
 
 STATE_ORDER = ["docked", "boarding_warning", "moving", "docking"]
-LEVEL_HEIGHTS = (0.1, 6.1, 12.1)
+# Authored floor levels, relative to the staircase origin.
+LEVEL_HEIGHTS = tuple(STAIR_ORIGIN_XYZ[1] + level for level in (0.1, 6.1, 12.1))
 
 checks = 0
 failures = []
@@ -409,7 +417,7 @@ def test_entry_and_fallback(out_dir):
     check(int(fwalk.get("waypoint", 0)) >= 9,
           "the fallback walk reached all 9 waypoints (got %s)" % fwalk.get("waypoint"))
     end = fwalk.get("end_pos", [0.0, 0.0, 0.0])
-    check(landing_y_is_authored(end[1]) and end[1] > 11.0,
+    check(landing_y_is_authored(end[1]) and end[1] > LEVEL_HEIGHTS[2] - 1.1,
           "the fallback route ended on the second floor at y=%.2f while the magical staircase was away" % end[1])
     started = int(fwalk.get("started_tick", 0))
     check(started > 0, "the fallback walk started only once the platform had left the ground dock (tick %d)" % started)

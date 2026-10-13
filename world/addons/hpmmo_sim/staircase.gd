@@ -29,6 +29,8 @@ class_name HPStaircase
 ## `staircase` block, and otherwise from DEFAULT_SPEC below. Both use the same
 ## keys, so a catalog-authored staircase needs no code change here.
 
+## The object id of a staircase built from DEFAULT_SPEC (the dev/test hook).
+## A catalog staircase uses its spec's `id`, so several can share one map.
 const OBJECT_ID := 1
 const CATALOG_PATH := "res://addons/hpmmo_sim/data/maps.json"
 
@@ -53,7 +55,8 @@ const PUBLISH_EVERY_TICKS := 20
 ## One "entry refused" notice per player per second while the gate is closed.
 const NOTICE_INTERVAL_TICKS := 20
 
-## Fallback spec. Keys match the `staircase` block of the map catalog; the
+## Fallback spec. Keys match the `staircase` block of the map catalog (and each
+## entry of its `staircases` list); the
 ## staircase spans three levels (0 m, 6 m, 12 m) and offers two alternative
 ## second-floor landings.
 const DEFAULT_SPEC := {
@@ -84,11 +87,43 @@ const DEFAULT_SPEC := {
 
 # --------------------------------------------------------------------- spec
 
-static func load_spec() -> Dictionary:
-	var spec: Dictionary = _spec_from_catalog()
+## `index` < 0: the single `staircase` block (or DEFAULT_SPEC). `index` >= 0:
+## entry `index` of the catalog's `staircases` list - the castle's Grand
+## Staircase, one entry per moving flight (written from art/castle/layout.json).
+static func load_spec(index: int = -1) -> Dictionary:
+	var spec: Dictionary = _spec_from_catalog() if index < 0 else _indexed_spec_from_catalog(index)
 	if spec.is_empty():
 		spec = DEFAULT_SPEC.duplicate(true)
 	return _normalize(spec)
+
+static func catalog_staircase_count() -> int:
+	var parsed: Variant = _read_catalog()
+	if not (parsed is Dictionary):
+		return 0
+	var list: Variant = (parsed as Dictionary).get("staircases", [])
+	return (list as Array).size() if list is Array else 0
+
+static func _read_catalog() -> Variant:
+	if not FileAccess.file_exists(CATALOG_PATH):
+		return null
+	var file := FileAccess.open(CATALOG_PATH, FileAccess.READ)
+	if file == null:
+		return null
+	var parsed: Variant = JSON.parse_string(file.get_as_text())
+	file.close()
+	return parsed
+
+static func _indexed_spec_from_catalog(index: int) -> Dictionary:
+	var parsed: Variant = _read_catalog()
+	if not (parsed is Dictionary):
+		return {}
+	var list: Variant = (parsed as Dictionary).get("staircases", [])
+	if not (list is Array) or index >= (list as Array).size():
+		return {}
+	var entry: Variant = (list as Array)[index]
+	if not (entry is Dictionary) or ((entry as Dictionary).get("docks", []) as Array).size() < 2:
+		return {}
+	return entry as Dictionary
 
 ## The catalog owns the map/portal data; when it also carries a `staircase`
 ## block that is the authored spec (server-owned timing and landings).
@@ -145,6 +180,11 @@ static func _sub(a: Vector3, b: Vector3) -> Vector3:
 
 # ----------------------------------------------------------------- instance
 
+## Which catalog `staircases` entry this instance runs (-1: the single spec).
+## Set before the node enters the tree.
+var spec_index := -1
+## Replication id: the spec's `id`, unique per map.
+var object_id := OBJECT_ID
 var spec: Dictionary = {}
 var timing: Dictionary = {}
 var state := STATE_DOCKED
@@ -170,6 +210,9 @@ var _riders: Dictionary = {}
 var _net: Node = null
 var _last_publish_tick := -1000
 var _gates: Array = []
+## Map-geometry staircases close the tongue a flight is away from:
+## [{dock, shape, mesh}], see `_build_tongue_gates`.
+var _tongue_gates: Array = []
 ## Replica state: what the authority published (a client never re-derives the
 ## platform transform from its own copy of the spec).
 var _replica_p0 := Transform3D.IDENTITY
@@ -179,18 +222,25 @@ var replica_active := false
 var _pending_payloads: Array = []
 
 func _ready() -> void:
-	spec = load_spec()
+	spec = load_spec(spec_index)
+	object_id = int(spec.get("id", OBJECT_ID))
 	timing = _scaled_timing(spec)
 	is_authority_runtime = SimAuthority.is_authority()
 	build_geometry()
 	if is_authority_runtime:
 		add_to_group(GROUP_RESOLVER)
+		# `start_delay_ms` staggers the flights of one well so neighbours never
+		# swing together (the clearance art/castle/scripts/stair_solver.py
+		# checked assumes one moving storey at a time).
 		phase_start_tick = SimAuthority.sim_tick
+		var delay_ms := int(spec.get("start_delay_ms", 0))
+		if delay_ms > 0:
+			phase_start_tick += _ticks(int(float(delay_ms) * scale_from_env(spec)))
 		from_index = dock_index
 		to_index = dock_index
 		_net = HPStaircaseNet.ensure()
-		print("[Staircase] authority at %s, %d docks, timing %s" % [
-			global_position, dock_count(), timing])
+		print("[Staircase] authority id %d at %s, %d docks, timing %s" % [
+			object_id, global_position, dock_count(), timing])
 	else:
 		_net = HPStaircaseNet.ensure()
 		if _net != null:
@@ -289,7 +339,7 @@ func p0() -> Transform3D:
 func p1() -> Transform3D:
 	if replica_active:
 		return _replica_p1
-	return p0().interpolate_with(p2(), MOVE_FRACTION)
+	return _between(p0(), p2(), MOVE_FRACTION)
 
 func p2() -> Transform3D:
 	if replica_active:
@@ -304,13 +354,26 @@ func platform_transform_at(tick: int) -> Transform3D:
 		STATE_MOVING:
 			var span := maxi(1, dock_start_tick - move_start_tick)
 			var t := clampf(float(tick - move_start_tick) / float(span), 0.0, 1.0)
-			return p0().interpolate_with(p1(), t)
+			return _between(p0(), p1(), t)
 		STATE_DOCKING:
 			var span := maxi(1, arrive_tick - dock_start_tick)
 			var t := clampf(float(tick - dock_start_tick) / float(span), 0.0, 1.0)
-			return p1().interpolate_with(p2(), t)
+			return _between(p1(), p2(), t)
 		_:
 			return p0()
+
+## A transform between two dock poses. With a `pivot` ([x, z], staircase-local)
+## the docks are rotations of one flight about a vertical axis and the deck
+## swings round it - the path the castle's stair solver cleared. Without one
+## (the dev/test spec) it is the original straight interpolation.
+func _between(a: Transform3D, b: Transform3D, t: float) -> Transform3D:
+	var pivot: Variant = spec.get("pivot")
+	if not (pivot is Array) or (pivot as Array).size() != 2:
+		return a.interpolate_with(b, t)
+	var axis := Vector3(float(pivot[0]), a.origin.y, float(pivot[1]))
+	var inner := Transform3D(a.basis, axis).affine_inverse() * a
+	var height := lerpf(a.origin.y, b.origin.y, t) - a.origin.y
+	return Transform3D(a.basis.slerp(b.basis, t), axis + Vector3(0.0, height, 0.0)) * inner
 
 ## The world-space transform of the deck right now.
 func platform_world_transform(tick: int) -> Transform3D:
@@ -386,8 +449,10 @@ func _authority_step(tick: int) -> void:
 	# The riders travel with the deck. Without this the flight moves out from
 	# under the body that boarded it: the authority never carries them, the
 	# client's prediction is corrected straight back to the floor, and the
-	# staircase reads as scenery that does nothing.
-	if not _riders.is_empty():
+	# staircase reads as scenery that does nothing. Only while it is not docked:
+	# a docked deck stands still, and clamping a body to it then would stop a
+	# rider from ever stepping off its ends.
+	if not _riders.is_empty() and state != STATE_DOCKED:
 		_carry_riders(tick)
 	_maybe_publish(tick)
 
@@ -422,7 +487,10 @@ func _arrive(tick: int) -> void:
 	_riders.clear()
 	_publish_now(tick)
 
+## While docked the rider set is exactly who is on the deck right now, so a body
+## that steps off before the warning is not carried away with it.
 func _collect_riders(tick: int) -> void:
+	_riders.clear()
 	for uid in SimAuthority.entities.keys():
 		var record: Dictionary = SimAuthority.entities[uid]
 		if int(record.get("kind", 0)) != HPProtocol.Kind.PLAYER:
@@ -555,6 +623,7 @@ func resolve_departing_player(record: Dictionary, reason: String) -> Vector3:
 
 func payload() -> Dictionary:
 	return {
+		"id": object_id,
 		"state": state,
 		"phase_start_tick": phase_start_tick,
 		"dock_index": dock_index,
@@ -584,7 +653,7 @@ func _maybe_publish(tick: int) -> void:
 func _publish() -> void:
 	if _net == null or SimNet.is_client or not SimNet.has_peers():
 		return
-	_net.publish(payload())
+	_net.publish(payload(), object_id, map_id())
 
 ## A state change is applied on the tick the authority stamped it with, never on
 ## the tick the datagram happens to arrive. Two clients whose packets arrive at
@@ -592,7 +661,7 @@ func _publish() -> void:
 ## makes "same state, same position, same tick" true rather than approximately
 ## true.
 func _on_state_received(received_id: int, incoming: Dictionary) -> void:
-	if received_id != OBJECT_ID:
+	if received_id != object_id:
 		return
 	_pending_payloads.append(incoming)
 	if _pending_payloads.size() > 16:
@@ -643,6 +712,14 @@ func _update_gates() -> void:
 			gate.set_deferred("disabled", not blocked)
 	if nav_link != null and is_instance_valid(nav_link):
 		nav_link.enabled = navigation_open()
+	for entry in _tongue_gates:
+		var open: bool = state == STATE_DOCKED and dock_index == int(entry["dock"])
+		var shape: CollisionShape3D = entry["shape"]
+		if is_instance_valid(shape):
+			shape.set_deferred("disabled", open)
+		var mesh: MeshInstance3D = entry["mesh"]
+		if is_instance_valid(mesh):
+			mesh.visible = not open
 
 # ----------------------------------------------------------------- geometry
 # Greybox only: untextured standard materials, no art pass.
@@ -726,9 +803,34 @@ func build_geometry() -> void:
 		gate.disabled = true
 		_gates.append(gate)
 
+	if bool(spec.get("map_geometry", false)):
+		# The map carries the landings (gallery tongues) and the fallback route
+		# (castle: the service stair); the staircase only adds the gates that
+		# close a tongue while its flight is elsewhere.
+		_build_tongue_gates(rise_v, run_v, width)
+		return
 	_build_landings(rise_v, run_v)
 	_build_fallback(rise_v, run_v, width, step_height)
 	_build_navigation(rise_v, run_v)
+
+## One solid gate across the tip of every tongue a dock lands on (`gates` lists
+## the ends that have one: "bottom" / "top"; the well floor needs none). Open
+## only while this flight is docked there.
+func _build_tongue_gates(rise_v: float, run_v: float, width: float) -> void:
+	var docks: Array = spec.get("docks", [])
+	for index in range(docks.size()):
+		var dock: Dictionary = docks[index]
+		for end in dock.get("gates", ["bottom", "top"]):
+			var local := Vector3(0.0, 0.6, -0.15) if String(end) == "bottom" else Vector3(0.0, rise_v + 0.6, run_v + 0.15)
+			var body := StaticBody3D.new()
+			body.name = "TongueGate%d_%s" % [index, String(end)]
+			body.collision_layer = 1
+			body.collision_mask = 0
+			add_child(body)
+			body.transform = _dock_xform(index) * Transform3D(Basis(), local)
+			var shape := _collider(body, Vector3(width, 1.2, 0.3), Vector3.ZERO, 0.0, "GateShape")
+			var mesh := _box(body, Vector3(width, 1.2, 0.3), Vector3.ZERO, MAT_GATE, 0.0, "GateTongue")
+			_tongue_gates.append({"dock": index, "shape": shape, "mesh": mesh})
 
 ## Floor plates at every level the staircase serves, so a landing is a real
 ## floor and not a gap (a rider stepping off lands on something, and the fallback
