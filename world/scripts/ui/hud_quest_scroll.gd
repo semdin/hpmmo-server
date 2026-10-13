@@ -145,3 +145,6 @@ func refresh() -> void:
 	var n := mini(int(QuestManager.progress), int(q.get("count", 1)))
 	_objective.text = "%s   (%d / %d)" % [q.get("name", ""), n, int(q.get("count", 1))]
 	_reward.text = "%d experience  ·  %d Galleons" % [int(q.get("reward_exp", 0)), int(q.get("reward_gold", 0))]
+	if int(q.get("reward_house_rep", 0)) > 0:
+		var house := String(QuestManager.player_ref.house) if is_instance_valid(QuestManager.player_ref) else "House"
+		_reward.text += "  ·  %d %s reputation" % [int(q.get("reward_house_rep", 0)), house]

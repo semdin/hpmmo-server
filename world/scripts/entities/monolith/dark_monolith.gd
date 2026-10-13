@@ -154,8 +154,6 @@ func _spawn_wave(wave_num: int, target_player: Node3D) -> void:
 func _destroy_monolith(shatterer: Node3D) -> void:
 	is_destroyed = true
 	emit_signal("monolith_destroyed")
-	if has_node("/root/QuestManager"):
-		QuestManager.add_monolith()
 
 	var shatterer_name := "A brave Wizard"
 	if is_instance_valid(shatterer) and "player_name" in shatterer:

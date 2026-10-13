@@ -35,6 +35,7 @@ const REASONS := {
 	HPProtocol.REJECT_COOLDOWN: "Still recovering",
 	HPProtocol.REJECT_DEAD: "You are defeated",
 	HPProtocol.REJECT_UNKNOWN_SPELL: "Unknown spell",
+	HPProtocol.REJECT_HOUSE_RANK: "Your house rank is too low",
 	HPProtocol.REJECT_INPUT_BUFFER: "Queued behind the current cast",
 	HPProtocol.REJECT_ZONE: "Wrong area for that",
 	HPProtocol.REJECT_STATE: "Not right now",

@@ -16,6 +16,7 @@ static var _combat: Dictionary = {}
 static var _zones: Dictionary = {}
 static var _spawns: Dictionary = {}
 static var _loot: Dictionary = {}
+static var _quests: Dictionary = {}
 
 static var _loaded := false
 
@@ -29,6 +30,7 @@ static func ensure_loaded() -> void:
 	_zones = _read_json(DATA_DIR + "safe_zones.json")
 	_spawns = _read_json(DATA_DIR + "spawn_tables.json")
 	_loot = _read_json(DATA_DIR + "loot_tables.json")
+	_quests = _read_json(DATA_DIR + "quests.json")
 	_loaded = true
 
 static func reload() -> void:
@@ -387,6 +389,87 @@ static func exp_threshold(level: int) -> int:
 	for _i in range(maxi(0, level - 1)):
 		value = minf(cap, value * growth)
 	return int(value)
+
+# ------------------------------------------------------------ house standing
+
+## House standing is a second progression track beside the character level:
+## reputation with the character's own house, earned only from quests, read as
+## a rank 1..max_house_rank(). Gated content (spells, later potions and skill
+## upgrades) names the rank it needs and asks `house_rank_meets`.
+static func _house_thresholds() -> Array:
+	ensure_loaded()
+	var table: Array = (_combat.get("house_ranks", {}) as Dictionary).get("thresholds", [0])
+	return table if not table.is_empty() else [0]
+
+static func max_house_rank() -> int:
+	return _house_thresholds().size()
+
+## Reputation stops at the top threshold: there is nothing past the last rank.
+static func max_house_rep() -> int:
+	var table := _house_thresholds()
+	return int(table[table.size() - 1])
+
+static func clamp_house_rep(rep: int) -> int:
+	return clampi(rep, 0, max_house_rep())
+
+static func house_rank_for(rep: int) -> int:
+	var table := _house_thresholds()
+	var rank := 1
+	for i in range(table.size()):
+		if rep >= int(table[i]):
+			rank = i + 1
+	return rank
+
+## Total reputation needed to hold `rank` (rank 1 needs nothing).
+static func house_rank_threshold(rank: int) -> int:
+	var table := _house_thresholds()
+	return int(table[clampi(rank, 1, table.size()) - 1])
+
+static func house_rank_title(rank: int) -> String:
+	ensure_loaded()
+	var titles: Array = (_combat.get("house_ranks", {}) as Dictionary).get("titles", [])
+	var i := clampi(rank, 1, max_house_rank()) - 1
+	return String(titles[i]) if i < titles.size() else "Rank %d" % (i + 1)
+
+static func house_rank_meets(rep: int, required_rank: int) -> bool:
+	return house_rank_for(rep) >= required_rank
+
+## The house rank a spell needs before it may be cast (1 = always allowed).
+static func spell_house_rank(spell_id: String) -> int:
+	return int(spell(spell_id).get("requires_house_rank", 1))
+
+# ------------------------------------------------------------ quests
+
+## The quest chain, in order. The authority walks it; clients only display it.
+static func quest_chain() -> Array:
+	ensure_loaded()
+	return _quests.get("chain", [])
+
+## The quest at a chain position, or {} past the end.
+static func quest_at(index: int) -> Dictionary:
+	var chain := quest_chain()
+	return chain[index] if index >= 0 and index < chain.size() else {}
+
+static func quest_talk_radius() -> float:
+	ensure_loaded()
+	return float(_quests.get("talk_radius", 6.0))
+
+## Named places a visit quest can target: {map, center: [x, z], radius}.
+static func quest_places() -> Dictionary:
+	ensure_loaded()
+	return _quests.get("places", {})
+
+## The place containing (map, pos), or "" (x/z distance; height is ignored so a
+## flying broom still counts).
+static func quest_place_at(map_id: String, pos: Vector3) -> String:
+	var places := quest_places()
+	for place in places.keys():
+		var area: Dictionary = places[place]
+		var center: Array = area.get("center", [0, 0])
+		var center_xz := Vector2(float(center[0]), float(center[1]))
+		if String(area.get("map", HPProtocol.DEFAULT_MAP)) == map_id and Vector2(pos.x, pos.z).distance_to(center_xz) <= float(area.get("radius", 0.0)):
+			return String(place)
+	return ""
 
 # ------------------------------------------------------------ spell maths
 

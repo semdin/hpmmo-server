@@ -272,6 +272,10 @@ func _reconcile_character(character_id: int, rejected: Dictionary) -> void:
 			node.max_exp = HPRules.exp_threshold(node.level)
 			record["level"] = node.level
 			record["exp"] = node.current_exp
+			if node.has_method("restore_quest_state"):
+				node.restore_quest_state(sheet.get("quests", {}))
+				record["house_rep"] = node.house_rep
+				SimAuthority._load_quest_state(record, node)
 			SimAuthority.refresh_equipment(record)
 			SimAuthority._push_stats(record)
 			node.equipment_answer.emit({"ok": false, "reason": "save_conflict", "request_id": -1})
@@ -338,7 +342,7 @@ func character_payload(node: Node, record: Dictionary) -> Dictionary:
 	for slot in node.equipment:
 		var entry: Dictionary = node.equipment[slot]
 		equipment[slot] = {"id": String(entry.id), "tier": int(entry.get("tier", 0))}
-	return {
+	var payload := {
 		"character_id": int(record.get("character_id", 0)),
 		"level": int(node.get("level")),
 		"exp": int(node.get("current_exp")),
@@ -358,6 +362,12 @@ func character_payload(node: Node, record: Dictionary) -> Dictionary:
 		"base_max_hp": node.base_max_hp,
 		"base_max_mana": node.base_max_mana,
 	}
+	# The `quests` column is a free JSON object; house standing lives in it so
+	# the progression needs no schema change. Left out (the service keeps the
+	# stored value) rather than sent empty when the body cannot produce it.
+	if node.has_method("persisted_quests"):
+		payload["quests"] = node.persisted_quests()
+	return payload
 
 func _post_async(path: String, body: Dictionary, callback: Callable) -> void:
 	var request := HTTPRequest.new()

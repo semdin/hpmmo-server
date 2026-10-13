@@ -45,6 +45,10 @@ signal encounter_reset(pack_id: int, reason: String)
 signal loot_taken(uid: int, character_id: int, item_id: String, amount: int, collector_peer_id: int)
 signal reward_granted(uid: int, character_id: int, exp: int, galleons: int, items: Array, op_id: String)
 signal level_changed(uid: int, level: int)
+## House standing crossed into a new rank (quest reputation, see grant_house_rep).
+signal house_rank_changed(uid: int, house: String, rank: int)
+## A player finished a quest of the chain (rewards already granted).
+signal quest_completed(uid: int, quest_id: String)
 signal player_joined(uid: int, character_id: int, peer_id: int)
 signal player_left(uid: int, character_id: int)
 ## Maintenance lifecycle. The dedicated server's admin
@@ -286,6 +290,7 @@ func register_player(node: Node3D, character_id: int, peer_id: int, account_id: 
 		"level": int(node.get("level")),
 		"galleons": int(node.get("galleons")),
 		"wand_tier": int(node.get("wand_tier")),
+		"house_rep": _node_house_rep(node),
 		"mounted": false,
 		"ward_until_tick": 0,
 		"stunned_until_tick": 0,
@@ -307,6 +312,7 @@ func register_player(node: Node3D, character_id: int, peer_id: int, account_id: 
 		"input": {"move": Vector2.ZERO, "yaw": 0.0, "jump": false, "descend": false, "seq": -1},
 	})
 	refresh_equipment(entities[uid])
+	_load_quest_state(entities[uid], node)
 	players_by_peer[peer_id] = uid
 	if character_id > 0:
 		players_by_character[character_id] = uid
@@ -382,6 +388,8 @@ func apply_character_binding(record: Dictionary, character: Dictionary) -> Strin
 	record["mana"] = int(node.get("current_mana"))
 	record["galleons"] = int(node.get("galleons"))
 	record["wand_tier"] = int(node.get("wand_tier"))
+	record["house_rep"] = _node_house_rep(node)
+	_load_quest_state(record, node)
 	players_by_character[character_id] = int(record.get("uid", 0))
 	touch(record)
 	_push_stats(record)
@@ -624,6 +632,8 @@ func cast_for_record(record: Dictionary, spell_id: String, aim: Vector3, cast_se
 	var data := HPRules.spell(spell_id)
 	if data.is_empty():
 		return _reject_cast(record, cast_seq, HPProtocol.REJECT_UNKNOWN_SPELL)
+	if not HPRules.house_rank_meets(int(record.get("house_rep", 0)), HPRules.spell_house_rank(spell_id)):
+		return _reject_cast(record, cast_seq, HPProtocol.REJECT_HOUSE_RANK)
 	var node: Node3D = record.get("node")
 	if node == null or not is_instance_valid(node):
 		return _reject_cast(record, cast_seq, HPProtocol.REJECT_STATE)
@@ -1065,6 +1075,8 @@ func _step() -> void:
 	_check_transfers()
 	_tick_safe_spawns()
 	_tick_mount_phases()
+	if sim_tick % QUEST_VISIT_INTERVAL_TICKS == 0:
+		_tick_quest_visits()
 	_regen_accumulator_ms += TICK_MS
 	if _regen_accumulator_ms >= REGEN_INTERVAL_MS:
 		_regen_accumulator_ms = 0
@@ -1750,6 +1762,10 @@ func _grant_kill_rewards(target: Dictionary) -> void:
 			continue
 		_grant_exp(player, exp_reward)
 		emit_signal("reward_granted", int(uid), character_id, exp_reward, 0, [], op_id)
+		if int(target.get("kind", 0)) == HPProtocol.Kind.MONOLITH:
+			quest_event(player, "monolith", "")
+		elif int(target.get("kind", 0)) == HPProtocol.Kind.MOB:
+			quest_event(player, "kill", _mob_species(target))
 	# Loot is dropped once, server-side, for everyone to race for.
 	_drop_loot(target)
 
@@ -2014,6 +2030,167 @@ func grant_exp(node: Node, amount: int) -> void:
 		return
 	_grant_exp(record, amount)
 
+## Public house-reputation grant. Quests are the only source today; the rank
+## rules live in HPRules so gated content and the HUD read the same numbers.
+func grant_house_rep(node: Node, amount: int) -> void:
+	if not is_authority():
+		return
+	var record := record_for(node)
+	if record.is_empty():
+		return
+	_grant_house_rep(record, amount)
+
+func _grant_house_rep(player: Dictionary, amount: int) -> void:
+	if amount <= 0:
+		return
+	var before := int(player.get("house_rep", 0))
+	var after := HPRules.clamp_house_rep(before + amount)
+	if after == before:
+		return
+	player["house_rep"] = after
+	var node = player.get("node")
+	if node != null and is_instance_valid(node) and "house_rep" in node:
+		node.set("house_rep", after)
+	var rank := HPRules.house_rank_for(after)
+	if rank > HPRules.house_rank_for(before):
+		emit_signal("house_rank_changed", int(player["uid"]), String(player.get("house", "")), rank)
+	touch(player)
+	_push_stats(player)
+
+## Current house rank of a player record (what gated content checks).
+func house_rank(record: Dictionary) -> int:
+	return HPRules.house_rank_for(int(record.get("house_rep", 0)))
+
+static func _node_house_rep(node: Node) -> int:
+	return HPRules.clamp_house_rep(int(node.get("house_rep"))) if "house_rep" in node else 0
+
+# ------------------------------------------------------------------ quests
+##
+## The quest chain (HPRules.quest_chain) is walked here and nowhere else: the
+## events that move it are ones the authority itself observed - a kill credit,
+## a successful refinement, a range-checked talk request, the body's own
+## position - so a client cannot claim progress, it can only ask to talk.
+
+const QUEST_VISIT_INTERVAL_TICKS := 10
+
+## Pull the saved chain position off the body (restored from the `quests`
+## object of the character sheet or the offline save).
+func _load_quest_state(record: Dictionary, node: Node) -> void:
+	record["quest_active"] = maxi(0, int(node.get("quest_active"))) if "quest_active" in node else 0
+	record["quest_progress"] = maxi(0, int(node.get("quest_progress"))) if "quest_progress" in node else 0
+	record["quest_done"] = (node.get("quest_done") as Array).duplicate() if "quest_done" in node else []
+
+## Something happened to this player that a quest may count. Advances the
+## active quest when type and target match; completes it at its count.
+func quest_event(player: Dictionary, type: String, target: String, amount: int = 1) -> void:
+	if not is_authority() or player.is_empty() or amount <= 0:
+		return
+	if int(player.get("kind", -1)) != HPProtocol.Kind.PLAYER:
+		return
+	var quest := HPRules.quest_at(int(player.get("quest_active", 0)))
+	if quest.is_empty() or String(quest.get("type", "")) != type:
+		return
+	if String(quest.get("target", "")) != "" and String(quest.get("target", "")) != target:
+		return
+	var progress := int(player.get("quest_progress", 0)) + amount
+	player["quest_progress"] = progress
+	if progress >= int(quest.get("count", 1)):
+		_complete_quest(player, quest)
+	else:
+		_store_quest_state(player)
+		touch(player)
+		_push_stats(player)
+
+func _complete_quest(player: Dictionary, quest: Dictionary) -> void:
+	var quest_id := String(quest.get("id", ""))
+	var done: Array = player.get("quest_done", [])
+	player["quest_active"] = int(player.get("quest_active", 0)) + 1
+	player["quest_progress"] = 0
+	if not done.has(quest_id):
+		done.append(quest_id)
+	player["quest_done"] = done
+	_store_quest_state(player)
+	var exp := int(quest.get("reward_exp", 0))
+	var gold := int(quest.get("reward_gold", 0))
+	var node = player.get("node")
+	if gold > 0 and node != null and is_instance_valid(node):
+		node.galleons += gold
+		node.inventory_revision += 1
+		player["galleons"] = int(node.galleons)
+	_grant_exp(player, exp)
+	_grant_house_rep(player, int(quest.get("reward_house_rep", 0)))
+	touch(player)
+	_push_stats(player)
+	var character_id := int(player.get("character_id", 0))
+	var owner_key := character_id if character_id > 0 else int(player["uid"])
+	emit_signal("reward_granted", int(player["uid"]), character_id, exp, gold, [], "quest:%s:%d" % [quest_id, owner_key])
+	emit_signal("quest_completed", int(player["uid"]), quest_id)
+	print("[Authority] player %d completed quest '%s'" % [int(player["uid"]), quest_id])
+	if persistence != null:
+		persistence.save_player(player)
+
+## The body is what the save reads, so the record's chain position is written
+## through to it every time it changes.
+func _store_quest_state(player: Dictionary) -> void:
+	var node = player.get("node")
+	if node == null or not is_instance_valid(node) or not ("quest_active" in node):
+		return
+	node.set("quest_active", int(player.get("quest_active", 0)))
+	node.set("quest_progress", int(player.get("quest_progress", 0)))
+	node.set("quest_done", (player.get("quest_done", []) as Array).duplicate())
+
+## A player asks to talk to an NPC. The NPC has to exist on the player's map
+## and stand within the talk radius of the server's own position for the body.
+func request_talk(peer_id: int, npc_name: String) -> Dictionary:
+	if not is_authority() or mutations_frozen():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	var record := player_record(peer_id)
+	if record.is_empty() or bool(record.get("dead", false)):
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	var node = record.get("node")
+	if node == null or not is_instance_valid(node):
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	var npc := _npc_named(npc_name)
+	if npc == null or HPMaps.map_for_point(npc.global_position) != String(record.get("map_id", "")):
+		return HPProtocol.reject(HPProtocol.REJECT_NO_TARGET)
+	if npc.global_position.distance_to((node as Node3D).global_position) > HPRules.quest_talk_radius():
+		return HPProtocol.reject(HPProtocol.REJECT_RANGE)
+	quest_event(record, "talk", npc_name)
+	return HPProtocol.accept()
+
+func _npc_named(npc_name: String) -> Node3D:
+	if world == null or not is_instance_valid(world) or not world.is_inside_tree():
+		return null
+	for npc in world.get_tree().get_nodes_in_group("npcs"):
+		if npc is Node3D and String(npc.get("npc_name")) == npc_name:
+			return npc
+	return null
+
+## Visit quests: the server looks at where the body is, not at what the client
+## says it entered.
+func _tick_quest_visits() -> void:
+	for uid in players_by_peer.values():
+		var player: Dictionary = entities.get(uid, {})
+		var quest := HPRules.quest_at(int(player.get("quest_active", 0))) if not player.is_empty() else {}
+		if quest.is_empty() or String(quest.get("type", "")) != "visit" or bool(player.get("dead", false)):
+			continue
+		if bool(quest.get("mounted", false)) and not bool(player.get("mounted", false)):
+			continue
+		var node = player.get("node")
+		if node == null or not is_instance_valid(node):
+			continue
+		var place := HPRules.quest_place_at(String(player.get("map_id", "")), (node as Node3D).global_position)
+		if place != "":
+			quest_event(player, "visit", place)
+
+## The species a kill quest counts: the mob's scene (`mob_<species>.tscn`), so
+## an elite or a boss of the same creature counts and display names may vary.
+static func _mob_species(target: Dictionary) -> String:
+	var node = target.get("node")
+	if node != null and is_instance_valid(node) and String(node.scene_file_path) != "":
+		return String(node.scene_file_path).get_file().get_basename().trim_prefix("mob_")
+	return String(target.get("name", "")).to_lower()
+
 # ------------------------------------------------------- node/state mirroring
 
 func _sync_node_health(record: Dictionary) -> void:
@@ -2044,6 +2221,15 @@ func build_stats(record: Dictionary) -> Dictionary:
 		"dead": bool(record.get("dead", false)),
 		"mounted": bool(record.get("mounted", false)),
 	}
+	if int(record.get("kind", -1)) == HPProtocol.Kind.PLAYER:
+		var rep := int(record.get("house_rep", 0))
+		var rank := HPRules.house_rank_for(rep)
+		result["house_rep"] = rep
+		result["house_rank"] = rank
+		result["house_rank_rep"] = HPRules.house_rank_threshold(rank)
+		result["house_next_rep"] = HPRules.house_rank_threshold(rank + 1) if rank < HPRules.max_house_rank() else -1
+		result["quest_active"] = int(record.get("quest_active", 0))
+		result["quest_progress"] = int(record.get("quest_progress", 0))
 
 	result.merge(equipment_snapshot(record))
 	return result
@@ -2359,6 +2545,8 @@ func request_equipment(peer_id: int, request_id: int, revision: int, operation: 
 			node.equipment_changed.emit()
 			_push_stats(record)
 			if persistence != null: persistence.save_player(record)
+			if String(result.get("reason", "")) == "refined":
+				quest_event(record, "refine", "")
 	result["request_id"] = request_id
 	result["snapshot"] = build_stats(record)
 	record["equipment_seq"] = maxi(request_id, int(record.get("equipment_seq", -1)))

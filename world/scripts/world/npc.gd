@@ -87,10 +87,11 @@ func _process(delta: float) -> void:
 		_marker.position.y = 3.1 + sin(_t * 3.0) * 0.12
 		_marker.rotation.y += delta * 2.0
 
+## The dialogue is presentation; the quest credit for talking is the
+## authority's decision (range-checked against this NPC on the server).
 func talk(player: Node3D) -> Array:
-	var qm := get_node_or_null("/root/QuestManager")
-	if qm and qm.has_method("add_talk"):
-		qm.add_talk(npc_name)
+	if is_instance_valid(player):
+		SimNet.submit_talk(player, npc_name)
 	return dialogue
 
 func take_damage(_amount: int, _spell: String, _attacker: Node3D) -> void:

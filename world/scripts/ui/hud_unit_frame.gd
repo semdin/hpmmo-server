@@ -13,6 +13,8 @@ const MEDALLION := 92.0
 var player_name := ""
 var house := ""
 var level := 1
+var house_rank := 0
+var house_rep := 0
 var crest: Texture2D = null
 var galleons := -1
 var _coin: Texture2D = null
@@ -41,6 +43,13 @@ func set_identity(p_name: String, p_house: String, p_level: int) -> void:
 	house = p_house
 	level = p_level
 	crest = UITheme.chrome("house_" + house.to_lower()) if house != "" else null
+	queue_redraw()
+
+func set_house_standing(rank: int, rep: int) -> void:
+	if rank == house_rank and rep == house_rep:
+		return
+	house_rank = rank
+	house_rep = rep
 	queue_redraw()
 
 ## Where the gauges go, in this control's coordinates.
@@ -102,6 +111,8 @@ func _draw() -> void:
 		var hp := Vector2(size.x - hw - 14, 33)
 		draw_string_outline(hf, hp, house, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, 3, Color(0, 0, 0, 0.9))
 		draw_string(hf, hp, house, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, hcol)
+		if house_rank > 0:
+			_draw_house_standing(hcol)
 	# Purse, under the gauges.
 	if galleons >= 0:
 		var gtext := _thousands(galleons)
@@ -111,6 +122,22 @@ func _draw() -> void:
 			draw_texture_rect(_coin, Rect2(Vector2(MEDALLION + 14, 87), Vector2(16, 16)), false)
 		draw_string_outline(gf, gp, gtext, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 3, Color(0, 0, 0, 0.9))
 		draw_string(gf, gp, gtext, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, HudKit.GOLD_LT)
+
+## Rank title and a thin reputation bar, right-aligned on the purse line.
+func _draw_house_standing(hcol: Color) -> void:
+	var text := "Rank %d · %s" % [house_rank, HPRules.house_rank_title(house_rank)]
+	var f := HudKit.bold()
+	var w := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
+	var right := size.x - 14
+	var p := Vector2(right - w, 98)
+	draw_string_outline(f, p, text, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, 3, Color(0, 0, 0, 0.9))
+	draw_string(f, p, text, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, hcol)
+	var lo := HPRules.house_rank_threshold(house_rank)
+	var hi := HPRules.house_rank_threshold(house_rank + 1)
+	var pct := 1.0 if house_rank >= HPRules.max_house_rank() else clampf(float(house_rep - lo) / maxf(1.0, float(hi - lo)), 0.0, 1.0)
+	var bar := Rect2(Vector2(right - w, 102), Vector2(w, 3))
+	draw_rect(bar, Color(0, 0, 0, 0.6))
+	draw_rect(Rect2(bar.position, Vector2(bar.size.x * pct, bar.size.y)), hcol)
 
 static func _thousands(v: int) -> String:
 	var s := str(absi(v))

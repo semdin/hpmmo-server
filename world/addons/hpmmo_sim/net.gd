@@ -476,6 +476,14 @@ func sim_pickup_request(loot_uid: int) -> void:
 		sim_notice.rpc_id(multiplayer.get_remote_sender_id(), "pickup", String(result.get("reason", "")))
 
 @rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
+func sim_talk_request(npc_name: String) -> void:
+	if is_client:
+		return
+	var result := SimAuthority.request_talk(multiplayer.get_remote_sender_id(), npc_name.left(64))
+	if not bool(result.get("ok", false)):
+		sim_notice.rpc_id(multiplayer.get_remote_sender_id(), "talk", String(result.get("reason", "")))
+
+@rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
 func sim_chat_request(text: String) -> void:
 	if is_client:
 		return
@@ -763,6 +771,17 @@ func submit_pickup(player_node: Node, loot_uid: int) -> Dictionary:
 	if record.is_empty():
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
 	return SimAuthority.request_pickup(int(record.get("peer_id", 0)), loot_uid)
+
+## Talking to an NPC (quest progress). Same shape as pickup: a client asks the
+## server, the authority roles answer locally with the same validation.
+func submit_talk(player_node: Node, npc_name: String) -> Dictionary:
+	if is_client:
+		sim_talk_request.rpc_id(1, npc_name)
+		return HPProtocol.accept()
+	var record := SimAuthority.record_for(player_node)
+	if record.is_empty():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	return SimAuthority.request_talk(int(record.get("peer_id", 0)), npc_name)
 
 ## Map transfer entry points, used by client code in EVERY role (Phase
 ## 8). In role CLIENT the exchange travels to the server; in the authority roles

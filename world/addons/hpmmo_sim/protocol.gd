@@ -24,7 +24,13 @@ class_name HPProtocol
 ##     a routed player line ("local" to players within CHAT_LOCAL_RADIUS on the
 ##     speaker's map, "shout" - a line starting with "!" - to everyone); the
 ##     plain `sim_chat_event` stays for system text only.
-const PROTOCOL_VERSION := 9
+## v10: server-authoritative quests - `sim_talk_request(npc_name)` asks the
+##     authority to count a conversation (range-checked against the NPC), and
+##     the stats payload carries `quest_active` / `quest_progress` plus the
+##     house standing fields. Kill, monolith, refine and visit progress is
+##     observed by the server; a v9 client would never progress, so it is
+##     refused like any other mismatch.
+const PROTOCOL_VERSION := 10
 
 ## Simulation / replication rates.
 const SIM_HZ := 20
@@ -79,6 +85,8 @@ const REJECT_LINE_OF_SIGHT := "no_line_of_sight"
 const REJECT_INPUT_BUFFER := "input_buffer"
 const REJECT_ZONE := "wrong_zone"
 const REJECT_STATE := "invalid_state"
+## The spell needs a higher house rank (spells.json `requires_house_rank`).
+const REJECT_HOUSE_RANK := "house_rank"
 ## Map transfer.
 const REJECT_TRANSFER_PENDING := "transfer_pending"
 const REJECT_NO_PORTAL := "no_portal"

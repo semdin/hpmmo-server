@@ -87,6 +87,5 @@ func _equipment_answer(result: Dictionary) -> void:
 	var reason := String(result.get("reason", ""))
 	result_label.text = String(preload("res://scripts/ui/inventory_arcane.gd").REASONS.get(reason, "Equipment updated."))
 	if reason == "refined":
-		QuestManager.add_refine()
 		wand_upgraded.emit(player.wand_tier)
 	_refresh_display()

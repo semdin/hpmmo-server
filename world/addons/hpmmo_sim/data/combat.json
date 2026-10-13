@@ -130,6 +130,11 @@
     "max_inventory_kinds": 40,
     "mount_offensive_cast": false
   },
+  "house_ranks": {
+    "_comment": "House standing, earned only from quest rewards (reward_house_rep). thresholds[i] is the total reputation needed to hold rank i+1; reputation stops at the last threshold. Gated content names a rank (spells.json: requires_house_rank).",
+    "thresholds": [0, 100, 250, 500, 900, 1500, 2400],
+    "titles": ["Initiate", "Novice", "Adept", "Prefect", "Head Prefect", "Champion", "Legend"]
+  },
   "death": {
     "respawn_ms": 2500,
     "respawn_position": [

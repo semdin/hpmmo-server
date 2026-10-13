@@ -505,6 +505,10 @@ func _update_minimap() -> void:
 ## pointed at the first prototype map, so everywhere read "Hogwarts Grounds".
 func zone_at(pos: Vector3) -> String:
 	var xz := Vector2(pos.x, pos.z)
+	# Quest places first: the banner names the same area the server counts.
+	var place := HPRules.quest_place_at(HPProtocol.DEFAULT_MAP, pos)
+	if place != "":
+		return place
 	var layout := _grounds_layout()
 	if xz.distance_to(Vector2(0, 65)) < 34.0:
 		return "Hogwarts Courtyard"
@@ -571,8 +575,6 @@ func _update_zone() -> void:
 			_zone_banner_sub.text = ""
 		# Announce crossings, not the place you logged in at.
 		_zone_timer = 0.0 if first else 3.2
-		if z == "Quidditch Pitch" and has_node("/root/QuestManager"):
-			QuestManager.add_visit("Quidditch Pitch")
 	var dt := get_process_delta_time()
 	if _zone_timer > 0.0:
 		_zone_timer -= dt

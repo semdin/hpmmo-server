@@ -1,0 +1,57 @@
+{
+  "_comment": "Quest chain, decided by the authority (SimAuthority quest_event). Types: talk (target = NPC name, within talk_radius of that NPC), kill (target = mob species from its scene, mob_<species>.tscn), monolith, refine (a successful wand refinement), visit (target = a place below; `mounted` requires the broom). Rewards: reward_exp, reward_gold, reward_house_rep. Progress persists in the character's `quests` object (active, progress, done).",
+  "talk_radius": 6.0,
+  "places": {
+    "Quidditch Pitch": {"map": "grounds", "center": [330, -330], "radius": 85}
+  },
+  "chain": [
+    {
+      "id": "welcome",
+      "title": "First-Year Orientation",
+      "name": "Speak with Professor Fig in the courtyard",
+      "desc": "Find Professor Fig near the fountain (gold ! marker).",
+      "type": "talk", "target": "Professor Fig", "count": 1,
+      "reward_exp": 120, "reward_gold": 150, "reward_house_rep": 25
+    },
+    {
+      "id": "rats",
+      "title": "Acromantula Infestation",
+      "name": "Defeat 4 Acromantulas",
+      "desc": "Giant spiders nest west of the castle. Thin them out.",
+      "type": "kill", "target": "acromantula", "count": 4,
+      "reward_exp": 350, "reward_gold": 300, "reward_house_rep": 60
+    },
+    {
+      "id": "inferi",
+      "title": "Restless Inferi",
+      "name": "Defeat 4 Inferi",
+      "desc": "Inferi stalk the forest edge. Burn them - fire hurts them double.",
+      "type": "kill", "target": "inferi", "count": 4,
+      "reward_exp": 400, "reward_gold": 350, "reward_house_rep": 70
+    },
+    {
+      "id": "monolith",
+      "title": "Shatter the Darkness",
+      "name": "Help destroy 1 Dark Monolith",
+      "desc": "Join others at a Dark Monolith (purple beam) and break it.",
+      "type": "monolith", "target": "", "count": 1,
+      "reward_exp": 900, "reward_gold": 800, "reward_house_rep": 150
+    },
+    {
+      "id": "refine",
+      "title": "Ollivander's Favor",
+      "name": "Refine your wand to +2",
+      "desc": "Visit Ollivander's Forge (press O) and refine twice.",
+      "type": "refine", "target": "", "count": 2,
+      "reward_exp": 300, "reward_gold": 250, "reward_house_rep": 50
+    },
+    {
+      "id": "broom",
+      "title": "Quidditch Tryouts",
+      "name": "Mount your broom and visit the Quidditch Pitch",
+      "desc": "Press Shift to mount, then fly to the golden hoops east.",
+      "type": "visit", "target": "Quidditch Pitch", "mounted": true, "count": 1,
+      "reward_exp": 350, "reward_gold": 300, "reward_house_rep": 60
+    }
+  ]
+}

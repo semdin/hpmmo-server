@@ -77,6 +77,8 @@ var world_map: HudWorldMap = null
 var quest_scroll: HudQuestScroll = null
 var _exp_ticks: Control = null
 var _level := 1
+## Last house rank shown; 0 until the first payload so a load is not a "rank up".
+var _house_rank := 0
 
 var _hp_stat: StatBar = null
 var _mana_stat: StatBar = null
@@ -356,6 +358,7 @@ func _on_binder_stats(stats: Dictionary) -> void:
 	exp_label.text = "Level %d   ·   %d / %d EXP   ·   %.1f%%" % [_level, exp, max_exp, exp_pct]
 	if unit_frame != null and is_instance_valid(player):
 		unit_frame.set_identity(String(player.player_name), String(player.house), _level)
+	_apply_house_standing(stats)
 	var galleons := int(stats.get("galleons", -1))
 	if String(stats.get("source", "")) == "authority":
 		# Once the server has spoken about currency, its number is the one the
@@ -380,6 +383,21 @@ func _on_stats_changed(hp: int, max_hp: int, mana: int, max_mana: int, exp: int,
 		"dead": bool(player.is_dead) if is_instance_valid(player) else false,
 		"mounted": bool(player.is_mounted) if is_instance_valid(player) else false,
 	})
+
+## House standing (quest reputation): the unit frame shows rank and progress, a
+## rise past a threshold gets a notice. Payloads without the fields (the mirror
+## path) fall back to the body's own reputation.
+func _apply_house_standing(stats: Dictionary) -> void:
+	if not is_instance_valid(player):
+		return
+	var rep := int(stats.get("house_rep", player.house_rep))
+	var rank := HPRules.house_rank_for(rep)
+	if unit_frame != null:
+		unit_frame.set_house_standing(rank, rep)
+	if _house_rank > 0 and rank > _house_rank:
+		show_notice("%s Rank %d · %s" % [String(player.house), rank, HPRules.house_rank_title(rank)], "good")
+		_play_ui("ui_levelup")
+	_house_rank = rank
 
 func _update_currency() -> void:
 	if not is_instance_valid(player):

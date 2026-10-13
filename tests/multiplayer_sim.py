@@ -13,10 +13,12 @@ Proves the exit checks with real processes:
   3. protection  - a protected target cannot be damaged by a delayed projectile,
                    a burn tick or a boss AoE (with positive controls proving the
                    attacks do land outside protection).
+  4. quests      - quest progress is the server's decision: a remote client's
+                   talk request is range-checked, rewarded once, and mirrored.
 
 Usage:
   python tests/multiplayer_sim.py [--profile local|broadband|mobile|awful]
-                                  [--skip=agreement,forged,protection]
+                                  [--skip=agreement,forged,protection,quests]
 
 Environment: HPMMO_GODOT (godot binary), HPMMO_CLIENT_DIR / HPMMO_SERVER_DIR to
 point at the two checkouts (defaults assume the standard workspace layout).
@@ -383,6 +385,52 @@ def test_protection(out_dir):
           "the same boss AoE does damage outside the zone (positive control)")
 
 
+def test_quests(out_dir, profile="local"):
+    """Quests are the server's decision: a remote client can only ask to talk,
+    the world server checks the range against its own NPC, pays the reward once
+    and sends the new chain position back."""
+    print("\n--- server-authoritative quests, profile=%s ---" % profile)
+    port = free_port()
+    # Beside Professor Fig in the courtyard (the first quest's NPC).
+    server = start_server(port, 515151, profile, out_dir, {"HPMMO_DEV_SPAWN": "-10,0,73.5"})
+    try:
+        if not server.wait_for("listening on :%d" % port, timeout=90):
+            check(False, "[%s] world server failed to start for the quest test" % profile)
+            return
+        records = run_probe("scholar", "quest", port, out_dir, seconds=14, profile=profile)
+        server_log_ok = server.wait_for("completed quest 'welcome'", timeout=5)
+    finally:
+        server.stop()
+    final = final_of(records)
+    check(bool(final), "[%s] quest probe produced a transcript" % profile)
+    if not final:
+        return
+    start = final.get("start", {})
+    far = (by_event(records, "after_far_talk") or [{}])[0]
+    near = (by_event(records, "after_near_talk") or [{}])[0]
+    check(start.get("quest_active") == 0 and start.get("house_rep") == 0,
+          "[%s] a fresh character starts at the first quest (active %s, rep %s)"
+          % (profile, start.get("quest_active"), start.get("house_rep")))
+    check(0 <= float(final.get("distance_to_fig", -1)) <= 6.0,
+          "[%s] the client stands beside Professor Fig (%.1f m)" % (profile, float(final.get("distance_to_fig", -1))))
+    check(far.get("quest_active") == 0 and any("out_of_range" in n for n in final.get("notices", [])),
+          "[%s] asking Hagrid from across the map is refused and counts nothing" % profile)
+    check(near.get("quest_active") == 1 and server_log_ok,
+          "[%s] the world server completed the talk quest (active %s)" % (profile, near.get("quest_active")))
+    check(int(near.get("house_rep", 0)) == 25 and int(near.get("galleons", 0)) == int(start.get("galleons", 0)) + 150,
+          "[%s] the reward reached the client (rep %s, galleons %s -> %s)"
+          % (profile, near.get("house_rep"), start.get("galleons"), near.get("galleons")))
+    quest_ops = [r["op_id"] for r in final.get("rewards", []) if str(r.get("op_id", "")).startswith("quest:")]
+    check(len(quest_ops) == 1 and quest_ops[0].startswith("quest:welcome:"),
+          "[%s] exactly one quest reward was delivered (%s)" % (profile, quest_ops))
+    check(final.get("quest_active") == 1 and int(final.get("house_rep", 0)) == 25
+          and int(final.get("galleons", 0)) == int(near.get("galleons", -1)),
+          "[%s] repeating the conversation paid nothing more" % profile)
+    check(final.get("view_index") == 1 and final.get("completed") == ["welcome"],
+          "[%s] the client's quest view mirrors the server (view %s, completed %s)"
+          % (profile, final.get("view_index"), final.get("completed")))
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--profile", default="local")
@@ -410,6 +458,8 @@ def main():
         test_forged(out_dir, args.profile)
     if "protection" not in skip:
         test_protection(out_dir)
+    if "quests" not in skip:
+        test_quests(out_dir, args.profile)
 
     print("\nMULTIPLAYER RESULT: %d checks, %d failures" % (checks, len(failures)))
     for failure in failures:

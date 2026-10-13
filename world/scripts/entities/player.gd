@@ -71,6 +71,20 @@ var current_hp: int = 500
 var max_mana: int = 300
 var current_mana: int = 300
 var galleons: int = 500
+## Reputation with this character's house (quest rewards only); HPRules turns it
+## into the 1..7 house rank that gates content.
+var house_rep: int = 0
+## Position in the quest chain (HPRules.quest_chain). Written by the authority
+## only; a client body mirrors it from the stats payload.
+var quest_active: int = 0
+var quest_progress: int = 0
+var quest_done: Array = []
+## The persisted `quests` object, kept whole so keys this build does not know
+## survive a load/save round trip.
+var _quest_state: Dictionary = {}
+## Last house reputation this body announced (the authority may write
+## `house_rep` before the stats payload arrives, so the delta is kept here).
+var _shown_house_rep: int = -1
 var inventory: Array[Dictionary] = []
 var equipment: Dictionary = {}
 var inventory_revision: int = 0
@@ -1316,11 +1330,43 @@ func restore_character(data: Dictionary) -> void:
 	equipment_version = int(data.get("equipment_version", 0))
 	equipment = (data.get("equipment", {}) as Dictionary).duplicate(true)
 	inventory_revision = int(data.get("inventory_revision", 0))
+	restore_quest_state(data.get("quests", {}))
 	_initialize_equipment()
 	_apply_wand_aura()
 	_update_nameplate()
 	inventory_changed.emit()
 	emit_stats()
+
+## The saved `quests` object (character sheet or offline save) -> house
+## standing and the quest chain position.
+func restore_quest_state(quests: Variant) -> void:
+	_quest_state = (quests as Dictionary).duplicate(true) if quests is Dictionary else {}
+	house_rep = HPRules.clamp_house_rep(int(_quest_state.get("house_rep", 0)))
+	_shown_house_rep = house_rep
+	quest_active = clampi(int(_quest_state.get("active", 0)), 0, HPRules.quest_chain().size())
+	quest_progress = maxi(0, int(_quest_state.get("progress", 0)))
+	quest_done = []
+	if _quest_state.get("done") is Array:
+		for id in _quest_state["done"]:
+			if id is String:
+				quest_done.append(id)
+
+## True once the saved object carries a chain position (used to import the
+## pre-authority local quest file exactly once).
+func has_quest_progress() -> bool:
+	return _quest_state.has("active")
+
+## What the save writes into the character's `quests` column.
+func persisted_quests() -> Dictionary:
+	var out := _quest_state.duplicate(true)
+	out["house_rep"] = house_rep
+	out["active"] = quest_active
+	out["progress"] = quest_progress
+	out["done"] = quest_done.duplicate()
+	return out
+
+func house_rank() -> int:
+	return HPRules.house_rank_for(house_rep)
 
 ## Where this body's spell leaves it: the head of the equipped wand when one is
 ## held, otherwise the documented body offset. The wand tip is authored inside
@@ -1800,6 +1846,12 @@ func apply_authoritative_stats(stats: Dictionary) -> void:
 	max_exp = int(stats.get("max_exp", max_exp))
 	level = int(stats.get("level", level))
 	galleons = int(stats.get("galleons", galleons))
+	house_rep = int(stats.get("house_rep", house_rep))
+	quest_active = int(stats.get("quest_active", quest_active))
+	quest_progress = int(stats.get("quest_progress", quest_progress))
+	if _shown_house_rep >= 0 and house_rep > _shown_house_rep and is_local_player:
+		_spawn_floating_text("+%d %s Reputation" % [house_rep - _shown_house_rep, house], Color(1.0, 0.78, 0.35), 1.1)
+	_shown_house_rep = house_rep
 	var was_mounted := is_mounted
 	var now_mounted := bool(stats.get("mounted", is_mounted))
 	if was_mounted != now_mounted:
@@ -1819,6 +1871,13 @@ func add_exp(amount: int) -> void:
 		return
 	SimAuthority.grant_exp(self, amount)
 	_spawn_floating_text("+%d EXP" % amount, Color(0.3, 1.0, 0.5), 1.2)
+
+## House reputation, granted by the authority like EXP (quests are the source;
+## the floating text comes with the stats payload in every role).
+func add_house_rep(amount: int) -> void:
+	if not SimAuthority.is_authority() or amount <= 0:
+		return
+	SimAuthority.grant_house_rep(self, amount)
 
 func add_loot(item_id: String, amount: int, tier: int = 0) -> void:
 	if not SimAuthority.is_authority() or amount <= 0:

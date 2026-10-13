@@ -143,6 +143,14 @@ func _spawn_local_player() -> void:
 		local_player.global_position = HPMaps.default_spawn(HPProtocol.DEFAULT_MAP)
 		local_player.visuals.rotation.y = 0.0
 	
+	# Offline play kept its quest chain in a local file before quests moved to
+	# the authority; carry it into the character once.
+	if SimAuthority.is_authority() and not local_player.has_quest_progress():
+		var legacy: Dictionary = QuestManager.legacy_progress()
+		if not legacy.is_empty():
+			var quests: Dictionary = local_player.persisted_quests()
+			quests.merge(legacy, true)
+			local_player.restore_quest_state(quests)
 	# The authority owns this body from here on: register it before anything can
 	# act on it (casts, damage, snapshots all resolve through the registry).
 	if SimAuthority.is_authority():
@@ -191,7 +199,7 @@ func _save_offline_state() -> void:
 			"pos_z": local_player.global_position.z,
 			"rot_y": local_player.visuals.rotation.y if local_player.get("visuals") != null else 0.0,
 			"inventory": local_player.inventory,
-			"quests": {}
+			"quests": local_player.persisted_quests()
 		}
 		DatabaseManager.save_offline_character(save_data)
 

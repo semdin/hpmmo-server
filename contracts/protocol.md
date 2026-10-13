@@ -21,6 +21,7 @@ its own state. `server_relay` is off, so clients cannot address each other.
 | `sim_transfer_ready` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | token: int |
 | `sim_transfer_abort` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | token: int |
 | `sim_pickup_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | loot_uid: int |
+| `sim_talk_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | npc_name: String |
 | `sim_chat_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | text: String |
 | `sim_join_result` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | ok: bool, reason: String, uid: int, character: Dictionary, tick: int, world_seed: int |
 | `sim_bind_result` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | ok: bool, reason: String, character: Dictionary |
@@ -51,7 +52,7 @@ its own state. `server_relay` is off, so clients cannot address each other.
 | `sim_equipment_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | request_id: int, revision: int, operation: String, slot: String, item_id: String, tier: int |
 | `sim_equipment_result` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | answer: Dictionary |
 
-Surface entries: 39. Hash of this document is pinned in the workspace lock;
+Surface entries: 40. Hash of this document is pinned in the workspace lock;
 Canonical gameplay catalogs live in `world/addons/hpmmo_sim/data/`; client content schemas live in `contracts/schemas/`.
 
-Surface hash: `d4a9c881aad47a0a27515aa9216fa7c9fe2b83e31ff147c2265113acf9b8bc4d`
+Surface hash: `141db5c618bed1251ea7eff705001688224f273ea648d2c4f8115fa7b272a239`
