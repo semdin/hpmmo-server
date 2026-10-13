@@ -3,7 +3,8 @@ class_name HudActionBar
 
 ## The action bar: the six spell slots (1-4, Q, E) and, after a gap, four quick
 ## slots on F1-F4 that hold consumables - Wiggenweld and Mana Draught by default,
-## any potion dragged onto them from the bag, cleared with a right-click. The
+## any potion dragged onto them from the bag. A filled slot can be dragged onto
+## another (move or swap) or out onto the world to empty it; right-click clears too. The
 ## assignment is remembered per install (`user://quickslots.cfg`).
 ##
 ## Using a quick slot asks the authority to consume the item exactly like the
@@ -54,6 +55,8 @@ func _ready() -> void:
 		q.accept_drop = _accept_quick_drop
 		q.item_dropped.connect(_on_quick_drop.bind(i))
 		q.cleared.connect(func(_s): _assign(i, ""))
+		q.drag_slot_index = i
+		q.drag_released.connect(func(_s): _assign(i, ""))
 		var index := i
 		q.pressed.connect(func(): use_quick(index))
 		add_child(q)
@@ -198,7 +201,24 @@ func _accept_quick_drop(_slot: HudSlot, payload: Dictionary) -> bool:
 	return id != "" and String(HPEquipment.item(id).get("type", "")) == "consumable"
 
 func _on_quick_drop(_slot: HudSlot, payload: Dictionary, index: int) -> void:
+	var from := int(payload.get("quick_slot", -1))
+	if from >= 0 and from < 4:
+		move_quick(from, index)
+		return
 	_assign(index, String(payload.get("id", "")))
+
+## Drag between quick slots: the item moves, and whatever the target held goes
+## back to the source slot (a swap), so nothing is ever lost from the bar.
+func move_quick(from: int, to: int) -> void:
+	if from == to:
+		return
+	var moving := String(quick_items[from])
+	quick_items[from] = quick_items[to]
+	quick_items[to] = moving
+	var cd = _quick_cd[from]
+	_quick_cd[from] = _quick_cd[to]
+	_quick_cd[to] = cd
+	_save()
 
 func _assign(index: int, id: String) -> void:
 	# One item per bar: dropping it on a new slot moves it.
@@ -238,9 +258,9 @@ func _spell_tooltip(key: String, spell: Dictionary) -> String:
 
 func _item_tooltip(key: String, id: String) -> String:
 	if id == "":
-		return "[%s] Quick slot\nDrag a potion here from your bag (I).\nRight-click a slot to clear it." % key
+		return "[%s] Quick slot\nDrag a potion here from your bag (I).\nDrag a slot onto another to swap, or off the bar to clear it." % key
 	var data: Dictionary = HPEquipment.item(id)
-	return "[%s] %s\n%s\nRight-click to clear." % [key, data.get("name", id), data.get("desc", "")]
+	return "[%s] %s\n%s\nDrag to move or swap; drag off the bar or right-click to clear." % [key, data.get("name", id), data.get("desc", "")]
 
 func _ensure_action(action: String, keycode: int) -> void:
 	if not InputMap.has_action(action):

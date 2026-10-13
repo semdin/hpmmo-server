@@ -2,9 +2,12 @@ extends Node3D
 class_name SpeechBubble
 
 ## What a player says in local chat, floating over their head for a few
-## seconds (Metin2 style). A small 2D panel rendered into a viewport and shown on
-## a billboarded sprite, so it can carry a real background, word wrap and the
-## HUD's fonts. One per speaker: a new line replaces the old one.
+## seconds (Metin2 style). One per speaker: a new line replaces the old one.
+##
+## On a real display the card is a 2D control on the `WorldLabels` screen layer,
+## pinned over this node's projected position, so it is never tonemapped,
+## fogged or tinted by the glow of whatever is behind it. Headless runs keep the
+## older viewport-on-a-sprite path (nothing is drawn there anyway).
 
 const LIFETIME := 6.0
 const FADE := 0.6
@@ -14,6 +17,8 @@ const PIXEL := 0.0052
 var _viewport: SubViewport
 var _sprite: Sprite3D
 var _age := 0.0
+## 0..1 opacity of the bubble, read by the screen layer.
+var fade := 1.0
 
 static func say(speaker: Node3D, text: String, height: float) -> SpeechBubble:
 	if speaker == null or not is_instance_valid(speaker) or text.strip_edges() == "":
@@ -30,6 +35,9 @@ static func say(speaker: Node3D, text: String, height: float) -> SpeechBubble:
 	return bubble
 
 func _build(text: String) -> void:
+	if WorldLabels.enabled():
+		_build_screen(text)
+		return
 	_viewport = SubViewport.new()
 	_viewport.transparent_bg = true
 	_viewport.disable_3d = true
@@ -85,9 +93,58 @@ func _build(text: String) -> void:
 	_viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
 	_sprite.offset = Vector2(0, (s.y + 14) * 0.5)
 
+## The screen-space card: an opaque parchment bubble with a tail, its bottom tip
+## on the anchor.
+func _build_screen(text: String) -> void:
+	var root := Control.new()
+	root.name = "SpeechCard"
+	var card := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.98, 0.96, 0.90, 1.0)
+	sb.border_color = Color(0.36, 0.26, 0.12)
+	sb.set_border_width_all(2)
+	sb.set_corner_radius_all(9)
+	sb.content_margin_left = 10
+	sb.content_margin_right = 10
+	sb.content_margin_top = 5
+	sb.content_margin_bottom = 6
+	sb.shadow_color = Color(0, 0, 0, 0.35)
+	sb.shadow_size = 4
+	sb.shadow_offset = Vector2(0, 2)
+	card.add_theme_stylebox_override("panel", sb)
+	var label := Label.new()
+	label.text = text.strip_edges().substr(0, 140)
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.add_theme_font_override("font", HudKit.bold())
+	label.add_theme_font_size_override("font_size", 15)
+	label.add_theme_color_override("font_color", Color(0.10, 0.07, 0.04))
+	var one_line := HudKit.bold().get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
+	label.custom_minimum_size.x = minf(one_line + 2.0, 220.0)
+	card.add_child(label)
+	root.add_child(card)
+	var tail := Polygon2D.new()
+	root.add_child(tail)
+	WorldLabels.track_bubble(self, root)
+	await get_tree().process_frame
+	if not is_instance_valid(card):
+		return
+	var s := card.get_combined_minimum_size()
+	card.size = s
+	root.size = Vector2(s.x, s.y + 9)
+	var cx := s.x * 0.5
+	tail.polygon = PackedVector2Array([Vector2(cx - 8, s.y - 2), Vector2(cx + 8, s.y - 2), Vector2(cx, s.y + 9)])
+	tail.color = sb.bg_color
+	var edge := Line2D.new()
+	edge.points = PackedVector2Array([Vector2(cx - 8, s.y - 0.5), Vector2(cx, s.y + 9), Vector2(cx + 8, s.y - 0.5)])
+	edge.width = 2.0
+	edge.default_color = sb.border_color
+	root.add_child(edge)
+
 func _process(delta: float) -> void:
 	_age += delta
+	fade = clampf((LIFETIME - _age) / FADE, 0.0, 1.0)
 	if _sprite != null:
-		_sprite.modulate.a = clampf((LIFETIME - _age) / FADE, 0.0, 1.0)
+		_sprite.modulate.a = fade
 	if _age >= LIFETIME:
 		queue_free()

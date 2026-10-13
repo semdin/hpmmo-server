@@ -8,8 +8,8 @@ class_name UITheme
 ## matching button-state geometry for the HUD and inventory.
 ## Layout and gameplay feedback remain control-driven; artwork is chrome only.
 ##
-## Text uses Cinzel (headings), Cinzel Decorative (place names) and Philosopher
-## (body/UI), all SIL OFL 1.1 with
+## Text uses Cinzel (headings), Cinzel Decorative (place names) and Marcellus
+## (body/UI - a classic inscriptional face in the Friz Quadrata tradition), all SIL OFL 1.1 with
 ## the licence vendored beside each face in `assets/fonts/`.
 
 const DIR := "res://assets/ui/"
@@ -21,9 +21,11 @@ const THEME_PATH := DIR + "hpmmo.tres"
 const TITLE_FONT_FILE := "Cinzel-Variable.ttf"
 ## The body face is not variable, so a requested weight resolves to the nearest
 ## shipped cut. Each entry is `[highest weight this cut covers, file stem]`.
+## Synthetic weight added to the single Marcellus cut for the bold role.
+const BOLD_EMBOLDEN := 0.55
 const BODY_FONT_CUTS := [
-	[600, "Philosopher-Regular"],
-	[1000, "Philosopher-Bold"],
+	[600, "Marcellus-Regular"],
+	[1000, "Marcellus-Regular@bold"],
 ]
 
 ## Type-variation names. A widget asks for a role by setting
@@ -263,11 +265,10 @@ static func set_button_icon(button: Button, id: String, px: float = 15.0) -> voi
 
 ## The font for a weight, in the heading face (`title`) or the body face.
 ##
-## Cinzel is variable, so its weight is an axis value on one file. Alegreya Sans
-## is not, so a weight picks the nearest shipped cut; the call sites ask for 500
-## (`font_body`) and 700 (`font_body_bold`), which are exactly the Medium and
-## Bold cuts, and anything in between still lands on something sensible rather
-## than silently rendering at an unintended weight.
+## Cinzel is variable, so its weight is an axis value on one file. Marcellus
+## ships a single cut, so a weight picks the nearest entry in BODY_FONT_CUTS; a
+## stem ending in "@bold" is that cut synthetically emboldened (500 ->
+## `font_body`, 700 -> `font_body_bold`).
 static func font(weight: int, title: bool = false) -> Font:
 	var key := ("title" if title else "body") + str(weight)
 	if _fonts.has(key):
@@ -306,12 +307,18 @@ static func _load_variable(file: String, weight: int) -> Font:
 
 ## One static cut of the body face.
 static func _load_cut(stem: String) -> Font:
-	var path := FONT_DIR + stem + ".ttf"
+	var bold := stem.ends_with("@bold")
+	var path := FONT_DIR + stem.trim_suffix("@bold") + ".ttf"
 	if not ResourceLoader.exists(path):
 		return ThemeDB.fallback_font
 	var f := load(path) as Font
 	if f == null:
 		return ThemeDB.fallback_font
+	if bold:
+		var v := FontVariation.new()
+		v.base_font = f
+		v.variation_embolden = BOLD_EMBOLDEN
+		return v
 	return f
 
 

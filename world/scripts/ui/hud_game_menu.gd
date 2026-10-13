@@ -12,12 +12,15 @@ var _buttons: Dictionary = {}
 var _note: Label
 
 func _init() -> void:
-	super._init("Menu", Vector2(360, 420))
+	super._init("Menu", Vector2(260, 318))
 	name = "GameMenu"
+	# A small card over the live game: no dimming, and the character can keep
+	# moving while it is open.
+	modal = false
 
 func _ready() -> void:
 	super._ready()
-	body.add_theme_constant_override("separation", 10)
+	body.add_theme_constant_override("separation", 7)
 	body.alignment = BoxContainer.ALIGNMENT_CENTER
 	for spec in [
 		["resume", "Resume"],
@@ -26,12 +29,12 @@ func _ready() -> void:
 		["character", "Change Character"],
 		["quit", "Quit Game"],
 	]:
-		var b := HudKit.button(String(spec[1]), 17)
-		b.custom_minimum_size = Vector2(0, 44)
+		var b := HudKit.button(String(spec[1]), 15)
+		b.custom_minimum_size = Vector2(0, 34)
 		b.pressed.connect(_on_pressed.bind(String(spec[0])))
 		body.add_child(b)
 		_buttons[String(spec[0])] = b
-	_note = HudKit.label("Your progress is saved when you leave.", 13, HudKit.TEXT_DIM, HudKit.body(), 0)
+	_note = HudKit.label("Progress is saved when you leave.", 12, HudKit.TEXT_DIM, HudKit.body(), 0)
 	_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	body.add_child(_note)
 

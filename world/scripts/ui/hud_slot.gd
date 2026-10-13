@@ -11,6 +11,8 @@ class_name HudSlot
 
 signal item_dropped(slot: HudSlot, payload: Dictionary)
 signal cleared(slot: HudSlot)
+## A drag that started on this slot ended somewhere that did not accept it.
+signal drag_released(slot: HudSlot)
 
 var icon_texture: Texture2D = null:
 	set(value):
@@ -39,8 +41,11 @@ var accept_drop: Callable
 ## Id of whatever this slot holds (a spell or an item); "" when empty.
 var held_id := ""
 var empty_hint := ""
+## Index reported in this slot's own drag payload; -1 means it cannot be dragged.
+var drag_slot_index := -1
 var flash := 0.0
 var _hover := false
+var _dragging_out := false
 
 func _init(px: float = 52.0) -> void:
 	custom_minimum_size = Vector2(px, px)
@@ -73,7 +78,10 @@ func _draw() -> void:
 	draw_rect(r.grow(-1), Color(0.031, 0.039, 0.058, 0.95))
 	var inner := r.grow(-3)
 	if icon_texture != null:
-		draw_texture_rect(icon_texture, inner, false, Color(0.42, 0.42, 0.45) if unusable else Color.WHITE)
+		var tint := Color(0.42, 0.42, 0.45) if unusable else Color.WHITE
+		if _dragging_out:
+			tint.a = 0.3
+		draw_texture_rect(icon_texture, inner, false, tint)
 		# Soft vignette so every icon sits in the frame the same way.
 		draw_rect(Rect2(inner.position, Vector2(inner.size.x, 4)), Color(0, 0, 0, 0.25))
 	elif empty_hint != "":
@@ -154,6 +162,33 @@ func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT and accept_drop.is_valid() and held_id != "":
 		accept_event()
 		cleared.emit(self)
+
+## A filled drop-target slot can itself be dragged: onto another quick slot it
+## moves (or swaps), and released anywhere that does not take it - the world,
+## an empty bit of screen - it empties the slot (`drag_released`).
+func _get_drag_data(_at: Vector2) -> Variant:
+	if not accept_drop.is_valid() or held_id == "" or drag_slot_index < 0:
+		return null
+	var preview := TextureRect.new()
+	preview.texture = icon_texture
+	preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	preview.custom_minimum_size = size
+	preview.size = size
+	preview.position = -size * 0.5
+	preview.modulate = Color(1, 1, 1, 0.85)
+	var holder := Control.new()
+	holder.add_child(preview)
+	set_drag_preview(holder)
+	_dragging_out = true
+	queue_redraw()
+	return {"id": held_id, "quick_slot": drag_slot_index}
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_DRAG_END and _dragging_out:
+		_dragging_out = false
+		queue_redraw()
+		if not get_viewport().gui_is_drag_successful():
+			drag_released.emit(self)
 
 func _can_drop_data(_at: Vector2, payload: Variant) -> bool:
 	return accept_drop.is_valid() and payload is Dictionary and bool(accept_drop.call(self, payload))

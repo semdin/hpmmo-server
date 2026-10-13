@@ -50,6 +50,12 @@ var _currency: Label
 var _house_crest: TextureRect
 var _target_icon: TextureRect = null
 var _target_status_icon: TextureRect = null
+## The target card's parts beyond the scene's name label and bar.
+var _target_level: Label = null
+var _target_rank: Label = null
+var _target_hp_text: Label = null
+var _target_portrait: TargetPortrait = null
+var _target_flow: GaugeFlow = null
 var _last_galleons := -1
 
 ## The authoritative binding and the panels it feeds.
@@ -176,9 +182,9 @@ func _setup_panels() -> void:
 	game_menu.settings_requested.connect(func(): settings.open())
 	game_menu.map_requested.connect(func(): world_map.open())
 
-	_add_quick_button("JournalBtn", "ui_journal", "Guide", "[J] Training guide", open_guide)
-	_add_quick_button("MapBtn", "ui_portal", "Map", "[M] World map", func(): world_map.toggle())
-	_add_quick_button("MenuBtn", "ui_settings", "Menu", "[Esc] Menu - settings, change character, quit", func(): game_menu.toggle())
+	_add_quick_button("JournalBtn", "menu_journal", "Guide", "[J] Training guide", open_guide)
+	_add_quick_button("MapBtn", "menu_map", "Map", "[M] World map", func(): world_map.toggle())
+	_add_quick_button("MenuBtn", "menu_settings", "Menu", "[Esc] Menu - settings, change character, quit", func(): game_menu.toggle())
 	_ensure_ui_action("toggle_onboarding", KEY_J)
 	_ensure_ui_action("toggle_map", KEY_M)
 
@@ -245,6 +251,7 @@ func _add_quick_button(button_name: String, icon_id: String, text: String, tip: 
 	button.add_theme_font_size_override("font_size", 12)
 	button.focus_mode = Control.FOCUS_NONE
 	button.pressed.connect(action)
+	button.set_meta("icon_id", icon_id)
 	UITheme.set_button_icon(button, icon_id)
 	quick.add_child(button)
 
@@ -465,36 +472,70 @@ func _update_target_frame() -> void:
 	if _target_status_icon != null:
 		_target_status_icon.visible = _target_is_weakened()
 
+	# One card for every kind of target: what it is, how strong, and how much
+	# of it is left. Bosses and monoliths used to get a second banner from the
+	# overlay on top of this one; this card carries them now.
+	var title := ""
+	var rank := ""
+	var lvl := -1
+	var tint := HudKit.PARCHMENT
+	var bar_colour := Color(0.80, 0.09, 0.08)
+	var icon := "ui_target"
 	if "mob_name" in current_target:
 		var is_boss_target: bool = "is_boss" in current_target and current_target.is_boss
 		var is_enraged_target: bool = "is_enraged" in current_target and current_target.is_enraged
+		title = String(current_target.mob_name)
+		lvl = int(current_target.level)
 		if is_boss_target:
-			target_name_label.text = "[WORLD BOSS] %s (Lv.%d)" % [current_target.mob_name, current_target.level]
-			target_name_label.modulate = Color(1.0, 0.85, 0.2)
-			target_hp_bar.modulate = Color(1.0, 0.15, 0.15)
-			_set_target_icon("ui_boss")
+			rank = "World Boss"
+			tint = Color(1.0, 0.84, 0.36)
+			bar_colour = Color(0.86, 0.10, 0.06)
+			icon = "ui_boss"
 		elif is_enraged_target:
-			target_name_label.text = "[ENRAGED] %s (Lv.%d)" % [current_target.mob_name, current_target.level]
-			target_name_label.modulate = Color(1.0, 0.3, 0.1)
-			target_hp_bar.modulate = Color(1.0, 0.3, 0.1)
-			_set_target_icon("status_enraged")
+			rank = "Enraged"
+			tint = Color(1.0, 0.52, 0.26)
+			bar_colour = Color(0.92, 0.32, 0.06)
+			icon = "status_enraged"
 		else:
-			target_name_label.text = "[Lv.%d] %s" % [current_target.level, current_target.mob_name]
-			target_name_label.modulate = Color(1.0, 1.0, 1.0)
-			target_hp_bar.modulate = Color(1.0, 0.3, 0.3)
-			_set_target_icon("ui_target")
-		_target_stat.set_value(_target_hp_value(), _target_max_hp_value())
+			rank = "Creature"
+			tint = Color(1.0, 0.86, 0.80)
+		if "is_commander" in current_target and current_target.is_commander and not is_boss_target:
+			rank = "Pack Leader · Enraged" if is_enraged_target else "Pack Leader"
 	elif current_target.is_in_group("monoliths"):
-		target_name_label.text = "Dark Monolith (Lv.35)"
-		target_name_label.modulate = Color(0.8, 0.4, 1.0)
-		target_hp_bar.modulate = Color(0.8, 0.4, 1.0)
-		_set_target_icon("minimap_monolith")
-		_target_stat.set_value(_target_hp_value(), _target_max_hp_value())
+		title = "Dark Monolith"
+		rank = "Ancient Monolith"
+		lvl = 35
+		tint = Color(0.86, 0.62, 1.0)
+		bar_colour = Color(0.58, 0.20, 0.92)
+		icon = "minimap_monolith"
 	elif "current_hp" in current_target and "max_hp" in current_target:
-		target_name_label.text = "Training Dummy"
-		target_name_label.modulate = Color(0.8, 0.9, 0.8)
-		_set_target_icon("ui_target")
-		_target_stat.set_value(_target_hp_value(), _target_max_hp_value())
+		title = "Training Dummy"
+		rank = "Practice target"
+		tint = Color(0.78, 0.95, 0.78)
+		bar_colour = Color(0.30, 0.66, 0.24)
+	else:
+		target_panel.hide()
+		return
+	var hp := _target_hp_value()
+	var max_hp := maxi(1, _target_max_hp_value())
+	_target_stat.set_value(hp, max_hp)
+	target_name_label.text = title
+	target_name_label.modulate = Color.WHITE
+	target_name_label.add_theme_color_override("font_color", tint)
+	target_hp_bar.modulate = Color.WHITE
+	if _target_flow != null:
+		_target_flow.set_colour(bar_colour)
+	if _target_level != null:
+		_target_level.text = ("Lv. %d" % lvl) if lvl > 0 else ""
+	if _target_rank != null:
+		_target_rank.text = rank.to_upper()
+		_target_rank.add_theme_color_override("font_color", tint.darkened(0.12))
+	if _target_hp_text != null:
+		var pct := 100.0 * float(hp) / float(max_hp)
+		var pct_text := ("%.1f" % pct) if pct < 10.0 and pct > 0.0 else str(int(round(pct)))
+		_target_hp_text.text = "%s / %s   ·   %s%%" % [HudUnitFrame._thousands(hp), HudUnitFrame._thousands(max_hp), pct_text]
+	if _target_portrait != null:
+		_target_portrait.set_look(UITheme.chrome(icon), bar_colour.lerp(tint, 0.35))
 
 ## Prefer the authority's health delta for this target; fall back to the node
 ## only when the authority has not spoken about it (a local dummy in a test).
@@ -700,9 +741,9 @@ func _apply_theme() -> void:
 	_attach_bar_icon(mana_bar, "stat_mana")
 	_attach_bar_icon(exp_bar, "stat_exp")
 	_attach_bar_icon(target_hp_bar, "stat_health")
-	UITheme.set_button_icon(inventory_button, "ui_inventory")
-	UITheme.set_button_icon(ollivander_button, "ui_ollivander")
-	UITheme.set_button_icon(mount_button, "ui_mount")
+	for pair in [[inventory_button, "menu_inventory"], [ollivander_button, "menu_ollivander"], [mount_button, "menu_mount"]]:
+		(pair[0] as Button).set_meta("icon_id", pair[1])
+		UITheme.set_button_icon(pair[0], pair[1])
 	inventory_button.tooltip_text = "[I] Bag - the potions you carry"
 	ollivander_button.tooltip_text = "[O] Ollivander - forge the wand higher"
 	mount_button.tooltip_text = "[Shift] Mount or dismount the broom"
@@ -753,6 +794,12 @@ func _build_mmo_layout() -> void:
 	HudKit.style_gauge(mana_bar, Color(0.18, 0.42, 0.92))
 	HudKit.style_gauge(exp_bar, Color(0.90, 0.66, 0.16))
 	HudKit.style_gauge(target_hp_bar, Color(0.86, 0.13, 0.11))
+	# Living fills: energy swirling through the health and mana, a slower drift
+	# through the experience band.
+	GaugeFlow.attach(hp_bar, Color(0.80, 0.09, 0.08))
+	GaugeFlow.attach(mana_bar, Color(0.12, 0.36, 0.92), 0.9)
+	GaugeFlow.attach(exp_bar, Color(0.86, 0.60, 0.12), 0.45)
+	GaugeFlow.attach(target_hp_bar, Color(0.80, 0.09, 0.08))
 	for label in [hp_label, mana_label]:
 		HudKit.style_label(label, 13, Color(1, 1, 1), HudKit.bold(), 3)
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -779,22 +826,13 @@ func _build_mmo_layout() -> void:
 		slot.visible = false
 	hotbar.add_child(action_bar)
 	action_bar.bind(self, player)
-	# Menu buttons, bottom-right.
+	# Menu buttons, bottom-right: the same framed square cells as the action
+	# bar, each filled edge to edge by its painted icon.
 	for button in $BottomBar/QuickBar.get_children():
 		if button is Button:
-			button.theme_type_variation = &"ArcaneButton"
-			button.text = ""
-			button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			button.expand_icon = true
-			button.add_theme_constant_override("icon_max_width", 26)
-			button.custom_minimum_size = Vector2(40, 40)
-	# Target frame.
-	target_panel.theme_type_variation = &""
-	target_panel.add_theme_stylebox_override("panel", HudKit.panel(0.86, 6))
-	HudKit.style_label(target_name_label, 16, HudKit.PARCHMENT, HudKit.title(), 4)
-	target_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	if _target_icon != null:
-		_target_icon.visible = false
+			_style_menu_cell(button as Button)
+	# Target card.
+	_build_target_card()
 	# Chat sits over the world now; no badge.
 	if feedback != null:
 		feedback._status_row.visible = false
@@ -824,8 +862,9 @@ func _mmo_layout() -> void:
 	status.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	status.custom_minimum_size = Vector2.ZERO
 	UILayout.place(status, unit_frame.position + gauges.position, Vector2(gauges.size.x, 40))
-	hp_bar.custom_minimum_size = Vector2(0, 21)
-	mana_bar.custom_minimum_size = Vector2(0, 15)
+	# Health and mana are equals: the same height, one above the other.
+	hp_bar.custom_minimum_size = Vector2(0, 18)
+	mana_bar.custom_minimum_size = Vector2(0, 18)
 	# Buffs under the frame.
 	buff_bar.position = unit_frame.position + Vector2(HudUnitFrame.MEDALLION + 14, 112)
 	# EXP across the bottom edge.
@@ -850,8 +889,8 @@ func _mmo_layout() -> void:
 	quick.columns = n if not compact else 3
 	quick.add_theme_constant_override("h_separation", 4)
 	quick.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	var qw := float(quick.columns) * 44.0
-	var qh: float = 40.0 * ceilf(float(n) / float(quick.columns)) + (4.0 if compact else 0.0)
+	var qw := float(quick.columns) * (MENU_CELL + 4.0)
+	var qh: float = MENU_CELL * ceilf(float(n) / float(quick.columns)) + (4.0 if compact else 0.0)
 	UILayout.place(quick, Vector2(-qw - 14, -14 - 12 - qh), Vector2(qw, qh))
 	# Chat, bottom-left.
 	var chat_box := $ChatContainer as Control
@@ -860,8 +899,9 @@ func _mmo_layout() -> void:
 	var chat_h := (240.0 if not compact else 170.0) if chat_input.has_focus() else (110.0 if compact else 170.0)
 	UILayout.place(chat_box, Vector2(12, -14 - 14 - chat_h), Vector2(chat_w, chat_h))
 	chat_history.custom_minimum_size.y = 0
-	# Target frame, top centre.
-	UILayout.place(target_panel, Vector2(-(130 if compact else 170), 12), Vector2(260 if compact else 340, 56))
+	# Target card, top centre.
+	var card_w := 300.0 if compact else 360.0
+	UILayout.place(target_panel, Vector2(-card_w * 0.5, 10), Vector2(card_w, TARGET_CARD_H))
 	# Notices, top centre under the zone banner.
 	notices.position = Vector2(canvas.x * 0.5, 186 if not compact else 120)
 	if feedback != null:
@@ -879,6 +919,141 @@ func _mmo_layout() -> void:
 			feedback._toast_box.custom_minimum_size = Vector2(tw - 18, 0)
 			feedback._toast_box.size.x = tw - 18
 			feedback._toast_panel.clip_contents = true
+
+
+const MENU_CELL := 42.0
+
+## A bottom-right menu button as an action-bar cell: dark recess, a thin gold
+## bevel that lights on hover, and the full-bleed icon inside it.
+func _style_menu_cell(button: Button) -> void:
+	button.theme_type_variation = &""
+	button.text = ""
+	button.flat = false
+	button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
+	button.expand_icon = true
+	button.custom_minimum_size = Vector2(MENU_CELL, MENU_CELL)
+	# Full-size art: the captioned style had pre-shrunk the icon to 15 px.
+	var id := String(button.get_meta("icon_id", ""))
+	if id != "":
+		button.icon = UITheme.chrome_at(id, 128.0)
+	for state in ["normal", "hover", "pressed", "focus", "disabled"]:
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color(0.031, 0.039, 0.058, 0.95)
+		sb.set_border_width_all(1)
+		sb.border_color = HudKit.GOLD.darkened(0.15)
+		sb.set_corner_radius_all(3)
+		sb.set_content_margin_all(3)
+		sb.shadow_color = Color(0, 0, 0, 0.55)
+		sb.shadow_size = 3
+		match state:
+			"hover":
+				sb.border_color = HudKit.GOLD_HI
+				sb.set_border_width_all(2)
+			"pressed":
+				sb.border_color = HudKit.GOLD_LT
+				sb.set_content_margin_all(4)
+			"focus":
+				sb.draw_center = false
+				sb.border_color = Color(0, 0, 0, 0)
+		button.add_theme_stylebox_override(state, sb)
+	button.add_theme_color_override("icon_hover_color", Color(1.12, 1.08, 0.98))
+	button.add_theme_color_override("icon_pressed_color", Color(0.85, 0.85, 0.85))
+
+const TARGET_CARD_H := 74.0
+
+## The target card: a round portrait (crown, crosshair, monolith spike) on the
+## left; the name, the level badge and the rank line; and a wide health gauge
+## with the exact numbers and the percentage in it.
+func _build_target_card() -> void:
+	target_panel.theme_type_variation = &""
+	var sb := HudKit.panel(0.9, 8).duplicate() as StyleBoxFlat
+	sb.border_color = Color(HudKit.GOLD.r, HudKit.GOLD.g, HudKit.GOLD.b, 0.9)
+	sb.border_width_bottom = 2
+	target_panel.add_theme_stylebox_override("panel", sb)
+	if _target_icon != null:
+		_target_icon.visible = false
+	_target_portrait = TargetPortrait.new()
+	_target_portrait.name = "Portrait"
+	_target_portrait.position = Vector2(-12, (TARGET_CARD_H - 66.0) * 0.5)
+	_target_portrait.size = Vector2(66, 66)
+	target_panel.add_child(_target_portrait)
+	var left := 64.0
+	# Name: left-aligned beside the portrait.
+	HudKit.style_label(target_name_label, 17, HudKit.PARCHMENT, HudKit.title(), 4)
+	target_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	target_name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	target_name_label.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	target_name_label.offset_left = left
+	target_name_label.offset_right = -70
+	target_name_label.offset_top = 6
+	target_name_label.offset_bottom = 28
+	target_name_label.clip_text = true
+	target_name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	# Level badge, top-right.
+	_target_level = HudKit.label("", 15, HudKit.GOLD_HI, HudKit.bold(), 3)
+	_target_level.name = "Level"
+	_target_level.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_target_level.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_target_level.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_target_level.offset_left = -76
+	_target_level.offset_right = -12
+	_target_level.offset_top = 7
+	_target_level.offset_bottom = 27
+	target_panel.add_child(_target_level)
+	# Rank line, small caps under the name.
+	_target_rank = HudKit.label("", 11, HudKit.TEXT_DIM, HudKit.bold(), 2)
+	_target_rank.name = "Rank"
+	_target_rank.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	_target_rank.offset_left = left + 1
+	_target_rank.offset_right = -40
+	_target_rank.offset_top = 27
+	_target_rank.offset_bottom = 41
+	target_panel.add_child(_target_rank)
+	# Health gauge with numbers and percentage.
+	target_hp_bar.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	target_hp_bar.offset_left = left
+	target_hp_bar.offset_right = -12
+	target_hp_bar.offset_top = -27
+	target_hp_bar.offset_bottom = -9
+	_target_flow = target_hp_bar.get_node_or_null("Flow") as GaugeFlow
+	_target_hp_text = HudKit.label("", 12, Color(1, 1, 1), HudKit.bold(), 3)
+	_target_hp_text.name = "HpText"
+	_target_hp_text.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_target_hp_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_target_hp_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	target_hp_bar.add_child(_target_hp_text)
+	if _target_status_icon != null:
+		_target_status_icon.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+		_target_status_icon.position = Vector2(-30, 28)
+		_target_status_icon.custom_minimum_size = Vector2(14, 14)
+		_target_status_icon.size = Vector2(14, 14)
+
+
+## The target card's portrait: a dark disc, the target's icon and a ring in the
+## target's colour, hanging over the card's left edge like the unit frame's.
+class TargetPortrait extends Control:
+	var icon: Texture2D = null
+	var ring := HudKit.GOLD
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+	func set_look(p_icon: Texture2D, p_ring: Color) -> void:
+		if p_icon != icon or p_ring != ring:
+			icon = p_icon
+			ring = p_ring
+			queue_redraw()
+	func _draw() -> void:
+		var c := size * 0.5
+		var r := minf(size.x, size.y) * 0.5
+		draw_circle(c + Vector2(0, 2), r, Color(0, 0, 0, 0.45))
+		draw_circle(c, r - 1, Color(0.024, 0.031, 0.051, 1.0))
+		draw_circle(c, r - 5, Color(0.07, 0.085, 0.13, 1.0))
+		if icon != null:
+			var s := (r - 7) * 2.0 * 0.86
+			draw_texture_rect(icon, Rect2(c - Vector2(s, s) * 0.5, Vector2(s, s)), false)
+		draw_arc(c, r - 2.5, 0, TAU, 64, HudKit.GOLD_DK, 4.0, true)
+		draw_arc(c, r - 2.5, 0, TAU, 64, Color(ring.r, ring.g, ring.b, 0.95), 2.0, true)
+		draw_arc(c, r - 5.5, PI * 1.1, PI * 1.9, 24, Color(1, 1, 1, 0.18), 1.5, true)
 
 
 ## Ten segment ticks over the experience bar, the MMO way of reading progress.

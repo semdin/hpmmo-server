@@ -285,6 +285,7 @@ func _update_label() -> void:
 	label.modulate = Color(1, 0.72, 0.25) if is_boss else Color(1, 0.6, 0.5)
 	label.font_size = 26 if is_boss else 21
 	label.visibility_range_end = 40
+	WorldLabels.track(label, 17.0 if is_boss else 14.0)
 
 # ---------------------------------------------------------------- main tick
 

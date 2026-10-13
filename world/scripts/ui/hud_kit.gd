@@ -58,10 +58,10 @@ static func _font(file: String, weight: int = 0) -> Font:
 
 ## Body copy: chat, tooltips, numbers.
 static func body() -> Font:
-	return _font("Philosopher-Regular.ttf")
+	return UITheme.font_body()
 
 static func bold() -> Font:
-	return _font("Philosopher-Bold.ttf")
+	return UITheme.font_body_bold()
 
 ## Captions and window titles (Cinzel, heavy).
 static func title() -> Font:
@@ -233,10 +233,13 @@ static func gauge_track() -> StyleBoxFlat:
 		return _boxes["track"]
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.02, 0.024, 0.035, 0.92)
-	sb.border_color = Color(0, 0, 0, 0.95)
+	# A dark-gold rim, so the gauge reads as an inset in the brass frame.
+	sb.border_color = Color(GOLD_DK.r, GOLD_DK.g, GOLD_DK.b, 0.95)
 	sb.set_border_width_all(1)
-	sb.set_corner_radius_all(2)
-	sb.set_expand_margin_all(1)
+	sb.set_corner_radius_all(3)
+	sb.set_expand_margin_all(2)
+	sb.shadow_color = Color(0, 0, 0, 0.5)
+	sb.shadow_size = 2
 	_boxes["track"] = sb
 	return sb
 

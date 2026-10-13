@@ -26,8 +26,9 @@ var player: Node3D = null
 var view: MapView
 
 func _init() -> void:
-	super._init("World Map", Vector2(980, 900))
+	super._init("World Map", Vector2(620, 560))
 	name = "WorldMap"
+	modal = false
 
 func _ready() -> void:
 	super._ready()
@@ -107,6 +108,14 @@ class MapView extends Control:
 			_clamp()
 			accept_event()
 
+	## One of the minimap's painted markers, centred on `at`.
+	func _draw_marker(id: String, at: Vector2, px: float) -> void:
+		var tex := UITheme.chrome(id)
+		if tex == null:
+			draw_circle(at, px * 0.3, HudKit.GOLD_LT)
+			return
+		draw_texture_rect(tex, Rect2(at - Vector2(px, px) * 0.5, Vector2(px, px)), false)
+
 	func _draw() -> void:
 		draw_rect(Rect2(Vector2.ZERO, size), Color(0.05, 0.05, 0.06))
 		if texture != null:
@@ -127,8 +136,7 @@ class MapView extends Control:
 		for n in tree.get_nodes_in_group("npcs"):
 			if n is Node3D and is_instance_valid(n):
 				var sp := world_to_screen(Vector2(n.global_position.x, n.global_position.z))
-				draw_circle(sp, 6.0, Color(0, 0, 0, 0.7))
-				draw_circle(sp, 4.5, Color(1.0, 0.84, 0.3))
+				_draw_marker("minimap_npc", sp, 20.0)
 				if zoom > 0.7 and "npc_name" in n:
 					var nf := HudKit.bold()
 					draw_string_outline(nf, sp + Vector2(8, 4), String(n.npc_name), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 4, Color(0, 0, 0, 0.85))
@@ -136,7 +144,7 @@ class MapView extends Control:
 		for m in tree.get_nodes_in_group("monoliths"):
 			if m is Node3D and is_instance_valid(m) and m.visible:
 				var mp := world_to_screen(Vector2(m.global_position.x, m.global_position.z))
-				draw_colored_polygon(PackedVector2Array([mp + Vector2(0, -9), mp + Vector2(6, 0), mp + Vector2(0, 9), mp + Vector2(-6, 0)]), Color(0.72, 0.35, 1.0))
+				_draw_marker("minimap_monolith", mp, 24.0)
 		# You.
 		var p := host.player
 		if p != null and is_instance_valid(p):

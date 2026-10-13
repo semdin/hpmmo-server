@@ -88,6 +88,7 @@ func _update_label() -> void:
 	var label := get_node_or_null("DummyLabel") as Label3D
 	if label:
 		label.text = "Training Dummy\n%d / %d" % [current_hp, max_hp]
+		WorldLabels.track(label, 15.0)
 
 ## Damage is requested from the authority (dummies keep the prototype exemption
 ## that makes them practiceable inside protected volumes).

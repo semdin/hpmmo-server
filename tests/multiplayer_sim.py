@@ -123,9 +123,10 @@ def start_server(port, seed, profile, out_dir, extra=None):
         "HPMMO_WORLD_SEED": seed,
         "HPMMO_ALLOW_DEV_JOIN": "1",
         "HPMMO_DEV_FAST_RESPAWN": "2000",
-        # Both clients spawn beside the pack under test: the walk stays short and
+        # Both clients spawn beside the first live pack (wherever the encounter
+        # table puts it) and on the ground: the walk stays short and
         # reproducible, and nothing has to path around the courtyard.
-        "HPMMO_DEV_SPAWN": "24,0.6,-25",
+        "HPMMO_DEV_SPAWN": "pack",
         "HPMMO_NET_PROFILE": profile,
     })
     if extra:

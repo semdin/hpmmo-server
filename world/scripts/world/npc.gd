@@ -77,6 +77,7 @@ func _update_label() -> void:
 	if label:
 		label.text = "%s\n< click to talk >" % npc_name
 		label.modulate = Color(1.0, 0.9, 0.5)
+		WorldLabels.track(label, 16.0)
 
 func _process(delta: float) -> void:
 	_t += delta

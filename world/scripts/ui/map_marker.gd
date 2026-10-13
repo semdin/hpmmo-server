@@ -35,11 +35,20 @@ static func draw_view_cone(canvas: CanvasItem, at: Vector2, dir: Vector2, length
 			pts.append(at + dir.rotated(ang) * r)
 		canvas.draw_colored_polygon(pts, Color(1.0, 0.93, 0.62, a * 0.55))
 
-## An arrowhead pointing along `dir`, gold with a dark rim.
+## The player's arrow pointing along `dir`: the painted gold arrowhead from the
+## icon set, turned to face `dir` (it is authored pointing up); the vector
+## arrowhead below is the fallback when the art is absent.
 static func draw_arrow(canvas: CanvasItem, at: Vector2, dir: Vector2, radius: float) -> void:
 	if dir.length_squared() < 0.0001:
 		dir = Vector2(0, -1)
 	dir = dir.normalized()
+	var art := UITheme.chrome("minimap_player")
+	if art != null:
+		var s := radius * 2.6
+		canvas.draw_set_transform(at, dir.angle() + PI * 0.5, Vector2.ONE)
+		canvas.draw_texture_rect(art, Rect2(Vector2(-s, -s) * 0.5, Vector2(s, s)), false)
+		canvas.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		return
 	var side := Vector2(-dir.y, dir.x)
 	var tip := at + dir * radius
 	var left := at - dir * radius * 0.7 + side * radius * 0.75

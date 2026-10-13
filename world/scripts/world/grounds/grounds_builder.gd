@@ -107,7 +107,7 @@ static func _apply_sky_and_sun(world: Node3D) -> void:
 		env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 		env.ambient_light_energy = 0.62
 		env.tonemap_mode = Environment.TONE_MAPPER_ACES
-		env.tonemap_exposure = 0.92
+		env.tonemap_exposure = 0.86
 		# A 2 km valley: light exponential fog plus aerial perspective, and a
 		# height falloff so the view from a broom stays clear above the haze.
 		env.fog_enabled = true
@@ -130,7 +130,10 @@ static func _apply_sky_and_sun(world: Node3D) -> void:
 	var sun := world.get_node_or_null("DirectionalLight3D") as DirectionalLight3D
 	if sun:
 		sun.light_color = Color(1.0, 0.96, 0.89)
-		sun.light_energy = 1.1
+		# Softer sun with a weaker specular lobe: the bare rock faces were
+		# blowing out to near-white at grazing angles.
+		sun.light_energy = 0.95
+		sun.light_specular = 0.25
 		sun.shadow_enabled = true
 		sun.rotation_degrees = Vector3(-38, -30, 0)
 		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS

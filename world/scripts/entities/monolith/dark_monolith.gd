@@ -57,6 +57,7 @@ func _update_label() -> void:
 			hp_label.modulate = Color(1.0, 0.5, 0.2)
 		else:
 			hp_label.modulate = Color(1.0, 0.2, 0.2)
+		WorldLabels.track(hp_label, 16.0)
 
 ## Damage is resolved by the authority; this node reacts to the result. The wave
 ## thresholds are a consequence of the authoritative HP, so two clients can never

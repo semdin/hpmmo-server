@@ -153,6 +153,41 @@ func _on_connected_to_server() -> void:
 ## Two bodies spawned at the same point interpenetrate, and the physics engine
 ## resolves that by launching them apart - which looks exactly like a teleport
 ## hack to everyone else. Nudge a new arrival to the nearest clear spot instead.
+## Dev spawn helper: a few metres from the lowest-numbered live mob pack, so a
+## test lands beside real content wherever the encounter table puts it. INF when
+## no pack exists yet.
+func _dev_pack_spawn() -> Vector3:
+	var best_pack := 0
+	var best_pos := Vector3.INF
+	for uid in SimAuthority.entities.keys():
+		var record: Dictionary = SimAuthority.entities[uid]
+		if int(record.get("kind", 0)) != HPProtocol.Kind.MOB or bool(record.get("dead", false)):
+			continue
+		var pack_id := int(record.get("pack_id", 0))
+		var node = record.get("node")
+		if pack_id == 0 or node == null or not is_instance_valid(node):
+			continue
+		if best_pack == 0 or pack_id < best_pack:
+			best_pack = pack_id
+			best_pos = (node as Node3D).global_position
+	if best_pos == Vector3.INF:
+		return best_pos
+	return best_pos + Vector3(7.0, 0.0, 7.0)
+
+## Dev spawn points are given in map x/z; the height is the ground's. A point
+## authored for an older, flat map would otherwise sit under the terrain and the
+## fall rescue would throw the body back to the courtyard.
+func _dev_on_ground(at: Vector3) -> Vector3:
+	var world = SimAuthority.world
+	if world == null or not (world is Node3D) or not (world as Node3D).is_inside_tree():
+		return at
+	var space := (world as Node3D).get_world_3d().direct_space_state
+	var query := PhysicsRayQueryParameters3D.create(Vector3(at.x, 400.0, at.z), Vector3(at.x, -60.0, at.z))
+	var hit := space.intersect_ray(query)
+	if hit.is_empty():
+		return at
+	return Vector3(at.x, maxf(at.y, float((hit.position as Vector3).y) + 0.6), at.z)
+
 func _avoid_spawn_overlap(node: Node3D) -> void:
 	const CLEARANCE := 1.4
 	var my_map := HPMaps.map_for_point(node.global_position)
@@ -250,10 +285,13 @@ func sim_join(token: String, protocol_version: int, client_version: String) -> v
 		if dev_name.is_empty():
 			dev_name = "Dev%d" % peer_id
 		identity = {"account_id": 0, "character_id": 0, "name": dev_name, "house": "Gryffindor"}
-		# Optional dev spawn point ("x,y,z"): lets a test place clients next to the
-		# content under test instead of walking there. Dev joins only.
-		var spawn := OS.get_environment("HPMMO_DEV_SPAWN")
-		if spawn != "":
+		# Optional dev spawn ("x,y,z", or "pack" for "beside the first live mob
+		# pack"): lets a test place clients next to the content under test
+		# instead of walking there. Dev joins only.
+		var spawn := OS.get_environment("HPMMO_DEV_SPAWN").strip_edges()
+		if spawn == "pack":
+			identity["spawn_near_pack"] = true
+		elif spawn != "":
 			var parts := spawn.split(",")
 			if parts.size() == 3:
 				identity["spawn"] = [float(parts[0]), float(parts[1]), float(parts[2])]
@@ -305,10 +343,14 @@ func sim_spawn_player(peer_id: int, identity: Dictionary) -> void:
 			var best_map := HPMaps.map_for_point(node.global_position)
 			SimAuthority.map_provider_ready(best_map)
 			node.global_position = HPMaps.valid_position(best_map, node.global_position)
-	elif identity.has("spawn"):
-		var spawn: Array = identity["spawn"]
-		node.global_position = Vector3(float(spawn[0]), float(spawn[1]), float(spawn[2]))
-		SimAuthority.map_provider_ready(HPMaps.map_for_point(node.global_position))
+	elif identity.has("spawn") or bool(identity.get("spawn_near_pack", false)):
+		var at := _dev_pack_spawn() if bool(identity.get("spawn_near_pack", false)) else Vector3.INF
+		if at == Vector3.INF and identity.has("spawn"):
+			var spawn: Array = identity["spawn"]
+			at = Vector3(float(spawn[0]), float(spawn[1]), float(spawn[2]))
+		if at != Vector3.INF:
+			SimAuthority.map_provider_ready(HPMaps.map_for_point(at))
+			node.global_position = _dev_on_ground(at)
 	_avoid_spawn_overlap(node)
 	var uid := SimAuthority.register_player(node, int(identity.get("character_id", 0)), peer_id,
 		int(identity.get("account_id", 0)))

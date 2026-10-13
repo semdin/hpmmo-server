@@ -30,6 +30,10 @@ const SECTION_GENERAL := "general"
 const SECTION_BINDINGS := "bindings"
 
 const UI_SCALE_DEFAULT := 1.0
+## What "100 %" means on screen: the canvas content scale a 1.0 setting applies.
+## The layout was authored a touch large; 0.85 is the size that reads right, so
+## that is now the baseline and the slider is relative to it.
+const UI_SCALE_BASE := 0.85
 const UI_SCALE_MIN := 0.75
 const UI_SCALE_MAX := 1.75
 const SENSITIVITY_DEFAULT := 1.0
@@ -143,7 +147,13 @@ func load_from_disk() -> void:
 			load_error = "could not read settings (error %d)" % error
 		_apply_bindings_to_input_map()
 		return
-	ui_scale = clampf(float(config.get_value(SECTION_GENERAL, "ui_scale", UI_SCALE_DEFAULT)), UI_SCALE_MIN, UI_SCALE_MAX)
+	if config.has_section_key(SECTION_GENERAL, "ui_scale_v2"):
+		ui_scale = clampf(float(config.get_value(SECTION_GENERAL, "ui_scale_v2", UI_SCALE_DEFAULT)), UI_SCALE_MIN, UI_SCALE_MAX)
+	else:
+		# A pre-baseline save stored the raw content scale: convert it so the
+		# interface keeps the size the player picked.
+		var raw := float(config.get_value(SECTION_GENERAL, "ui_scale", UI_SCALE_BASE))
+		ui_scale = clampf(snappedf(raw / UI_SCALE_BASE, 0.05), UI_SCALE_MIN, UI_SCALE_MAX)
 	mouse_sensitivity = clampf(float(config.get_value(SECTION_GENERAL, "mouse_sensitivity", SENSITIVITY_DEFAULT)), SENSITIVITY_MIN, SENSITIVITY_MAX)
 	shake_intensity = clampf(float(config.get_value(SECTION_GENERAL, "shake", SHAKE_DEFAULT)), INTENSITY_MIN, INTENSITY_MAX)
 	flash_intensity = clampf(float(config.get_value(SECTION_GENERAL, "flash", FLASH_DEFAULT)), INTENSITY_MIN, INTENSITY_MAX)
@@ -158,7 +168,7 @@ func load_from_disk() -> void:
 
 func save_to_disk() -> void:
 	var config := ConfigFile.new()
-	config.set_value(SECTION_GENERAL, "ui_scale", ui_scale)
+	config.set_value(SECTION_GENERAL, "ui_scale_v2", ui_scale)
 	config.set_value(SECTION_GENERAL, "mouse_sensitivity", mouse_sensitivity)
 	config.set_value(SECTION_GENERAL, "shake", shake_intensity)
 	config.set_value(SECTION_GENERAL, "flash", flash_intensity)
@@ -227,7 +237,7 @@ func apply_ui_scale() -> void:
 		return
 	var window := tree.root as Window
 	if window != null:
-		window.content_scale_factor = ui_scale
+		window.content_scale_factor = ui_scale * UI_SCALE_BASE
 
 ## --------------------------------------------------------------- bindings
 

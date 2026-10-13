@@ -15,6 +15,11 @@ var _title: Label
 var _wanted := Vector2(560, 480)
 var _backdrop: ColorRect
 var dim_backdrop := true
+## A modal window dims the world, swallows clicks around it and takes the
+## keyboard. A non-modal one (the Esc menu, the world map) is a card floating
+## over a live game: no dimming, clicks around it reach the world and the
+## character keeps moving.
+var modal := true
 
 func _init(p_title: String = "", wanted: Vector2 = Vector2(560, 480)) -> void:
 	title_text = p_title
@@ -26,9 +31,10 @@ func _init(p_title: String = "", wanted: Vector2 = Vector2(560, 480)) -> void:
 
 func _ready() -> void:
 	_backdrop = ColorRect.new()
-	_backdrop.color = Color(0, 0, 0, 0.45 if dim_backdrop else 0.0)
+	_backdrop.color = Color(0, 0, 0, 0.45 if dim_backdrop and modal else 0.0)
 	_backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
+	_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP if modal else Control.MOUSE_FILTER_IGNORE
+	_backdrop.visible = modal
 	add_child(_backdrop)
 	card = PanelContainer.new()
 	card.name = "Card"
@@ -97,7 +103,8 @@ func _layout() -> void:
 func open() -> void:
 	show()
 	_layout()
-	UIFocus.block(self)
+	if modal:
+		UIFocus.block(self)
 
 func close() -> void:
 	if not visible:

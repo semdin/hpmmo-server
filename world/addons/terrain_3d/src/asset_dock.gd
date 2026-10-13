@@ -141,7 +141,16 @@ func _gui_input(p_event: InputEvent) -> void:
 
 
 func remove_dock(p_force: bool = false) -> void:
+	if not is_instance_valid(_dock):
+		return
+	_initialized = false
 	plugin.remove_dock(_dock)
+	# remove_dock() unregisters the wrapper but does not free it. The plugin
+	# frees this asset panel separately, so detach it before freeing the wrapper
+	# and its icon (also needed during headless editor imports).
+	_dock.remove_child(self)
+	_dock.queue_free()
+	_dock = null
 
 
 func update_dock() -> void:

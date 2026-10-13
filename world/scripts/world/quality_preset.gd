@@ -52,7 +52,7 @@ const PRESETS := {
 		"particle_scale": 0.5,
 		"torch_range_scale": 0.85,
 		"lamp_fade_begin": 50.0,
-		"tonemap_exposure": 0.92,
+		"tonemap_exposure": 0.86,
 	},
 	"medium": {
 		"render_scale": 0.87,
@@ -77,7 +77,7 @@ const PRESETS := {
 		"particle_scale": 0.75,
 		"torch_range_scale": 1.0,
 		"lamp_fade_begin": 70.0,
-		"tonemap_exposure": 0.92,
+		"tonemap_exposure": 0.86,
 	},
 	"high": {
 		"render_scale": 1.0,
@@ -85,7 +85,7 @@ const PRESETS := {
 		"taa": true,
 		"fxaa": false,
 		"sun_shadows": true,
-		"shadow_max_distance": 150.0,
+		"shadow_max_distance": 120.0,
 		"shadow_splits": DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS,
 		"shadow_atlas": 4096,
 		"glow": true,
@@ -102,7 +102,7 @@ const PRESETS := {
 		"particle_scale": 1.0,
 		"torch_range_scale": 1.0,
 		"lamp_fade_begin": 90.0,
-		"tonemap_exposure": 0.92,
+		"tonemap_exposure": 0.86,
 	},
 }
 

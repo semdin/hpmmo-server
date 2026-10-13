@@ -138,6 +138,12 @@ var camera_rot_x: float = -20.0
 var camera_rot_y: float = 0.0
 var camera_distance: float = 8.0
 var mouse_orbit_active: bool = false
+## Right-button bookkeeping: a press that barely moves and is released quickly
+## is a click (inspect a target); anything else was a camera orbit.
+const RMB_CLICK_SLOP := 6.0
+const RMB_CLICK_MS := 350
+var _rmb_travel := 0.0
+var _rmb_down_ms := 0
 
 # Combat & Targeting
 var current_target: Node3D = null
@@ -428,7 +434,7 @@ var _nameplate_sub: Label3D = null
 func _update_nameplate() -> void:
 	if nameplate == null:
 		return
-	var bold_path := "res://assets/fonts/Philosopher-Bold.ttf"
+	var bold_path := "res://assets/fonts/Marcellus-Regular.ttf"
 	var font: Font = load(bold_path) if ResourceLoader.exists(bold_path) else null
 	nameplate.text = player_name
 	nameplate.position.y = NAMEPLATE_HEIGHT + 0.13
@@ -464,6 +470,8 @@ func _update_nameplate() -> void:
 	_nameplate_sub.modulate = tint
 	if font != null:
 		_nameplate_sub.font = font
+	WorldLabels.track(nameplate, 20.0)
+	WorldLabels.track(_nameplate_sub, 14.0)
 
 func _init_starter_inventory() -> void:
 	inventory.clear()
@@ -484,6 +492,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.button_index == MOUSE_BUTTON_RIGHT:
 			mouse_orbit_active = event.pressed
 			CursorKit.set_rotating(event.pressed)
+			if event.pressed:
+				_rmb_travel = 0.0
+				_rmb_down_ms = Time.get_ticks_msec()
+			elif _rmb_travel < RMB_CLICK_SLOP and Time.get_ticks_msec() - _rmb_down_ms < RMB_CLICK_MS:
+				# A right CLICK (not an orbit drag) inspects whatever is under the
+				# cursor: it becomes the target, so its card shows, without a cast.
+				_inspect_click_target()
 		elif event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			camera_distance = clamp(camera_distance - 0.8, 3.0, 16.0)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
@@ -494,6 +509,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			cast_spell("basic_cast")
 	
 	elif event is InputEventMouseMotion and mouse_orbit_active:
+		_rmb_travel += absf(event.relative.x) + absf(event.relative.y)
 		# Interface hook: the mouse sensitivity slider scales the same raw
 		# relative motion; 1.0 is the authored speed.
 		var sensitivity: float = GameSettings.mouse_sensitivity_value()
@@ -745,15 +761,8 @@ func _physics_process(delta: float) -> void:
 		else:
 			velocity.x = move_toward(velocity.x, 0, GROUND_STOP_DECEL * delta)
 			velocity.z = move_toward(velocity.z, 0, GROUND_STOP_DECEL * delta)
-
-		# If holding right-click while standing, face camera direction
-		if mouse_orbit_active:
-			# Facing is the camera's, not the movement's: the strafe and back clips
-			# are exactly for this case, so the state machine must classify on the
-			# real facing here rather than on a commanded one.
-			_auto_facing = false
-			var cam_yaw: float = deg_to_rad(_intent_yaw())
-			visuals.rotation.y = lerp_angle(visuals.rotation.y, cam_yaw, 10.0 * delta)
+		# Orbiting the camera (right mouse held) never turns a standing body: the
+		# view swings around the character, who keeps facing where they were.
 
 	if on_steep:
 		_apply_steep_slide(delta)
@@ -1877,6 +1886,23 @@ func _try_click_target() -> bool:
 			set_target(collider)
 			return true
 	set_target(null)
+	return false
+
+## Right-click selection: anything targetable under the cursor - a mob, a boss, a
+## monolith, a dummy - becomes the target so its card shows, hostile or not, and
+## nothing is cast. Clicking empty ground leaves the current target alone.
+func _inspect_click_target() -> bool:
+	if camera == null:
+		return false
+	var mouse_pos := get_viewport().get_mouse_position()
+	var from := camera.project_ray_origin(mouse_pos)
+	var to := from + camera.project_ray_normal(mouse_pos) * 80.0
+	var query := PhysicsRayQueryParameters3D.create(from, to)
+	query.collision_mask = 2
+	var result := get_world_3d().direct_space_state.intersect_ray(query)
+	if result and result.collider is Node3D and (result.collider as Node3D).is_in_group("targetable"):
+		set_target(result.collider)
+		return true
 	return false
 
 func upgrade_wand(_new_tier: int) -> void:

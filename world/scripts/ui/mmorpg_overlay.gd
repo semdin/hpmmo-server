@@ -340,7 +340,18 @@ func _build_map_buttons() -> void:
 	# Each is its icon - the round chrome button has no room for a caption, and an
 	# arrow says "zoom" better than a minus sign does.
 	for spec in [["minimap_zoom_out", -1, "Zoom out"], ["minimap_player", 0, "Recentre on me"], ["minimap_zoom_in", 1, "Zoom in"]]:
-		var b := UITheme.icon_button(String(spec[0]), String(spec[2]), 28.0)
+		# The painted brass glyphs carry their own frame, so the button itself
+		# draws nothing but the icon (brighter on hover).
+		var b := Button.new()
+		b.icon = UITheme.chrome_at(String(spec[0]), 26.0)
+		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		b.tooltip_text = String(spec[2])
+		b.custom_minimum_size = Vector2(30, 30)
+		b.focus_mode = Control.FOCUS_NONE
+		for state in ["normal", "hover", "pressed", "focus", "disabled"]:
+			b.add_theme_stylebox_override(state, StyleBoxEmpty.new())
+		b.add_theme_color_override("icon_hover_color", Color(1.25, 1.18, 1.0))
+		b.add_theme_color_override("icon_pressed_color", Color(0.8, 0.8, 0.8))
 		var dir: int = spec[1]
 		b.pressed.connect(func(): _map_zoom_step(dir))
 		row.add_child(b)
@@ -454,7 +465,7 @@ func _update_minimap() -> void:
 		if not is_instance_valid(m):
 			continue
 		var boss: bool = "is_boss" in m and bool(m.is_boss)
-		var size := 14.0 if boss else 10.0
+		var size := 18.0 if boss else 12.0
 		var d := _dot("mob_%d" % m.get_instance_id(), "minimap_boss" if boss else "minimap_mob", size)
 		d.visible = m.state != 5
 		d.position = _world_to_map(m.global_position) - Vector2(size, size) * 0.5
@@ -462,14 +473,14 @@ func _update_minimap() -> void:
 	for mo in get_tree().get_nodes_in_group("monoliths"):
 		if not is_instance_valid(mo):
 			continue
-		var size := 14.0
+		var size := 18.0
 		var d := _dot("mon_%d" % mo.get_instance_id(), "minimap_monolith", size)
 		d.position = _world_to_map(mo.global_position) - Vector2(size, size) * 0.5
 	# npcs
 	for n in get_tree().get_nodes_in_group("npcs"):
 		if not is_instance_valid(n):
 			continue
-		var size := 12.0
+		var size := 15.0
 		var d := _dot("npc_%d" % n.get_instance_id(), "minimap_npc", size)
 		d.position = _world_to_map(n.global_position) - Vector2(size, size) * 0.5
 	# Clip icon extents to the disc, not merely to its rectangular Control.
@@ -575,10 +586,13 @@ func _update_zone() -> void:
 		if _zone_banner_sub != null:
 			_zone_banner_sub.modulate.a = 0.0
 
+## Bosses and monoliths are shown by the HUD's target card now (one card with the
+## name, level, rank, health and percentage), so this second banner stays
+## hidden; its bar is still fed for anything that reads it.
 func _update_boss() -> void:
 	var t: Node = _player.get("current_target") as Node
 	if is_instance_valid(t) and (t.is_in_group("monoliths") or ("is_boss" in t and t.is_boss)) and t.current_hp > 0:
-		_boss_panel.show()
+		_boss_panel.hide()
 		_boss_name.text = "DARK MONOLITH — Lv.35" if t.is_in_group("monoliths") else "%s • Lv.%d" % [t.mob_name, t.level]
 		# The authority's health delta for the target wins over the
 		# node's own copy (which is the snapshot mirror when the boss is a
