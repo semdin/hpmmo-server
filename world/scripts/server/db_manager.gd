@@ -133,8 +133,12 @@ func _send_post(endpoint: String, payload: Dictionary, callback: Callable, authe
 			response_dict = _parse_json_dict(body)
 			if response_dict.is_empty():
 				response_dict = {"success": false, "message": "Failed to parse database response"}
+			# The login screen tells "wrong password" (401), "name taken" (409) and
+			# "under maintenance" (503 code=maintenance) apart by these.
+			response_dict["http_status"] = response_code
 		else:
-			response_dict = {"success": false, "message": "Database service connection failed (Code: %d)" % result}
+			response_dict = {"success": false, "code": "unreachable", "http_status": 0,
+				"message": "Database service connection failed (Code: %d)" % result}
 
 		req.queue_free()
 		if callback.is_valid():
@@ -150,6 +154,33 @@ func _send_post(endpoint: String, payload: Dictionary, callback: Callable, authe
 		req.queue_free()
 		if callback.is_valid():
 			callback.call({"success": false, "message": "Failed to issue HTTP request to DB service"})
+
+## Public server state (`GET /api/status`): {"state", "maintenance", "since",
+## "until"} on success; {"state": "OFFLINE"} when the service cannot be reached.
+## A service that predates the endpoint answers 404 and is reported ONLINE.
+func get_server_status(callback: Callable, timeout_seconds: float = 6.0) -> void:
+	var req := HTTPRequest.new()
+	req.timeout = timeout_seconds
+	add_child(req)
+	req.request_completed.connect(func(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray):
+		var status := {"state": "OFFLINE", "maintenance": false}
+		if result == HTTPRequest.RESULT_SUCCESS:
+			if response_code == 200:
+				var parsed := _parse_json_dict(body)
+				if not parsed.is_empty():
+					status = parsed
+			elif response_code == 404:
+				status = {"state": "ONLINE", "maintenance": false}
+			elif response_code == 503:
+				status = {"state": "MAINTENANCE", "maintenance": true}
+		req.queue_free()
+		if callback.is_valid():
+			callback.call(status)
+	)
+	if req.request(api_base_url + "/api/status") != OK:
+		req.queue_free()
+		if callback.is_valid():
+			callback.call({"state": "OFFLINE", "maintenance": false})
 
 func _parse_json_dict(body: PackedByteArray) -> Dictionary:
 	var json := JSON.new()

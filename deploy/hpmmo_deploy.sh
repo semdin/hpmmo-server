@@ -647,7 +647,29 @@ restore_observed_state() {  # fallback_state message
     elif [ -n "$fallback" ]; then
         set_state "$fallback" "$message"
     fi
+    # A cancelled cycle that left the world ONLINE reopens logins; any other
+    # outcome keeps the account service's maintenance gate closed.
+    if [ "${st:-$fallback}" = "ONLINE" ]; then clear_maintenance_flag; fi
     return 0
+}
+
+# maintenance.flag is also the account service's login gate (services/cpp:
+# /api/login and /api/game-ticket answer 503 code=maintenance while it exists,
+# and the public /api/status reports it). It is written the moment the
+# countdown is announced, so nobody logs in to a world that is about to close.
+write_maintenance_flag() {  # state reason [countdown_seconds]
+    local state="$1" reason="$2" countdown="${3:-0}" until="" dir="${HPMMO_STATE_DIR%/}"
+    if [ "$countdown" -gt 0 ] 2>/dev/null; then
+        until="$(date -u -d "+${countdown} seconds" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || true)"
+    fi
+    mkdir -p "$dir"
+    printf '{"state":"%s","since":"%s","until":"%s","reason":"%s"}\n' \
+        "$state" "$(now_iso)" "$until" "$(printf '%s' "$reason" | tr -d '"\\\n')" \
+        > "$dir/maintenance.flag.tmp.$$"
+    mv -f "$dir/maintenance.flag.tmp.$$" "$dir/maintenance.flag"
+}
+clear_maintenance_flag() {
+    rm -f "${HPMMO_STATE_DIR%/}/maintenance.flag"
 }
 
 publish_release_state() {
@@ -972,6 +994,7 @@ cmd_deploy() {  # id [reason] [cold]
     journal BUILD_AND_STAGE PENDING "deployment of $id starting (reason: $reason, previous: ${prev_id:-none})"
     transition BUILD_AND_STAGE "release $id verified (schema level $(expected_schema_level "$dir"))"
 
+    write_maintenance_flag ANNOUNCING "server update $id" "${HPMMO_MAINTENANCE_COUNTDOWN:-30}"
     out="${HPMMO_STATE_DIR%/}/logs/.begin.json"
     begin_body="$(printf '{"reason":"server update %s","countdown_seconds":%s}' \
         "$(printf '%s' "$id" | tr -d '"\\')" "${HPMMO_MAINTENANCE_COUNTDOWN:-30}")"
@@ -1086,9 +1109,7 @@ The old release stays active and the world stays in maintenance."
     # The flag is a JSON document so hpmmo_status.py can read the state and the
     # reason while the world server is stopped; it is removed on a verified
     # ONLINE and left in place by every failure path.
-    printf '{"state":"MAINTENANCE","since":"%s","reason":"deploying %s"}\n' \
-        "$(now_iso)" "$(printf '%s' "$id" | tr -d '"\\')" \
-        > "${HPMMO_STATE_DIR%/}/maintenance.flag"
+    write_maintenance_flag MAINTENANCE "deploying $id"
     journal APPLYING OK "current -> $id (previous ${prev_id:-none})"
     say "active release switched to $id"
 
@@ -1151,7 +1172,7 @@ The old release stays active and the world stays in maintenance."
     fi
     journal VERIFYING OK "synthetic login+join check passed"
 
-    rm -f "${HPMMO_STATE_DIR%/}/maintenance.flag"
+    clear_maintenance_flag
     transition ONLINE "release $id verified and online"
 
     local sout="${HPMMO_STATE_DIR%/}/logs/.status-endpoint.json"

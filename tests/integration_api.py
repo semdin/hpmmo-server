@@ -149,6 +149,10 @@ def free_port():
     return p
 
 
+STATE_DIR = tempfile.mkdtemp(prefix="hpmmo-state-")
+MAINTENANCE_FLAG = os.path.join(STATE_DIR, "maintenance.flag")
+
+
 def start_service(port, database):
     global proc, _log
     env = dict(os.environ)
@@ -157,6 +161,8 @@ def start_service(port, database):
     env["HPMMO_HTTP_PORT"] = str(port)
     env["HPMMO_SERVICE_TOKEN"] = SERVICE_TOKEN
     env["HPMMO_ARGON2_M"] = "8192"  # fast hashing for CI; production uses the default 64 MiB
+    env["HPMMO_STATE_DIR"] = STATE_DIR
+    env["HPMMO_SMOKE_USER"] = "bob"   # stands in for the deploy's synthetic login
     _log = open(os.path.join(tempfile.gettempdir(), "hpmmo-service-ci.log"), "ab")
     proc = subprocess.Popen([SERVICE, "serve"], env=env, stdout=_log, stderr=subprocess.STDOUT)
     for _ in range(60):
@@ -420,6 +426,33 @@ def main():
         check(status == 400, "non-integer character_id is rejected")
         status, body = http(port, "POST", "/api/characters/load", {"character_id": alice_char}, token=game_tok)
         check(status == 200, "game session can load its character")
+
+        # --- maintenance gate (deploy/hpmmo_deploy.sh writes the flag) -------------
+        status, body = http(port, "GET", "/api/status")
+        check(status == 200 and body.get("state") == "ONLINE" and body.get("maintenance") is False,
+              "/api/status reports ONLINE without a maintenance flag")
+        with open(MAINTENANCE_FLAG, "w", encoding="utf-8") as fh:
+            fh.write('{"state":"ANNOUNCING","since":"2026-10-13T10:00:00Z","until":"2026-10-13T10:00:30Z","reason":"server update x"}')
+        status, body = http(port, "GET", "/api/status")
+        check(status == 200 and body.get("maintenance") is True and body.get("state") == "ANNOUNCING"
+              and body.get("until") == "2026-10-13T10:00:30Z",
+              "/api/status reports the announced maintenance and its deadline")
+        status, body = http(port, "POST", "/api/login", {"username": "alice", "password": "alicepass1"})
+        check(status == 503 and body.get("code") == "maintenance" and not body.get("token"),
+              "login is refused with code=maintenance while the flag exists")
+        status, body = http(port, "POST", "/api/game-ticket", {"character_id": alice_char}, token=alice_tok)
+        check(status == 503 and body.get("code") == "maintenance",
+              "an existing session cannot get a game ticket during maintenance")
+        status, body = http(port, "POST", "/api/login", {"username": "BOB", "password": "bobpass123"})
+        check(status == 200 and body.get("token"),
+              "the synthetic-check account (HPMMO_SMOKE_USER) bypasses the gate")
+        with open(MAINTENANCE_FLAG, "w", encoding="utf-8") as fh:
+            fh.write("not json")
+        status, body = http(port, "POST", "/api/login", {"username": "alice", "password": "alicepass1"})
+        check(status == 503 and body.get("code") == "maintenance", "an unparsable flag still closes logins (fail closed)")
+        os.remove(MAINTENANCE_FLAG)
+        status, body = http(port, "POST", "/api/login", {"username": "alice", "password": "alicepass1"})
+        check(status == 200 and body.get("token"), "logins reopen once the flag is removed")
 
         # --- logout revocation ------------------------------------------------------
         status, body = http(port, "POST", "/api/logout", {}, token=game_tok)

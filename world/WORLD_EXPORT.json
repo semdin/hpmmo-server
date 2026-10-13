@@ -1,7 +1,7 @@
 {
  "generated": "2026-10-13",
  "source_repository": "hpmmo-client",
- "source_revision": "8fee41ac0ec5cd6270fd4010599fba64e4cdb415",
+ "source_revision": "336f35b7d6cc98238f42684f2a35a30887624be5",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/audio/sound_library.json": "8c697229c28334de73161c8af82e731c9b7d29a25a952924e1dfc52b61eb3ede",
@@ -390,7 +390,7 @@
   "scripts/entities/rig_follower.gd": "d514f42422830babf483b21eab4f801d163862f97a2e603f74318518a481615f",
   "scripts/entities/rig_ik.gd": "bbc3cc4e81697655ecc3c99dfde49f562a19636a1c12c527d0627b6160e7ed9f",
   "scripts/entities/wand_grip_modifier.gd": "8c2ab32c5a7caada03b5a511e7dff0d90dc2cf1010ec94ebe06c0471f52528c4",
-  "scripts/server/db_manager.gd": "2f8d8dc62ba515c9d97c9a73b4d05a917abb326a18913e9c3f840eec940477f6",
+  "scripts/server/db_manager.gd": "adfa2cfab5418b6d43f90c938fa640196233ad2c25a5e755f7ebb945871cb88a",
   "scripts/server/dedicated_server.gd": "ee2705051c561f632df353031f6589e54a7a1f7ccff57b4ed60b45b8e8e8d2d5",
   "scripts/spells/bombarda_blast.gd": "b07f93853fa234b77e09b3e0798f2173a1017370cf4b62771955ac67032f1406",
   "scripts/spells/boss_warning.gd": "4d70d46e566273d7eeafe267cfe0537908959f5cde3da83f78ee7fc25c776050",
@@ -429,8 +429,8 @@
   "scripts/ui/inventory_arcane.gd": "927cca8015721afa42440a560d34543df650ac3df072a9fb2fced846f9fec3f2",
   "scripts/ui/inventory_ui.gd": "5c05bb8bc0ed70dd10357d7274326d68418deb967a21fbc6934ebaba2a3f3699",
   "scripts/ui/item_tooltip.gd": "93d31b6ef614b1141c3af99ebf58b630ea80a187c1490da8a10924e456842a03",
-  "scripts/ui/main_menu.gd": "f9b85776df529e416a39f297fd8af171fca12fb7c0f0863589b29fc1d93cc3b4",
-  "scripts/ui/maintenance_ui.gd": "f20c541a336881b6e4736ccc2e3457a8fb40de81752e8b76dedbd6da51f456d9",
+  "scripts/ui/main_menu.gd": "0b08f374cbfb4d9c710df8d344b8099ffe8cf7d146d006c6cc51a9b62201e560",
+  "scripts/ui/maintenance_ui.gd": "5067131201d77c1158cd60d197d9ef3385add794c6d882cf0bf3cf2a2c3a6b1c",
   "scripts/ui/map_marker.gd": "9d9306f5ac56641f942cd178e899e8a1e51103343d046121a111d022b8e060ac",
   "scripts/ui/mmorpg_overlay.gd": "1b467018d487424d7a2e7167b8ffa1c1a6990a82061787fd03cc5a8d2c29fbf2",
   "scripts/ui/ollivander_ui.gd": "bfb4e47c17ee446d4c71e1d607fba8ebe25e5cfaefdb13ccfe0b2e9de1c4ec11",

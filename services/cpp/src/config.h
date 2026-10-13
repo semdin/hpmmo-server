@@ -18,6 +18,11 @@ struct Config {
     std::string migrations_dir = "db/migrations"; // HPMMO_MIGRATIONS_DIR
     int db_pool_size = 4;                     // HPMMO_DB_POOL
     bool allow_reset = false;                 // HPMMO_ALLOW_RESET=1 (dev-reset only)
+    // Maintenance gate: while <state_dir>/maintenance.flag exists (written by
+    // deploy/hpmmo_deploy.sh from the countdown until the release is verified
+    // ONLINE) logins and game tickets are refused with code "maintenance".
+    std::string state_dir = "/opt/hpmmo/state";  // HPMMO_STATE_DIR
+    std::string maintenance_bypass_user;      // HPMMO_SMOKE_USER (the deploy's synthetic login)
 
     static Config from_env();
 };

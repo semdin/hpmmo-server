@@ -351,6 +351,64 @@ bool finish_op(db::Conn& conn, const std::string& op_id, const json& result) {
 
 // --- handlers ----------------------------------------------------------------
 
+// ----------------------------------------------------------- maintenance ---
+// The deployment controller writes <state_dir>/maintenance.flag (a flat JSON
+// object: state, since, reason, until) when it announces a countdown, and
+// removes it once the new release is verified ONLINE or a cancelled cycle has
+// put the world back ONLINE. While it exists the account service refuses new
+// logins and game tickets, so a player who tries to enter during an update is
+// told why instead of failing later at the world join.
+struct MaintenanceInfo {
+    bool active = false;
+    std::string state = "ONLINE";
+    std::string since, until, reason;
+};
+
+MaintenanceInfo read_maintenance(const Config& cfg) {
+    MaintenanceInfo info;
+    if (cfg.state_dir.empty()) return info;
+    std::ifstream in(cfg.state_dir + "/maintenance.flag");
+    if (!in) return info;
+    info.active = true;
+    info.state = "MAINTENANCE";
+    std::stringstream ss;
+    ss << in.rdbuf();
+    try {
+        const json flag = json::parse(ss.str());
+        if (flag.is_object()) {
+            if (flag.contains("state") && flag["state"].is_string() && !flag["state"].get<std::string>().empty()) {
+                info.state = flag["state"].get<std::string>();
+            }
+            info.since = flag.value("since", "");
+            info.until = flag.value("until", "");
+            info.reason = flag.value("reason", "");
+        }
+    } catch (...) {
+        // A flag that cannot be parsed still means maintenance: fail closed.
+    }
+    return info;
+}
+
+json maintenance_json(const MaintenanceInfo& m) {
+    return {{"state", m.state}, {"maintenance", m.active}, {"since", m.since}, {"until", m.until}};
+}
+
+// True when the request must be refused; the response has been written.
+bool refuse_for_maintenance(httplib::Response& res, const Config& cfg, const std::string& username) {
+    const MaintenanceInfo m = read_maintenance(cfg);
+    if (!m.active) return false;
+    if (!cfg.maintenance_bypass_user.empty() && lower(username) == lower(cfg.maintenance_bypass_user)) {
+        return false;  // the controller's synthetic login+join check
+    }
+    json body = maintenance_json(m);
+    body["success"] = false;
+    body["code"] = "maintenance";
+    body["message"] = "The server is under maintenance. Please try again in a few minutes.";
+    res.set_header("Retry-After", "60");
+    send_json(res, 503, body);
+    return true;
+}
+
 void handle_register(const httplib::Request& req, httplib::Response& res, const Config& cfg,
                      db::Pool& pool) {
     auto body = parse_body(req, res);
@@ -383,6 +441,7 @@ void handle_login(const httplib::Request& req, httplib::Response& res, const Con
     if (!body) return;
     const std::string username = body->value("username", "");
     const std::string password = body->value("password", "");
+    if (refuse_for_maintenance(res, cfg, username)) return;
 
     auto lease = pool.acquire();
     db::Result r = lease.exec(
@@ -458,6 +517,7 @@ void handle_game_ticket(const httplib::Request& req, httplib::Response& res, con
                         db::Pool& pool) {
     auto session = require_session(req, res, pool);
     if (!session) return;
+    if (refuse_for_maintenance(res, cfg, session->username)) return;
     auto body = parse_body(req, res);
     if (!body) return;
     std::optional<long long> character_id;
@@ -1127,6 +1187,17 @@ void handle_version(const httplib::Request&, httplib::Response& res, const Confi
     send_json(res, 200, {{"version", "1.1.0"}, {"game_title", "HPMMO"}, {"protocol", 2}});
 }
 
+// Public server state for the launcher and the login screen. Never needs a
+// database: it must answer while everything else is being replaced.
+void handle_status(const httplib::Request&, httplib::Response& res, const Config& cfg) {
+    const MaintenanceInfo m = read_maintenance(cfg);
+    json body = maintenance_json(m);
+    body["message"] = m.active ? "The server is under maintenance." : "The server is online.";
+    body["time"] = db::now_iso8601();
+    res.set_header("Cache-Control", "no-store");
+    send_json(res, 200, body);
+}
+
 void handle_health(const httplib::Request&, httplib::Response& res) {
     send_json(res, 200, {{"status", "ok"}, {"service", "hpmmo-service"}, {"time", db::now_iso8601()}});
 }
@@ -1174,6 +1245,9 @@ int serve(const Config& cfg, db::Pool& pool) {
     });
     svr.Get("/api/ready", [&](const httplib::Request& req, httplib::Response& res) {
         handle_ready(req, res, cfg, pool);
+    });
+    svr.Get("/api/status", [&](const httplib::Request& req, httplib::Response& res) {
+        handle_status(req, res, cfg);
     });
     svr.Get("/api/version", [&](const httplib::Request& req, httplib::Response& res) {
         handle_version(req, res, cfg);

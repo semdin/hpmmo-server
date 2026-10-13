@@ -52,6 +52,8 @@ Config Config::from_env() {
     }
     c.db_pool_size = static_cast<int>(env_int("HPMMO_DB_POOL", 4));
     c.allow_reset = env_or("HPMMO_ALLOW_RESET", "0") == "1";
+    c.state_dir = env_or("HPMMO_STATE_DIR", "/opt/hpmmo/state");
+    c.maintenance_bypass_user = env_or("HPMMO_SMOKE_USER", "");
     if (c.max_sessions_per_account < 1) c.max_sessions_per_account = 1;  // guard OFFSET arithmetic
     if (c.ticket_ttl_seconds < 1) c.ticket_ttl_seconds = 1;
     return c;

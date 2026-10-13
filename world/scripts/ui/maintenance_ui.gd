@@ -26,6 +26,11 @@ var _panel: Panel = null
 var _title: Label = null
 var _detail: Label = null
 var _deadline_ms := 0
+## Set once the transport dropped during a cycle: the player is sent back to the
+## login screen (which then shows the maintenance notice) after a short pause.
+var _return_at_ms := 0
+const RETURN_TO_LOGIN_MS := 5000
+const LOGIN_SCENE := "res://scenes/main/main_menu.tscn"
 
 ## Evidence counters.
 var events_seen: int = 0
@@ -50,8 +55,8 @@ func _build() -> void:
 	_panel = Panel.new()
 	_panel.name = "MaintenancePanel"
 	_panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	UILayout.place_centred(_panel, Vector2(520, 58), Vector2(0, 160))
-	_panel.custom_minimum_size = Vector2(520, 58)
+	UILayout.place_centred(_panel, Vector2(560, 64), Vector2(0, 150))
+	_panel.custom_minimum_size = Vector2(560, 64)
 	_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.18, 0.06, 0.02, 0.9)
@@ -59,7 +64,7 @@ func _build() -> void:
 	style.set_border_width_all(2)
 	style.set_corner_radius_all(8)
 	_panel.add_theme_stylebox_override("panel", style)
-	_title = _make_label("Maintenance", 18, Color(1.0, 0.75, 0.4))
+	_title = _make_label("Bakım", 19, Color(1.0, 0.75, 0.4))
 	_title.position = Vector2(50, 6)
 	_panel.add_child(_title)
 	var lock := UITheme.icon_rect("ui_lock", 28.0)
@@ -68,7 +73,7 @@ func _build() -> void:
 	_panel.add_child(lock)
 	_detail = _make_label("", 13, Color(1.0, 0.92, 0.8))
 	_detail.position = Vector2(50, 32)
-	_detail.custom_minimum_size = Vector2(458, 20)
+	_detail.custom_minimum_size = Vector2(498, 20)
 	_panel.add_child(_detail)
 	_panel.hide()
 	add_child(_panel)
@@ -95,23 +100,39 @@ func _on_maintenance_event(p_state: String, p_reason: String, seconds_remaining:
 		active = false
 		if state == "ABORTED":
 			_panel.show()
-			_title.text = "Maintenance cancelled"
-			_detail.text = "The world is back online."
+			_title.text = "Bakım iptal edildi"
+			_detail.text = "Sunucu çevrimiçi kalmaya devam ediyor."
 			_deadline_ms = Time.get_ticks_msec() + 4000
 			active = true
 		elif state == "ONLINE":
 			_panel.hide()
 		return
+	var first_announcement := not active
 	active = true
 	_panel.show()
 	_refresh_labels()
+	if first_announcement and (state == "ANNOUNCING" or state == "DRAINING"):
+		_post_chat_warning()
+
+## The banner can be missed in a fight; the chat log keeps the warning.
+func _post_chat_warning() -> void:
+	var line := "Sunucu bakıma giriyor: %d saniye içinde herkes oyundan çıkarılacak. Güvenli bir yerde dur; ilerlemen kaydedilecek." % announced_seconds
+	var hud := get_parent()
+	var chat: Variant = hud.get("chat") if hud != null else null
+	if chat is Object and (chat as Object).has_method("add_system_line"):
+		(chat as Object).call("add_system_line", line)
+	else:
+		print("[Maintenance] " + line)
 
 func _on_disconnected(disconnect_reason: String) -> void:
 	if active and (TERMINAL_STATES.has(state) or state == "ANNOUNCING" or state == "DRAINING"):
-		_title.text = "Disconnected for maintenance"
-		_detail.text = "The world is closed for maintenance (%s). Your progress was saved." % (reason if reason != "" else disconnect_reason)
+		_title.text = "Bakım nedeniyle oyundan çıkarıldın"
+		_detail.text = "İlerlemen kaydedildi. Giriş ekranına dönülüyor…"
 		_panel.show()
 		active = true
+		state = "DISCONNECTED"
+		if _return_at_ms == 0:
+			_return_at_ms = Time.get_ticks_msec() + RETURN_TO_LOGIN_MS
 
 func _on_server_disconnected() -> void:
 	_on_disconnected("the server closed the connection")
@@ -138,22 +159,24 @@ func _refresh_labels() -> void:
 		return
 	match state:
 		"ANNOUNCING", "DRAINING":
-			_title.text = "Server maintenance in %s" % countdown_text()
-			_detail.text = "Find a safe spot and save your progress. %s" % (reason if reason != "" else "The world will close shortly.")
+			_title.text = "Sunucu bakımı: %s içinde oyundan çıkarılacaksın" % countdown_text()
+			_detail.text = "Güvenli bir yerde dur ve işlemlerini bitir; ilerlemen otomatik kaydedilecek."
 		"SAVING":
-			_title.text = "Maintenance - saving progress"
-			_detail.text = "Do not close the game while your character is saved."
+			_title.text = "Bakım - ilerleme kaydediliyor"
+			_detail.text = "Karakterin kaydedilirken oyunu kapatma."
 		"DISCONNECTING":
-			_title.text = "Maintenance - disconnecting"
-			_detail.text = "You are being disconnected for maintenance. Your progress was saved."
+			_title.text = "Bakım - bağlantı kapatılıyor"
+			_detail.text = "İlerlemen kaydedildi. Bakım bitince tekrar giriş yapabilirsin."
 		"MAINTENANCE":
-			_title.text = "World closed for maintenance"
-			_detail.text = "The server is down for maintenance. Reconnect after it returns."
+			_title.text = "Sunucu bakım için kapatıldı"
+			_detail.text = "Bakım bitince tekrar giriş yapabilirsin."
+		"DISCONNECTED":
+			pass
 		"FAILED":
-			_title.text = "Maintenance failed"
-			_detail.text = "The world is coming back online. Reconnect in a moment."
+			_title.text = "Bakım başarısız oldu"
+			_detail.text = "Sunucu yeniden çevrimiçi oluyor. Birazdan tekrar bağlan."
 		_:
-			_title.text = "Maintenance"
+			_title.text = "Bakım"
 			_detail.text = reason
 
 func _process(delta: float) -> void:
@@ -163,12 +186,27 @@ func _process(delta: float) -> void:
 		if _panel.visible:
 			_panel.hide()
 		return
+	if _return_at_ms > 0 and Time.get_ticks_msec() >= _return_at_ms:
+		_return_at_ms = 0
+		_return_to_login()
+		return
 	if _panel.visible:
 		countdown_updates += 1
 		_refresh_labels()
 		if state == "ABORTED" and Time.get_ticks_msec() > _deadline_ms:
 			active = false
 			_panel.hide()
+
+## Back to the login screen, which reads the notice and explains the closure.
+func _return_to_login() -> void:
+	if not is_inside_tree() or DisplayServer.get_name() == "headless":
+		return
+	var tree := get_tree()
+	tree.root.set_meta("hpmmo_login_notice", "maintenance")
+	var network := get_node_or_null("/root/NetworkManager")
+	if network != null and network.has_method("disconnect_game"):
+		network.call("disconnect_game")
+	tree.change_scene_to_file(LOGIN_SCENE)
 
 func describe() -> Dictionary:
 	return {
