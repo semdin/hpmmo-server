@@ -35,7 +35,53 @@ static func build(parent: Node3D, map_y: float, quality: String = "") -> Node3D:
 		for side in [-1.0, 1.0]:
 			_sconce(root, Vector3(side * 17.6, map_y + 7.0, z), -side)
 	_moonlight(root, quality)
+	# Hero props (fal image-to-3D, assets/castle/props/): the golden owl lectern
+	# at the front of the dais, two suits of armour guarding the Great Hall doors.
+	_prop(root, "owl_lectern", Vector3(-96.2, map_y + 1.0, 56.0), 90.0, 1.75)
+	for z in [49.6, 62.4]:
+		_prop(root, "armour", Vector3(-17.15, map_y, z), 90.0, 2.45)
 	return root
+
+
+## Place a prop glb scaled to `height` metres, standing on `at`, turned `yaw_deg`
+## (0 = the model's front faces +z). A box collider keeps bodies out of it.
+static func _prop(root: Node3D, prop_name: String, at: Vector3, yaw_deg: float, height: float) -> void:
+	var path := "res://assets/castle/props/%s.glb" % prop_name
+	if not ResourceLoader.exists(path):
+		return
+	var scene := (load(path) as PackedScene).instantiate() as Node3D
+	var holder := Node3D.new()
+	holder.name = prop_name.capitalize().replace(" ", "")
+	root.add_child(holder)
+	holder.add_child(scene)
+	var box := _visual_aabb(scene)
+	if box.size.y <= 0.001:
+		return
+	var s := height / box.size.y
+	scene.scale = Vector3.ONE * s
+	scene.position = -Vector3(box.get_center().x, box.position.y, box.get_center().z) * s
+	holder.position = at
+	holder.rotation_degrees.y = yaw_deg
+	var body := StaticBody3D.new()
+	var cs := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(box.size.x * s * 0.8, height, box.size.z * s * 0.8)
+	cs.shape = shape
+	cs.position = Vector3(0, height * 0.5, 0)
+	body.add_child(cs)
+	holder.add_child(body)
+
+
+static func _visual_aabb(node: Node3D) -> AABB:
+	var out := AABB()
+	var first := true
+	for n in node.find_children("*", "MeshInstance3D", true, false):
+		var mi := n as MeshInstance3D
+		var local := node.global_transform.affine_inverse() * mi.global_transform if mi.is_inside_tree() else mi.transform
+		var box: AABB = local * mi.get_aabb()
+		out = box if first else out.merge(box)
+		first = false
+	return out
 
 
 # --------------------------------------------------------------- candles

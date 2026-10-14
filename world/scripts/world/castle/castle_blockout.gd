@@ -149,6 +149,28 @@ static func kit_material(slot: String) -> Material:
 			gem.emission_energy_multiplier = 2.2
 			gem.roughness = 0.15
 			return gem
+		"portrait_0", "portrait_1", "portrait_2", "portrait_3", "portrait_4", "portrait_5", "portrait_6", "portrait_7", "compass":
+			var painted := StandardMaterial3D.new()
+			painted.albedo_texture = load("res://assets/castle/textures/%s.%s" % [slot, "png" if slot == "compass" else "jpg"])
+			if slot == "compass":
+				# a round inlay: the texture's corners are cut away by its alpha
+				painted.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+				painted.alpha_scissor_threshold = 0.5
+			painted.roughness = 0.55 if slot == "compass" else 0.8
+			painted.metallic = 0.25 if slot == "compass" else 0.0
+			return painted
+		"gilt":
+			var gilt := StandardMaterial3D.new()
+			gilt.albedo_color = Color(0.83, 0.64, 0.3)
+			gilt.metallic = 1.0
+			gilt.roughness = 0.38
+			return gilt
+		"iron":
+			var iron := StandardMaterial3D.new()
+			iron.albedo_color = Color(0.12, 0.11, 0.11)
+			iron.metallic = 0.85
+			iron.roughness = 0.5
+			return iron
 		"sky_vault":
 			var sky := ShaderMaterial.new()
 			sky.shader = preload("res://assets/shaders/castle/enchanted_sky.gdshader")
@@ -182,7 +204,7 @@ static func restyle(root: Node) -> void:
 			var src_name := src.resource_name if src != null else "bo_wall"
 			if src_name.begins_with("kit_"):
 				var slot := src_name.trim_prefix("kit_")
-				if slot in ["glass", "sky_vault", "glass_clear", "stained_side", "stained_west"] or slot.begins_with("banner_"):
+				if slot in ["glass", "sky_vault", "glass_clear", "stained_side", "stained_west"] or slot.begins_with("banner_") or slot.begins_with("portrait_") or slot == "compass":
 					# Glazing and the enchanted ceiling must not block the
 					# moonlight (or the beams it draws in the fog).
 					mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
