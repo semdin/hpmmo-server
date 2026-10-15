@@ -35,6 +35,9 @@ static func build(parent: Node3D, map_y: float, quality: String = "") -> Node3D:
 		for side in [-1.0, 1.0]:
 			_sconce(root, Vector3(side * 17.6, map_y + 7.0, z), -side)
 	_moonlight(root, quality)
+	# Room light sources authored in the glb as FX_<kind>_<n> empties
+	# (art/castle/scripts/castle_rooms.py).
+	_build_fx(parent, root, quality)
 	# Hero props (fal image-to-3D, assets/castle/props/): the golden owl lectern
 	# at the front of the dais, two suits of armour guarding the Great Hall doors.
 	_prop(root, "owl_lectern", Vector3(-96.2, map_y + 1.0, 56.0), 90.0, 1.75)
@@ -151,7 +154,7 @@ static func _hall_candle_lights(root: Node3D, map_y: float) -> void:
 
 # --------------------------------------------------------------- chandeliers
 
-static func _chandelier(root: Node3D, centre: Vector3, radius: float, candles: int) -> void:
+static func _chandelier(root: Node3D, centre: Vector3, radius: float, candles: int, shadowed: bool = true) -> void:
 	var node := Node3D.new()
 	node.name = "Chandelier"
 	node.position = centre
@@ -218,7 +221,9 @@ static func _chandelier(root: Node3D, centre: Vector3, radius: float, candles: i
 	light.omni_range = 26.0
 	light.omni_attenuation = 1.1
 	light.position = Vector3(0, 0.8, 0)
-	light.shadow_enabled = true
+	light.shadow_enabled = shadowed
+	if not shadowed:
+		_fade(light, 60.0)
 	node.add_child(light)
 
 
@@ -286,3 +291,198 @@ static func _moonlight(root: Node3D, quality: String) -> void:
 	moon.directional_shadow_max_distance = 60.0 if quality == "low" else 120.0
 	moon.shadow_bias = 0.04
 	root.add_child(moon)
+
+
+
+# --------------------------------------------------------------- FX points
+
+const FX_WARM := Color(1.0, 0.64, 0.34)
+const FX_COLD := Color(0.62, 0.95, 0.82)
+
+static func _build_fx(scan_root: Node, root: Node3D, quality: String) -> void:
+	var green_count := 0
+	var owls: Array = []
+	for node in scan_root.find_children("FX_*", "Node3D", true, false):
+		var n := node as Node3D
+		var parts := String(n.name).split("_")
+		if parts.size() < 3:
+			continue
+		var kind := "_".join(parts.slice(1, parts.size() - 1))
+		var xf := n.global_transform
+		var scale := xf.basis.get_scale().x
+		var holder := Node3D.new()
+		holder.name = "FX_" + kind
+		root.add_child(holder)
+		holder.global_transform = Transform3D(Basis(Vector3.UP, xf.basis.get_euler().y), xf.origin)
+		match kind:
+			"sconce":
+				_fx_sconce(holder, FX_WARM)
+			"sconce_cold":
+				_fx_sconce(holder, FX_COLD)
+			"fire":
+				_fx_fire(holder, scale)
+			"green_fire":
+				_fx_green_fire(holder, green_count % 3 == 1 and quality != "low")
+				green_count += 1
+			"lamp":
+				_fx_lamp(holder)
+			"chandelier":
+				_chandelier(holder, Vector3.ZERO, scale, int(scale * 7.0), false)
+			"owl":
+				owls.append(Transform3D(holder.global_transform.basis.scaled(Vector3.ONE * scale), holder.global_transform.origin))
+				holder.queue_free()
+	if not owls.is_empty():
+		_owl_flock(root, owls)
+
+
+static func _fade(light: Light3D, begin: float = 38.0) -> void:
+	# Far torches cost nothing: they fade out instead of shading the far rooms.
+	light.distance_fade_enabled = true
+	light.distance_fade_begin = begin
+	light.distance_fade_length = 10.0
+	light.distance_fade_shadow = 20.0
+
+
+static func _flame(parent: Node3D, pos: Vector3, size: Vector2, tint: Color = Color(1, 1, 1), intensity: float = 3.0) -> void:
+	var mi := MeshInstance3D.new()
+	var quad := QuadMesh.new()
+	quad.size = size
+	var fire := ShaderMaterial.new()
+	fire.shader = FLAME_SHADER
+	fire.set_shader_parameter("bob_height", 0.0)
+	fire.set_shader_parameter("intensity", intensity)
+	quad.material = fire
+	mi.mesh = quad
+	mi.position = pos
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	if tint != Color(1, 1, 1):
+		fire.set_shader_parameter("tint", tint)
+	parent.add_child(mi)
+
+
+static func _iron() -> StandardMaterial3D:
+	var iron := StandardMaterial3D.new()
+	iron.albedo_color = Color(0.08, 0.07, 0.07)
+	iron.metallic = 0.8
+	iron.roughness = 0.5
+	return iron
+
+
+## A wall torch facing local +Z: bracket, cup, flame, light.
+static func _fx_sconce(holder: Node3D, colour: Color) -> void:
+	var iron := _iron()
+	var arm := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(0.08, 0.08, 0.7)
+	box.material = iron
+	arm.mesh = box
+	arm.position = Vector3(0, 0, 0.35)
+	holder.add_child(arm)
+	var cup := MeshInstance3D.new()
+	var cone := CylinderMesh.new()
+	cone.top_radius = 0.16
+	cone.bottom_radius = 0.06
+	cone.height = 0.3
+	cone.material = iron
+	cup.mesh = cone
+	cup.position = Vector3(0, 0.12, 0.7)
+	holder.add_child(cup)
+	_flame(holder, Vector3(0, 0.55, 0.7), Vector2(0.36, 0.6),
+		Color(1, 1, 1) if colour == FX_WARM else Color(0.55, 1.0, 0.75))
+	var light := OmniLight3D.new()
+	light.light_color = colour
+	light.light_energy = 2.4
+	light.omni_range = 13.0
+	light.omni_attenuation = 1.3
+	light.position = Vector3(0, 0.8, 1.0)
+	_fade(light)
+	holder.add_child(light)
+
+
+## A hearth fire: a few flame cards across the hearth (`scale` ~ width / 4 m).
+static func _fx_fire(holder: Node3D, scale: float) -> void:
+	for k in 5:
+		var x := (float(k) - 2.0) * 0.35 * scale
+		_flame(holder, Vector3(x, 0.35 + 0.1 * (k % 2), 0.0), Vector2(0.55, 0.9) * (0.8 + 0.2 * scale), Color(1, 1, 1), 3.6)
+	var light := OmniLight3D.new()
+	light.light_color = Color(1.0, 0.55, 0.25)
+	light.light_energy = 3.2
+	light.omni_range = 11.0
+	light.omni_attenuation = 1.2
+	light.position = Vector3(0, 0.9, 0.9)
+	_fade(light, 45.0)
+	holder.add_child(light)
+
+
+static func _fx_green_fire(holder: Node3D, with_light: bool) -> void:
+	_flame(holder, Vector3(0, 0.12, 0), Vector2(0.28, 0.32), Color(0.4, 1.0, 0.5), 3.0)
+	if with_light:
+		var light := OmniLight3D.new()
+		light.light_color = Color(0.45, 1.0, 0.55)
+		light.light_energy = 1.6
+		light.omni_range = 8.0
+		light.position = Vector3(0, 0.8, 0)
+		_fade(light, 30.0)
+		holder.add_child(light)
+
+
+## A hanging lantern: iron cage, chain, flame, warm light.
+static func _fx_lamp(holder: Node3D) -> void:
+	var iron := _iron()
+	var cage := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(0.36, 0.5, 0.36)
+	var glass := StandardMaterial3D.new()
+	glass.albedo_color = Color(1.0, 0.8, 0.45)
+	glass.emission_enabled = true
+	glass.emission = Color(1.0, 0.7, 0.35)
+	glass.emission_energy_multiplier = 2.0
+	box.material = glass
+	cage.mesh = box
+	holder.add_child(cage)
+	var chain := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.02
+	cyl.bottom_radius = 0.02
+	cyl.height = 4.0
+	cyl.material = iron
+	chain.mesh = cyl
+	chain.position = Vector3(0, 2.25, 0)
+	holder.add_child(chain)
+	var light := OmniLight3D.new()
+	light.light_color = Color(1.0, 0.72, 0.4)
+	light.light_energy = 2.0
+	light.omni_range = 10.0
+	light.position = Vector3(0, -0.3, 0)
+	_fade(light)
+	holder.add_child(light)
+
+
+
+## Every owl in one MultiMesh (the fal image-to-3D owl, height-normalised so an
+## FX point's scale is the bird's height in metres).
+static func _owl_flock(root: Node3D, transforms: Array) -> void:
+	var path := "res://assets/castle/props/owl.glb"
+	if not ResourceLoader.exists(path):
+		return
+	var scene := (load(path) as PackedScene).instantiate() as Node3D
+	var mi := scene.find_children("*", "MeshInstance3D", true, false)
+	if mi.is_empty():
+		scene.free()
+		return
+	var src := mi[0] as MeshInstance3D
+	var mesh := src.mesh
+	var box := mesh.get_aabb()
+	var norm := Transform3D(Basis().scaled(Vector3.ONE / maxf(box.size.y, 0.001)),
+		-Vector3(box.get_center().x, box.position.y, box.get_center().z) / maxf(box.size.y, 0.001))
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = mesh
+	mm.instance_count = transforms.size()
+	for i in transforms.size():
+		mm.set_instance_transform(i, root.global_transform.affine_inverse() * (transforms[i] as Transform3D) * norm)
+	var flock := MultiMeshInstance3D.new()
+	flock.name = "Owls"
+	flock.multimesh = mm
+	root.add_child(flock)
+	scene.free()

@@ -159,6 +159,75 @@ static func kit_material(slot: String) -> Material:
 			painted.roughness = 0.55 if slot == "compass" else 0.8
 			painted.metallic = 0.25 if slot == "compass" else 0.0
 			return painted
+		"slate":
+			var slate := StandardMaterial3D.new()
+			slate.albedo_color = Color(0.07, 0.085, 0.075)
+			slate.roughness = 0.95
+			return slate
+		"soot":
+			var soot := StandardMaterial3D.new()
+			soot.albedo_color = Color(0.04, 0.035, 0.03)
+			soot.roughness = 1.0
+			return soot
+		"potion":
+			var brew := StandardMaterial3D.new()
+			brew.albedo_color = Color(0.2, 0.9, 0.35)
+			brew.emission_enabled = true
+			brew.emission = Color(0.25, 1.0, 0.4)
+			brew.emission_energy_multiplier = 1.6
+			brew.roughness = 0.1
+			return brew
+		"jar_green", "jar_amber", "jar_purple", "jar_blue":
+			# murky old glass: dark bodies with a faint inner glow
+			var tint := {"jar_green": Color(0.36, 0.52, 0.22), "jar_amber": Color(0.62, 0.38, 0.12),
+				"jar_purple": Color(0.36, 0.2, 0.42), "jar_blue": Color(0.18, 0.3, 0.45)}[slot] as Color
+			var jar := StandardMaterial3D.new()
+			jar.albedo_color = tint
+			jar.emission_enabled = true
+			jar.emission = tint
+			jar.emission_energy_multiplier = 0.12
+			jar.roughness = 0.08
+			jar.metallic_specular = 0.9
+			return jar
+		"books":
+			var books := StandardMaterial3D.new()
+			books.albedo_texture = load("res://assets/castle/textures/books.jpg")
+			books.cull_mode = BaseMaterial3D.CULL_DISABLED
+			books.roughness = 0.85
+			return books
+		"cloth_red", "cloth_blue", "cloth_green", "cloth_yellow", 				"cloth_red_dark", "cloth_blue_dark", "cloth_green_dark", "cloth_yellow_dark":
+			var base := {"cloth_red": Color(0.55, 0.08, 0.07), "cloth_blue": Color(0.1, 0.18, 0.5),
+				"cloth_green": Color(0.06, 0.3, 0.16), "cloth_yellow": Color(0.78, 0.58, 0.12)}
+			var dark := slot.ends_with("_dark")
+			var cloth := StandardMaterial3D.new()
+			cloth.albedo_color = (base[slot.trim_suffix("_dark")] as Color) * (0.55 if dark else 1.0)
+			cloth.roughness = 0.95
+			return cloth
+		"straw":
+			var straw := StandardMaterial3D.new()
+			straw.albedo_color = Color(0.72, 0.6, 0.32)
+			straw.roughness = 1.0
+			return straw
+		"terracotta":
+			var pot := StandardMaterial3D.new()
+			pot.albedo_color = Color(0.62, 0.32, 0.18)
+			pot.roughness = 0.9
+			return pot
+		"leaf":
+			var leaf := StandardMaterial3D.new()
+			leaf.albedo_color = Color(0.16, 0.38, 0.12)
+			leaf.roughness = 0.8
+			leaf.cull_mode = BaseMaterial3D.CULL_DISABLED
+			return leaf
+		"tapestry":
+			var weave := StandardMaterial3D.new()
+			weave.albedo_texture = load("res://assets/castle/textures/tapestry.jpg")
+			weave.roughness = 0.95
+			return weave
+		"lake_window":
+			var lake := ShaderMaterial.new()
+			lake.shader = preload("res://assets/shaders/castle/lake_window.gdshader")
+			return lake
 		"gilt":
 			var gilt := StandardMaterial3D.new()
 			gilt.albedo_color = Color(0.83, 0.64, 0.3)
@@ -204,7 +273,7 @@ static func restyle(root: Node) -> void:
 			var src_name := src.resource_name if src != null else "bo_wall"
 			if src_name.begins_with("kit_"):
 				var slot := src_name.trim_prefix("kit_")
-				if slot in ["glass", "sky_vault", "glass_clear", "stained_side", "stained_west"] or slot.begins_with("banner_") or slot.begins_with("portrait_") or slot == "compass":
+				if slot in ["glass", "sky_vault", "glass_clear", "stained_side", "stained_west"] or slot.begins_with("banner_") or slot.begins_with("portrait_") or slot in ["compass", "tapestry", "lake_window", "leaf"]:
 					# Glazing and the enchanted ceiling must not block the
 					# moonlight (or the beams it draws in the fog).
 					mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

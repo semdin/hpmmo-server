@@ -6,6 +6,8 @@ render_mode unshaded, blend_add, depth_draw_never, cull_disabled, shadows_disabl
 uniform float bob_height = 0.18;
 uniform float bob_speed = 0.7;
 uniform float intensity = 2.6;
+// Colour of the flame (white = natural); the cauldron burners are green.
+uniform vec3 tint : source_color = vec3(1.0, 1.0, 1.0);
 
 varying float v_flicker;
 
@@ -28,5 +30,6 @@ void fragment() {
 	float d = length(vec2(uv.x / max(w, 0.05), uv.y * 0.9));
 	float core = smoothstep(1.0, 0.0, d);
 	vec3 col = mix(vec3(1.0, 0.45, 0.12), vec3(1.0, 0.92, 0.7), core * core);
+	col = mix(col, tint * (0.6 + 0.6 * core), step(0.001, distance(tint, vec3(1.0))));
 	ALBEDO = col * core * intensity * v_flicker;
 }
