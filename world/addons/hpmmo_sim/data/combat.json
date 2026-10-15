@@ -82,6 +82,55 @@
       "material_amount": 0
     }
   ],
+  "upgrade_curves": {
+    "_comment": "Per-+N bonus of a refined item, indexed by tier 0..9. The steps themselves (chance, cost, material, failure) are wand_tiers, shared by every refinable kind. weapon: spell-power multiplier (wand_tiers.multiplier). armor: the item's own bonus_hp scaled by hp_mult (x3.5 at +9, in step with the wand), plus defense_add percentage points. mount: the item's own mount_speed scaled by speed_mult (+20% at +9), so refining a higher-tier broom gains more.",
+    "refinable_types": [
+      "weapon",
+      "armor",
+      "mount"
+    ],
+    "fail_downgrade_from": 4,
+    "armor": {
+      "hp_mult": [
+        1.0,
+        1.15,
+        1.3,
+        1.5,
+        1.75,
+        2.0,
+        2.3,
+        2.65,
+        3.05,
+        3.5
+      ],
+      "defense_add": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        6,
+        8,
+        10,
+        12,
+        15
+      ]
+    },
+    "mount": {
+      "speed_mult": [
+        1.0,
+        1.01,
+        1.02,
+        1.04,
+        1.06,
+        1.08,
+        1.11,
+        1.14,
+        1.17,
+        1.2
+      ]
+    }
+  },
   "houses": {
     "Gryffindor": {
       "hp_multiplier": 1.0,
@@ -132,8 +181,24 @@
   },
   "house_ranks": {
     "_comment": "House standing, earned only from quest rewards (reward_house_rep). thresholds[i] is the total reputation needed to hold rank i+1; reputation stops at the last threshold. Gated content names a rank (spells.json: requires_house_rank).",
-    "thresholds": [0, 100, 250, 500, 900, 1500, 2400],
-    "titles": ["Initiate", "Novice", "Adept", "Prefect", "Head Prefect", "Champion", "Legend"]
+    "thresholds": [
+      0,
+      100,
+      250,
+      500,
+      900,
+      1500,
+      2400
+    ],
+    "titles": [
+      "Initiate",
+      "Novice",
+      "Adept",
+      "Prefect",
+      "Head Prefect",
+      "Champion",
+      "Legend"
+    ]
   },
   "death": {
     "respawn_ms": 2500,

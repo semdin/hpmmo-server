@@ -183,21 +183,51 @@ static func normalize(bag: Array, gear: Dictionary) -> bool:
 	bag.assign(out)
 	return changed
 
+## Whether an item can be refined (+0..+9): its type is listed in
+## combat.json upgrade_curves.refinable_types (wands, robes, brooms).
+static func refinable(id: String) -> bool:
+	var curves: Dictionary = HPRules.combat().get("upgrade_curves", {})
+	return String(item(id).get("type", "")) in curves.get("refinable_types", [])
+
+static func _curve(kind: String, key: String, tier: int) -> float:
+	var values: Array = (HPRules.combat().get("upgrade_curves", {}).get(kind, {}) as Dictionary).get(key, [])
+	return float(values[clampi(tier, 0, values.size() - 1)]) if not values.is_empty() else 0.0
+
+## One item's effective numbers at refine level `tier` - the single place the
+## upgrade curves apply, shared by derived stats, the tooltip and the upgrade
+## window so they can never disagree.
+static func item_stats(id: String, tier: int) -> Dictionary:
+	var data := item(id)
+	var out := {"bonus_hp": int(data.get("bonus_hp", 0)), "bonus_mana": int(data.get("bonus_mana", 0)),
+		"bonus_defense": float(data.get("bonus_defense", 0)), "spell_power": 1.0, "mount_speed": 0.0}
+	match String(data.get("type", "")):
+		"weapon":
+			out.spell_power = float(data.get("base_multiplier", 1.0)) * HPRules.wand_multiplier(tier)
+		"armor":
+			out.bonus_hp = int(round(out.bonus_hp * _curve("armor", "hp_mult", tier)))
+			out.bonus_defense += _curve("armor", "defense_add", tier)
+		"mount":
+			out.mount_speed = float(data.get("mount_speed", 16.0)) * _curve("mount", "speed_mult", tier)
+	return out
+
 static func stats(base_hp: int, base_mana: int, equipment: Dictionary) -> Dictionary:
 	var result := {"max_hp": base_hp, "max_mana": base_mana, "defense": 0.0, "weapon_multiplier": 1.0, "wand_tier": 0, "mount_speed": 0.0}
 	for slot in equipment:
 		var entry: Dictionary = equipment[slot]
 		if not fits(String(entry.get("id", "")), slot):
 			continue
-		var data := item(entry.id)
-		result.max_hp += int(data.get("bonus_hp", 0))
-		result.max_mana += int(data.get("bonus_mana", 0))
-		result.defense += float(data.get("bonus_defense", 0))
+		var tier := int(entry.get("tier", 0))
+		var numbers := item_stats(String(entry.id), tier)
+		result.max_hp += int(numbers.bonus_hp)
+		result.max_mana += int(numbers.bonus_mana)
+		result.defense += float(numbers.bonus_defense)
 		if slot == "main_hand":
-			result.weapon_multiplier = float(data.get("base_multiplier", 1.0))
-			result.wand_tier = int(entry.get("tier", 0))
+			# Spell damage applies wand_multiplier(wand_tier) itself (HPRules.spell_
+			# multiplier), so the weapon multiplier stays the item's base here.
+			result.weapon_multiplier = float(item(entry.id).get("base_multiplier", 1.0))
+			result.wand_tier = tier
 		if slot == "broom":
-			result.mount_speed = float(data.get("mount_speed", 16.0))
+			result.mount_speed = float(numbers.mount_speed)
 	result.defense = clampf(result.defense, 0.0, 50.0)
 	return result
 

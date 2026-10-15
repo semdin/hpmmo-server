@@ -2543,7 +2543,7 @@ func request_equipment(peer_id: int, request_id: int, revision: int, operation: 
 		if operation in ["equip", "unequip"]:
 			result = HPEquipment.swap(node.inventory, node.equipment, slot, item_id if operation == "equip" else "", tier, uid if operation == "equip" else 0)
 		elif operation == "refine":
-			result = _refine_equipped(node)
+			result = _refine_equipped(node, slot)
 		elif operation == "consume":
 			result = _consume_item(node, item_id, tier)
 		else:
@@ -2580,10 +2580,15 @@ func _consume_item(node: Node, item_id: String, tier: int) -> Dictionary:
 	else: node.current_mana += restored
 	return {"ok": true, "reason": "consumed", "inventory": bag, "restored": restored}
 
-func _refine_equipped(node: Node) -> Dictionary:
-	var wand: Dictionary = node.equipment.get("main_hand", {})
-	if wand.is_empty(): return {"ok": false, "reason": "no_wand"}
-	var tier := int(wand.get("tier", 0))
+## Refine whatever is worn in `slot` (+0..+9): one step table (wand_tiers -
+## chance, galleons, material) for every refinable kind; a failed step from
+## +fail_downgrade_from or higher loses one level, below it keeps the level.
+func _refine_equipped(node: Node, slot: String = "main_hand") -> Dictionary:
+	if slot == "": slot = "main_hand"
+	var worn: Dictionary = node.equipment.get(slot, {})
+	if worn.is_empty(): return {"ok": false, "reason": "no_wand" if slot == "main_hand" else "nothing_equipped"}
+	if not HPEquipment.refinable(String(worn.id)): return {"ok": false, "reason": "not_refinable"}
+	var tier := int(worn.get("tier", 0))
 	if tier >= 9: return {"ok": false, "reason": "max_tier"}
 	var spec: Dictionary = HPRules.combat().wand_tiers[tier]
 	if node.galleons < int(spec.cost): return {"ok": false, "reason": "no_gold"}
@@ -2592,6 +2597,7 @@ func _refine_equipped(node: Node) -> Dictionary:
 		return {"ok": false, "reason": "no_material"}
 	var gear: Dictionary = node.equipment.duplicate(true)
 	var success := rng.randf() * 100.0 < float(spec.chance)
-	gear.main_hand.tier = tier + 1 if success else (tier - 1 if tier >= 4 else tier)
+	var floor_tier := int(HPRules.combat().get("upgrade_curves", {}).get("fail_downgrade_from", 4))
+	gear[slot].tier = tier + 1 if success else (tier - 1 if tier >= floor_tier else tier)
 	node.galleons -= int(spec.cost)
 	return {"ok": true, "reason": "refined" if success else "refinement_failed", "inventory": bag, "equipment": gear}

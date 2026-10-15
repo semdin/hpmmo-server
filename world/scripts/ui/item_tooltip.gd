@@ -107,7 +107,7 @@ func show_item(item_id: String, entry: Dictionary = {}) -> void:
 	if amount > 1:
 		_add_kv("Quantity", "x%d" % amount, UITheme.c("parchment"))
 	var tier := int(entry.get("tier", 0))
-	if _is_wand(item_id) and tier > 0:
+	if HPEquipment.refinable(item_id) and tier > 0:
 		_add_kv("Refined", "+%d" % tier, UITheme.c("gold_lt"))
 
 	var desc := String(data.get("desc", ""))
@@ -159,23 +159,24 @@ func _is_wand(item_id: String) -> bool:
 func _stat_rows(item_id: String, data: Dictionary, entry: Dictionary) -> Array:
 	"""The item's real numbers, in the reference's green '+' list."""
 	var rows := []
+	# Refinable items show their numbers at their own +N (HPEquipment.item_stats,
+	# the function derived stats use); the rest show the catalog values.
+	var tier := int(entry.get("tier", 0))
+	var numbers := HPEquipment.item_stats(item_id, tier)
 	if _is_wand(item_id):
-		var mult := float(data.get("base_multiplier", 1.0))
-		var tier := int(entry.get("tier", 0))
-		mult *= HPRules.wand_multiplier(tier)
-		rows.append(["+ %d%% Spell power" % int(round((mult - 1.0) * 100.0)), 1])
-		if tier > 0 and tier < 9:
-			var chance := int(HPRules.combat().wand_tiers[tier].get("chance", 0))
-			if chance > 0:
-				rows.append(["+ %d%% next refine chance" % chance, 1])
+		rows.append(["+ %d%% Spell power" % int(round((float(numbers.spell_power) - 1.0) * 100.0)), 1])
 	if data.has("bonus_hp"):
-		rows.append(["+ %d Max Health" % int(data["bonus_hp"]), 1])
+		rows.append(["+ %d Max Health" % int(numbers.bonus_hp), 1])
 	if data.has("bonus_mana"):
-		rows.append(["+ %d Max Mana" % int(data["bonus_mana"]), 1])
-	if data.has("bonus_defense"):
-		rows.append(["+ %d%% Magic Armour" % int(data["bonus_defense"]), 1])
+		rows.append(["+ %d Max Mana" % int(numbers.bonus_mana), 1])
+	if data.has("bonus_defense") or float(numbers.bonus_defense) > 0.0:
+		rows.append(["+ %d%% Magic Armour" % int(numbers.bonus_defense), 1])
 	if data.has("mount_speed"):
-		rows.append(["+ %.1f Mount speed" % float(data["mount_speed"]), 1])
+		rows.append(["+ %.1f Mount speed" % float(numbers.mount_speed), 1])
+	if HPEquipment.refinable(item_id) and tier < 9:
+		var chance := int(HPRules.combat().wand_tiers[tier].get("chance", 0))
+		if chance > 0:
+			rows.append(["%d%% chance to refine to +%d" % [chance, tier + 1], 1])
 	if data.has("heal_hp"):
 		rows.append(["+ %d Health restored" % int(data["heal_hp"]), 1])
 	if data.has("heal_mana"):
