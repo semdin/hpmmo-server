@@ -1592,6 +1592,15 @@ func _apply_damage(target: Dictionary, raw: int, spell_id: String, attacker: Dic
 		amount = int(float(amount) * HPRules.ward_other_multiplier("protego"))
 
 	if not attacker.is_empty():
+		# Enchanted "damage against creatures" (players only, against mobs).
+		if int(target.get("kind", -1)) == HPProtocol.Kind.MOB and float(attacker.get("monster_damage", 0.0)) > 0.0:
+			amount = int(round(amount * (1.0 + float(attacker.monster_damage) / 100.0)))
+		if float(attacker.get("crit_chance", 0.0)) > 0.0 and rng.randf() * 100.0 < float(attacker.crit_chance):
+			amount = int(round(amount * float(HPEquipment.enchant_rules().get("crit_multiplier", 1.5))))
+			target["last_crit"] = true
+		# Enchanted "resist creatures" on a player hit by a creature.
+		if int(attacker.get("kind", -1)) == HPProtocol.Kind.MOB and float(target.get("creature_resist", 0.0)) > 0.0:
+			amount = int(round(amount * (1.0 - clampf(float(target.creature_resist), 0.0, 50.0) / 100.0)))
 		amount = maxi(0, int(amount * (1.0 - clampf(float(target.get("defense", 0)), 0, 50) / 100.0)))
 		if amount > 0:
 			attacker["last_combat_tick"] = sim_tick
@@ -1794,6 +1803,7 @@ func _reward_already_granted(op_id: String) -> bool:
 func _grant_exp(player: Dictionary, exp: int) -> void:
 	if exp <= 0:
 		return
+	exp = int(round(exp * (1.0 + float(player.get("exp_bonus", 0.0)) / 100.0)))   # enchantment
 	var node = player.get("node")
 	var live := node != null and is_instance_valid(node)
 	var level := int(node.get("level")) if live else int(player.get("level", 1))
@@ -1916,6 +1926,8 @@ func _collect_loot(loot: Dictionary, player: Dictionary) -> void:
 		node.queue_free()
 	var pnode = player.get("node")
 	if pnode != null and is_instance_valid(pnode) and pnode.has_method("add_loot"):
+		if item_id == "galleons":
+			amount = int(round(amount * (1.0 + float(player.get("galleon_bonus", 0.0)) / 100.0)))   # enchantment
 		pnode.call("add_loot", item_id, amount)
 		# Keep the record in step: the record is what stats pushes are built from,
 		# so a stale record would take the gold back on the next tick.
@@ -2519,6 +2531,9 @@ func refresh_equipment(record: Dictionary) -> void:
 	record["mana"] = node.current_mana
 	record["defense"] = node.derived_stats.defense
 	record["weapon_multiplier"] = node.derived_stats.weapon_multiplier
+	# Enchantment effects the authority applies itself (damage, regen, rewards).
+	for key in ["monster_damage", "crit_chance", "creature_resist", "hp_regen", "mana_regen", "exp_bonus", "galleon_bonus"]:
+		record[key] = float(node.derived_stats.get(key, 0.0))
 
 func request_equipment(peer_id: int, request_id: int, revision: int, operation: String, slot: String, item_id: String, tier: int, uid: int = 0) -> Dictionary:
 	var record := player_record(peer_id)
@@ -2544,6 +2559,8 @@ func request_equipment(peer_id: int, request_id: int, revision: int, operation: 
 			result = HPEquipment.swap(node.inventory, node.equipment, slot, item_id if operation == "equip" else "", tier, uid if operation == "equip" else 0)
 		elif operation == "refine":
 			result = _refine_equipped(node, slot)
+		elif operation == "enchant":
+			result = HPEquipment.enchant(node.inventory, node.equipment, item_id, uid, rng)
 		elif operation == "consume":
 			result = _consume_item(node, item_id, tier)
 		else:

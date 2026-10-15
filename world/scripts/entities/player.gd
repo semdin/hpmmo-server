@@ -1296,8 +1296,9 @@ func input_blocked() -> bool:
 
 func _tick_regeneration(delta: float) -> void:
 	var before := Vector2i(current_hp, current_mana)
-	_regen_hp += 4.0 * delta
-	_regen_mana += (10.0 if house == "Slytherin" else 8.0) * delta
+	# Base rates plus enchanted regeneration (derived from the worn bonuses).
+	_regen_hp += (4.0 + float(derived_stats.get("hp_regen", 0.0))) * delta
+	_regen_mana += ((10.0 if house == "Slytherin" else 8.0) + float(derived_stats.get("mana_regen", 0.0))) * delta
 	current_hp = mini(max_hp, current_hp + int(_regen_hp))
 	current_mana = mini(max_mana, current_mana + int(_regen_mana))
 	_regen_hp -= floorf(_regen_hp)

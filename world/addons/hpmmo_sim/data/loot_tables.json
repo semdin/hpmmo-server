@@ -4,10 +4,16 @@
     "always": [ { "id": "galleons", "min": 30, "max": 95 } ],
     "rolls": [
       { "id": "mat_phoenix_ash", "chance": 0.5, "min": 1, "max": 3 },
-      { "id": "potion_health", "chance": 0.3, "min": 1, "max": 1 }
+      { "id": "potion_health", "chance": 0.3, "min": 1, "max": 1 },
+      { "id": "scroll_imbue", "chance": 0.04, "min": 1, "max": 1 },
+      { "id": "scroll_reweave", "chance": 0.03, "min": 1, "max": 1 }
     ],
     "boss_always": [ { "id": "galleons", "min": 250, "max": 600 } ],
-    "boss_rolls": [ { "id": "mat_dragon_heartstring", "chance": 1.0, "min": 2, "max": 2 } ]
+    "boss_rolls": [
+      { "id": "mat_dragon_heartstring", "chance": 1.0, "min": 2, "max": 2 },
+      { "id": "scroll_imbue", "chance": 0.6, "min": 1, "max": 2 },
+      { "id": "scroll_reweave", "chance": 0.4, "min": 1, "max": 1 }
+    ]
   },
   "monolith": {
     "always": [
@@ -19,7 +25,11 @@
       { "id": "potion_health", "min": 3, "max": 6 },
       { "id": "potion_mana", "min": 3, "max": 6 }
     ],
-    "rolls": [ { "id": "mat_elder_core", "chance": 0.25, "min": 1, "max": 1 } ]
+    "rolls": [
+      { "id": "mat_elder_core", "chance": 0.25, "min": 1, "max": 1 },
+      { "id": "scroll_imbue", "chance": 0.5, "min": 1, "max": 1 },
+      { "id": "scroll_reweave", "chance": 0.3, "min": 1, "max": 1 }
+    ]
   },
   "respawn_ms": {
     "mob_normal_min": 25000,

@@ -131,6 +131,185 @@
       ]
     }
   },
+  "enchant": {
+    "_comment": "Enchantments (efsun) on a wand, robe or broom instance. Imbue adds one bonus with imbue_chance[current count] percent (a failure still uses the scroll); reweave rerolls every bonus keeping the count. A bonus rolls a stat from its kind's pool (never one the item already has) and a grade by grade_weights; value = values[grade]. Units: spell_power/monster_damage/mount_speed are percent, defense percentage points, max_hp/max_mana flat. crit_chance rolls per hit for crit_multiplier damage; creature_resist cuts damage taken from creatures; hp_regen/mana_regen add points per second; exp_bonus/galleon_bonus scale experience and picked-up galleons.",
+    "max_bonuses": 5,
+    "imbue_scroll": "scroll_imbue",
+    "reweave_scroll": "scroll_reweave",
+    "imbue_chance": [
+      100,
+      90,
+      70,
+      50,
+      30
+    ],
+    "grade_weights": [
+      40,
+      30,
+      18,
+      9,
+      3
+    ],
+    "stats": {
+      "spell_power": {
+        "label": "Spell power",
+        "unit": "%",
+        "values": [
+          2,
+          4,
+          6,
+          8,
+          10
+        ]
+      },
+      "monster_damage": {
+        "label": "Damage against creatures",
+        "unit": "%",
+        "values": [
+          3,
+          6,
+          9,
+          12,
+          15
+        ]
+      },
+      "max_hp": {
+        "label": "Max Health",
+        "unit": "",
+        "values": [
+          20,
+          40,
+          60,
+          90,
+          120
+        ]
+      },
+      "max_mana": {
+        "label": "Max Mana",
+        "unit": "",
+        "values": [
+          15,
+          30,
+          45,
+          65,
+          90
+        ]
+      },
+      "defense": {
+        "label": "Magic Armour",
+        "unit": "%",
+        "values": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "mount_speed": {
+        "label": "Mount speed",
+        "unit": "%",
+        "values": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "crit_chance": {
+        "label": "Critical chance",
+        "unit": "%",
+        "values": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "creature_resist": {
+        "label": "Resist creatures",
+        "unit": "%",
+        "values": [
+          2,
+          4,
+          6,
+          8,
+          10
+        ]
+      },
+      "hp_regen": {
+        "label": "Health regeneration",
+        "unit": "/s",
+        "values": [
+          1,
+          2,
+          3,
+          4,
+          6
+        ]
+      },
+      "mana_regen": {
+        "label": "Mana regeneration",
+        "unit": "/s",
+        "values": [
+          1,
+          2,
+          3,
+          4,
+          6
+        ]
+      },
+      "exp_bonus": {
+        "label": "Experience gained",
+        "unit": "%",
+        "values": [
+          2,
+          4,
+          6,
+          8,
+          10
+        ]
+      },
+      "galleon_bonus": {
+        "label": "Galleons found",
+        "unit": "%",
+        "values": [
+          3,
+          6,
+          9,
+          12,
+          15
+        ]
+      }
+    },
+    "pools": {
+      "weapon": [
+        "spell_power",
+        "monster_damage",
+        "crit_chance",
+        "max_mana",
+        "mana_regen",
+        "max_hp"
+      ],
+      "armor": [
+        "max_hp",
+        "defense",
+        "creature_resist",
+        "max_mana",
+        "hp_regen"
+      ],
+      "mount": [
+        "mount_speed",
+        "exp_bonus",
+        "galleon_bonus",
+        "max_hp",
+        "hp_regen"
+      ]
+    },
+    "crit_multiplier": 1.5
+  },
   "houses": {
     "Gryffindor": {
       "hp_multiplier": 1.0,

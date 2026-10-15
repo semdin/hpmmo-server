@@ -204,6 +204,24 @@
     "slots": [],
     "desc": "A catalyst for masterwork refinement."
   },
+  "scroll_imbue": {
+    "id": "scroll_imbue",
+    "name": "Rune of Imbuing",
+    "type": "material",
+    "desc": "A scroll that weaves one new enchantment into a wand, robe or broom at Ollivander's. The more an item already holds, the likelier the weave slips.",
+    "rarity": "rare",
+    "icon": "scroll",
+    "slots": []
+  },
+  "scroll_reweave": {
+    "id": "scroll_reweave",
+    "name": "Rune of Reweaving",
+    "type": "material",
+    "desc": "Unravels every enchantment on a wand, robe or broom and weaves the same number anew at Ollivander's.",
+    "rarity": "rare",
+    "icon": "scroll",
+    "slots": []
+  },
   "hat_apprentice": {
     "id": "hat_apprentice",
     "name": "Apprentice Hat",

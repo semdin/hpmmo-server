@@ -177,6 +177,8 @@ func _stat_rows(item_id: String, data: Dictionary, entry: Dictionary) -> Array:
 		var chance := int(HPRules.combat().wand_tiers[tier].get("chance", 0))
 		if chance > 0:
 			rows.append(["%d%% chance to refine to +%d" % [chance, tier + 1], 1])
+	for bonus in entry.get("bonuses", []):
+		rows.append([HPEquipment.bonus_text(bonus), 2])
 	if data.has("heal_hp"):
 		rows.append(["+ %d Health restored" % int(data["heal_hp"]), 1])
 	if data.has("heal_mana"):
@@ -261,11 +263,12 @@ func _add_kv(left: String, right: String, colour: Color) -> void:
 	h.add_child(r)
 
 
-func _add_stat_row(text: String, _kind: int) -> void:
+## kind 2 = an enchantment line (violet, the Metin2 bonus colour).
+func _add_stat_row(text: String, kind: int) -> void:
 	var l := Label.new()
 	l.text = text
 	l.add_theme_font_size_override("font_size", UITheme.FS_SMALL)
-	l.add_theme_color_override("font_color", UITheme.c("good"))
+	l.add_theme_color_override("font_color", UITheme.c("magic") if kind == 2 else UITheme.c("good"))
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_column.add_child(l)
 

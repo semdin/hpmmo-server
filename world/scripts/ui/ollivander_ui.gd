@@ -27,6 +27,9 @@ var player: Node3D = null
 var slot := "main_hand"
 var _pending_id := -1
 var _tabs: Array[Button] = []
+var _bonus_label: Label
+var _imbue_button: Button
+var _reweave_button: Button
 
 func _ready() -> void:
 	theme = UITheme.get_theme()
@@ -36,6 +39,7 @@ func _ready() -> void:
 	refine_button.pressed.connect(_on_refine_pressed)
 	close_button.pressed.connect(hide)
 	_build_tabs()
+	_build_enchant_panel()
 	hide()
 
 func _build_tabs() -> void:
@@ -57,6 +61,75 @@ func _build_tabs() -> void:
 	var box := $Panel/VBoxContainer
 	box.add_child(row)
 	box.move_child(row, item_name_label.get_index() + 1)
+
+## Enchantments of the selected item: its bonus lines and the two scrolls
+## (combat.json `enchant`). The authority rolls; this only names the target uid.
+func _build_enchant_panel() -> void:
+	var box := $Panel/VBoxContainer
+	var title := Label.new()
+	title.text = "Enchantments"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_color_override("font_color", UITheme.c("gold_lt"))
+	box.add_child(HSeparator.new())
+	box.add_child(title)
+	_bonus_label = Label.new()
+	_bonus_label.name = "BonusLabel"
+	_bonus_label.add_theme_color_override("font_color", UITheme.c("magic"))
+	_bonus_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(_bonus_label)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	_imbue_button = Button.new()
+	_reweave_button = Button.new()
+	for b in [_imbue_button, _reweave_button]:
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.custom_minimum_size = Vector2(0, 36)
+		row.add_child(b)
+	_imbue_button.pressed.connect(_on_enchant_pressed.bind("imbue_scroll"))
+	_reweave_button.pressed.connect(_on_enchant_pressed.bind("reweave_scroll"))
+	box.add_child(row)
+	box.move_child(result_label, box.get_child_count() - 1)
+
+func _scroll_count(id: String) -> int:
+	var have := 0
+	for entry in player.inventory:
+		if entry.id == id: have += int(entry.amount)
+	return have
+
+func _refresh_enchant(worn: Dictionary) -> void:
+	if _bonus_label == null: return
+	var id := String(worn.get("id", ""))
+	var rules := HPEquipment.enchant_rules()
+	var imbue_id := String(rules.get("imbue_scroll", ""))
+	var reweave_id := String(rules.get("reweave_scroll", ""))
+	var held: Array = worn.get("bonuses", [])
+	var cap := int(rules.get("max_bonuses", 5))
+	if id == "" or not HPEquipment.enchantable(id):
+		_bonus_label.text = "Nothing to enchant in this slot."
+	elif held.is_empty():
+		_bonus_label.text = "No enchantments yet (0/%d)." % cap
+	else:
+		_bonus_label.text = "
+".join(held.map(func(b): return "• " + HPEquipment.bonus_text(b))) + "
+(%d/%d)" % [held.size(), cap]
+	var chances: Array = rules.get("imbue_chance", [100])
+	var chance := int(chances[clampi(held.size(), 0, chances.size() - 1)])
+	_imbue_button.text = "Imbue %d%%  (%d)" % [chance, _scroll_count(imbue_id)]
+	_reweave_button.text = "Reweave  (%d)" % _scroll_count(reweave_id)
+	var usable := id != "" and HPEquipment.enchantable(id) and _pending_id == -1
+	_imbue_button.disabled = not usable or held.size() >= cap or _scroll_count(imbue_id) == 0
+	_reweave_button.disabled = not usable or held.is_empty() or _scroll_count(reweave_id) == 0
+	_imbue_button.tooltip_text = String(HPEquipment.item(imbue_id).get("desc", ""))
+	_reweave_button.tooltip_text = String(HPEquipment.item(reweave_id).get("desc", ""))
+
+func _on_enchant_pressed(which: String) -> void:
+	if not is_instance_valid(player): return
+	var worn: Dictionary = player.equipment.get(slot, {})
+	if worn.is_empty(): return
+	_imbue_button.disabled = true
+	_reweave_button.disabled = true
+	result_label.text = "Weaving…"
+	_pending_id = SimNet.submit_equipment(player, "enchant", "", String(HPEquipment.enchant_rules().get(which, "")), 0, int(worn.get("uid", 0)))
 
 ## Show the workshop for `which` worn slot (main_hand / chest / broom).
 func select_slot(which: String) -> void:
@@ -98,7 +171,7 @@ func _refresh_display() -> void:
 		return
 	var worn: Dictionary = player.equipment.get(slot, {})
 	var id := String(worn.get("id", ""))
-	result_label.modulate = Color.WHITE
+	_refresh_enchant(worn)
 	refine_button.text = "REFINE %s" % _kind_label().to_upper()
 	if id == "" or not HPEquipment.refinable(id):
 		item_name_label.text = "Equip a %s" % _kind_label().to_lower()
@@ -149,7 +222,7 @@ func _equipment_answer(result: Dictionary) -> void:
 	_pending_id = -1
 	var reason := String(result.get("reason", ""))
 	result_label.text = String(preload("res://scripts/ui/inventory_arcane.gd").REASONS.get(reason, "Equipment updated."))
-	result_label.modulate = Color(0.45, 1.0, 0.5) if reason == "refined" else (Color(1.0, 0.45, 0.4) if reason == "refinement_failed" else Color.WHITE)
+	result_label.modulate = Color(0.45, 1.0, 0.5) if reason in ["refined", "enchanted"] else (Color(1.0, 0.45, 0.4) if reason in ["refinement_failed", "enchant_failed"] else Color.WHITE)
 	if reason == "refined":
 		var tier := int(player.equipment.get(slot, {}).get("tier", 0))
 		item_upgraded.emit(slot, tier)
