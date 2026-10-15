@@ -236,7 +236,9 @@ def scenario_local(out_dir):
     refusals = final.get("refusals", {})
     check(refusals.get("hub") == "safe_zone", "a formation anchor in the hub and its buffer is refused")
     check(refusals.get("wall") == "solid_geometry", "a formation member inside a castle wall is refused")
-    check(str(refusals.get("lake", "")).startswith("exclusion:"), "a formation member in water is refused")
+    # The Black Lake is real water on the Terrain3D grounds (GroundsLake), refused
+    # before any authored exclusion is consulted.
+    check(refusals.get("lake") == "water", "a formation member in water is refused (%s)" % refusals.get("lake"))
     check(str(refusals.get("portal", "")) == "safe_zone", "a formation on a portal arrival pad is refused")
     check(refusals.get("player") == "player_nearby", "a formation where a player is standing is refused")
 
@@ -304,7 +306,10 @@ def scenario_reactive(out_dir):
     attacked pack)."""
     print("\n--- scenario: reactive packs (real server) ---")
     port = free_port()
-    server = start_server(port, 20261005, out_dir, dev_spawn="24,0.6,-25")
+    # Beside the pack under test wherever the encounter table puts it (the
+    # server reads the live pack's position): fixed points from the old flat
+    # valley are under the Terrain3D grounds or inside the castle exclusion.
+    server = start_server(port, 20261005, out_dir, dev_spawn="pack:1")
     if not wait_for_port(server):
         check(False, "the world server started for the reactive scenario")
         server.stop()
@@ -356,7 +361,7 @@ def scenario_boss(out_dir, escorted=False):
     print("\n--- scenario: %s (real server) ---" % label)
     port = free_port()
     pack = 7 if escorted else 6
-    spawn = "61,0.6,-95" if escorted else "-86,0.6,-70"
+    spawn = "pack:%d" % pack
     server = start_server(port, 20261005, out_dir, dev_spawn=spawn, name="boss-server")
     if not wait_for_port(server):
         check(False, "the world server started for the %s scenario" % label)
@@ -447,7 +452,7 @@ def scenario_lifecycle(out_dir):
     a respawn that does not land on the player."""
     print("\n--- scenario: kill lifecycle, two clients (real server) ---")
     port = free_port()
-    server = start_server(port, 20261005, out_dir, dev_spawn="24,0.6,-25", fast_respawn=True, name="life-server")
+    server = start_server(port, 20261005, out_dir, dev_spawn="pack:1", fast_respawn=True, name="life-server")
     if not wait_for_port(server):
         check(False, "the world server started for the lifecycle scenario")
         server.stop()
@@ -488,8 +493,13 @@ def scenario_lifecycle(out_dir):
     killed_a = credited_mobs(rewards_a)
     killed_b = credited_mobs(rewards_b)
     check(len(killed_a) >= 2, "the two clients defeated several members of the pack (%d kills seen by A)" % len(killed_a))
-    check(len(rewards_a) == len(killed_a) and len(rewards_b) == len(killed_b),
-          "each player is credited exactly once per kill")
+    # Kill grants only: a probe standing on a drop also receives its loot grant
+    # (op "loot:<drop>:<n>"), which is not a kill credit.
+    kills_a = [r for r in rewards_a if str(r.get("op_id", "")).startswith("kill:")]
+    kills_b = [r for r in rewards_b if str(r.get("op_id", "")).startswith("kill:")]
+    check(len(kills_a) == len(killed_a) and len(kills_b) == len(killed_b),
+          "each player is credited exactly once per kill (A %d grants / %d kills, B %d / %d)"
+          % (len(kills_a), len(killed_a), len(kills_b), len(killed_b)))
     shared = killed_a & killed_b
     check(bool(shared),
           "both eligible players were credited for the same kills (shared %s; A %s, B %s)"

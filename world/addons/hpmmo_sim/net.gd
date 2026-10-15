@@ -153,10 +153,10 @@ func _on_connected_to_server() -> void:
 ## Two bodies spawned at the same point interpenetrate, and the physics engine
 ## resolves that by launching them apart - which looks exactly like a teleport
 ## hack to everyone else. Nudge a new arrival to the nearest clear spot instead.
-## Dev spawn helper: a few metres from the lowest-numbered live mob pack, so a
-## test lands beside real content wherever the encounter table puts it. INF when
-## no pack exists yet.
-func _dev_pack_spawn() -> Vector3:
+## Dev spawn helper: a few metres from the lowest-numbered live mob pack (or
+## from pack `want` when given), so a test lands beside real content wherever
+## the encounter table puts it. INF when no such pack exists yet.
+func _dev_pack_spawn(want: int = 0) -> Vector3:
 	var best_pack := 0
 	var best_pos := Vector3.INF
 	for uid in SimAuthority.entities.keys():
@@ -166,6 +166,8 @@ func _dev_pack_spawn() -> Vector3:
 		var pack_id := int(record.get("pack_id", 0))
 		var node = record.get("node")
 		if pack_id == 0 or node == null or not is_instance_valid(node):
+			continue
+		if want > 0 and pack_id != want:
 			continue
 		if best_pack == 0 or pack_id < best_pack:
 			best_pack = pack_id
@@ -294,12 +296,15 @@ func sim_join(token: String, protocol_version: int, client_version: String) -> v
 		if dev_name.is_empty():
 			dev_name = "Dev%d" % peer_id
 		identity = {"account_id": 0, "character_id": 0, "name": dev_name, "house": "Gryffindor"}
-		# Optional dev spawn ("x,y,z", or "pack" for "beside the first live mob
-		# pack"): lets a test place clients next to the content under test
-		# instead of walking there. Dev joins only.
+		# Optional dev spawn ("x,y,z", "pack" for "beside the first live mob
+		# pack", or "pack:<id>" for a given pack): lets a test place clients next
+		# to the content under test instead of walking there. Dev joins only.
 		var spawn := OS.get_environment("HPMMO_DEV_SPAWN").strip_edges()
 		if spawn == "pack":
 			identity["spawn_near_pack"] = true
+		elif spawn.begins_with("pack:"):
+			identity["spawn_near_pack"] = true
+			identity["spawn_pack_id"] = int(spawn.substr(5))
 		elif spawn != "":
 			var parts := spawn.split(",")
 			if parts.size() == 3:
@@ -353,7 +358,7 @@ func sim_spawn_player(peer_id: int, identity: Dictionary) -> void:
 			SimAuthority.map_provider_ready(best_map)
 			node.global_position = HPMaps.valid_position(best_map, node.global_position)
 	elif identity.has("spawn") or bool(identity.get("spawn_near_pack", false)):
-		var at := _dev_pack_spawn() if bool(identity.get("spawn_near_pack", false)) else Vector3.INF
+		var at := _dev_pack_spawn(int(identity.get("spawn_pack_id", 0))) if bool(identity.get("spawn_near_pack", false)) else Vector3.INF
 		if at == Vector3.INF and identity.has("spawn"):
 			var spawn: Array = identity["spawn"]
 			at = Vector3(float(spawn[0]), float(spawn[1]), float(spawn[2]))
