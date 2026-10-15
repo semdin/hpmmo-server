@@ -87,6 +87,15 @@ func show_item(item_id: String, entry: Dictionary = {}) -> void:
 	_add_name_row(String(data.get("name", item_id)), tint, rarity_label(item_id), item_id)
 	_add_divider()
 	_add_kind_row(item_id, data)
+	if data.has("item_tier"):
+		_add_kv("Tier", "%d" % int(data["item_tier"]), tint)
+	var needed := HPEquipment.required_level(item_id)
+	if needed > 1:
+		# Red when the viewer cannot wear it yet - the server refuses the equip
+		# with "level_too_low" (HPEquipment.level_ok) either way.
+		var level := _local_level()
+		_add_kv("Requires", "Level %d" % needed,
+			UITheme.c("hp") if level > 0 and level < needed else UITheme.c("parchment"))
 
 	var stats := _stat_rows(item_id, data, entry)
 	for line in stats:
@@ -220,6 +229,15 @@ func _add_kind_row(item_id: String, data: Dictionary) -> void:
 	if kind == "armor":
 		text = String(data.get("slots",["armor"])[0]).replace("_", " ").capitalize()
 	_add_kv(kind.capitalize(), text, UITheme.c("text_dim"))
+
+
+func _local_level() -> int:
+	if not is_inside_tree():
+		return 0
+	for body in get_tree().get_nodes_in_group("players"):
+		if bool(body.get("is_local_player")):
+			return int(body.get("level"))
+	return 0
 
 
 func _add_kv(left: String, right: String, colour: Color) -> void:

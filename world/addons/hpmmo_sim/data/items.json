@@ -74,6 +74,81 @@
       "broom"
     ]
   },
+  "broom_ashwood": {
+    "id": "broom_ashwood",
+    "name": "Ashwood Sweeper",
+    "type": "mount",
+    "desc": "A humble apprentice broom of unvarnished ash, its birch twigs tied with hemp cord. Every flyer starts somewhere.",
+    "rarity": "common",
+    "item_tier": 1,
+    "required_level": 1,
+    "mount_speed": 15.0,
+    "model": "res://assets/models/props/brooms/broom_ashwood.glb",
+    "icon": "broom",
+    "slots": [
+      "broom"
+    ]
+  },
+  "broom_runebound": {
+    "id": "broom_runebound",
+    "name": "Runebound Walnut",
+    "type": "mount",
+    "desc": "Polished walnut bound in brass bands whose blue runes steady the flight.",
+    "rarity": "uncommon",
+    "item_tier": 2,
+    "required_level": 10,
+    "mount_speed": 17.0,
+    "model": "res://assets/models/props/brooms/broom_runebound.glb",
+    "icon": "broom",
+    "slots": [
+      "broom"
+    ]
+  },
+  "broom_silverthorn": {
+    "id": "broom_silverthorn",
+    "name": "Silverthorn Racer",
+    "type": "mount",
+    "desc": "Black-lacquered ebony with silver fittings and emerald runes, its tail trimmed into a racer's dart.",
+    "rarity": "rare",
+    "item_tier": 3,
+    "required_level": 20,
+    "mount_speed": 19.0,
+    "model": "res://assets/models/props/brooms/broom_silverthorn.glb",
+    "icon": "broom",
+    "slots": [
+      "broom"
+    ]
+  },
+  "broom_emberwing": {
+    "id": "broom_emberwing",
+    "name": "Emberwing",
+    "type": "mount",
+    "desc": "Crimson lacquer and gold filigree crowned by a phoenix head; its feathered tail smoulders like live embers.",
+    "rarity": "epic",
+    "item_tier": 4,
+    "required_level": 35,
+    "mount_speed": 21.0,
+    "model": "res://assets/models/props/brooms/broom_emberwing.glb",
+    "icon": "broom",
+    "slots": [
+      "broom"
+    ]
+  },
+  "broom_moonveil": {
+    "id": "broom_moonveil",
+    "name": "Moonveil Seraph",
+    "type": "mount",
+    "desc": "Pale moonwood threaded with starlight, a crystal tip and bristles spun from moonlight itself.",
+    "rarity": "legendary",
+    "item_tier": 5,
+    "required_level": 50,
+    "mount_speed": 23.0,
+    "model": "res://assets/models/props/brooms/broom_moonveil.glb",
+    "icon": "broom",
+    "slots": [
+      "broom"
+    ]
+  },
   "potion_health": {
     "id": "potion_health",
     "name": "Wiggenweld Potion",

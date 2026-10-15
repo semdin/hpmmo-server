@@ -56,12 +56,7 @@ func setup(player_body: Node3D, visuals_node: Node3D, wisp_particles: CPUParticl
 	var scope: Node = model_root if model_root != null else get_parent()
 	if scope == null:
 		scope = self
-	mount_root = scope.find_child("MountRoot", true, false) as Node3D
-	seat_socket = scope.find_child("SeatSocket", true, false) as Node3D
-	grip_socket = scope.find_child("GripSocket", true, false) as Node3D
-	tail_socket = scope.find_child("TailSocket", true, false) as Node3D
-	bristles = scope.find_child("Bristles", true, false) as Node3D
-	model_root_ref = scope
+	_bind_sockets(scope)
 	particles = wisp_particles
 	if particles:
 		particles.local_coords = false
@@ -70,6 +65,23 @@ func setup(player_body: Node3D, visuals_node: Node3D, wisp_particles: CPUParticl
 	_build_ribbon()
 	_attach_spell_trail(scope)
 
+
+func _bind_sockets(scope: Node) -> void:
+	mount_root = scope.find_child("MountRoot", true, false) as Node3D
+	seat_socket = scope.find_child("SeatSocket", true, false) as Node3D
+	grip_socket = scope.find_child("GripSocket", true, false) as Node3D
+	tail_socket = scope.find_child("TailSocket", true, false) as Node3D
+	bristles = scope.find_child("Bristles", true, false) as Node3D
+	model_root_ref = scope
+
+## The equipped broom changed its model (player._apply_broom_model): every
+## per-item GLB carries the same socket names, so the rig, the rider's grip
+## (which reads these sockets every frame) and the trail follow the new parts.
+func rebind_model(scope: Node) -> void:
+	_bind_sockets(scope)
+	if trail != null:
+		trail.set("tail_socket", tail_socket)
+	_tail_history.clear()
 
 ## spell-effect hook. The trail effect samples the authored trail_ribbon.glb taper
 ## profile and the tail socket's own motion history; nothing about flight state

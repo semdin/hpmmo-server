@@ -2537,6 +2537,7 @@ func request_equipment(peer_id: int, request_id: int, revision: int, operation: 
 	elif int(record.get("cast_id", 0)) != 0 or sim_tick < int(record.get("cast_lock_until_tick", 0)): reason = "casting"
 	elif operation != "consume" and sim_tick - int(record.get("last_combat_tick", -100000)) < 5 * HPProtocol.SIM_HZ: reason = "in_combat"
 	elif slot == "broom" and bool(record.get("mounted", false)): reason = "mounted"
+	elif operation == "equip" and not HPEquipment.level_ok(item_id, int(node.level)): reason = "level_too_low"
 	var result := {"ok": false, "reason": reason}
 	if reason == "":
 		if operation in ["equip", "unequip"]:

@@ -267,6 +267,11 @@ const SOCKET_BONES := {
 @onready var camera: Camera3D = get_node_or_null("CameraPivot/SpringArm3D/Camera3D")
 @onready var broom_mesh: Node3D = get_node_or_null("Visuals/BroomMesh")
 @onready var broom_particles: CPUParticles3D = get_node_or_null("Visuals/BroomMesh/BroomParticles")
+## The nodes the broom GLB put under BroomMesh (captured before the rig and its
+## effects join them); `_apply_broom_model` swaps exactly these for the equipped
+## broom's own model and leaves the rig, particles and trail in place.
+var _broom_model_parts: Array[Node] = []
+var _broom_model_path := HPEquipment.DEFAULT_BROOM_MODEL
 ## The wand's own tip (a marker inside the equipped prop) is the only wand point
 ## this body exposes - see `wand_tip_position`. There is no scene-level marker or
 ## aura any more: both were fixed offsets that did not follow the wand.
@@ -393,6 +398,9 @@ func socket(name: String) -> Node3D:
 func _setup_broom() -> void:
 	if broom_mesh == null:
 		return
+	for part in broom_mesh.get_children():
+		if part != broom_particles:
+			_broom_model_parts.append(part)
 	broom = BroomFlightScript.new()
 	broom.name = "BroomRig"
 	broom_mesh.add_child(broom)
@@ -408,6 +416,37 @@ func _setup_broom() -> void:
 		broom_grip.setup(broom)
 	if broom_mesh is Node3D:
 		broom_mesh.rotation = Vector3.ZERO   # the authored GLB is already +Z forward
+	_align_broom_to_hips()
+	_apply_broom_model()   # equipment can arrive before the rig exists
+
+## The equipped broom item names its model (items.json `model`). This runs
+## wherever equipment is recalculated - the authority, the owner and every
+## replica that receives the owner's stats - so everyone sees the same broom.
+## Every broom GLB carries the same parts and sockets (BroomRoot > Broom_Shaft,
+## Bristles, Grip/Mount/Seat/TailSocket), so only those nodes are replaced.
+func _apply_broom_model() -> void:
+	if broom == null or broom_mesh == null:
+		return
+	var path := HPEquipment.broom_model(String((equipment.get("broom", {}) as Dictionary).get("id", "")))
+	if path == _broom_model_path:
+		return
+	var scene := load(path) as PackedScene
+	if scene == null:
+		push_warning("Broom model missing: %s" % path)
+		return
+	_broom_model_path = path
+	for part in _broom_model_parts:
+		if is_instance_valid(part):
+			broom_mesh.remove_child(part)
+			part.queue_free()
+	_broom_model_parts.clear()
+	var model := scene.instantiate()
+	for part in model.get_children():
+		model.remove_child(part)
+		broom_mesh.add_child(part)
+		_broom_model_parts.append(part)
+	model.free()
+	broom.rebind_model(broom_mesh)
 	_align_broom_to_hips()
 
 ## The single mount convention: the broom's SeatSocket is placed under the
@@ -2012,6 +2051,7 @@ func _recalculate_equipment() -> void:
 	wand_tier = int(derived_stats.wand_tier)
 	mounted_speed = maxf(0.1, float(derived_stats.mount_speed))
 	_apply_wand_aura()
+	_apply_broom_model()
 
 func apply_equipment_snapshot(snapshot: Dictionary) -> void:
 	var revision := int(snapshot.get("inventory_revision", -1))

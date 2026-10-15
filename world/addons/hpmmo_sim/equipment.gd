@@ -4,6 +4,9 @@ class_name HPEquipment
 ## Server-owned item rules. Pure transformations also power client comparisons.
 const SLOTS := ["head", "chest", "hands", "feet", "main_hand", "off_hand", "neck", "ring_left", "ring_right", "broom"]
 const BASIC_ACCESSORIES := ["hat_apprentice", "gloves_apprentice", "boots_apprentice", "focus_apprentice", "pendant_apprentice", "ring_apprentice"]
+## The broom every mount item without its own `model` flies on (the starter
+## Nimbus and the Firebolt predate per-item broom models).
+const DEFAULT_BROOM_MODEL := "res://assets/models/props/broom_flight.glb"
 static var _items: Dictionary = {}
 
 static func catalog() -> Dictionary:
@@ -18,6 +21,19 @@ static func item(id: String) -> Dictionary:
 
 static func fits(id: String, slot: String) -> bool:
 	return slot in SLOTS and slot in item(id).get("slots", [])
+
+## The character level an item needs before it can be equipped (`required_level`
+## in items.json; absent means anyone may wear it).
+static func required_level(id: String) -> int:
+	return maxi(1, int(item(id).get("required_level", 1)))
+
+static func level_ok(id: String, level: int) -> bool:
+	return level >= required_level(id)
+
+## The broom scene a mount item is drawn with.
+static func broom_model(id: String) -> String:
+	var path := String(item(id).get("model", ""))
+	return path if path != "" else DEFAULT_BROOM_MODEL
 
 static func add(bag: Array, id: String, tier: int, amount: int) -> void:
 	for entry in bag:
