@@ -48,6 +48,7 @@ func show_player(player: Node) -> void:
 	view.add_child(model)
 	HeroAppearance.spawn(model,GameData.HOUSES[player.house].primary_color)
 	HeroAppearance.show_equipped_wand(model,player.equipment.get("main_hand",{}))
+	HeroAppearance.show_cloak(model,player.equipment.get("chest",{}))
 
 func set_active(active: bool) -> void:
 	if view != null:

@@ -121,6 +121,58 @@ static func show_equipped_wand(root: Node, entry: Dictionary) -> void:
 		aura.position = wand.transform * WAND_TIP_LOCAL
 		attachment.add_child(aura)
 
+## ---------------------------------------------------------------- cloak
+
+const CLOAK_MODEL := "res://assets/models/cloaks/cloak_base.glb"
+static var _cloak_materials: Dictionary = {}
+
+## Draw the worn chest item's cloak, or none. Every cloak item shares one
+## skinned mesh (art/cloaks/scripts/build_cloak.py, bound to the same GameRig as
+## the body) and names its own fabric (items.json `cloak_texture`). The mesh is
+## moved under the body's Skeleton3D, where its skin binds by bone name, so it
+## rides every clip, the cast layer and the broom grip like the body does.
+static func show_cloak(root: Node, entry: Dictionary) -> void:
+	var skeleton: Skeleton3D = _skeleton(root)
+	if skeleton == null:
+		return
+	var texture_path := String(HPEquipment.item(String(entry.get("id", ""))).get("cloak_texture", ""))
+	var current := skeleton.get_node_or_null("EquippedCloak") as MeshInstance3D
+	if current != null and current.get_meta("cloak_texture", "") == texture_path:
+		return
+	if current != null:
+		skeleton.remove_child(current)
+		current.queue_free()
+	if texture_path == "" or not ResourceLoader.exists(texture_path):
+		return
+	var scene := load(CLOAK_MODEL) as PackedScene
+	if scene == null:
+		return
+	var source := scene.instantiate()
+	var mesh := source.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
+	mesh.get_parent().remove_child(mesh)
+	source.free()
+	mesh.name = "EquippedCloak"
+	mesh.set_meta("cloak_texture", texture_path)
+	skeleton.add_child(mesh)
+	mesh.skeleton = NodePath("..")
+	mesh.transform = Transform3D.IDENTITY
+	mesh.layers |= CHARACTER_LAYER
+	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	mesh.material_override = _cloak_material(texture_path)
+
+static func _cloak_material(texture_path: String) -> StandardMaterial3D:
+	if _cloak_materials.has(texture_path):
+		return _cloak_materials[texture_path]
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = load(texture_path)
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED   # one sheet of cloth: both faces show
+	mat.roughness = 0.85
+	mat.rim_enabled = true
+	mat.rim = CLOTH_RIM
+	mat.rim_tint = CLOTH_RIM_TINT
+	_cloak_materials[texture_path] = mat
+	return mat
+
 static func _skeleton(root: Node) -> Skeleton3D:
 	if root is Skeleton3D: return root
 	for child in root.get_children():

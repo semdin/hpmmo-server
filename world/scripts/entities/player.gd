@@ -2021,6 +2021,8 @@ func _apply_wand_aura() -> void:
 	if key != _wand_visual_key:
 		_wand_visual_key = key
 		HeroAppearance.show_equipped_wand(visuals,equipment.get("main_hand",{}))
+	# The worn cloak (chest item with a `cloak_texture`); idempotent per fabric.
+	HeroAppearance.show_cloak(visuals, equipment.get("chest", {}))
 
 func _spawn_floating_text(text: String, col: Color, scale_mult: float = 1.0) -> void:
 	if FT_SCENE:

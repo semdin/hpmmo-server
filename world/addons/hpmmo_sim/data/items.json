@@ -50,6 +50,86 @@
       "chest"
     ]
   },
+  "cloak_wool": {
+    "id": "cloak_wool",
+    "name": "Woolen Traveller's Cloak",
+    "type": "armor",
+    "desc": "Undyed homespun wool with a stitched hem and a crude wand patch. Warm, plain and honest.",
+    "rarity": "common",
+    "item_tier": 1,
+    "required_level": 1,
+    "bonus_hp": 40,
+    "cloak_texture": "res://assets/models/cloaks/cloak_wool.png",
+    "icon": "robe",
+    "slots": [
+      "chest"
+    ]
+  },
+  "cloak_runed": {
+    "id": "cloak_runed",
+    "name": "Runed Mantle",
+    "type": "armor",
+    "desc": "Navy wool bordered in brass thread, its pale runes humming with a steadying ward.",
+    "rarity": "uncommon",
+    "item_tier": 2,
+    "required_level": 10,
+    "bonus_hp": 90,
+    "bonus_defense": 3,
+    "cloak_texture": "res://assets/models/cloaks/cloak_runed.png",
+    "icon": "robe",
+    "slots": [
+      "chest"
+    ]
+  },
+  "cloak_thornveil": {
+    "id": "cloak_thornveil",
+    "name": "Thornveil Cloak",
+    "type": "armor",
+    "desc": "Black velvet wound with silver thorns and emeralds; curses catch on its vines.",
+    "rarity": "rare",
+    "item_tier": 3,
+    "required_level": 20,
+    "bonus_hp": 150,
+    "bonus_defense": 6,
+    "cloak_texture": "res://assets/models/cloaks/cloak_thornveil.png",
+    "icon": "robe",
+    "slots": [
+      "chest"
+    ]
+  },
+  "cloak_phoenix": {
+    "id": "cloak_phoenix",
+    "name": "Phoenix Regalia",
+    "type": "armor",
+    "desc": "Crimson brocade alive with woven flame, a golden phoenix spread across the shoulders.",
+    "rarity": "epic",
+    "item_tier": 4,
+    "required_level": 35,
+    "bonus_hp": 230,
+    "bonus_defense": 10,
+    "cloak_texture": "res://assets/models/cloaks/cloak_phoenix.png",
+    "icon": "robe",
+    "slots": [
+      "chest"
+    ]
+  },
+  "cloak_moonveil": {
+    "id": "cloak_moonveil",
+    "name": "Moonveil Mantle",
+    "type": "armor",
+    "desc": "Silver-blue silk scattered with stars and crescent moons; it shimmers like a night sky.",
+    "rarity": "legendary",
+    "item_tier": 5,
+    "required_level": 50,
+    "bonus_hp": 320,
+    "bonus_defense": 14,
+    "bonus_mana": 40,
+    "cloak_texture": "res://assets/models/cloaks/cloak_moonveil.png",
+    "icon": "robe",
+    "slots": [
+      "chest"
+    ]
+  },
   "broom_nimbus2000": {
     "id": "broom_nimbus2000",
     "name": "Nimbus 2000",
