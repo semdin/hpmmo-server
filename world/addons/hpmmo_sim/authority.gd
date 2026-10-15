@@ -804,6 +804,15 @@ func players_on_map(map_id: String) -> int:
 			count += 1
 	return count
 
+## Seats held by outstanding transfer reservations into `map_id` (granted, not
+## yet committed, cancelled or expired).
+func reserved_seats(map_id: String) -> int:
+	var count := 0
+	for token in transfers.keys():
+		if String((transfers[token] as Dictionary).get("to_map", "")) == map_id:
+			count += 1
+	return count
+
 ## Is the destination buildable in THIS process? The catalog is the baseline;
 ## a map provider (a map controller / server-side map host) can additionally
 ## answer for a scene that has not shipped yet, so a transfer is never reserved
@@ -858,7 +867,10 @@ func request_transfer(peer_id: int, portal_id: String, to_map: String = "") -> D
 	var spawn_id := String(portal.get("to_spawn", "default"))
 	if not HPMaps.has_spawn_point(destination, spawn_id):
 		return _refuse_transfer(peer_id, HPProtocol.REJECT_MAP_UNAVAILABLE)
-	if players_on_map(destination) >= HPMaps.capacity(destination):
+	# A granted reservation holds its seat until it commits or is released:
+	# counting only committed players let a second player be granted the last
+	# seat while the first was still loading the map, overbooking it.
+	if players_on_map(destination) + reserved_seats(destination) >= HPMaps.capacity(destination):
 		return _refuse_transfer(peer_id, HPProtocol.REJECT_MAP_FULL)
 
 	# --- reserve the destination spawn

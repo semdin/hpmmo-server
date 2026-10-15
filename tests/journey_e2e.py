@@ -142,7 +142,10 @@ def main():
         # Not through the capturing helper: pg_ctl leaves the postgres daemon
         # holding the inherited pipe handles, so a captured-pipe run would block
         # until the server exits (it hung forever when the cluster was down).
-        pg_log = open(os.path.join(PG_DATA, "pg.log"), "ab")
+        # pg_ctl's own output goes to its own file: handing it pg.log as well as
+        # `-l pg.log` makes Windows refuse the server's open of the log ("used by
+        # another process") and the start fails whenever the cluster was down.
+        pg_log = open(os.path.join(PG_DATA, "pg_ctl.log"), "ab")
         started = subprocess.run([pg_tool("pg_ctl"), "-D", PG_DATA, "-l", os.path.join(PG_DATA, "pg.log"),
                                   "-o", "-p %d -c listen_addresses=127.0.0.1" % PG_PORT, "-w", "start"],
                                  stdout=pg_log, stderr=pg_log, timeout=120)

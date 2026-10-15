@@ -134,7 +134,9 @@ def main():
     # hung forever on a machine where the cluster was down). A file handle
     # instead is inherited harmlessly.
     if run([pg_tool("pg_isready"), "-h", "127.0.0.1", "-p", str(PG_PORT)]).returncode != 0:
-        pg_log = open(os.path.join(PG_DATA, "pg.log"), "ab")
+        # Not pg.log itself: that is the `-l` server log, and Windows refuses the
+        # server's open of it while this handle holds it ("used by another process").
+        pg_log = open(os.path.join(PG_DATA, "pg_ctl.log"), "ab")
         started = subprocess.run([pg_tool("pg_ctl"), "-D", PG_DATA, "-l", os.path.join(PG_DATA, "pg.log"),
                                   "-o", "-p %d -c listen_addresses=127.0.0.1" % PG_PORT, "-w", "start"],
                                  stdout=pg_log, stderr=pg_log, timeout=120)
