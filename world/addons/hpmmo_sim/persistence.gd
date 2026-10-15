@@ -331,17 +331,23 @@ func character_payload(node: Node, record: Dictionary) -> Dictionary:
 	if "inventory" in node:
 		for item in node.inventory:
 			if item is Dictionary and item.get("id") is String:
-				inventory.append({
+				var line := {
 					"id": String(item.id),
 					"amount": int(item.get("amount", 1)),
 					"tier": int(item.get("tier", 0)),
-				})
+				}
+				# An instance carries its identity and bonuses; a stack has neither.
+				if int(item.get("uid", 0)) > 0:
+					line["uid"] = int(item.uid)
+					line["bonuses"] = (item.get("bonuses", []) as Array).duplicate(true)
+				inventory.append(line)
 	# JSON.parse_string turns tiers into floats. The persistence wire format
 	# requires integers even when an equipped item has never been changed.
 	var equipment: Dictionary = {}
 	for slot in node.equipment:
 		var entry: Dictionary = node.equipment[slot]
-		equipment[slot] = {"id": String(entry.id), "tier": int(entry.get("tier", 0))}
+		equipment[slot] = {"id": String(entry.id), "tier": int(entry.get("tier", 0)),
+			"uid": int(entry.get("uid", 0)), "bonuses": (entry.get("bonuses", []) as Array).duplicate(true)}
 	var payload := {
 		"character_id": int(record.get("character_id", 0)),
 		"level": int(node.get("level")),

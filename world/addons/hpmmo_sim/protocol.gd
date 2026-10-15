@@ -30,7 +30,11 @@ class_name HPProtocol
 ##     house standing fields. Kill, monolith, refine and visit progress is
 ##     observed by the server; a v9 client would never progress, so it is
 ##     refused like any other mismatch.
-const PROTOCOL_VERSION := 10
+## v11: item instances - a non-stackable item (wand, robe, broom, accessory) is
+##     its own bag entry with a `uid` and `bonuses`, and `sim_equipment_request`
+##     gains a trailing `uid` naming the instance to equip. A v10 client would
+##     call the old six-argument RPC, so the mismatch is refused at join.
+const PROTOCOL_VERSION := 11
 
 ## Simulation / replication rates.
 const SIM_HZ := 20

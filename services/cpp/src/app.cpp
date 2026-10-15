@@ -22,7 +22,9 @@ namespace app {
 
 namespace {
 
-constexpr int kMaxInventoryKinds = 40;   // destination capacity (distinct item ids)
+constexpr int kMaxInventoryKinds = 40;   // bag capacity: slots (a stack or one item instance each)
+constexpr long long kMaxItemUid = 9007199254740992LL;  // 2^53: uids round-trip through JSON doubles
+constexpr std::size_t kMaxBonuses = 8;
 constexpr int kMaxItemAmount = 9999;
 constexpr long long kMaxGalleons = 1'000'000'000LL;
 constexpr long long kAbsent = std::numeric_limits<long long>::min() + 1;  // "field not sent"
@@ -170,7 +172,41 @@ struct ItemLine {
     std::string item_id;
     int amount = 0;
     int tier = 0;
+    // Item instances (migration 0006): a non-stackable item carries its own
+    // uid and bonuses; a stack has uid 0. Which items stack is the world's rule.
+    long long uid = 0;
+    std::string bonuses = "[]";
 };
+
+// Godot decodes every JSON number as a double, so integral fields arrive as
+// e.g. 3.0; accept exactly integral values in [lo, hi] only.
+std::optional<long long> integral(const json& v, long long lo, long long hi) {
+    if (!v.is_number()) return std::nullopt;
+    const double d = v.get<double>();
+    if (!std::isfinite(d) || std::floor(d) != d || d < static_cast<double>(lo) || d > static_cast<double>(hi))
+        return std::nullopt;
+    return static_cast<long long>(d);
+}
+
+// uid / bonuses of an instance line or a worn item; false when malformed.
+bool parse_instance(const json& j, long long& uid, std::string& bonuses) {
+    uid = 0;
+    bonuses = "[]";
+    if (j.contains("uid")) {
+        auto u = integral(j["uid"], 0, kMaxItemUid);
+        if (!u) return false;
+        uid = *u;
+    }
+    if (j.contains("bonuses")) {
+        const json& b = j["bonuses"];
+        if (!b.is_array() || b.size() > kMaxBonuses) return false;
+        for (const auto& bonus : b)
+            if (!bonus.is_object()) return false;
+        bonuses = b.dump();
+        if (bonuses.size() > 2048) return false;
+    }
+    return true;
+}
 
 std::optional<ItemLine> parse_item(const json& j) {
     if (!j.is_object() || !j.contains("id") || !j["id"].is_string()) return std::nullopt;
@@ -190,22 +226,31 @@ std::optional<ItemLine> parse_item(const json& j) {
             return std::nullopt;
         line.tier = static_cast<int>(tier);
     }
+    if (!parse_instance(j, line.uid, line.bonuses)) return std::nullopt;
+    if (line.uid > 0 && line.amount != 1) return std::nullopt;  // an instance is one item
     return line;
 }
 
 json items_from_rows(const db::Rows& rows) {
-    // rows: item_id, amount, tier  (aggregated)
+    // rows: item_id, amount, tier [, uid ('' for a stack), bonuses]
     json arr = json::array();
     for (const auto& row : rows) {
-        arr.push_back({{"id", row[0].second.value_or("")},
-                       {"amount", std::stoi(row[1].second.value_or("0"))},
-                       {"tier", std::stoi(row[2].second.value_or("0"))}});
+        json item = {{"id", row[0].second.value_or("")},
+                     {"amount", std::stoi(row[1].second.value_or("0"))},
+                     {"tier", std::stoi(row[2].second.value_or("0"))}};
+        if (row.size() > 4 && !row[3].second.value_or("").empty()) {
+            item["uid"] = std::stoll(row[3].second.value_or("0"));
+            item["bonuses"] = json::parse(row[4].second.value_or("[]"), nullptr, false);
+            if (item["bonuses"].is_discarded()) item["bonuses"] = json::array();
+        }
+        arr.push_back(item);
     }
     return arr;
 }
 
+// Occupied bag slots: one per stack row and one per item instance.
 int distinct_item_kinds(db::Conn& conn, long long character_id) {
-    db::Result r = conn.exec("SELECT COUNT(DISTINCT item_id)::text FROM character_items WHERE character_id = $1",
+    db::Result r = conn.exec("SELECT COUNT(*)::text FROM character_items WHERE character_id = $1",
                              {std::to_string(character_id)});
     if (!r.ok || r.rows.empty()) return 0;
     return std::stoi(r.rows[0][0].second.value_or("0"));
@@ -215,11 +260,24 @@ int distinct_item_kinds(db::Conn& conn, long long character_id) {
 bool grant_items(db::Conn& conn, long long character_id, const std::vector<ItemLine>& items,
                  std::string& error) {
     for (const auto& line : items) {
+        if (line.uid > 0) {
+            // An instance is inserted as itself (its uid is unique per character).
+            db::Result ins = conn.exec(
+                "INSERT INTO character_items (character_id, item_id, amount, tier, uid, bonuses) "
+                "VALUES ($1,$2,1,$3,$4,$5::jsonb)",
+                {std::to_string(character_id), line.item_id, std::to_string(line.tier),
+                 std::to_string(line.uid), line.bonuses});
+            if (!ins.ok) {
+                error = ins.error;
+                return false;
+            }
+            continue;
+        }
         // Clean stack-limit check first: exceeding the row cap fails the whole
         // operation with a readable reason instead of a raw CHECK violation.
         db::Result have = conn.exec(
             "SELECT COALESCE(SUM(amount),0)::text FROM character_items "
-            "WHERE character_id=$1 AND item_id=$2 AND tier=$3",
+            "WHERE character_id=$1 AND item_id=$2 AND tier=$3 AND uid IS NULL",
             {std::to_string(character_id), line.item_id, std::to_string(line.tier)});
         if (!have.ok) {
             error = have.error;
@@ -232,7 +290,8 @@ bool grant_items(db::Conn& conn, long long character_id, const std::vector<ItemL
         }
         db::Result up = conn.exec(
             "INSERT INTO character_items (character_id, item_id, amount, tier) VALUES ($1,$2,$3,$4) "
-            "ON CONFLICT (character_id, item_id, tier) DO UPDATE SET amount = character_items.amount + EXCLUDED.amount",
+            "ON CONFLICT (character_id, item_id, tier) WHERE uid IS NULL "
+            "DO UPDATE SET amount = character_items.amount + EXCLUDED.amount",
             {std::to_string(character_id), line.item_id, std::to_string(line.amount), std::to_string(line.tier)});
         if (!up.ok) {
             error = up.error;
@@ -658,8 +717,8 @@ json character_snapshot(db::Conn& conn, const db::Row& row, bool include_items) 
     };
     if (include_items) {
         db::Result items = conn.exec(
-            "SELECT item_id, SUM(amount)::text, tier::text FROM character_items "
-            "WHERE character_id = $1 GROUP BY item_id, tier ORDER BY item_id, tier",
+            "SELECT item_id, amount::text, tier::text, COALESCE(uid::text, ''), bonuses::text "
+            "FROM character_items WHERE character_id = $1 ORDER BY item_id, tier, uid NULLS FIRST",
             {get(0)});
         if (!items.ok) return nullptr;
         c["inventory"] = items_from_rows(items.rows);
@@ -675,10 +734,17 @@ json character_snapshot(db::Conn& conn, const db::Row& row, bool include_items) 
     c["equipment_version"] = std::stoi(get(21));
     c["inventory_revision"] = std::stoll(get(22));
     c["equipment"] = json::object();
-    auto gear = conn.exec("SELECT slot,item_id,tier::text FROM character_equipment WHERE character_id=$1 ORDER BY slot", {get(0)});
+    auto gear = conn.exec("SELECT slot,item_id,tier::text,COALESCE(uid::text,''),bonuses::text "
+                          "FROM character_equipment WHERE character_id=$1 ORDER BY slot", {get(0)});
     if (!gear.ok) return nullptr;
     for (const auto& e : gear.rows) {
-        c["equipment"][e[0].second.value_or("")] = {{"id", e[1].second.value_or("")}, {"tier", std::stoi(e[2].second.value_or("0"))}};
+        json worn = {{"id", e[1].second.value_or("")}, {"tier", std::stoi(e[2].second.value_or("0"))}};
+        if (!e[3].second.value_or("").empty()) {
+            worn["uid"] = std::stoll(e[3].second.value_or("0"));
+            worn["bonuses"] = json::parse(e[4].second.value_or("[]"), nullptr, false);
+            if (worn["bonuses"].is_discarded()) worn["bonuses"] = json::array();
+        }
+        c["equipment"][e[0].second.value_or("")] = worn;
     }
     return c;
 }
@@ -832,12 +898,15 @@ void handle_character_save(const httplib::Request& req, httplib::Response& res, 
         if (inventory.empty() && !(*body)["inventory"].empty()) {
             return send_error(res, 400, "Invalid inventory entries.");
         }
-        // Enforce the same 40-kind capacity the trade path enforces: otherwise
-        // a full-state save could bypass it entirely.
-        std::set<std::string> kinds;
-        for (const auto& line : inventory) kinds.insert(line.item_id);
-        if (static_cast<int>(kinds.size()) > kMaxInventoryKinds) {
-            return send_error(res, 400, "Inventory exceeds the item-kind capacity.");
+        // Enforce the same 40-slot capacity the trade path enforces (otherwise a
+        // full-state save could bypass it), and one row per instance uid.
+        if (static_cast<int>(inventory.size()) > kMaxInventoryKinds) {
+            return send_error(res, 400, "Inventory exceeds the bag capacity.");
+        }
+        std::set<long long> uids;
+        for (const auto& line : inventory) {
+            if (line.uid > 0 && !uids.insert(line.uid).second)
+                return send_error(res, 400, "Duplicate item instance.");
         }
         replace_inventory = true;
     }
@@ -919,9 +988,10 @@ void handle_character_save(const httplib::Request& req, httplib::Response& res, 
         }
         for (const auto& line : inventory) {
             db::Result ins = lease.exec(
-                "INSERT INTO character_items (character_id,item_id,amount,tier) VALUES ($1,$2,$3,$4)",
+                "INSERT INTO character_items (character_id,item_id,amount,tier,uid,bonuses) "
+                "VALUES ($1,$2,$3,$4,NULLIF($5,'0')::bigint,$6::jsonb)",
                 {std::to_string(char_id), line.item_id, std::to_string(line.amount),
-                 std::to_string(line.tier)});
+                 std::to_string(line.tier), std::to_string(line.uid), line.bonuses});
             if (!ins.ok) {
                 lease.rollback();
                 return send_db_error(res, ins, "inventory replace");
@@ -932,8 +1002,12 @@ void handle_character_save(const httplib::Request& req, httplib::Response& res, 
         auto del = lease.exec("DELETE FROM character_equipment WHERE character_id=$1", {std::to_string(char_id)});
         if (!del.ok) { lease.rollback(); return send_db_error(res,del,"equipment replace"); }
         for (auto it=equipment.begin(); it!=equipment.end(); ++it) {
-            auto ins = lease.exec("INSERT INTO character_equipment(character_id,slot,item_id,tier) VALUES($1,$2,$3,$4)",
-                {std::to_string(char_id),it.key(),it.value()["id"].get<std::string>(),std::to_string(it.value().value("tier",0))});
+            json line = it.value(); line["amount"] = 1;
+            const ItemLine worn = *parse_item(line);  // validated above
+            auto ins = lease.exec("INSERT INTO character_equipment(character_id,slot,item_id,tier,uid,bonuses) "
+                                  "VALUES($1,$2,$3,$4,NULLIF($5,'0')::bigint,$6::jsonb)",
+                {std::to_string(char_id),it.key(),worn.item_id,std::to_string(worn.tier),
+                 std::to_string(worn.uid),worn.bonuses});
             if (!ins.ok) { lease.rollback(); return send_db_error(res,ins,"equipment replace"); }
         }
     }

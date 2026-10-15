@@ -405,6 +405,44 @@ def main():
                             {"character_id": bob_char, "inventory": forty}, service_token=SERVICE_TOKEN)
         check(status == 200, "save accepts a 40-kind inventory at the cap")
 
+        # --- item instances (migration 0006) ---------------------------------------
+        # Two wands of one kind and tier are distinct rows told apart by uid; a
+        # stack keeps no uid. Godot sends every number as a double (uid 4242.0).
+        big_uid = 9007199254740001
+        inst_bag = [{"id": "potion_health", "amount": 4, "tier": 0},
+                    {"id": "wand_hawthorn", "amount": 1, "tier": 3, "uid": float(big_uid),
+                     "bonuses": [{"stat": "spell_power", "value": 5}]},
+                    {"id": "wand_hawthorn", "amount": 1, "tier": 3, "uid": 4242.0, "bonuses": []}]
+        worn = {"main_hand": {"id": "wand_elder", "tier": 1.0, "uid": 77.0,
+                              "bonuses": [{"stat": "crit", "value": 2}]}}
+        status, body = http(port, "POST", "/api/characters/save",
+                            {"character_id": bob_char, "inventory": inst_bag, "equipment": worn,
+                             "equipment_version": 1}, service_token=SERVICE_TOKEN)
+        check(status == 200, "save accepts item instances with uids and bonuses")
+        status, body = http(port, "POST", "/api/characters/load", {"character_id": bob_char}, token=bob_tok)
+        bag = body.get("character", {}).get("inventory", [])
+        wands = sorted([i for i in bag if i["id"] == "wand_hawthorn"], key=lambda i: i.get("uid", 0))
+        check(len(wands) == 2 and [w.get("uid") for w in wands] == [4242, big_uid]
+              and wands[1].get("bonuses") == [{"stat": "spell_power", "value": 5}] and wands[0].get("bonuses") == [],
+              "two same-kind wands load back as separate instances with their uids and bonuses")
+        potions = [i for i in bag if i["id"] == "potion_health"]
+        check(len(potions) == 1 and potions[0]["amount"] == 4 and "uid" not in potions[0],
+              "a stack loads back as one row without a uid")
+        check(body.get("character", {}).get("equipment", {}).get("main_hand")
+              == {"id": "wand_elder", "tier": 1, "uid": 77, "bonuses": [{"stat": "crit", "value": 2}]},
+              "a worn instance keeps its uid and bonuses")
+        dup = inst_bag + [{"id": "robe_apprentice", "amount": 1, "tier": 0, "uid": 4242, "bonuses": []}]
+        status, _ = http(port, "POST", "/api/characters/save",
+                         {"character_id": bob_char, "inventory": dup}, service_token=SERVICE_TOKEN)
+        check(status == 400, "save rejects two bag entries with the same instance uid")
+        for bad in ({"id": "wand_hawthorn", "amount": 2, "tier": 0, "uid": 5},
+                    {"id": "wand_hawthorn", "amount": 1, "tier": 0, "uid": 5.5},
+                    {"id": "wand_hawthorn", "amount": 1, "tier": 0, "uid": 6, "bonuses": "x"},
+                    {"id": "wand_hawthorn", "amount": 1, "tier": 0, "uid": 7, "bonuses": [1] * 9}):
+            status, _ = http(port, "POST", "/api/characters/save",
+                             {"character_id": bob_char, "inventory": [bad]}, service_token=SERVICE_TOKEN)
+            check(status == 400, "save rejects a malformed instance line %s" % json.dumps(bad)[:60])
+
         # --- tickets: one-time handoff --------------------------------------------
         status, body = http(port, "POST", "/api/game-ticket", {"character_id": alice_char}, token=alice_tok)
         check(status == 200 and body.get("ticket"), "game ticket issued to the launcher session")

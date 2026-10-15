@@ -2520,7 +2520,7 @@ func refresh_equipment(record: Dictionary) -> void:
 	record["defense"] = node.derived_stats.defense
 	record["weapon_multiplier"] = node.derived_stats.weapon_multiplier
 
-func request_equipment(peer_id: int, request_id: int, revision: int, operation: String, slot: String, item_id: String, tier: int) -> Dictionary:
+func request_equipment(peer_id: int, request_id: int, revision: int, operation: String, slot: String, item_id: String, tier: int, uid: int = 0) -> Dictionary:
 	var record := player_record(peer_id)
 	if not is_authority() or record.is_empty(): return {"ok": false, "reason": "invalid_state", "request_id": request_id}
 	var node = record.get("node")
@@ -2541,7 +2541,7 @@ func request_equipment(peer_id: int, request_id: int, revision: int, operation: 
 	var result := {"ok": false, "reason": reason}
 	if reason == "":
 		if operation in ["equip", "unequip"]:
-			result = HPEquipment.swap(node.inventory, node.equipment, slot, item_id if operation == "equip" else "", tier)
+			result = HPEquipment.swap(node.inventory, node.equipment, slot, item_id if operation == "equip" else "", tier, uid if operation == "equip" else 0)
 		elif operation == "refine":
 			result = _refine_equipped(node)
 		elif operation == "consume":

@@ -238,7 +238,7 @@ func _request(operation: String, slot: String, entry: Dictionary = {}) -> void:
 	_pending = true
 	_last_operation = operation
 	_message.text = "Updating equipment…"
-	_pending_id = SimNet.submit_equipment(player, operation, slot, String(entry.get("id", "")), int(entry.get("tier", 0)))
+	_pending_id = SimNet.submit_equipment(player, operation, slot, String(entry.get("id", "")), int(entry.get("tier", 0)), int(entry.get("uid", 0)))
 	refresh()
 
 func _answer(answer: Dictionary) -> void:

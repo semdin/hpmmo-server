@@ -535,6 +535,7 @@ func _init_starter_inventory() -> void:
 	inventory.append({"id": "mat_dragon_heartstring", "amount": 2, "tier": 0})
 	inventory.append({"id": "potion_health", "amount": 5, "tier": 0})
 	inventory.append({"id": "potion_mana", "amount": 5, "tier": 0})
+	HPEquipment.normalize(inventory, equipment)   # the wand, robe and broom become instances
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not is_local_player or is_dead or input_blocked():
@@ -1363,7 +1364,11 @@ func restore_character(data: Dictionary) -> void:
 			# Retired/unknown catalog entries are still owned. Preserve them across
 			# load/save; the equipment catalog decides whether they can be equipped.
 			if entry is Dictionary and entry.get("id") is String and not String(entry.id).is_empty() and typeof(entry.get("amount")) in [TYPE_INT,TYPE_FLOAT] and int(entry.amount) > 0:
-				inventory.append({"id": entry.id, "amount": maxi(1, int(entry.get("amount", 1))), "tier": clampi(int(entry.get("tier", 0)), 0, 9)})
+				var kept := {"id": entry.id, "amount": maxi(1, int(entry.get("amount", 1))), "tier": clampi(int(entry.get("tier", 0)), 0, 9)}
+				if int(entry.get("uid", 0)) > 0:
+					kept["uid"] = int(entry.uid)
+					kept["bonuses"] = (entry.get("bonuses", []) as Array).duplicate(true)
+				inventory.append(kept)
 	base_max_hp = int(data.get("base_max_hp", max_hp))
 	base_max_mana = int(data.get("base_max_mana", max_mana))
 	equipment_version = int(data.get("equipment_version", 0))
@@ -1371,6 +1376,11 @@ func restore_character(data: Dictionary) -> void:
 	inventory_revision = int(data.get("inventory_revision", 0))
 	restore_quest_state(data.get("quests", {}))
 	_initialize_equipment()
+	# Sheets saved before item instances (or legacy offline saves) carry stacked
+	# wands and uid-less gear; the next save persists the normalized form. Only
+	# the authority mints uids - a client adopts them from the stats snapshot.
+	if SimAuthority.is_authority() and HPEquipment.normalize(inventory, equipment):
+		inventory_revision += 1
 	_apply_wand_aura()
 	_update_nameplate()
 	inventory_changed.emit()
@@ -1928,14 +1938,7 @@ func add_loot(item_id: String, amount: int, tier: int = 0) -> void:
 		inventory_changed.emit()
 		return
 	
-	var found := false
-	for item in inventory:
-		if item.id == item_id and int(item.get("tier", 0)) == tier:
-			item.amount += amount
-			found = true
-			break
-	if not found:
-		inventory.append({"id": item_id, "amount": amount, "tier": tier})
+	HPEquipment.add(inventory, item_id, tier, amount)   # stacks merge, instances stay apart
 	inventory_revision += 1
 	
 	emit_signal("loot_collected_signal", item_id, amount)
