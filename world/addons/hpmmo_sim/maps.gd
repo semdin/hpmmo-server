@@ -56,10 +56,62 @@ static func maps() -> Dictionary:
 	return _data.get("maps", {})
 
 static func map_info(map_id: String) -> Dictionary:
-	return maps().get(map_id, {})
+	return maps().get(base_map(map_id), {})
 
 static func map_exists(map_id: String) -> bool:
-	return maps().has(map_id)
+	if not maps().has(base_map(map_id)):
+		return false
+	if not is_instanced(map_id):
+		return instance_slot(map_id) == 0
+	# An instanced map exists as `<base>#<slot>` copies; the bare base id names
+	# the dungeon (a portal's destination), never a place a body can stand.
+	var slot := instance_slot(map_id)
+	return slot == 0 or (slot >= 1 and slot <= instance_cap(map_id))
+
+# ------------------------------------------------------------------ instances
+##
+## An instanced map (a dungeon) is authored once in the catalog and run as many
+## private copies: `<base>#<slot>` (slot 1..instance_cap). Copy `k` is the same
+## scene offset by `instance_stride * k` metres on x, inside the map's own y
+## band - copies never touch, the server keeps one physics world, and every
+## map-scoped rule (interest, loot, chat, area attacks) already separates them
+## because each copy is its own map id.
+
+static func base_map(map_id: String) -> String:
+	return map_id.get_slice("#", 0)
+
+static func instance_slot(map_id: String) -> int:
+	return int(map_id.get_slice("#", 1)) if map_id.contains("#") else 0
+
+static func instance_id(base: String, slot: int) -> String:
+	return "%s#%d" % [base_map(base), slot]
+
+static func is_instanced(map_id: String) -> bool:
+	return bool(map_info(map_id).get("instanced", false))
+
+static func instance_cap(map_id: String) -> int:
+	return int(map_info(map_id).get("instance_cap", 1))
+
+static func instance_stride(map_id: String) -> float:
+	return float(map_info(map_id).get("instance_stride", 3000.0))
+
+## World offset of an instance copy (zero for ordinary maps and bare ids).
+static func instance_origin(map_id: String) -> Vector3:
+	if not is_instanced(map_id):
+		return Vector3.ZERO
+	return Vector3(instance_stride(map_id) * float(instance_slot(map_id)), 0.0, 0.0)
+
+## Seconds an empty copy stays open before it is torn down.
+static func instance_empty_ttl(map_id: String) -> float:
+	var raw := OS.get_environment("HPMMO_DEV_INSTANCE_TTL")
+	if raw != "" and raw.is_valid_float():
+		return float(raw)
+	return float(map_info(map_id).get("instance_empty_ttl_s", 300.0))
+
+## The scene a map loads (instanced maps; the grounds and the castle have their
+## own loaders).
+static func map_scene(map_id: String) -> String:
+	return String(map_info(map_id).get("scene", ""))
 
 ## A map can be authored but temporarily unavailable (content not shipped, a
 ## zone disabled for maintenance). Transfers only target available maps.
@@ -111,7 +163,11 @@ static func contains_point(map_id: String, point: Vector3) -> bool:
 	var info := map_info(map_id)
 	if info.is_empty():
 		return false
-	return point.y >= float(info.get("y_min", -1000.0)) and point.y <= float(info.get("y_max", 1000.0))
+	if point.y < float(info.get("y_min", -1000.0)) or point.y > float(info.get("y_max", 1000.0)):
+		return false
+	if is_instanced(map_id):
+		return absf(point.x - instance_origin(map_id).x) <= instance_stride(map_id) * 0.5
+	return true
 
 ## The map whose authored band contains this point. Bands are disjoint, so the
 ## answer is a membership test, not a guess; a point outside every band falls
@@ -122,6 +178,12 @@ static func map_for_point(point: Vector3) -> String:
 	var best_distance := INF
 	for id in maps().keys():
 		var map_id := String(id)
+		if is_instanced(map_id):
+			var info := map_info(map_id)
+			if point.y >= float(info.get("y_min", -1000.0)) and point.y <= float(info.get("y_max", 1000.0)):
+				var slot := clampi(int(round(point.x / instance_stride(map_id))), 1, instance_cap(map_id))
+				return instance_id(map_id, slot)
+			continue
 		if contains_point(map_id, point):
 			return map_id
 		var distance: float = absf(point.y - respawn_point(map_id).y)
@@ -150,7 +212,7 @@ static func has_spawn_point(map_id: String, spawn_id: String) -> bool:
 static func spawn_point(map_id: String, spawn_id: String) -> Vector3:
 	var table := _spawn_table(map_id)
 	var raw: Array = table.get(spawn_id, table.get("default", []))
-	return _to_vec3(raw, Vector3(0.0, 0.5, 5.0))
+	return _to_vec3(raw, Vector3(0.0, 0.5, 5.0)) + instance_origin(map_id)
 
 static func default_spawn(map_id: String) -> Vector3:
 	return spawn_point(map_id, "default")
@@ -161,7 +223,7 @@ static func respawn_point(map_id: String) -> Vector3:
 	var table := _spawn_table(map_id)
 	var id := String(map_info(map_id).get("respawn_spawn", "default"))
 	var raw: Array = table.get(id, table.get("default", []))
-	return _to_vec3(raw, Vector3(0.0, 0.5, 5.0))
+	return _to_vec3(raw, Vector3(0.0, 0.5, 5.0)) + instance_origin(map_id)
 
 # ------------------------------------------------------------------- portals
 
@@ -178,7 +240,7 @@ static func portal(portal_id: String) -> Dictionary:
 static func portals_for_map(map_id: String) -> Array:
 	var out: Array = []
 	for entry in portals():
-		if entry is Dictionary and String(entry.get("map_id", "")) == map_id:
+		if entry is Dictionary and String(entry.get("map_id", "")) == base_map(map_id):
 			out.append(entry)
 	return out
 
@@ -192,17 +254,42 @@ static func portal_between(map_id: String, to_map: String) -> Dictionary:
 ## True when `point` stands inside the portal's trigger volume. The authority
 ## checks ITS OWN body position against this before reserving a transfer: a
 ## forged request from anywhere in the world is not a transfer.
-static func portal_contains(entry: Dictionary, point: Vector3) -> bool:
+static func portal_contains(entry: Dictionary, point: Vector3, map_id: String = "") -> bool:
 	var trigger: Dictionary = entry.get("trigger", {})
 	if trigger.is_empty():
 		return false
 	if point.y < float(trigger.get("y_min", -1000.0)) or point.y > float(trigger.get("y_max", 1000.0)):
 		return false
-	var center := _to_vec3(trigger.get("center", []), Vector3.ZERO)
+	# A portal inside an instance copy sits at that copy's offset.
+	var center := _to_vec3(trigger.get("center", []), Vector3.ZERO) + instance_origin(map_id)
 	var dx := point.x - center.x
 	var dz := point.z - center.z
 	var radius := float(trigger.get("radius", 0.0))
 	return (dx * dx + dz * dz) <= radius * radius
+
+# ------------------------------------------------------------------ dungeons
+
+static var _dungeons: Dictionary = {}
+
+## dungeons.json: the scripted runs of instanced maps.
+static func dungeons() -> Dictionary:
+	if _dungeons.is_empty():
+		var path := "res://addons/hpmmo_sim/data/dungeons.json"
+		if FileAccess.file_exists(path):
+			var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+			_dungeons = parsed if parsed is Dictionary else {}
+	return _dungeons.get("dungeons", {})
+
+## The dungeon definition an instanced map runs ({} for none).
+static func dungeon_for_map(map_id: String) -> Dictionary:
+	var base := base_map(map_id)
+	for id in dungeons().keys():
+		var d: Dictionary = dungeons()[id]
+		if String(d.get("map", "")) == base:
+			var out := d.duplicate(true)
+			out["id"] = String(id)
+			return out
+	return {}
 
 # -------------------------------------------------------------------- helpers
 

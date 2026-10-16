@@ -104,8 +104,13 @@ func add_player_line(channel: String, sender: String, house: String, text: Strin
 		name_col = (GameData.HOUSES[house].primary_color as Color).lightened(0.45)
 	var safe := _escape(text)
 	var bb := ""
+	if channel == "system":
+		add_system_line(text)
+		return
 	if channel == "shout":
 		bb = "[color=#%s{a}][b]%s[/b] shouts: %s[/color]" % [HudKit.SHOUT.to_html(false), _escape(sender), safe]
+	elif channel == "party":
+		bb = "[color=#%s{a}][Party] [b]%s[/b]: %s[/color]" % [Color(0.55, 0.8, 1.0).to_html(false), _escape(sender), safe]
 	else:
 		bb = "[color=#%s{a}][b]%s[/b][/color][color=#%s{a}]: %s[/color]" % [name_col.to_html(false), _escape(sender), HudKit.TEXT.to_html(false), safe]
 	_push(bb)

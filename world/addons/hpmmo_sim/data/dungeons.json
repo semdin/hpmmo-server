@@ -1,0 +1,92 @@
+{
+  "_comment": "Scripted dungeon runs. A run starts when the first player enters a copy of `map` and walks `steps` in order: each step waits for its trigger, then acts. Positions are local to the copy (the instance offset is added). Triggers: enter | cleared:<step id> (every creature that step spawned is dead) | area:<z_below> (a player stands deeper than local z). Actions: spawn (creatures, optional boss_key/template), open / close (gate ids), message (shown to the copy), chest (loot table at a point), complete.",
+  "dungeons": {
+    "trial": {
+      "map": "dng_trial",
+      "display": "Trial Hall",
+      "level_min": 5,
+      "steps": [
+        {
+          "id": "wave",
+          "on": "enter",
+          "message": "The hall stirs - clear the corridor.",
+          "spawn": [
+            {
+              "mob": "inferi",
+              "level": 8,
+              "at": [
+                -3.0,
+                1000.5,
+                -22.0
+              ]
+            },
+            {
+              "mob": "inferi",
+              "level": 8,
+              "at": [
+                3.0,
+                1000.5,
+                -22.0
+              ]
+            },
+            {
+              "mob": "acromantula",
+              "level": 9,
+              "at": [
+                0.0,
+                1000.5,
+                -28.0
+              ]
+            }
+          ]
+        },
+        {
+          "id": "gate",
+          "on": "cleared:wave",
+          "open": [
+            "gate_a"
+          ],
+          "message": "The iron gate grinds open."
+        },
+        {
+          "id": "boss",
+          "on": "area:-44",
+          "close": [
+            "gate_a"
+          ],
+          "message": "The Trial Warden rises!",
+          "spawn": [
+            {
+              "mob": "troll_forest",
+              "level": 12,
+              "boss_key": "trial_warden",
+              "template": "boss_troll",
+              "at": [
+                0.0,
+                1000.5,
+                -66.0
+              ]
+            }
+          ]
+        },
+        {
+          "id": "done",
+          "on": "cleared:boss",
+          "open": [
+            "gate_a"
+          ],
+          "complete": true,
+          "message": "The trial is complete. Claim your reward.",
+          "chest": {
+            "table": "dungeon_trial",
+            "at": [
+              0.0,
+              1000.5,
+              -62.0
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

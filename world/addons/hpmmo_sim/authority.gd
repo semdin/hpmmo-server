@@ -48,6 +48,18 @@ signal mob_info(uid: int, info: Dictionary)   # presentation: name/level/elite c
 ## Realm-wide happenings every player hears about (world boss soon / up /
 ## slain). `data` carries ids and names; the client words the message.
 signal world_event(kind: String, data: Dictionary)
+## A player's party view changed (members, leader, live health). `state` is
+## {"party_id": 0} when the player is in no party.
+signal party_state(uid: int, state: Dictionary)
+## `uid` was invited by `from_name` (answer with /accept or /decline).
+signal party_invited(uid: int, from_name: String)
+## An instance copy (`<base>#<slot>`) opened for its first player / was torn
+## down empty. The dungeon director runs and clears its script on these.
+signal instance_opened(map_id: String)
+signal instance_closed(map_id: String)
+## A dungeon run's replicated state (step, open gates, message) for the
+## players inside that copy.
+signal dungeon_state(map_id: String, state: Dictionary)
 signal encounter_reset(pack_id: int, reason: String)
 signal loot_taken(uid: int, character_id: int, item_id: String, amount: int, collector_peer_id: int)
 signal reward_granted(uid: int, character_id: int, exp: int, galleons: int, items: Array, op_id: String)
@@ -95,6 +107,8 @@ var rng := RandomNumberGenerator.new()
 
 var sim_tick: int = 0
 var entities: Dictionary = {}        # uid -> record
+const PartyBook = preload("res://addons/hpmmo_sim/party.gd")
+var party = PartyBook.new()
 var by_node: Dictionary = {}         # instance_id -> uid
 var players_by_peer: Dictionary = {} # peer_id -> uid
 var players_by_character: Dictionary = {} # character_id -> uid
@@ -593,6 +607,8 @@ func remove_player(peer_id: int) -> void:
 		for resolver in get_tree().get_nodes_in_group(HPStaircase.GROUP_RESOLVER):
 			if resolver.has_method("resolve_departing_player"):
 				resolver.call("resolve_departing_player", record, "disconnect")
+		# A departing player leaves their party; the rest are told.
+		_party_changed(party.leave(uid))
 		var node = record.get("node")
 		if persistence != null:
 			persistence.save_player(record)   # last save on the way out
@@ -879,18 +895,26 @@ func request_transfer(peer_id: int, portal_id: String, to_map: String = "") -> D
 		return _refuse_transfer(peer_id, HPProtocol.REJECT_DEAD)
 	var from_map := String(record.get("map_id", HPProtocol.DEFAULT_MAP))
 	var portal := HPMaps.portal(portal_id)
-	if portal.is_empty() or String(portal.get("map_id", "")) != from_map:
+	if portal.is_empty() or String(portal.get("map_id", "")) != HPMaps.base_map(from_map):
 		return _refuse_transfer(peer_id, HPProtocol.REJECT_NO_PORTAL)
 	var destination := to_map_of(portal)
-	if to_map != "" and to_map != destination:
+	if to_map != "" and HPMaps.base_map(to_map) != destination:
 		return _refuse_transfer(peer_id, HPProtocol.REJECT_WRONG_MAP)
+	# A dungeon: the party's own copy (or a fresh one), behind its entry rules.
+	if HPMaps.is_instanced(destination):
+		var dungeon := HPMaps.dungeon_for_map(destination)
+		if _player_level(record) < int(dungeon.get("level_min", 1)):
+			return _refuse_transfer(peer_id, HPProtocol.REJECT_LEVEL)
+		destination = _resolve_instance(record, destination)
+		if destination == "":
+			return _refuse_transfer(peer_id, HPProtocol.REJECT_MAP_FULL)
 	var node: Node3D = record.get("node")
 	if node == null or not is_instance_valid(node):
 		return _refuse_transfer(peer_id, HPProtocol.REJECT_STATE)
 	# The body must actually stand at the portal it names: a request from
 	# anywhere in the world is not a transfer. The authority checks its OWN
 	# position, so a client cannot claim to be at the door.
-	if not HPMaps.portal_contains(portal, node.global_position):
+	if not HPMaps.portal_contains(portal, node.global_position, from_map):
 		return _refuse_transfer(peer_id, HPProtocol.REJECT_RANGE)
 	# Broom flight is prohibited inside the initial castle slice: the authority
 	# refuses the mounted entry and reports why (the client shows the notice).
@@ -975,6 +999,7 @@ func _commit_transfer(record: Dictionary, reservation: Dictionary, token: int) -
 		node.global_position = spawn_pos
 		node.set("velocity", Vector3.ZERO)
 	touch(record)
+	_on_instance_arrival(String(reservation["to_map"]))
 	emit_signal("transfer_committed", int(reservation["peer_id"]), token,
 		String(reservation["to_map"]), spawn_pos, String(reservation["spawn_id"]))
 	print("[Authority] transfer committed: uid=%d -> %s at (%.1f, %.1f, %.1f)" % [
@@ -1123,6 +1148,9 @@ func _step() -> void:
 	_tick_mount_phases()
 	if sim_tick % QUEST_VISIT_INTERVAL_TICKS == 0:
 		_tick_quest_visits()
+	if sim_tick % HPProtocol.SIM_HZ == 0:
+		_tick_parties()
+		_tick_instances()
 	_regen_accumulator_ms += TICK_MS
 	if _regen_accumulator_ms >= REGEN_INTERVAL_MS:
 		_regen_accumulator_ms = 0
@@ -1868,6 +1896,31 @@ func _grant_kill_rewards(target: Dictionary) -> void:
 		if attacker.is_empty() or int(attacker.get("kind", 0)) != HPProtocol.Kind.PLAYER:
 			continue
 		eligible.append(uid)
+	# Party sharing: members of an eligible player's party who stand within
+	# SHARE_RADIUS of the kill, on its map and alive, are credited too, and every
+	# party member credited earns the party bonus for the members in range.
+	var target_node = target.get("node")
+	var party_counts: Dictionary = {}
+	if target_node != null and is_instance_valid(target_node):
+		var kill_pos: Vector3 = (target_node as Node3D).global_position
+		var kill_map := String(target.get("map_id", HPProtocol.DEFAULT_MAP))
+		for uid in eligible.duplicate():
+			for member_uid in party.members_of(int(uid)):
+				if eligible.has(member_uid):
+					continue
+				var member: Dictionary = entities.get(member_uid, {})
+				var mnode = member.get("node")
+				if member.is_empty() or bool(member.get("dead", false)) or mnode == null or not is_instance_valid(mnode):
+					continue
+				if String(member.get("map_id", HPProtocol.DEFAULT_MAP)) != kill_map:
+					continue
+				if (mnode as Node3D).global_position.distance_to(kill_pos) > PartyBook.SHARE_RADIUS:
+					continue
+				eligible.append(member_uid)
+	for uid in eligible:
+		var pid := int(party.by_uid.get(int(uid), 0))
+		if pid != 0:
+			party_counts[pid] = int(party_counts.get(pid, 0)) + 1
 	var death_seq := _next_death_seq
 	_next_death_seq += 1
 	print("[Authority] kill uid=%d by %d -> eligible %s (log %d entries, tick %d)" % [
@@ -1890,6 +1943,9 @@ func _grant_kill_rewards(target: Dictionary) -> void:
 		var earned := exp_reward
 		if int(target.get("kind", 0)) == HPProtocol.Kind.MOB:
 			earned = int(round(exp_reward * HPRules.level_gap_exp(_player_level(player), int(target.get("level", 1)))))
+			var pid := int(party.by_uid.get(int(uid), 0))
+			if pid != 0:
+				earned = int(round(earned * PartyBook.share_bonus(int(party_counts.get(pid, 1)))))
 		_grant_exp(player, earned)
 		emit_signal("reward_granted", int(uid), character_id, earned, 0, [], op_id)
 		if int(target.get("kind", 0)) == HPProtocol.Kind.MONOLITH:
@@ -2695,6 +2751,197 @@ func killer_name_of(record: Dictionary) -> String:
 	if int(killer.get("kind", 0)) != HPProtocol.Kind.PLAYER:
 		return ""
 	return String(killer.get("name", ""))
+
+# ---------------------------------------------------------------- instances
+
+## base map id -> {slot -> {"owner": key, "opened_tick", "empty_since_tick"}}
+var instances: Dictionary = {}
+
+## Who owns a copy: the party, or the lone player.
+func _instance_owner(record: Dictionary) -> String:
+	var pid := int(party.by_uid.get(int(record.get("uid", 0)), 0))
+	return ("party:%d" % pid) if pid != 0 else ("solo:%d" % int(record.get("uid", 0)))
+
+## The copy of `base` this player enters: their party's open copy, else a free
+## slot. "" when every copy is taken.
+func _resolve_instance(record: Dictionary, base: String) -> String:
+	var owner := _instance_owner(record)
+	var copies: Dictionary = instances.get(base, {})
+	for slot in copies.keys():
+		if String(copies[slot].get("owner", "")) == owner:
+			return HPMaps.instance_id(base, int(slot))
+	# A party member already inside a copy pulls the rest of the party in,
+	# even if the copy was opened before the party formed.
+	for member_uid in party.members_of(int(record.get("uid", 0))):
+		var member: Dictionary = entities.get(member_uid, {})
+		var mmap := String(member.get("map_id", ""))
+		if HPMaps.base_map(mmap) == base and HPMaps.instance_slot(mmap) > 0:
+			return mmap
+	for slot in range(1, HPMaps.instance_cap(base) + 1):
+		if not copies.has(slot):
+			copies[slot] = {"owner": owner, "opened_tick": sim_tick, "empty_since_tick": -1}
+			instances[base] = copies
+			return HPMaps.instance_id(base, slot)
+	return ""
+
+func instance_info(map_id: String) -> Dictionary:
+	return (instances.get(HPMaps.base_map(map_id), {}) as Dictionary).get(HPMaps.instance_slot(map_id), {})
+
+## A body arrived in a copy: the first arrival opens its run.
+func _on_instance_arrival(map_id: String) -> void:
+	if HPMaps.instance_slot(map_id) == 0:
+		return
+	var info := instance_info(map_id)
+	if info.is_empty():
+		return
+	info["empty_since_tick"] = -1
+	if not bool(info.get("opened", false)):
+		info["opened"] = true
+		emit_signal("instance_opened", map_id)
+	elif info.has("state"):
+		emit_signal("dungeon_state", map_id, info["state"])   # a late arrival catches up
+
+## Once a second: a copy nobody stands in (or is travelling to) for its empty
+## TTL is torn down and its slot freed.
+func _tick_instances() -> void:
+	for base in instances.keys():
+		var copies: Dictionary = instances[base]
+		for slot in copies.keys():
+			var id := HPMaps.instance_id(base, int(slot))
+			var info: Dictionary = copies[slot]
+			if players_on_map(id) + reserved_seats(id) > 0:
+				info["empty_since_tick"] = -1
+				continue
+			if int(info.get("empty_since_tick", -1)) < 0:
+				info["empty_since_tick"] = sim_tick
+				continue
+			if float(sim_tick - int(info["empty_since_tick"])) * TICK_MS / 1000.0 >= HPMaps.instance_empty_ttl(id):
+				close_instance(id)
+
+func close_instance(map_id: String) -> void:
+	var copies: Dictionary = instances.get(HPMaps.base_map(map_id), {})
+	if not copies.has(HPMaps.instance_slot(map_id)):
+		return
+	copies.erase(HPMaps.instance_slot(map_id))
+	print("[Authority] instance %s closed" % map_id)
+	emit_signal("instance_closed", map_id)
+
+## A dungeon run published new state for its copy (kept for late arrivals).
+func publish_dungeon_state(map_id: String, state: Dictionary) -> void:
+	var info := instance_info(map_id)
+	if not info.is_empty():
+		info["state"] = state
+	emit_signal("dungeon_state", map_id, state)
+
+## A loot table dropped at a point (dungeon chests): every item lands as ground
+## loot on that map.
+func drop_loot_table(table_id: String, pos: Vector3, map_id: String) -> void:
+	var table: Dictionary = HPRules.loot_tables().get(table_id, {})
+	for drop in HPRules.roll_loot(table, rng):
+		_spawn_loot_node(String(drop["id"]), int(drop["amount"]), pos, map_id)
+
+# ------------------------------------------------------------------ parties
+
+## A player by display name (case-insensitive), or {}.
+func player_by_name(name: String) -> Dictionary:
+	var wanted := name.strip_edges().to_lower()
+	for peer_id in players_by_peer.keys():
+		var record := player_record(int(peer_id))
+		if String(record.get("name", "")).to_lower() == wanted:
+			return record
+	return {}
+
+## What one member sees of their party.
+func party_state_for(uid: int) -> Dictionary:
+	var p: Dictionary = party.party_of(uid)
+	if p.is_empty():
+		return {"party_id": 0}
+	var members: Array = []
+	for member_uid in p["members"]:
+		var r: Dictionary = entities.get(member_uid, {})
+		if r.is_empty():
+			continue
+		members.append({"uid": int(member_uid), "name": String(r.get("name", "")), "level": _player_level(r),
+			"house": String(r.get("house", "")), "hp": int(r.get("hp", 0)), "max_hp": int(r.get("max_hp", 1)),
+			"map_id": String(r.get("map_id", HPProtocol.DEFAULT_MAP)), "dead": bool(r.get("dead", false))})
+	return {"party_id": int(p["id"]), "leader": int(p["leader"]), "members": members}
+
+## Tell every listed player their (new) party view.
+func _party_changed(uids: Array) -> void:
+	for uid in uids:
+		emit_signal("party_state", int(uid), party_state_for(int(uid)))
+
+## Once a second: invitations expire and every party sees its members' health.
+func _tick_parties() -> void:
+	party.expire_invites(sim_tick)
+	for pid in party.parties.keys():
+		_party_changed((party.parties[pid]["members"] as Array).duplicate())
+
+## A `/command` typed into chat. Returns {"handled", "reply"} - the reply is
+## a system line for the sender alone; "party_text" carries a /p line.
+func party_command(record: Dictionary, line: String) -> Dictionary:
+	var parts := line.substr(1).strip_edges().split(" ", false, 1)
+	if parts.is_empty():
+		return {"handled": false}
+	var cmd := String(parts[0]).to_lower()
+	var arg := String(parts[1]).strip_edges() if parts.size() > 1 else ""
+	var uid := int(record.get("uid", 0))
+	match cmd:
+		"invite", "inv":
+			var target := player_by_name(arg)
+			if target.is_empty():
+				return {"handled": true, "reply": "No player called '%s' is online." % arg}
+			var refusal: String = party.invite(uid, int(target["uid"]), sim_tick)
+			if refusal != "":
+				return {"handled": true, "reply": _party_reason(refusal)}
+			emit_signal("party_invited", int(target["uid"]), String(record.get("name", "")))
+			return {"handled": true, "reply": "You invited %s to your party." % String(target.get("name", ""))}
+		"accept":
+			var joined: Dictionary = party.accept(uid, sim_tick)
+			if joined.is_empty():
+				return {"handled": true, "reply": "There is no party invitation to accept."}
+			_party_changed((joined["members"] as Array).duplicate())
+			return {"handled": true, "reply": "You joined the party."}
+		"decline":
+			party.decline(uid)
+			return {"handled": true, "reply": "Invitation declined."}
+		"leave":
+			var rest: Array = party.leave(uid)
+			_party_changed(rest + [uid])
+			return {"handled": true, "reply": "You left the party."}
+		"kick":
+			var target := player_by_name(arg)
+			var refusal: String = party.kick(uid, int(target.get("uid", -1))) if not target.is_empty() else "not_member"
+			if refusal != "":
+				return {"handled": true, "reply": _party_reason(refusal)}
+			_party_changed(party.members_of(uid) + [int(target["uid"])])
+			return {"handled": true, "reply": "%s was removed from the party." % String(target.get("name", ""))}
+		"promote":
+			var target := player_by_name(arg)
+			var refusal: String = party.promote(uid, int(target.get("uid", -1))) if not target.is_empty() else "not_member"
+			if refusal != "":
+				return {"handled": true, "reply": _party_reason(refusal)}
+			_party_changed(party.members_of(uid))
+			return {"handled": true, "reply": "%s now leads the party." % String(target.get("name", ""))}
+		"p", "party":
+			if party.party_of(uid).is_empty():
+				return {"handled": true, "reply": "You are not in a party."}
+			return {"handled": true, "party_text": arg}
+	return {"handled": false}
+
+static func _party_reason(reason: String) -> String:
+	match reason:
+		"self":
+			return "You cannot invite yourself."
+		"already_in_party":
+			return "That player is already in a party."
+		"not_leader":
+			return "Only the party leader can do that."
+		"party_full":
+			return "The party is full (5)."
+		"not_member":
+			return "That player is not in your party."
+	return "That did not work."
 
 ## What a client needs to label a mob (v14 `sim_mob_info`). `rev` changes when
 ## the mob's identity does (a respawn can re-roll elite).

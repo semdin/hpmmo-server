@@ -24,6 +24,9 @@ its own state. `server_relay` is off, so clients cannot address each other.
 | `sim_talk_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | npc_name: String |
 | `sim_skill_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | spell_id: String |
 | `sim_chat_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | text: String |
+| `sim_dungeon_state` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | map_id: String, state: Dictionary |
+| `sim_party_state` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | state: Dictionary |
+| `sim_party_invite` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | from_name: String |
 | `sim_join_result` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | ok: bool, reason: String, uid: int, character: Dictionary, tick: int, world_seed: int |
 | `sim_bind_result` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | ok: bool, reason: String, character: Dictionary |
 | `sim_cast_result` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | cast_seq: int, cast_id: int, ok: bool, reason: String |
@@ -55,7 +58,7 @@ its own state. `server_relay` is off, so clients cannot address each other.
 | `sim_equipment_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | request_id: int, revision: int, operation: String, slot: String, item_id: String, tier: int, uid: int |
 | `sim_equipment_result` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | answer: Dictionary |
 
-Surface entries: 43. Hash of this document is pinned in the workspace lock;
+Surface entries: 46. Hash of this document is pinned in the workspace lock;
 Canonical gameplay catalogs live in `world/addons/hpmmo_sim/data/`; client content schemas live in `contracts/schemas/`.
 
-Surface hash: `f636409c580f26e897b43bc7743da742b64dca589c28213d6d2d1890d594e1d0`
+Surface hash: `fde15fd567fe66d53b8032cfe2f966d0b26ad4c09ce98841c4e82a677b28439e`

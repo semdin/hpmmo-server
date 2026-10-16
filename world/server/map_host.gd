@@ -32,6 +32,7 @@ var _built: Dictionary = {}
 
 func _ready() -> void:
 	SimAuthority.map_provider = self
+	SimAuthority.instance_closed.connect(release_map)
 
 ## Provider contract: is `map_id` resident, and if not, can this host make it so
 ## now? Called by the authority (main thread) before it reserves a transfer into
@@ -41,6 +42,8 @@ func ensure_map_built(map_id: String) -> bool:
 		return false
 	if map_id == MAP_GROUNDS:
 		return true
+	if HPMaps.instance_slot(map_id) > 0:
+		return _ensure_instance_built(map_id)
 	if map_id != MAP_INTERIOR:
 		return false
 	if _built.has(map_id) and is_instance_valid(_built[map_id]):
@@ -68,6 +71,33 @@ func ensure_map_built(map_id: String) -> bool:
 	print("[MapHost] %s resident for the authority: collision-only build, %d static bodies" % [
 		map_id, _static_body_count(interior)])
 	return true
+
+## A dungeon copy (`<base>#<slot>`): the map's scene, collision-only, placed at
+## the copy's origin. Built on the first transfer into the copy and freed when
+## the authority tears the empty copy down.
+func _ensure_instance_built(map_id: String) -> bool:
+	if _built.has(map_id) and is_instance_valid(_built[map_id]):
+		return true
+	var path := HPMaps.map_scene(map_id)
+	if path == "" or not ResourceLoader.exists(path):
+		push_error("[MapHost] instanced map %s has no scene in this build (%s)" % [map_id, path])
+		return false
+	var node: Node3D = (load(path) as PackedScene).instantiate()
+	node.name = "Instance_" + map_id.replace("#", "_")
+	if node.has_method("setup"):
+		node.call("setup", map_id, true)
+	world.add_child(node)
+	_built[map_id] = node
+	print("[MapHost] %s resident: collision-only copy at x=%.0f, %d static bodies" % [
+		map_id, node.position.x, _static_body_count(node)])
+	return true
+
+func release_map(map_id: String) -> void:
+	var node = _built.get(map_id)
+	_built.erase(map_id)
+	if node != null and is_instance_valid(node):
+		node.queue_free()
+		print("[MapHost] %s released" % map_id)
 
 ## Which maps this host has made resident (test/ops evidence).
 func built_maps() -> Array:

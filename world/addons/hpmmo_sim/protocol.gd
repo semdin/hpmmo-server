@@ -49,6 +49,10 @@ class_name HPProtocol
 ##     mob with its scene defaults. Mob variants 4-6 (forest troll, mountain
 ##     troll, dementor) are part of v14: a v13 client cannot render them.
 ##     `sim_world_event(kind, data)` announces world bosses realm-wide.
+##     Parties: `/commands` ride the chat intent; `sim_party_state(state)` and
+##     `sim_party_invite(from_name)` answer the members.
+##     Instanced maps travel as `<base>#<slot>` map ids; `sim_dungeon_state`
+##     carries a copy's run state (step, open gates, message).
 const PROTOCOL_VERSION := 14
 
 ## Per-hit presentation bits carried by `sim_damage_event` / `entity_hit`.

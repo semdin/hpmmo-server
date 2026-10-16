@@ -443,6 +443,36 @@ def test_quests(out_dir, profile="local"):
           % (profile, final.get("view_index"), final.get("completed")))
 
 
+def test_party(out_dir, profile):
+    """Two clients form a party by chat command; the one who never casts is
+    credited for the other's kills (party experience sharing)."""
+    print("\n--- party: invite by command, accept, shared experience, profile=%s ---" % profile)
+    port = free_port()
+    server = start_server(port, 515151, profile, out_dir)
+    try:
+        if not server.wait_for("listening on :%d" % port, timeout=90):
+            check(False, "[%s] world server failed to start for the party test" % profile)
+            return
+        lead = start_probe("Lead", "party", port, out_dir, seconds=24, profile=profile)
+        time.sleep(1.0)
+        mate = start_probe("Mate", "party", port, out_dir, seconds=24, profile=profile)
+        rl = collect_probe(lead, 24)
+        rm = collect_probe(mate, 24)
+    finally:
+        server.stop()
+    fl, fm = final_of(rl), final_of(rm)
+    check(bool(fl) and bool(fm), "[%s] both party probes produced a transcript" % profile)
+    check("Lead" in fm.get("invites", []), "[%s] the invitation reached Mate (%s)" % (profile, fm.get("invites")))
+    check(fl.get("party_max_size") == 2 and fm.get("party_max_size") == 2,
+          "[%s] both members see a party of two (%s / %s)" % (profile, fl.get("party_max_size"), fm.get("party_max_size")))
+    check(fl.get("party_leader") == fl.get("uid") and fm.get("party_leader") == fl.get("uid"),
+          "[%s] both agree the inviter leads" % profile)
+    check(int(fm.get("casts_sent", 0)) == 0 and int(fm.get("exp_end", 0)) > int(fm.get("exp_start", 0))
+          and len(fm.get("rewards", [])) > 0,
+          "[%s] the member who never cast earned experience from the leader's kills (%s -> %s, %d rewards)"
+          % (profile, fm.get("exp_start"), fm.get("exp_end"), len(fm.get("rewards", []))))
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--profile", default="local")
@@ -472,6 +502,8 @@ def main():
         test_protection(out_dir)
     if "quests" not in skip:
         test_quests(out_dir, args.profile)
+    if "party" not in skip:
+        test_party(out_dir, args.profile)
 
     print("\nMULTIPLAYER RESULT: %d checks, %d failures" % (checks, len(failures)))
     for failure in failures:

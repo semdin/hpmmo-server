@@ -68,6 +68,7 @@ var settings: SettingsUI = null
 ## The MMO frame: unit frame, buff row, action bar with quick slots, centre
 ## notices, Metin2-style chat, the Esc menu, the world map and the quest scroll.
 var unit_frame: HudUnitFrame = null
+var party_frames: HudParty = null
 var buff_bar: HudBuffBar = null
 var action_bar: HudActionBar = null
 var notices: HudNotices = null
@@ -113,6 +114,7 @@ func _ready() -> void:
 	_build_mmo_layout()
 	_add_system_chat("Welcome to Hogwarts! Spells on 1-4, Q, E · potions on F1-F4 · Shift mounts the broom.")
 	_add_system_chat("Enter to chat, start a line with ! to shout to everyone. M opens the map, Esc the menu.")
+	_add_system_chat("Party: /invite Name, /leave, /p text for party chat.")
 
 ## Interface wiring: the animation layers, the authoritative binder and the
 ## panels. Built at runtime so the scene file keeps its node paths (other
@@ -162,6 +164,8 @@ func _setup_panels() -> void:
 	unit_frame = HudUnitFrame.new()
 	add_child(unit_frame)
 	move_child(unit_frame, 0)   # behind the gauges it frames
+	party_frames = HudParty.new()
+	add_child(party_frames)
 	buff_bar = HudBuffBar.new()
 	add_child(buff_bar)
 	action_bar = HudActionBar.new()

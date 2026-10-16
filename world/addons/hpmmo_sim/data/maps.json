@@ -36,6 +36,11 @@
           40.0,
           58.56,
           15.0
+        ],
+        "trial_return": [
+          14.0,
+          58.6,
+          88.0
         ]
       }
     },
@@ -59,6 +64,34 @@
           0.0,
           200.5,
           58.0
+        ]
+      }
+    },
+    "dng_trial": {
+      "display": "Trial Hall",
+      "available": true,
+      "flight_allowed": false,
+      "capacity": 5,
+      "instanced": true,
+      "instance_cap": 8,
+      "instance_stride": 3000.0,
+      "instance_empty_ttl_s": 300.0,
+      "scene": "res://scenes/world/dungeons/dng_trial.tscn",
+      "y_min": 990.0,
+      "y_max": 1100.0,
+      "safe_zones": [],
+      "entity_set": "",
+      "respawn_spawn": "entry",
+      "spawn_points": {
+        "default": [
+          0.0,
+          1000.5,
+          6.0
+        ],
+        "entry": [
+          0.0,
+          1000.5,
+          6.0
         ]
       }
     }
@@ -106,6 +139,40 @@
         "y_max": 209.0
       },
       "landing": null
+    },
+    {
+      "id": "trial_entry",
+      "map_id": "grounds",
+      "to_map": "dng_trial",
+      "to_spawn": "entry",
+      "label": "the Trial Hall",
+      "trigger": {
+        "center": [
+          18.0,
+          58.6,
+          93.0
+        ],
+        "radius": 2.5,
+        "y_min": 50.0,
+        "y_max": 75.0
+      }
+    },
+    {
+      "id": "trial_exit",
+      "map_id": "dng_trial",
+      "to_map": "grounds",
+      "to_spawn": "trial_return",
+      "label": "Hogwarts Grounds",
+      "trigger": {
+        "center": [
+          0.0,
+          1000.5,
+          11.0
+        ],
+        "radius": 2.5,
+        "y_min": 995.0,
+        "y_max": 1008.0
+      }
     }
   ],
   "staircases": [

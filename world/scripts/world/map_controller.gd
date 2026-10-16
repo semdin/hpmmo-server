@@ -191,6 +191,8 @@ var _initial_map_done := false
 ## whichever reading the lambda guessed.
 func _connect_sim() -> void:
 	SimAuthority.transfer_granted.connect(_on_transfer_granted)
+	if not SimAuthority.dungeon_state.is_connected(_on_dungeon_state):
+		SimAuthority.dungeon_state.connect(_on_dungeon_state)
 	SimAuthority.transfer_committed.connect(_on_transfer_committed)
 	SimAuthority.transfer_refused.connect(_on_transfer_refused)
 	SimAuthority.transfer_expired.connect(_on_transfer_expired)
@@ -203,6 +205,8 @@ func _map_available(map_id: String) -> bool:
 			return true
 		MAP_INTERIOR:
 			return ResourceLoader.exists(INTERIOR_PATH)
+	if HPMaps.instance_slot(map_id) > 0:
+		return ResourceLoader.exists(HPMaps.map_scene(map_id))
 	return false
 
 # ------------------------------------------------------------------ process
@@ -420,6 +424,9 @@ func _place_player(pos: Vector3) -> void:
 # ------------------------------------------------------------------- maps
 
 func _map_loaded(map_id: String) -> bool:
+	if HPMaps.instance_slot(map_id) > 0:
+		return _instance_node != null and is_instance_valid(_instance_node) \
+			and String(_instance_node.get_meta("map_id", "")) == map_id
 	if map_id == MAP_GROUNDS:
 		return world != null and world.has_node("HogwartsCastle")
 	return _interior != null and is_instance_valid(_interior)
@@ -427,6 +434,9 @@ func _map_loaded(map_id: String) -> bool:
 func _unload_map(map_id: String) -> void:
 	if map_id == MAP_INTERIOR:
 		await _free_interior()
+		return
+	if HPMaps.instance_slot(map_id) > 0:
+		await _free_instance()
 		return
 	# Grounds: free the scenery WorldBuilder created and hide the entity
 	# containers. Terrain (the ground collider) and the sim entities stay: they
@@ -458,6 +468,8 @@ func _load_map(map_id: String) -> bool:
 		_sun_disabled.clear()
 		_apply_interior_ambience(false)
 		return true
+	if HPMaps.instance_slot(map_id) > 0:
+		return await _load_instance(map_id)
 	if map_id != MAP_INTERIOR:
 		return false
 	var packed := await _load_threaded(INTERIOR_PATH)
@@ -491,6 +503,55 @@ func _apply_interior_ambience(inside: bool) -> void:
 	elif env.has_meta("outdoor_ambient"):
 		CastleAtmosphere.restore(env, env.get_meta("outdoor_ambient"))
 		env.remove_meta("outdoor_ambient")
+
+## A dungeon copy: the map's scene placed at the copy's origin. In offline and
+## host play this very node is also the authority's collision for the copy.
+var _instance_node: Node3D = null
+
+func _load_instance(map_id: String) -> bool:
+	var path := HPMaps.map_scene(map_id)
+	var packed := await _load_threaded(path)
+	if packed == null:
+		return false
+	_instance_node = packed.instantiate()
+	_instance_node.name = "Instance_" + map_id.replace("#", "_")
+	if _instance_node.has_method("setup"):
+		_instance_node.call("setup", map_id, false)
+	world.add_child(_instance_node)
+	_apply_interior_ambience(true)
+	# The run may already be under way (a member joining late).
+	if _dungeon_states.has(map_id):
+		_apply_dungeon_state(map_id, _dungeon_states[map_id])
+	return true
+
+func _free_instance() -> void:
+	if _instance_node != null and is_instance_valid(_instance_node):
+		_instance_node.get_parent().remove_child(_instance_node)
+		_instance_node.queue_free()
+	_instance_node = null
+	_apply_interior_ambience(false)
+	await get_tree().process_frame
+
+var _dungeon_states: Dictionary = {}
+
+## The copy's run state from the authority: gates, and the step message.
+func _on_dungeon_state(map_id: String, state: Dictionary) -> void:
+	var previous: Dictionary = _dungeon_states.get(map_id, {})
+	_dungeon_states[map_id] = state
+	if map_id != current_map:
+		return
+	_apply_dungeon_state(map_id, state)
+	var message := String(state.get("message", ""))
+	if message != "" and message != String(previous.get("message", "")):
+		var hud = world.get("hud") if world != null else null
+		if hud != null and hud.has_method("show_notice"):
+			hud.show_notice(message, "info")
+		_feedback(message)
+
+func _apply_dungeon_state(map_id: String, state: Dictionary) -> void:
+	if _instance_node != null and is_instance_valid(_instance_node) \
+			and String(_instance_node.get_meta("map_id", "")) == map_id and _instance_node.has_method("apply_state"):
+		_instance_node.call("apply_state", state)
 
 func _free_interior() -> void:
 	if _interior == null or not is_instance_valid(_interior):
@@ -550,7 +611,8 @@ func _portal_entries(map_id: String) -> Array:
 				"to_map": String(entry.get("to_map", "")),
 				"to_spawn": String(entry.get("to_spawn", "default")),
 				"label": String(entry.get("label", "")),
-				"center": Vector3(float(centre[0]), float(centre[1]), float(centre[2])),
+				# A portal inside a dungeon copy sits at the copy's offset.
+				"center": Vector3(float(centre[0]), float(centre[1]), float(centre[2])) + HPMaps.instance_origin(map_id),
 				"radius": float(trigger.get("radius", 2.0)),
 				"y_min": float(trigger.get("y_min", -1000.0)),
 				"y_max": float(trigger.get("y_max", 1000.0)),
@@ -570,13 +632,15 @@ func _portal_contains(portal: Dictionary, point: Vector3) -> bool:
 
 func _portal_prompt(portal: Dictionary) -> String:
 	var label := String(portal.get("label", "the destination"))
-	if String(portal.get("to_map", "")) == MAP_INTERIOR:
+	if String(portal.get("to_map", "")) == MAP_INTERIOR or HPMaps.is_instanced(String(portal.get("to_map", ""))):
 		return "Enter %s" % label
 	return "Travel to the %s" % label
 
 func _loading_text(map_id: String) -> String:
 	if map_id == MAP_INTERIOR:
 		return "Entering Hogwarts Castle..."
+	if HPMaps.instance_slot(map_id) > 0:
+		return "Entering %s..." % HPMaps.display_name(map_id)
 	return "Returning to the Grounds..."
 
 func _spawn_point(map_id: String, spawn_id: String) -> Vector3:
@@ -595,6 +659,8 @@ func _spawn_point(map_id: String, spawn_id: String) -> Vector3:
 ## interior map is not loaded the level is derived from the same authored
 ## heights.
 func floor_display(map_id: String, y: float) -> String:
+	if HPMaps.instance_slot(map_id) > 0:
+		return HPMaps.display_name(map_id)
 	if map_id != MAP_INTERIOR:
 		return "Hogwarts Grounds"
 	if _interior != null and is_instance_valid(_interior) and _interior.has_method("floor_display"):

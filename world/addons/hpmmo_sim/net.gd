@@ -528,6 +528,17 @@ func sim_chat_request(text: String) -> void:
 func route_chat(record: Dictionary, text: String) -> void:
 	var clean := text.strip_edges().substr(0, HPProtocol.CHAT_MAX_LENGTH)
 	var channel := "local"
+	# `/commands` (party management, /p party chat) are answered here.
+	if clean.begins_with("/"):
+		var answer: Dictionary = SimAuthority.party_command(record, clean)
+		if bool(answer.get("handled", false)):
+			if answer.has("reply"):
+				_tell(record, String(answer["reply"]))
+			if answer.has("party_text") and String(answer["party_text"]).strip_edges() != "":
+				_route_party_line(record, String(answer["party_text"]).strip_edges())
+			return
+		_tell(record, "Unknown command. Party: /invite Name, /accept, /decline, /leave, /kick Name, /promote Name, /p text")
+		return
 	if clean.begins_with(HPProtocol.CHAT_SHOUT_PREFIX):
 		channel = "shout"
 		clean = clean.substr(HPProtocol.CHAT_SHOUT_PREFIX.length()).strip_edges()
@@ -548,6 +559,63 @@ func route_chat(record: Dictionary, text: String) -> void:
 		if channel == "local" and not _hears(listener, record):
 			continue
 		sim_chat_line.rpc_id(peer_id, channel, uid, sender, house, clean)
+
+## A system line for one player only (command answers).
+func _tell(record: Dictionary, text: String) -> void:
+	var peer := int(record.get("peer_id", 0))
+	if peer == local_peer_id or not has_peers():
+		SimAuthority.emit_signal("chat_line", "system", 0, "", "", text)
+		return
+	sim_chat_line.rpc_id(peer, "system", 0, "", "", text)
+
+## A /p line reaches every member of the speaker's party, wherever they are.
+func _route_party_line(record: Dictionary, text: String) -> void:
+	var uid := int(record.get("uid", 0))
+	var sender := String(record.get("name", "Wizard"))
+	var house := String(record.get("house", ""))
+	for member_uid in SimAuthority.party.members_of(uid):
+		var member := SimAuthority.record_by_uid(int(member_uid))
+		var peer := int(member.get("peer_id", 0))
+		if peer == local_peer_id or not has_peers():
+			SimAuthority.emit_signal("chat_line", "party", uid, sender, house, text)
+		elif peer != 0:
+			sim_chat_line.rpc_id(peer, "party", uid, sender, house, text)
+
+## A dungeon copy's state reaches the players standing in that copy.
+func _send_dungeon_state(map_id: String, state: Dictionary) -> void:
+	if not has_peers():
+		return
+	for peer_id in multiplayer.get_peers():
+		var record := SimAuthority.player_record(peer_id)
+		if String(record.get("map_id", "")) == map_id:
+			sim_dungeon_state.rpc_id(peer_id, map_id, state)
+
+## v14: the state of the dungeon copy the receiving player is in.
+@rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
+func sim_dungeon_state(map_id: String, state: Dictionary) -> void:
+	SimAuthority.emit_signal("dungeon_state", map_id, state)
+
+func _send_party_state(uid: int, state: Dictionary) -> void:
+	var peer := int(SimAuthority.record_by_uid(uid).get("peer_id", 0))
+	if peer == 0 or peer == local_peer_id or not has_peers():
+		return   # the authority's own player hears the signal directly
+	sim_party_state.rpc_id(peer, state)
+
+func _send_party_invite(uid: int, from_name: String) -> void:
+	var peer := int(SimAuthority.record_by_uid(uid).get("peer_id", 0))
+	if peer == 0 or peer == local_peer_id or not has_peers():
+		return
+	sim_party_invite.rpc_id(peer, from_name)
+
+## v14: the receiving player's party view (members, leader, live health).
+@rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
+func sim_party_state(state: Dictionary) -> void:
+	SimAuthority.emit_signal("party_state", SimAuthority.local_uid, state)
+
+## v14: an invitation from `from_name` (answered with /accept or /decline).
+@rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
+func sim_party_invite(from_name: String) -> void:
+	SimAuthority.emit_signal("party_invited", SimAuthority.local_uid, from_name)
 
 static func _hears(listener: Dictionary, speaker: Dictionary) -> bool:
 	if listener.is_empty() or speaker.is_empty():
@@ -902,6 +970,9 @@ func bridge_authority() -> void:
 	SimAuthority.mob_telegraph.connect(broadcast_telegraph)
 	SimAuthority.mob_telegraph_end.connect(broadcast_telegraph_end)
 	SimAuthority.world_event.connect(broadcast_world_event)
+	SimAuthority.party_state.connect(_send_party_state)
+	SimAuthority.party_invited.connect(_send_party_invite)
+	SimAuthority.dungeon_state.connect(_send_dungeon_state)
 	SimAuthority.maintenance_event.connect(broadcast_maintenance)
 	SimAuthority.transfer_granted.connect(broadcast_transfer_granted)
 	SimAuthority.transfer_committed.connect(broadcast_transfer_committed)

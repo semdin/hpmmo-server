@@ -372,6 +372,11 @@ func _setup_monoliths_and_mobs() -> void:
 	director.name = "EncounterDirector"
 	add_child(director)
 	director.start(mobs_container)
+	# Scripted dungeon runs (instanced maps) share the encounter configuration.
+	var dungeons := preload("res://scripts/world/dungeon_director.gd").new()
+	dungeons.name = "DungeonDirector"
+	add_child(dungeons)
+	dungeons.start(self, director)
 
 ## ------------------------------------------------------------------
 ## Replication. In a client-only process the world contains no gameplay
@@ -379,6 +384,14 @@ func _setup_monoliths_and_mobs() -> void:
 ## removed when it stops announcing them. In authority roles the same signals
 ## drive presentation for the entities the engine already simulated.
 ## ------------------------------------------------------------------
+
+func _map_mobs() -> Node3D:
+	var node := get_node_or_null("MapMobs") as Node3D
+	if node == null:
+		node = Node3D.new()
+		node.name = "MapMobs"
+		add_child(node)
+	return node
 
 func _setup_replication() -> void:
 	SimAuthority.entity_replicating.connect(_on_entity_replicating)
@@ -417,7 +430,10 @@ func _on_entity_replicating(record: Dictionary) -> void:
 	if kind == HPProtocol.Kind.MOB:
 		# A replicated mob is a puppet: no AI, no damage, follows the snapshots.
 		view.sim_puppet = true
-		if (int(record.get("flags", 0)) & HPProtocol.FLAG_BOSS) != 0:
+		# The legacy boss bodies (matriarch, commander) were scaled-up ordinary
+		# models; newer creatures carry their own boss body (BossVariant).
+		var legacy := int(record.get("variant", 0)) <= HPProtocol.MOB_VARIANT_DARKSATCHER
+		if legacy and (int(record.get("flags", 0)) & HPProtocol.FLAG_BOSS) != 0:
 			var is_commander := int(record.get("variant", 0)) == HPProtocol.MOB_VARIANT_DARKSATCHER
 			var visuals := view.get_node_or_null("Visuals")
 			if visuals:
@@ -425,7 +441,12 @@ func _on_entity_replicating(record: Dictionary) -> void:
 			var label := view.get_node_or_null("Label3D")
 			if label:
 				label.position.y = 4.2
-		mobs_container.add_child(view)
+		# Grounds creatures live in the grounds container (hidden off-map);
+		# creatures of any other map (a dungeon copy) get one that stays shown.
+		if String(record.get("map_id", HPProtocol.DEFAULT_MAP)) == HPProtocol.DEFAULT_MAP:
+			mobs_container.add_child(view)
+		else:
+			_map_mobs().add_child(view)
 	elif kind == HPProtocol.Kind.PLAYER:
 		view.is_local_player = false
 		# Another player's body is a VIEW here: it follows the replicated state
