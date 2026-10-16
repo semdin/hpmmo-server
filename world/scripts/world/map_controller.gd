@@ -483,8 +483,56 @@ func _load_map(map_id: String) -> bool:
 		if not attached:
 			print("[MapController] StaircaseSlot left empty: %s is not present in this build " % STAIRCASE_PATH +
 				"(owned by the staircase workstream; no file was created or edited here).")
+	_dress_portals(MAP_INTERIOR, _interior)
 	_apply_interior_ambience(true)
 	return true
+
+## Portals that are a place in the map, not just a trigger (maps.json
+## `dressing`): the locked third-floor door of the Forbidden Corridor gets its
+## door, its iron bands and its warning sign. Presentation only.
+func _dress_portals(map_id: String, parent: Node3D) -> void:
+	for entry in HPMaps.portals_for_map(map_id):
+		if String((entry as Dictionary).get("dressing", "")) != "locked_door":
+			continue
+		var c: Array = (entry as Dictionary).get("trigger", {}).get("center", [0, 0, 0])
+		var door := Node3D.new()
+		door.name = "PortalDoor_" + String(entry.get("id", ""))
+		parent.add_child(door)
+		# Flush with the wall the trigger stands against (1 m behind its centre).
+		door.global_position = Vector3(float(c[0]), float(c[1]) - 0.5, float(c[2]) - 0.85)
+		var wood := StandardMaterial3D.new()
+		wood.albedo_color = Color(0.32, 0.2, 0.11)
+		wood.roughness = 0.85
+		var iron := StandardMaterial3D.new()
+		iron.albedo_color = Color(0.14, 0.13, 0.13)
+		iron.metallic = 0.6
+		iron.roughness = 0.5
+		var parts := [[Vector3(0, 1.8, 0), Vector3(2.2, 3.6, 0.2), wood]]
+		for y in [0.6, 1.8, 3.0]:
+			parts.append([Vector3(0, y, 0.12), Vector3(2.3, 0.14, 0.05), iron])
+		parts.append([Vector3(0.75, 1.6, 0.14), Vector3(0.16, 0.22, 0.05), iron])
+		for spec in parts:
+			var mesh := MeshInstance3D.new()
+			var box := BoxMesh.new()
+			box.size = spec[1]
+			mesh.mesh = box
+			mesh.material_override = spec[2]
+			mesh.position = spec[0]
+			door.add_child(mesh)
+		var sign := Label3D.new()
+		sign.text = "The third-floor corridor on the right-hand side
+is OUT OF BOUNDS"
+		sign.font_size = 28
+		sign.outline_size = 6
+		sign.modulate = Color(1.0, 0.85, 0.6)
+		sign.position = Vector3(0, 4.1, 0.2)
+		door.add_child(sign)
+		var glow := OmniLight3D.new()
+		glow.light_color = Color(1.0, 0.7, 0.4)
+		glow.light_energy = 0.8
+		glow.omni_range = 4.0
+		glow.position = Vector3(0, 2.4, 1.2)
+		door.add_child(glow)
 
 ## An interior is not lit by the open sky. While the castle interior is the
 ## resident map the environment is the castle's (castle/castle_atmosphere.gd:
@@ -780,6 +828,10 @@ func _reason_text(reason: String) -> String:
 			return "The transfer was cancelled."
 		"range":
 			return "Stand closer to the door."
+		"level_too_low":
+			return "You are not experienced enough to enter."
+		"daily_limit":
+			return "You have entered this place enough times today - come back tomorrow."
 		"transfer_expired":
 			return "The transfer timed out; you are back at your last safe spot."
 		_:

@@ -64,6 +64,11 @@
           0.0,
           200.5,
           58.0
+        ],
+        "fc_return": [
+          56.0,
+          230.5,
+          -7.0
         ]
       }
     },
@@ -91,6 +96,34 @@
         "entry": [
           0.0,
           1000.5,
+          6.0
+        ]
+      }
+    },
+    "dng_forbidden_corridor": {
+      "display": "The Forbidden Corridor",
+      "available": true,
+      "flight_allowed": false,
+      "capacity": 5,
+      "instanced": true,
+      "instance_cap": 8,
+      "instance_stride": 3000.0,
+      "instance_empty_ttl_s": 300.0,
+      "scene": "res://scenes/world/dungeons/dng_forbidden_corridor.tscn",
+      "y_min": 1190.0,
+      "y_max": 1300.0,
+      "safe_zones": [],
+      "entity_set": "",
+      "respawn_spawn": "entry",
+      "spawn_points": {
+        "default": [
+          0.0,
+          1200.5,
+          6.0
+        ],
+        "entry": [
+          0.0,
+          1200.5,
           6.0
         ]
       }
@@ -172,6 +205,58 @@
         "radius": 2.5,
         "y_min": 995.0,
         "y_max": 1008.0
+      }
+    },
+    {
+      "id": "fc_entry",
+      "map_id": "castle_interior",
+      "to_map": "dng_forbidden_corridor",
+      "to_spawn": "entry",
+      "label": "the Forbidden Corridor",
+      "dressing": "locked_door",
+      "trigger": {
+        "center": [
+          56.0,
+          230.5,
+          -11.0
+        ],
+        "radius": 2.0,
+        "y_min": 229.0,
+        "y_max": 236.0
+      }
+    },
+    {
+      "id": "fc_exit",
+      "map_id": "dng_forbidden_corridor",
+      "to_map": "castle_interior",
+      "to_spawn": "fc_return",
+      "label": "Hogwarts Castle",
+      "trigger": {
+        "center": [
+          0.0,
+          1200.5,
+          11.0
+        ],
+        "radius": 2.5,
+        "y_min": 1195.0,
+        "y_max": 1208.0
+      }
+    },
+    {
+      "id": "fc_reward_exit",
+      "map_id": "dng_forbidden_corridor",
+      "to_map": "castle_interior",
+      "to_spawn": "fc_return",
+      "label": "Hogwarts Castle",
+      "trigger": {
+        "center": [
+          0.0,
+          1200.5,
+          -230.0
+        ],
+        "radius": 2.5,
+        "y_min": 1195.0,
+        "y_max": 1208.0
       }
     }
   ],

@@ -863,6 +863,10 @@ static func mob_catalog() -> Dictionary:
 static func mob_ids() -> Array:
 	return mob_catalog().keys()
 
+## A shield-bearer (mobs.json front_guard) blocks blows from within ~60 degrees
+## of where it faces.
+const FRONT_GUARD_COS := 0.5
+
 static func mob_def(species: String) -> Dictionary:
 	return mob_catalog().get(species, {})
 

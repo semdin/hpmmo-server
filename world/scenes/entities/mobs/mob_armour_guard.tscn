@@ -1,0 +1,44 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/entities/mobs/mob_base.gd" id="1_mb"]
+[ext_resource type="PackedScene" path="res://assets/models/monsters/armour_guard.glb" id="2_body"]
+
+[sub_resource type="CapsuleShape3D" id="Shape_1"]
+radius = 0.5
+height = 2.4
+
+[node name="MobArmourGuard" type="CharacterBody3D" groups=["mobs", "targetable"]]
+collision_layer = 2
+collision_mask = 7
+script = ExtResource("1_mb")
+mob_name = "Enchanted Armour"
+level = 31
+max_hp = 1100
+attack_power = 75
+move_speed = 3.0
+aggro_radius = 12.0
+attack_range = 3.4
+attack_cooldown = 2.4
+anim_set = "knight"
+voice_set = "armour"
+walk_speed = 0.539
+attack_anticipation = 1.0
+attack_recovery = 0.8
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
+shape = SubResource("Shape_1")
+
+[node name="Visuals" type="Node3D" parent="."]
+
+[node name="NormalVariant" parent="Visuals" instance=ExtResource("2_body")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+
+[node name="Label3D" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.9, 0)
+billboard = 1
+double_sided = false
+text = "[Lv.31] Enchanted Armour"
+font_size = 32
+outline_size = 8
+outline_modulate = Color(0, 0, 0, 1)

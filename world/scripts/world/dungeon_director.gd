@@ -84,6 +84,18 @@ func _triggered(map_id: String, run: Dictionary, on: String) -> bool:
 			if is_instance_valid(mob) and mob.state != mob.State.DEAD:
 				return false
 		return true
+	if on.begins_with("hp_below:"):
+		# hp_below:<step id>:<fraction> - a creature that step spawned is down to
+		# that share of its hit points (or already dead).
+		var bits := on.split(":")
+		var watched: Array = (run["spawned"] as Dictionary).get(bits[1] if bits.size() > 1 else "", [])
+		var fraction := float(bits[2]) if bits.size() > 2 else 0.5
+		for mob in watched:
+			if not is_instance_valid(mob) or mob.state == mob.State.DEAD:
+				return true
+			if mob.max_hp > 0 and float(mob.current_hp) / float(mob.max_hp) < fraction:
+				return true
+		return false
 	if on.begins_with("area:"):
 		var z_below := float(on.substr(5))
 		var origin: Vector3 = run["origin"]
@@ -145,6 +157,17 @@ func _spawn(map_id: String, entry: Dictionary, origin: Vector3, pack_id: int) ->
 	if entry.has("boss_key") and encounters != null:
 		encounters._apply_boss(mob, {"boss_key": String(entry["boss_key"]),
 			"template": HPRules.encounter_template(String(entry.get("template", "boss_solo")))})
+		mob.set_meta("boss_key", String(entry["boss_key"]))
+	if entry.has("harp") and "harp_point" in mob:
+		mob.harp_point = origin + _vec(entry["harp"])
+	# A boss with its own beats (Fluffy's harp, a head fainting) speaks through
+	# the run's message line.
+	if mob.has_signal("dungeon_message"):
+		mob.dungeon_message.connect(func(text: String) -> void:
+			var live: Dictionary = runs.get(map_id, {})
+			if not live.is_empty():
+				live["message"] = text
+				_publish(map_id, live))
 	container.add_child(mob)
 	SimAuthority.register_mob(mob, pack_id, "")
 	return mob

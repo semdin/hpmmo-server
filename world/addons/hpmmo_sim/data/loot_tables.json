@@ -1,87 +1,346 @@
 {
   "_comment": "Server-owned reward tables. Rolls happen only inside the authority, using its seeded RNG.",
   "mob": {
-    "always": [ { "id": "galleons", "min": 30, "max": 95 } ],
-    "rolls": [
-      { "id": "mat_phoenix_ash", "chance": 0.5, "min": 1, "max": 3 },
-      { "id": "potion_health", "chance": 0.3, "min": 1, "max": 1 },
-      { "id": "scroll_imbue", "chance": 0.04, "min": 1, "max": 1 },
-      { "id": "scroll_reweave", "chance": 0.03, "min": 1, "max": 1 }
+    "always": [
+      {
+        "id": "galleons",
+        "min": 30,
+        "max": 95
+      }
     ],
-    "boss_always": [ { "id": "galleons", "min": 250, "max": 600 } ],
+    "rolls": [
+      {
+        "id": "mat_phoenix_ash",
+        "chance": 0.5,
+        "min": 1,
+        "max": 3
+      },
+      {
+        "id": "potion_health",
+        "chance": 0.3,
+        "min": 1,
+        "max": 1
+      },
+      {
+        "id": "scroll_imbue",
+        "chance": 0.04,
+        "min": 1,
+        "max": 1
+      },
+      {
+        "id": "scroll_reweave",
+        "chance": 0.03,
+        "min": 1,
+        "max": 1
+      }
+    ],
+    "boss_always": [
+      {
+        "id": "galleons",
+        "min": 250,
+        "max": 600
+      }
+    ],
     "boss_rolls": [
-      { "id": "mat_dragon_heartstring", "chance": 1.0, "min": 2, "max": 2 },
-      { "id": "scroll_imbue", "chance": 0.6, "min": 1, "max": 2 },
-      { "id": "scroll_reweave", "chance": 0.4, "min": 1, "max": 1 }
+      {
+        "id": "mat_dragon_heartstring",
+        "chance": 1.0,
+        "min": 2,
+        "max": 2
+      },
+      {
+        "id": "scroll_imbue",
+        "chance": 0.6,
+        "min": 1,
+        "max": 2
+      },
+      {
+        "id": "scroll_reweave",
+        "chance": 0.4,
+        "min": 1,
+        "max": 1
+      }
     ]
   },
   "_tables_note": "Per-species tables (mobs.json `loot_table`). A species table ADDS its `always`/`rolls` to the base `mob` table above; `elite` adds on top for elite spawns. Every roll chance is scaled by the level-gap drop factor (mobs.json level_gap); `always` entries are not.",
   "tables": {
     "undead": {
       "rolls": [
-        { "id": "mat_thestral_hair", "chance": 0.08, "min": 1, "max": 1 }
+        {
+          "id": "mat_thestral_hair",
+          "chance": 0.08,
+          "min": 1,
+          "max": 1
+        }
       ]
     },
     "spider": {
       "rolls": [
-        { "id": "potion_mana", "chance": 0.2, "min": 1, "max": 1 },
-        { "id": "mat_elder_core", "chance": 0.01, "min": 1, "max": 1 }
+        {
+          "id": "potion_mana",
+          "chance": 0.2,
+          "min": 1,
+          "max": 1
+        },
+        {
+          "id": "mat_elder_core",
+          "chance": 0.01,
+          "min": 1,
+          "max": 1
+        }
       ]
     },
     "troll": {
-      "always": [ { "id": "galleons", "min": 40, "max": 110 } ],
+      "always": [
+        {
+          "id": "galleons",
+          "min": 40,
+          "max": 110
+        }
+      ],
       "rolls": [
-        { "id": "potion_health", "chance": 0.25, "min": 1, "max": 2 },
-        { "id": "mat_elder_core", "chance": 0.03, "min": 1, "max": 1 }
+        {
+          "id": "potion_health",
+          "chance": 0.25,
+          "min": 1,
+          "max": 2
+        },
+        {
+          "id": "mat_elder_core",
+          "chance": 0.03,
+          "min": 1,
+          "max": 1
+        }
       ]
     },
     "dementor": {
       "rolls": [
-        { "id": "mat_thestral_hair", "chance": 0.15, "min": 1, "max": 1 },
-        { "id": "potion_mana", "chance": 0.2, "min": 1, "max": 1 },
-        { "id": "scroll_reweave", "chance": 0.03, "min": 1, "max": 1 }
+        {
+          "id": "mat_thestral_hair",
+          "chance": 0.15,
+          "min": 1,
+          "max": 1
+        },
+        {
+          "id": "potion_mana",
+          "chance": 0.2,
+          "min": 1,
+          "max": 1
+        },
+        {
+          "id": "scroll_reweave",
+          "chance": 0.03,
+          "min": 1,
+          "max": 1
+        }
       ]
     },
     "dark_wizard": {
-      "always": [ { "id": "galleons", "min": 20, "max": 60 } ],
+      "always": [
+        {
+          "id": "galleons",
+          "min": 20,
+          "max": 60
+        }
+      ],
       "rolls": [
-        { "id": "scroll_imbue", "chance": 0.03, "min": 1, "max": 1 }
+        {
+          "id": "scroll_imbue",
+          "chance": 0.03,
+          "min": 1,
+          "max": 1
+        }
+      ]
+    },
+    "armour": {
+      "always": [
+        {
+          "id": "galleons",
+          "min": 60,
+          "max": 140
+        }
+      ],
+      "rolls": [
+        {
+          "id": "potion_health",
+          "chance": 0.3,
+          "min": 1,
+          "max": 2
+        },
+        {
+          "id": "scroll_reweave",
+          "chance": 0.04,
+          "min": 1,
+          "max": 1
+        }
+      ]
+    },
+    "snare": {
+      "always": [
+        {
+          "id": "mat_phoenix_ash",
+          "min": 1,
+          "max": 3
+        }
+      ],
+      "rolls": [
+        {
+          "id": "scroll_imbue",
+          "chance": 0.25,
+          "min": 1,
+          "max": 1
+        }
+      ]
+    },
+    "fluffy": {
+      "always": [
+        {
+          "id": "galleons",
+          "min": 800,
+          "max": 1500
+        }
+      ],
+      "rolls": [
+        {
+          "id": "mat_dragon_heartstring",
+          "chance": 0.6,
+          "min": 1,
+          "max": 2
+        },
+        {
+          "id": "scroll_imbue",
+          "chance": 0.5,
+          "min": 1,
+          "max": 1
+        },
+        {
+          "id": "scroll_reweave",
+          "chance": 0.4,
+          "min": 1,
+          "max": 1
+        }
       ]
     }
   },
   "elite": {
-    "always": [ { "id": "galleons", "min": 120, "max": 320 } ],
+    "always": [
+      {
+        "id": "galleons",
+        "min": 120,
+        "max": 320
+      }
+    ],
     "rolls": [
-      { "id": "scroll_imbue", "chance": 0.25, "min": 1, "max": 1 },
-      { "id": "mat_thestral_hair", "chance": 0.35, "min": 1, "max": 2 },
-      { "id": "mat_dragon_heartstring", "chance": 0.15, "min": 1, "max": 1 }
+      {
+        "id": "scroll_imbue",
+        "chance": 0.25,
+        "min": 1,
+        "max": 1
+      },
+      {
+        "id": "mat_thestral_hair",
+        "chance": 0.35,
+        "min": 1,
+        "max": 2
+      },
+      {
+        "id": "mat_dragon_heartstring",
+        "chance": 0.15,
+        "min": 1,
+        "max": 1
+      }
     ]
   },
   "dungeon_trial": {
     "always": [
-      { "id": "galleons", "min": 300, "max": 700 },
-      { "id": "potion_health", "min": 2, "max": 3 },
-      { "id": "mat_phoenix_ash", "min": 2, "max": 4 }
+      {
+        "id": "galleons",
+        "min": 300,
+        "max": 700
+      },
+      {
+        "id": "potion_health",
+        "min": 2,
+        "max": 3
+      },
+      {
+        "id": "mat_phoenix_ash",
+        "min": 2,
+        "max": 4
+      }
     ],
     "rolls": [
-      { "id": "scroll_imbue", "chance": 0.5, "min": 1, "max": 1 },
-      { "id": "mat_dragon_heartstring", "chance": 0.35, "min": 1, "max": 1 }
+      {
+        "id": "scroll_imbue",
+        "chance": 0.5,
+        "min": 1,
+        "max": 1
+      },
+      {
+        "id": "mat_dragon_heartstring",
+        "chance": 0.35,
+        "min": 1,
+        "max": 1
+      }
     ]
   },
   "monolith": {
     "always": [
-      { "id": "galleons", "min": 600, "max": 1800 },
-      { "id": "galleons", "min": 400, "max": 1200 },
-      { "id": "mat_phoenix_ash", "min": 2, "max": 4 },
-      { "id": "mat_dragon_heartstring", "min": 1, "max": 3 },
-      { "id": "mat_thestral_hair", "min": 1, "max": 2 },
-      { "id": "potion_health", "min": 3, "max": 6 },
-      { "id": "potion_mana", "min": 3, "max": 6 }
+      {
+        "id": "galleons",
+        "min": 600,
+        "max": 1800
+      },
+      {
+        "id": "galleons",
+        "min": 400,
+        "max": 1200
+      },
+      {
+        "id": "mat_phoenix_ash",
+        "min": 2,
+        "max": 4
+      },
+      {
+        "id": "mat_dragon_heartstring",
+        "min": 1,
+        "max": 3
+      },
+      {
+        "id": "mat_thestral_hair",
+        "min": 1,
+        "max": 2
+      },
+      {
+        "id": "potion_health",
+        "min": 3,
+        "max": 6
+      },
+      {
+        "id": "potion_mana",
+        "min": 3,
+        "max": 6
+      }
     ],
     "rolls": [
-      { "id": "mat_elder_core", "chance": 0.25, "min": 1, "max": 1 },
-      { "id": "scroll_imbue", "chance": 0.5, "min": 1, "max": 1 },
-      { "id": "scroll_reweave", "chance": 0.3, "min": 1, "max": 1 }
+      {
+        "id": "mat_elder_core",
+        "chance": 0.25,
+        "min": 1,
+        "max": 1
+      },
+      {
+        "id": "scroll_imbue",
+        "chance": 0.5,
+        "min": 1,
+        "max": 1
+      },
+      {
+        "id": "scroll_reweave",
+        "chance": 0.3,
+        "min": 1,
+        "max": 1
+      }
     ]
   },
   "respawn_ms": {
@@ -93,5 +352,44 @@
     "pack_normal_max": 35000,
     "pack_boss_min": 90000,
     "pack_boss_max": 120000
+  },
+  "dungeon_corridor": {
+    "always": [
+      {
+        "id": "galleons",
+        "min": 1200,
+        "max": 2400
+      },
+      {
+        "id": "potion_health",
+        "min": 3,
+        "max": 5
+      },
+      {
+        "id": "mat_phoenix_ash",
+        "min": 3,
+        "max": 6
+      }
+    ],
+    "rolls": [
+      {
+        "id": "scroll_imbue",
+        "chance": 0.8,
+        "min": 1,
+        "max": 2
+      },
+      {
+        "id": "scroll_reweave",
+        "chance": 0.6,
+        "min": 1,
+        "max": 1
+      },
+      {
+        "id": "mat_dragon_heartstring",
+        "chance": 0.7,
+        "min": 1,
+        "max": 2
+      }
+    ]
   }
 }

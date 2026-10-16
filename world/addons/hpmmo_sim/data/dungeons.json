@@ -1,5 +1,5 @@
 {
-  "_comment": "Scripted dungeon runs. A run starts when the first player enters a copy of `map` and walks `steps` in order: each step waits for its trigger, then acts. Positions are local to the copy (the instance offset is added). Triggers: enter | cleared:<step id> (every creature that step spawned is dead) | area:<z_below> (a player stands deeper than local z). Actions: spawn (creatures, optional boss_key/template), open / close (gate ids), message (shown to the copy), chest (loot table at a point), complete.",
+  "_comment": "Scripted dungeon runs. A run starts when the first player enters a copy of `map` and walks `steps` in order: each step waits for its trigger, then acts. Positions are local to the copy (the instance offset is added). Triggers: enter | cleared:<step id> (every creature that step spawned is dead) | area:<z_below> (a player stands deeper than local z). Actions: spawn (creatures, optional boss_key/template), open / close (gate ids), message (shown to the copy), chest (loot table at a point), complete. D1 adds: trigger hp_below:<step id>:<fraction> (a creature that step spawned is alive below that share of its hit points); a spawn entry may carry `harp` (local point; Fluffy's lullaby pedestal); `entries_per_day` caps new runs per character per server day.",
   "dungeons": {
     "trial": {
       "map": "dng_trial",
@@ -83,6 +83,298 @@
               0.0,
               1000.5,
               -62.0
+            ]
+          }
+        }
+      ]
+    },
+    "forbidden_corridor": {
+      "map": "dng_forbidden_corridor",
+      "display": "The Forbidden Corridor",
+      "level_min": 30,
+      "entries_per_day": 3,
+      "steps": [
+        {
+          "id": "corridor",
+          "on": "enter",
+          "message": "The third-floor corridor is out of bounds... something is buzzing.",
+          "spawn": [
+            {
+              "mob": "cornish_pixie",
+              "level": 30,
+              "at": [
+                -3.0,
+                1200.5,
+                -20.0
+              ]
+            },
+            {
+              "mob": "cornish_pixie",
+              "level": 30,
+              "at": [
+                0.0,
+                1200.5,
+                -22.0
+              ]
+            },
+            {
+              "mob": "cornish_pixie",
+              "level": 30,
+              "at": [
+                3.0,
+                1200.5,
+                -20.0
+              ]
+            },
+            {
+              "mob": "cornish_pixie",
+              "level": 30,
+              "at": [
+                -2.0,
+                1200.5,
+                -27.0
+              ]
+            },
+            {
+              "mob": "cornish_pixie",
+              "level": 30,
+              "at": [
+                2.0,
+                1200.5,
+                -27.0
+              ]
+            },
+            {
+              "mob": "cornish_pixie",
+              "level": 30,
+              "at": [
+                0.0,
+                1200.5,
+                -31.0
+              ]
+            },
+            {
+              "mob": "armour_guard",
+              "level": 31,
+              "at": [
+                -3.0,
+                1200.5,
+                -46.0
+              ]
+            },
+            {
+              "mob": "armour_guard",
+              "level": 31,
+              "at": [
+                3.0,
+                1200.5,
+                -46.0
+              ]
+            }
+          ]
+        },
+        {
+          "id": "gallery_open",
+          "on": "cleared:corridor",
+          "open": [
+            "gate_a"
+          ],
+          "message": "The gallery door creaks open."
+        },
+        {
+          "id": "commander",
+          "on": "area:-64",
+          "close": [
+            "gate_a"
+          ],
+          "message": "The Cursed Armour Commander raises its shield - strike from behind!",
+          "spawn": [
+            {
+              "mob": "armour_commander",
+              "level": 32,
+              "boss_key": "cursed_commander",
+              "template": "boss_knight",
+              "at": [
+                0.0,
+                1200.5,
+                -86.0
+              ]
+            }
+          ]
+        },
+        {
+          "id": "wall_70",
+          "on": "hp_below:commander:0.7",
+          "message": "Armours step down from the walls!",
+          "spawn": [
+            {
+              "mob": "armour_guard",
+              "level": 31,
+              "at": [
+                -12.0,
+                1200.5,
+                -76.0
+              ]
+            },
+            {
+              "mob": "armour_guard",
+              "level": 31,
+              "at": [
+                12.0,
+                1200.5,
+                -76.0
+              ]
+            }
+          ]
+        },
+        {
+          "id": "wall_40",
+          "on": "hp_below:commander:0.4",
+          "message": "More armours awaken!",
+          "spawn": [
+            {
+              "mob": "armour_guard",
+              "level": 31,
+              "at": [
+                -12.0,
+                1200.5,
+                -94.0
+              ]
+            },
+            {
+              "mob": "armour_guard",
+              "level": 31,
+              "at": [
+                12.0,
+                1200.5,
+                -94.0
+              ]
+            }
+          ]
+        },
+        {
+          "id": "gallery_done",
+          "on": "cleared:commander",
+          "open": [
+            "gate_a",
+            "gate_b"
+          ],
+          "message": "The commander falls. A damp stair leads down."
+        },
+        {
+          "id": "snare",
+          "on": "area:-108",
+          "close": [
+            "gate_b"
+          ],
+          "message": "Devil's Snare! Burn its vines - Incendio!",
+          "spawn": [
+            {
+              "mob": "devils_snare",
+              "level": 33,
+              "boss_key": "snare_root",
+              "template": "boss_snare",
+              "at": [
+                0.0,
+                1200.5,
+                -128.0
+              ]
+            }
+          ]
+        },
+        {
+          "id": "cellar_done",
+          "on": "cleared:snare",
+          "open": [
+            "gate_b",
+            "gate_c"
+          ],
+          "message": "The Snare withers. Music drifts from below..."
+        },
+        {
+          "id": "stairs",
+          "on": "area:-144",
+          "message": "Pixies swarm the stair!",
+          "spawn": [
+            {
+              "mob": "cornish_pixie",
+              "level": 31,
+              "at": [
+                -3.0,
+                1200.5,
+                -154.0
+              ]
+            },
+            {
+              "mob": "cornish_pixie",
+              "level": 31,
+              "at": [
+                -1.0,
+                1200.5,
+                -154.0
+              ]
+            },
+            {
+              "mob": "cornish_pixie",
+              "level": 31,
+              "at": [
+                1.0,
+                1200.5,
+                -154.0
+              ]
+            },
+            {
+              "mob": "cornish_pixie",
+              "level": 31,
+              "at": [
+                3.0,
+                1200.5,
+                -154.0
+              ]
+            }
+          ]
+        },
+        {
+          "id": "fluffy",
+          "on": "area:-168",
+          "close": [
+            "gate_c"
+          ],
+          "message": "Fluffy wakes! Play the harp to lull it to sleep.",
+          "spawn": [
+            {
+              "mob": "fluffy",
+              "level": 34,
+              "boss_key": "fluffy",
+              "template": "boss_hound",
+              "at": [
+                0.0,
+                1200.5,
+                -196.0
+              ],
+              "harp": [
+                18.0,
+                1200.5,
+                -172.0
+              ]
+            }
+          ]
+        },
+        {
+          "id": "done",
+          "on": "cleared:fluffy",
+          "open": [
+            "gate_c",
+            "gate_d"
+          ],
+          "complete": true,
+          "message": "Fluffy collapses. The trapdoor swings open - claim your reward.",
+          "chest": {
+            "table": "dungeon_corridor",
+            "at": [
+              0.0,
+              1200.5,
+              -224.0
             ]
           }
         }

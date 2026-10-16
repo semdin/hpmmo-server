@@ -182,6 +182,175 @@
         "damage_ratio": 0.08,
         "despair_s": 2.0
       }
+    },
+    "cornish_pixie": {
+      "display": "Cornish Pixie",
+      "family": "pixie",
+      "role": "swarm",
+      "scene": "res://scenes/entities/mobs/mob_cornish_pixie.tscn",
+      "base": {
+        "max_hp": 260,
+        "attack_power": 40,
+        "move_speed": 6.5,
+        "attack_range": 1.8,
+        "attack_cooldown": 1.3
+      },
+      "exp_mult": 0.5,
+      "resist": {
+        "stun": -0.3,
+        "force": -0.3
+      },
+      "loot_table": ""
+    },
+    "armour_guard": {
+      "display": "Enchanted Armour",
+      "family": "armour",
+      "role": "brute",
+      "scene": "res://scenes/entities/mobs/mob_armour_guard.tscn",
+      "base": {
+        "max_hp": 1100,
+        "attack_power": 75,
+        "move_speed": 3.0,
+        "attack_range": 3.4,
+        "attack_cooldown": 2.4
+      },
+      "exp_mult": 1.6,
+      "resist": {
+        "stun": 0.5,
+        "fire": 0.3,
+        "force": -0.3,
+        "patronus": 0.5
+      },
+      "loot_table": "armour",
+      "abilities": [
+        {
+          "id": "sweep",
+          "kind": "directional",
+          "clip": "Swing",
+          "anticipation": 1.1,
+          "recovery": 1.0,
+          "range": 5.0,
+          "half_angle": 0.9,
+          "damage_multiplier": 1.4,
+          "every": 3
+        }
+      ]
+    },
+    "armour_commander": {
+      "display": "Cursed Armour Commander",
+      "family": "armour",
+      "role": "boss",
+      "scene": "res://scenes/entities/mobs/mob_armour_commander.tscn",
+      "base": {
+        "max_hp": 1600,
+        "attack_power": 85,
+        "move_speed": 2.8,
+        "attack_range": 3.8,
+        "attack_cooldown": 2.4
+      },
+      "exp_mult": 2.0,
+      "resist": {
+        "stun": 0.7,
+        "fire": 0.3,
+        "force": -0.3,
+        "patronus": 0.5
+      },
+      "loot_table": "armour",
+      "front_guard": 0.8
+    },
+    "devils_snare": {
+      "display": "Devil's Snare",
+      "family": "snare",
+      "role": "boss",
+      "scene": "res://scenes/entities/mobs/mob_devils_snare.tscn",
+      "base": {
+        "max_hp": 4000,
+        "attack_power": 90,
+        "move_speed": 0.0,
+        "attack_range": 9.0,
+        "attack_cooldown": 2.6
+      },
+      "exp_mult": 2.0,
+      "resist": {
+        "stun": 1.0,
+        "fire": -0.5,
+        "force": 0.3
+      },
+      "loot_table": "snare",
+      "parts": {
+        "species": "snare_vine",
+        "bones": {
+          "L": "VineL3",
+          "R": "VineR3",
+          "T": "VineT3"
+        }
+      }
+    },
+    "snare_vine": {
+      "display": "Snare Vine",
+      "family": "snare",
+      "role": "part",
+      "scene": "res://scenes/entities/mobs/mob_snare_vine.tscn",
+      "base": {
+        "max_hp": 1500,
+        "attack_power": 0,
+        "move_speed": 0.0,
+        "attack_range": 0.0,
+        "attack_cooldown": 9.0
+      },
+      "exp_mult": 0.0,
+      "resist": {
+        "stun": 1.0,
+        "fire": -1.0,
+        "arcane": 0.5,
+        "force": 0.4,
+        "patronus": 0.5
+      },
+      "loot_table": ""
+    },
+    "fluffy": {
+      "display": "Fluffy",
+      "family": "hound",
+      "role": "boss",
+      "scene": "res://scenes/entities/mobs/mob_fluffy.tscn",
+      "base": {
+        "max_hp": 12000,
+        "attack_power": 140,
+        "move_speed": 2.6,
+        "attack_range": 7.0,
+        "attack_cooldown": 2.8
+      },
+      "exp_mult": 4.0,
+      "resist": {
+        "stun": 1.0
+      },
+      "loot_table": "fluffy",
+      "parts": {
+        "species": "fluffy_head",
+        "bones": {
+          "L": "Head.L",
+          "M": "Head.M",
+          "R": "Head.R"
+        }
+      }
+    },
+    "fluffy_head": {
+      "display": "Fluffy's Head",
+      "family": "hound",
+      "role": "part",
+      "scene": "res://scenes/entities/mobs/mob_fluffy_head.tscn",
+      "base": {
+        "max_hp": 4000,
+        "attack_power": 0,
+        "move_speed": 0.0,
+        "attack_range": 0.0,
+        "attack_cooldown": 9.0
+      },
+      "exp_mult": 0.0,
+      "resist": {
+        "stun": 1.0
+      },
+      "loot_table": ""
     }
   },
   "_elite_note": "Any ordinary (non-boss) pack member may roll elite on each spawn. An elite is a stronger copy of the same species with its own label colour, more experience and an extra guaranteed loot roll.",
@@ -223,5 +392,6 @@
     ]
   },
   "_exp_note": "exp_mult scales the level-based pack experience for creatures that are slower to kill than their level suggests (trolls, dementors).",
-  "_abilities_note": "abilities: telegraphed patterns an ordinary creature mixes in (`every` N attacks) or throws at a target out of reach (`min_range`/`max_range` + `cooldown`). at_target centres the area on the target; despair_s stops the victim's regeneration; drain heals the attacker by that share of the damage. aura: while fighting, players within `radius` take attack_power x damage_ratio per regeneration beat and despair."
+  "_abilities_note": "abilities: telegraphed patterns an ordinary creature mixes in (`every` N attacks) or throws at a target out of reach (`min_range`/`max_range` + `cooldown`). at_target centres the area on the target; despair_s stops the victim's regeneration; drain heals the attacker by that share of the damage. aura: while fighting, players within `radius` take attack_power x damage_ratio per regeneration beat and despair.",
+  "_parts_note": "D1 multi-part creatures: `parts` names the bones a body grows targetable parts on (their species and hit points come from the part's own entry and boss_overrides part_hp). The body is immune while any part stands. `front_guard`: share of a blow from in front (~60 degrees) that a shield-bearer ignores."
 }

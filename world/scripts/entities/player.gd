@@ -1450,6 +1450,16 @@ func persisted_quests() -> Dictionary:
 	out["skills"] = skill_levels.duplicate()
 	return out
 
+## Dungeon runs started today (`quests.dungeons`, authority-written).
+func dungeon_entries_on(dungeon_id: String, day: String) -> int:
+	var entry: Dictionary = (_quest_state.get("dungeons", {}) as Dictionary).get(dungeon_id, {})
+	return int(entry.get("entries", 0)) if String(entry.get("day", "")) == day else 0
+
+func record_dungeon_entry(dungeon_id: String, day: String) -> void:
+	var all: Dictionary = _quest_state.get("dungeons", {})
+	all[dungeon_id] = {"day": day, "entries": dungeon_entries_on(dungeon_id, day) + 1}
+	_quest_state["dungeons"] = all
+
 ## This body's trained level of a spell (1 when untrained or not trainable).
 func skill_level(spell_id: String) -> int:
 	return HPRules.skill_level_of(skill_levels, spell_id)

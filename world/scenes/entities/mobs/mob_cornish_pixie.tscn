@@ -1,0 +1,44 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/entities/mobs/mob_base.gd" id="1_mb"]
+[ext_resource type="PackedScene" path="res://assets/models/monsters/cornish_pixie.glb" id="2_body"]
+
+[sub_resource type="CapsuleShape3D" id="Shape_1"]
+radius = 0.3
+height = 0.9
+
+[node name="MobCornishPixie" type="CharacterBody3D" groups=["mobs", "targetable"]]
+collision_layer = 2
+collision_mask = 7
+script = ExtResource("1_mb")
+mob_name = "Cornish Pixie"
+level = 30
+max_hp = 260
+attack_power = 40
+move_speed = 6.5
+aggro_radius = 14.0
+attack_range = 1.8
+attack_cooldown = 1.3
+anim_set = "pixie"
+voice_set = "pixie"
+walk_speed = 0.0
+attack_anticipation = 0.5
+attack_recovery = 0.4
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.35, 0)
+shape = SubResource("Shape_1")
+
+[node name="Visuals" type="Node3D" parent="."]
+
+[node name="NormalVariant" parent="Visuals" instance=ExtResource("2_body")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+
+[node name="Label3D" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.3, 0)
+billboard = 1
+double_sided = false
+text = "[Lv.30] Cornish Pixie"
+font_size = 32
+outline_size = 8
+outline_modulate = Color(0, 0, 0, 1)

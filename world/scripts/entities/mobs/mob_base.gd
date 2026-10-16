@@ -83,6 +83,12 @@ signal died(mob: Node3D)
 ## Passive cold aura (mobs.json `aura`), resolved by the authority each
 ## regeneration beat while this creature fights.
 @export var aura: Dictionary = {}
+## D1 creature rules the authority reads at registration: an immune body takes
+## no damage (a multi-part creature while its parts stand), a shield-bearer
+## shrugs off `front_guard` of a blow from in front, a part pays no rewards.
+@export var immune := false
+@export var front_guard := 0.0
+var no_rewards := false
 var _attack_count := 0
 var _ability_ready_tick: Dictionary = {}
 var _boulder_tick := -1
@@ -154,6 +160,20 @@ const ANIM_SETS := {
 	"wraith": {"idle": "Idle", "walk": "Float", "run": "Float", "turn": "Float",
 		"anticipation": "Reach_Anticipation", "attack": "Reach_Attack", "hit": "Hit",
 		"stun": "Stun", "death": "Death"},
+	# D1 Forbidden Corridor. Procedural rigs: hound_rig.py (Fluffy), snare_rig.py;
+	# Meshy rigs: the armours (meshy_merge_clips.py --pole) and the pixie.
+	"hound": {"idle": "Idle", "walk": "Walk", "run": "Run", "turn": "Walk",
+		"anticipation": "Bite_Anticipation", "attack": "Bite_Attack", "hit": "Hit",
+		"stun": "Sleep", "death": "Death"},
+	"snare": {"idle": "Idle", "walk": "Idle", "run": "Idle", "turn": "Idle",
+		"anticipation": "Lash_Anticipation", "attack": "Lash_Attack", "hit": "Hit",
+		"stun": "Hit", "death": "Death"},
+	"knight": {"idle": "Idle", "walk": "Walk", "run": "Run", "turn": "Walk",
+		"anticipation": "Swing_Anticipation", "attack": "Swing_Attack", "hit": "Hit",
+		"stun": "Hit", "death": "Death"},
+	"pixie": {"idle": "Idle", "walk": "Run", "run": "Run", "turn": "Run",
+		"anticipation": "Swing_Anticipation", "attack": "Swing_Attack", "hit": "Hit",
+		"stun": "Hit", "death": "Death"},
 	"generic": {"idle": "Idle", "walk": "Walking_A", "run": "Running_A", "turn": "Running_A",
 		"anticipation": "1H_Melee_Attack_Chop", "attack": "1H_Melee_Attack_Chop",
 		"hit": "Hit_A", "stun": "Hit_A", "death": "Death_A"},
@@ -165,6 +185,10 @@ const ANIM_SETS := {
 const VOICE_SETS := {
 	"troll": {"move": "troll_move_%d", "alert": "troll_alert", "attack": "troll_attack", "death": "troll_death"},
 	"dementor": {"move": "dementor_move_%d", "alert": "dementor_alert", "attack": "dementor_attack", "death": "dementor_death"},
+	"hound": {"move": "hound_move_%d", "alert": "hound_alert", "attack": "hound_attack", "death": "hound_death"},
+	"pixie": {"move": "pixie_move_%d", "alert": "pixie_alert", "attack": "pixie_attack", "death": "pixie_death"},
+	"armour": {"move": "armour_move_%d", "alert": "armour_alert", "attack": "armour_attack", "death": "armour_death"},
+	"snare": {"move": "snare_move_%d", "alert": "snare_alert", "attack": "snare_attack", "death": "snare_death"},
 	"spider": {"move": "spider_move_%d", "alert": "spider_alert", "attack": "spider_bite", "death": "spider_death"},
 	"snatcher": {"move": "snatcher_move_%d", "alert": "snatcher_alert", "attack": "snatcher_attack", "death": "snatcher_death"},
 	"inferi": {"move": "inferi_move_%d", "alert": "inferi_alert", "attack": "inferi_attack", "death": "inferi_death"},
@@ -212,6 +236,8 @@ func _fill_catalog_identity() -> void:
 		abilities = (def.get("abilities", []) as Array).duplicate(true)
 	if aura.is_empty():
 		aura = (def.get("aura", {}) as Dictionary).duplicate()
+	if front_guard <= 0.0:
+		front_guard = float(def.get("front_guard", 0.0))
 
 ## Boss bodies are authored creatures, not a scaled-up ordinary mob: the scene
 ## carries `Visuals/NormalVariant` and `Visuals/BossVariant`, and the boss flag
@@ -222,8 +248,8 @@ func _apply_boss_visual() -> void:
 	var normal := visuals.get_node_or_null("NormalVariant")
 	if boss_node:
 		boss_node.visible = is_boss
-	if normal:
-		normal.visible = not is_boss
+	if normal and boss_node:
+		normal.visible = not is_boss   # one body serves both when there is no boss variant
 	if boss_node != null and normal != null:
 		var normal_shape := get_node_or_null("CollisionShape3D")
 		var boss_shape := get_node_or_null("CollisionShape3DBoss")
@@ -243,7 +269,7 @@ func _apply_boss_visual() -> void:
 		for animation in anim_player.get_animation_list():
 			var clip := anim_player.get_animation(animation)
 			clip.loop_mode = Animation.LOOP_LINEAR if animation in ["Idle", "Walk", "Run", "Walking_A",
-				"Running_A", "Stun", "Stun_Loop", "Float"] else Animation.LOOP_NONE
+				"Running_A", "Stun", "Stun_Loop", "Float", "Sleep"] else Animation.LOOP_NONE
 
 ## LOD switch for bodies whose GLB ships a second skinned mesh (Creature pass
 ## creatures). Ordinary mobs use LOD1 only (art-direction §4).
@@ -537,6 +563,10 @@ func _begin_attack(plan: Dictionary) -> void:
 	if bool(plan.get("at_target", false)) and _valid_target():
 		_attack_center = (target_player as Node3D).global_position
 	_attack_dir = _direction_to_target()
+	# An area pattern can sit ahead of (or, negative, behind) the body: a big
+	# creature's paw lands in front of it and its tail sweeps behind it.
+	if plan.has("offset") and not bool(plan.get("at_target", false)):
+		_attack_center = global_position + _attack_dir * float(plan["offset"])
 	_windup = float(plan.get("anticipation", MELEE_ANTICIPATION))
 	_recovery = float(plan.get("recovery", MELEE_RECOVERY))
 	attack_phase = AttackPhase.ANTICIPATION

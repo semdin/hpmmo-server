@@ -442,6 +442,10 @@ func register_mob(node: Node3D, pack_id: int, zone_id: String) -> int:
 		"burn_source_uid": 0,
 		"weak_until_tick": 0,
 		"stun_until_tick": 0,
+		"immune": node.get("immune") == true,
+		"front_guard": float(node.get("front_guard")) if node.get("front_guard") != null else 0.0,
+		"no_rewards": node.get("no_rewards") == true,
+		"parts_down": [],
 	})
 	return uid
 
@@ -478,7 +482,77 @@ func refresh_mob(node: Node3D) -> void:
 	record.erase("telegraph")
 	record["is_enraged"] = bool(node.get("is_enraged")) if node.get("is_enraged") != null else false
 	record["damage_log"] = []
+	record["immune"] = node.get("immune") == true
+	record["front_guard"] = float(node.get("front_guard")) if node.get("front_guard") != null else 0.0
+	record["no_rewards"] = node.get("no_rewards") == true
+	record["parts_down"] = []
+	record["vulnerable_until_tick"] = 0
 	touch(record)
+
+## --- Multi-part creatures (D1: Fluffy's heads, the Devil's Snare's vines) ---
+## A part is its own mob entity (targetable, own hit points, no rewards); the
+## body is immune while any part stands, shows their summed hit points, and
+## dies when the last part falls. Bodies call these from their own script.
+
+## Turn a body's immunity on/off (the Snare's heart once its vines are gone).
+func set_mob_immune(node: Node, immune: bool) -> void:
+	var record := record_for(node)
+	if record.is_empty():
+		return
+	record["immune"] = immune
+	touch(record)
+
+## Damage taken x `mult` until `seconds` from now (Fluffy asleep under the harp).
+func set_mob_vulnerable(node: Node, mult: float, seconds: float) -> void:
+	var record := record_for(node)
+	if record.is_empty():
+		return
+	record["vulnerable_mult"] = mult
+	record["vulnerable_until_tick"] = sim_tick + int(round(seconds * HPProtocol.SIM_HZ))
+
+## A body's displayed hit points (the sum of its parts).
+func set_mob_hp(node: Node, hp: int, max_hp: int = -1) -> void:
+	var record := record_for(node)
+	if record.is_empty() or bool(record.get("dead", false)):
+		return
+	if max_hp >= 0:
+		record["max_hp"] = max_hp
+	if int(record.get("hp", 0)) == hp:
+		return
+	record["hp"] = maxi(1, hp)
+	_sync_node_health(record)
+	touch(record)
+	emit_signal("entity_health", int(record["uid"]), int(record["hp"]), int(record.get("max_hp", 0)), flags_for(record))
+
+## A part fell: clients droop/wither it from the body's mob info.
+func mark_part_down(node: Node, part: String) -> void:
+	var record := record_for(node)
+	if record.is_empty():
+		return
+	var down: Array = record.get("parts_down", [])
+	if not down.has(part):
+		down.append(part)
+	record["parts_down"] = down
+	record["meta_rev"] = int(record.get("meta_rev", 0)) + 1
+	touch(record)
+
+## Kill a body outright (its last part fell). Credit and rewards go to whoever
+## damaged its parts: their damage logs are merged into the body's.
+func force_kill(node: Node, parts: Array = []) -> void:
+	var record := record_for(node)
+	if record.is_empty() or bool(record.get("dead", false)):
+		return
+	var log: Array = record.get("damage_log", [])
+	var last := {}
+	for part in parts:
+		var part_record := record_for(part)
+		for entry in part_record.get("damage_log", []):
+			log.append(entry)
+	log.sort_custom(func(a, b): return int(a.get("at_tick", 0)) < int(b.get("at_tick", 0)))
+	record["damage_log"] = log
+	if not log.is_empty():
+		last = entities.get(int(log[-1].get("attacker_uid", 0)), {})
+	_kill(record, last)
 
 # ------------------------------------------- encounter state & timing
 
@@ -901,6 +975,7 @@ func request_transfer(peer_id: int, portal_id: String, to_map: String = "") -> D
 	if to_map != "" and HPMaps.base_map(to_map) != destination:
 		return _refuse_transfer(peer_id, HPProtocol.REJECT_WRONG_MAP)
 	# A dungeon: the party's own copy (or a fresh one), behind its entry rules.
+	var dungeon_entry_pending := {}
 	if HPMaps.is_instanced(destination):
 		var dungeon := HPMaps.dungeon_for_map(destination)
 		if _player_level(record) < int(dungeon.get("level_min", 1)):
@@ -908,6 +983,15 @@ func request_transfer(peer_id: int, portal_id: String, to_map: String = "") -> D
 		destination = _resolve_instance(record, destination)
 		if destination == "":
 			return _refuse_transfer(peer_id, HPProtocol.REJECT_MAP_FULL)
+		# Daily entries (dungeons.json entries_per_day): a run you are already
+		# part of (re-entry after a death or a disconnect) is free.
+		var limit := int(dungeon.get("entries_per_day", 0))
+		if limit > 0 and not _is_entrant(destination, record):
+			var counted := _dungeon_entries_today(record, String(dungeon.get("id", "")))
+			if counted >= limit:
+				_drop_unopened_copy(destination)
+				return _refuse_transfer(peer_id, HPProtocol.REJECT_DAILY_LIMIT)
+			dungeon_entry_pending = {"map": destination, "dungeon": String(dungeon.get("id", ""))}
 	var node: Node3D = record.get("node")
 	if node == null or not is_instance_valid(node):
 		return _refuse_transfer(peer_id, HPProtocol.REJECT_STATE)
@@ -932,6 +1016,8 @@ func request_transfer(peer_id: int, portal_id: String, to_map: String = "") -> D
 		return _refuse_transfer(peer_id, HPProtocol.REJECT_MAP_FULL)
 
 	# --- reserve the destination spawn
+	if not dungeon_entry_pending.is_empty():
+		_count_dungeon_entry(record, String(dungeon_entry_pending["map"]), String(dungeon_entry_pending["dungeon"]))
 	var token := _next_transfer_token
 	_next_transfer_token += 1
 	var approval: Vector3 = HPMaps.spawn_point(destination, spawn_id)
@@ -1711,6 +1797,9 @@ func _apply_damage(target: Dictionary, raw: int, spell_id: String, attacker: Dic
 			return 0
 
 	var amount := HPRules.damage_after_resistances(raw, spell_id, bool(target.get("weak_to_fire", false)), target.get("resist", {}))
+	amount = _creature_damage_mods(target, attacker, amount)
+	if amount <= 0 and bool(target.get("immune", false)):
+		return 0
 	# Protego: projectiles are reflected (handled by the caller), everything else
 	# is reduced by the authored multiplier.
 	if int(target.get("ward_until_tick", 0)) > sim_tick and not _is_projectile_spell(spell_id):
@@ -1766,6 +1855,30 @@ func _apply_damage(target: Dictionary, raw: int, spell_id: String, attacker: Dic
 			if force != Vector3.ZERO:
 				target_node.call("apply_knockback", force)
 
+	return amount
+
+## D1 creature rules on a hit: an immune body takes nothing, a shield-bearer
+## (front_guard) shrugs off most of a blow from in front, and a body put to
+## sleep by the harp takes extra.
+func _creature_damage_mods(target: Dictionary, attacker: Dictionary, amount: int) -> int:
+	if bool(target.get("immune", false)):
+		return 0
+	var guard := float(target.get("front_guard", 0.0))
+	if guard > 0.0 and not attacker.is_empty():
+		var t = target.get("node")
+		var a = attacker.get("node")
+		if t is Node3D and a is Node3D and is_instance_valid(t) and is_instance_valid(a):
+			# Mobs turn their Visuals child (mob_base._face_direction), not the body.
+			var facing: Node3D = (t as Node3D).get_node_or_null("Visuals") as Node3D
+			var forward := (facing if facing != null else t as Node3D).global_transform.basis.z
+			forward.y = 0.0
+			var to_attacker := (a as Node3D).global_position - (t as Node3D).global_position
+			to_attacker.y = 0.0
+			if forward.length_squared() > 0.0001 and to_attacker.length_squared() > 0.0001 \
+					and forward.normalized().dot(to_attacker.normalized()) > HPRules.FRONT_GUARD_COS:
+				amount = int(round(amount * (1.0 - clampf(guard, 0.0, 0.95))))
+	if int(target.get("vulnerable_until_tick", 0)) > sim_tick:
+		amount = int(round(amount * float(target.get("vulnerable_mult", 1.0))))
 	return amount
 
 func _is_projectile_spell(spell_id: String) -> bool:
@@ -1874,6 +1987,8 @@ func _kill(target: Dictionary, killer: Dictionary) -> void:
 			node.call("on_authoritative_death", killer_node)
 	if int(target.get("kind", 0)) == HPProtocol.Kind.PLAYER:
 		_schedule_player_respawn(target)
+		return
+	if bool(target.get("no_rewards", false)):
 		return
 	_grant_kill_rewards(target)
 
@@ -2784,6 +2899,35 @@ func _resolve_instance(record: Dictionary, base: String) -> String:
 			return HPMaps.instance_id(base, slot)
 	return ""
 
+## --- daily dungeon entries (stored in the character's `quests` object, so
+## they survive a relog; the day is the server's UTC date).
+func _is_entrant(map_id: String, record: Dictionary) -> bool:
+	return (instance_info(map_id).get("entrants", []) as Array).has(_instance_owner(record))
+
+func _dungeon_entries_today(record: Dictionary, dungeon_id: String) -> int:
+	var node = record.get("node")
+	if node == null or not is_instance_valid(node) or not node.has_method("dungeon_entries_on"):
+		return 0
+	return int(node.call("dungeon_entries_on", dungeon_id, Time.get_date_string_from_system(true)))
+
+func _count_dungeon_entry(record: Dictionary, map_id: String, dungeon_id: String) -> void:
+	var info := instance_info(map_id)
+	if info.is_empty():
+		return
+	var entrants: Array = info.get("entrants", [])
+	entrants.append(_instance_owner(record))
+	info["entrants"] = entrants
+	var node = record.get("node")
+	if node != null and is_instance_valid(node) and node.has_method("record_dungeon_entry"):
+		node.call("record_dungeon_entry", dungeon_id, Time.get_date_string_from_system(true))
+
+## A copy reserved for a request that was then refused: free the slot unless
+## somebody is already in it.
+func _drop_unopened_copy(map_id: String) -> void:
+	var info := instance_info(map_id)
+	if not info.is_empty() and not bool(info.get("opened", false)) and (info.get("entrants", []) as Array).is_empty():
+		(instances.get(HPMaps.base_map(map_id), {}) as Dictionary).erase(HPMaps.instance_slot(map_id))
+
 func instance_info(map_id: String) -> Dictionary:
 	return (instances.get(HPMaps.base_map(map_id), {}) as Dictionary).get(HPMaps.instance_slot(map_id), {})
 
@@ -2947,7 +3091,8 @@ static func _party_reason(reason: String) -> String:
 ## the mob's identity does (a respawn can re-roll elite).
 static func mob_info_of(record: Dictionary) -> Dictionary:
 	return {"name": String(record.get("name", "")), "level": int(record.get("level", 1)),
-		"elite": bool(record.get("is_elite", false)), "rev": int(record.get("meta_rev", 0))}
+		"elite": bool(record.get("is_elite", false)), "rev": int(record.get("meta_rev", 0)),
+		"parts_down": (record.get("parts_down", []) as Array).duplicate()}
 
 ## Client side of `sim_mob_info`. The reliable event can overtake the first
 ## unreliable snapshot, so info for an unknown uid waits in `_pending_mob_info`
@@ -2966,6 +3111,7 @@ func _merge_mob_info(record: Dictionary, info: Dictionary) -> void:
 	record["level"] = int(info.get("level", record.get("level", 1)))
 	record["is_elite"] = bool(info.get("elite", false))
 	record["meta_rev"] = int(info.get("rev", 0))
+	record["parts_down"] = (info.get("parts_down", []) as Array).duplicate()
 	emit_signal("mob_info", int(record.get("uid", 0)), info)
 
 ## A replica the server stopped announcing is gone: forget it, or the client

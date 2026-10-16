@@ -58,6 +58,36 @@
       "arena_radius": 22.0,
       "leash_distance": 45.0,
       "attack_style": "wraith"
+    },
+    "boss_knight": {
+      "pack_size": 1,
+      "max_alive": 1,
+      "boss": true,
+      "escorts": 0,
+      "respawn": "boss",
+      "arena_radius": 20.0,
+      "leash_distance": 60.0,
+      "attack_style": "knight"
+    },
+    "boss_snare": {
+      "pack_size": 1,
+      "max_alive": 1,
+      "boss": true,
+      "escorts": 0,
+      "respawn": "boss",
+      "arena_radius": 18.0,
+      "leash_distance": 60.0,
+      "attack_style": "snare"
+    },
+    "boss_hound": {
+      "pack_size": 1,
+      "max_alive": 1,
+      "boss": true,
+      "escorts": 0,
+      "respawn": "boss",
+      "arena_radius": 26.0,
+      "leash_distance": 60.0,
+      "attack_style": "hound"
     }
   },
   "_pattern_note": "Boss attack patterns (Creature pass): anticipation -> release -> recovery. `anticipation` and `recovery` are seconds; the authority converts them to ticks and publishes the release tick with the telegraph, so the client-rendered warning is driven by the same clock that lands the damage.",
@@ -160,6 +190,125 @@
         "drain": 0.5,
         "impact_fx": "expelliarmus",
         "spell_id": "dementor_kiss"
+      }
+    ],
+    "knight": [
+      {
+        "kind": "directional",
+        "clip": "Swing",
+        "anticipation": 1.2,
+        "recovery": 1.0,
+        "range": 6.0,
+        "half_angle": 0.8,
+        "damage_multiplier": 1.3
+      },
+      {
+        "kind": "directional",
+        "clip": "Stomp",
+        "anticipation": 0.9,
+        "recovery": 0.9,
+        "range": 4.5,
+        "half_angle": 0.6,
+        "damage_multiplier": 1.1,
+        "spell_id": "shield_bash"
+      },
+      {
+        "kind": "area",
+        "clip": "Slam",
+        "anticipation": 1.6,
+        "recovery": 1.5,
+        "radius": 6.0,
+        "damage_multiplier": 1.7
+      }
+    ],
+    "snare": [
+      {
+        "kind": "directional",
+        "clip": "Lash",
+        "anticipation": 1.1,
+        "recovery": 1.0,
+        "range": 11.0,
+        "half_angle": 1.0,
+        "damage_multiplier": 1.2,
+        "despair_s": 3.0,
+        "spell_id": "snare_lash"
+      },
+      {
+        "kind": "area",
+        "clip": "Lash",
+        "at_target": true,
+        "anticipation": 1.3,
+        "recovery": 1.0,
+        "radius": 3.5,
+        "damage_multiplier": 1.4,
+        "spell_id": "snare_grip",
+        "despair_s": 4.0
+      },
+      {
+        "kind": "area",
+        "clip": "Burst",
+        "anticipation": 1.8,
+        "recovery": 1.5,
+        "radius": 8.0,
+        "damage_multiplier": 1.5,
+        "despair_s": 5.0,
+        "spell_id": "snare_spores",
+        "impact_fx": "incendio"
+      }
+    ],
+    "hound": [
+      {
+        "kind": "directional",
+        "clip": "Bite",
+        "anticipation": 1.1,
+        "recovery": 1.0,
+        "range": 10.0,
+        "half_angle": 0.55,
+        "damage_multiplier": 0.9,
+        "per_part": true,
+        "spell_id": "fluffy_bite"
+      },
+      {
+        "kind": "area",
+        "clip": "Paw",
+        "offset": 6.5,
+        "anticipation": 1.4,
+        "recovery": 1.3,
+        "radius": 5.5,
+        "damage_multiplier": 1.7,
+        "spell_id": "fluffy_paw"
+      },
+      {
+        "kind": "area",
+        "clip": "Tail",
+        "offset": -9.0,
+        "anticipation": 1.2,
+        "recovery": 1.0,
+        "radius": 6.0,
+        "damage_multiplier": 1.3,
+        "spell_id": "fluffy_tail"
+      },
+      {
+        "kind": "area",
+        "clip": "Roar",
+        "min_phase": 2,
+        "anticipation": 2.0,
+        "recovery": 1.6,
+        "radius": 22.0,
+        "damage_multiplier": 0.8,
+        "despair_s": 4.0,
+        "spell_id": "fluffy_roar"
+      },
+      {
+        "kind": "area",
+        "clip": "Paw",
+        "at_target": true,
+        "min_phase": 2,
+        "anticipation": 1.5,
+        "recovery": 1.2,
+        "radius": 4.5,
+        "damage_multiplier": 1.6,
+        "spell_id": "fluffy_pounce"
       }
     ]
   },
@@ -1840,6 +1989,42 @@
       "move_speed": 3.0,
       "walk_speed": 0.898,
       "label_y": 5.6
+    },
+    "cursed_commander": {
+      "hp": 6000,
+      "attack_power": 110,
+      "attack_range": 4.0,
+      "exp_reward": 3000,
+      "scale": 1.0,
+      "name": "The Cursed Armour Commander",
+      "move_speed": 2.8,
+      "walk_speed": 0.706,
+      "label_y": 3.7
+    },
+    "snare_root": {
+      "hp": 5000,
+      "attack_power": 100,
+      "attack_range": 9.0,
+      "exp_reward": 3500,
+      "scale": 1.0,
+      "name": "Devil's Snare",
+      "move_speed": 0.0,
+      "walk_speed": 0.0,
+      "label_y": 5.2,
+      "part_hp": 1800
+    },
+    "fluffy": {
+      "hp": 12000,
+      "attack_power": 140,
+      "attack_range": 7.5,
+      "exp_reward": 9000,
+      "scale": 1.0,
+      "name": "Fluffy",
+      "move_speed": 2.6,
+      "walk_speed": 0.0,
+      "label_y": 8.4,
+      "part_hp": 4000,
+      "enrage_s": 480.0
     }
   },
   "monoliths": [

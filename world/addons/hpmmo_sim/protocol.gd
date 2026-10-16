@@ -116,6 +116,7 @@ const REJECT_STATE := "invalid_state"
 const REJECT_HOUSE_RANK := "house_rank"
 ## The spell needs a higher character level (spells.json `requires_level`).
 const REJECT_LEVEL := "level_too_low"
+const REJECT_DAILY_LIMIT := "daily_limit"
 ## Skill training: no unspent point, the skill is already Master, or the spell
 ## cannot be trained.
 const REJECT_NO_SKILL_POINTS := "no_skill_points"
@@ -225,6 +226,14 @@ const MOB_VARIANT_DARKSATCHER := 3
 const MOB_VARIANT_TROLL_FOREST := 4
 const MOB_VARIANT_TROLL_MOUNTAIN := 5
 const MOB_VARIANT_DEMENTOR := 6
+# D1 Forbidden Corridor (the parts are separate targets of a multi-part body).
+const MOB_VARIANT_PIXIE := 7
+const MOB_VARIANT_ARMOUR_GUARD := 8
+const MOB_VARIANT_ARMOUR_COMMANDER := 9
+const MOB_VARIANT_DEVILS_SNARE := 10
+const MOB_VARIANT_SNARE_VINE := 11
+const MOB_VARIANT_FLUFFY := 12
+const MOB_VARIANT_FLUFFY_HEAD := 13
 
 const MOB_SCENES := {
 	MOB_VARIANT_INFERI: "res://scenes/entities/mobs/mob_inferi.tscn",
@@ -233,6 +242,13 @@ const MOB_SCENES := {
 	MOB_VARIANT_TROLL_FOREST: "res://scenes/entities/mobs/mob_troll_forest.tscn",
 	MOB_VARIANT_TROLL_MOUNTAIN: "res://scenes/entities/mobs/mob_troll_mountain.tscn",
 	MOB_VARIANT_DEMENTOR: "res://scenes/entities/mobs/mob_dementor.tscn",
+	MOB_VARIANT_PIXIE: "res://scenes/entities/mobs/mob_cornish_pixie.tscn",
+	MOB_VARIANT_ARMOUR_GUARD: "res://scenes/entities/mobs/mob_armour_guard.tscn",
+	MOB_VARIANT_ARMOUR_COMMANDER: "res://scenes/entities/mobs/mob_armour_commander.tscn",
+	MOB_VARIANT_DEVILS_SNARE: "res://scenes/entities/mobs/mob_devils_snare.tscn",
+	MOB_VARIANT_SNARE_VINE: "res://scenes/entities/mobs/mob_snare_vine.tscn",
+	MOB_VARIANT_FLUFFY: "res://scenes/entities/mobs/mob_fluffy.tscn",
+	MOB_VARIANT_FLUFFY_HEAD: "res://scenes/entities/mobs/mob_fluffy_head.tscn",
 }
 
 static func mob_variant(scene_path: String) -> int:

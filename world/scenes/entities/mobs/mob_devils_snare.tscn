@@ -1,0 +1,44 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/entities/mobs/snare_boss.gd" id="1_mb"]
+[ext_resource type="PackedScene" path="res://assets/models/monsters/devils_snare.glb" id="2_body"]
+
+[sub_resource type="CapsuleShape3D" id="Shape_1"]
+radius = 1.6
+height = 4.5
+
+[node name="MobDevilsSnare" type="CharacterBody3D" groups=["mobs", "targetable"]]
+collision_layer = 2
+collision_mask = 7
+script = ExtResource("1_mb")
+mob_name = "Devil's Snare"
+level = 33
+max_hp = 4000
+attack_power = 90
+move_speed = 0.0
+aggro_radius = 14.0
+attack_range = 9.0
+attack_cooldown = 2.6
+anim_set = "snare"
+voice_set = "snare"
+walk_speed = 0.0
+attack_anticipation = 0.0
+attack_recovery = 0.0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.25, 0)
+shape = SubResource("Shape_1")
+
+[node name="Visuals" type="Node3D" parent="."]
+
+[node name="NormalVariant" parent="Visuals" instance=ExtResource("2_body")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+
+[node name="Label3D" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.2, 0)
+billboard = 1
+double_sided = false
+text = "[Lv.33] Devil's Snare"
+font_size = 32
+outline_size = 8
+outline_modulate = Color(0, 0, 0, 1)

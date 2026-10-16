@@ -1,0 +1,44 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/entities/mobs/mob_base.gd" id="1_mb"]
+[ext_resource type="PackedScene" path="res://assets/models/monsters/armour_commander.glb" id="2_body"]
+
+[sub_resource type="CapsuleShape3D" id="Shape_1"]
+radius = 0.65
+height = 3.0
+
+[node name="MobArmourCommander" type="CharacterBody3D" groups=["mobs", "targetable"]]
+collision_layer = 2
+collision_mask = 7
+script = ExtResource("1_mb")
+mob_name = "Cursed Armour Commander"
+level = 32
+max_hp = 1600
+attack_power = 85
+move_speed = 2.8
+aggro_radius = 12.0
+attack_range = 3.8
+attack_cooldown = 2.4
+anim_set = "knight"
+voice_set = "armour"
+walk_speed = 0.706
+attack_anticipation = 1.1
+attack_recovery = 0.9
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+shape = SubResource("Shape_1")
+
+[node name="Visuals" type="Node3D" parent="."]
+
+[node name="NormalVariant" parent="Visuals" instance=ExtResource("2_body")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+
+[node name="Label3D" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.7, 0)
+billboard = 1
+double_sided = false
+text = "[Lv.32] Cursed Armour Commander"
+font_size = 32
+outline_size = 8
+outline_modulate = Color(0, 0, 0, 1)
