@@ -69,7 +69,9 @@ func _build_packs() -> void:
 			dormant.append(pack)
 
 func _prepare_encounter(authored: Dictionary, scenes: Dictionary) -> Dictionary:
-	var scene_path := String(scenes.get(String(authored.get("mob", "")), ""))
+	var scene_path := HPRules.mob_scene_path(String(authored.get("mob", "")))
+	if scene_path == "":
+		scene_path = String(scenes.get(String(authored.get("mob", "")), ""))
 	if scene_path == "":
 		printerr("[Encounters] %s: no scene for mob '%s'" % [authored.get("encounter_id", "?"), authored.get("mob", "")])
 		return {}
@@ -234,11 +236,7 @@ func _spawn_pack(index: int) -> void:
 			mob.managed_respawn = true
 			mob.encounter_id = String(pack.get("encounter_id", ""))
 			mob.level = pack.level
-			var strength := HPRules.pack_strength(int(pack.level))
-			var tuning: Dictionary = HPRules.spawn_tables().get("pack_tuning", {})
-			mob.max_hp = int(mob.max_hp * strength)
-			mob.attack_power = int(mob.attack_power * strength * float(tuning.get("attack_multiplier", 0.75)))
-			mob.exp_reward = HPRules.pack_exp_reward(int(pack.level))
+			_configure_member(mob, pack, not pack.get("boss", false))
 			mob.aggro_radius = HPRules.aggro_radius_for_level(int(pack.level))
 			mob.aggro_mode = String(pack.get("aggro_mode", "reactive"))
 			mob.assist_radius = float(pack.get("assist_radius", 16.0))
@@ -259,6 +257,10 @@ func _spawn_pack(index: int) -> void:
 			mob.spawn_point = _on_ground(anchor + offset)
 			mob.pack_anchor = anchor
 			mob.escort_count = int(pack.get("escorts", 0))
+			# Ordinary members re-roll elite every life; a boss pack keeps the
+			# stats _apply_boss gave it.
+			if not pack.get("boss", false):
+				_configure_member(mob, pack, true)
 			mob._respawn()
 	pack["spawns"] = int(pack.get("spawns", 0)) + 1
 	if members.size() > 0:
@@ -266,6 +268,49 @@ func _spawn_pack(index: int) -> void:
 			pack.get("encounter_id", "?"), int(pack.get("pack_id", index + 1)),
 			anchor.x, anchor.y, anchor.z, String(pack.get("zone", "")), int(pack["spawns"])])
 	pack.timer = -1.0
+
+## Stats for one pack member: the species' catalog base (mobs.json, falling back
+## to the scene's own numbers) x the level strength, then the elite roll. Runs
+## before the body enters the tree (its _ready keeps the result as its base) and
+## again before every pooled respawn, so elite is rolled per life.
+func _configure_member(mob: Node3D, pack: Dictionary, can_be_elite: bool) -> void:
+	var species := String(pack.get("mob", ""))
+	var def := HPRules.mob_def(species)
+	if not mob.has_meta("scene_stats"):
+		mob.set_meta("scene_stats", {"max_hp": mob.max_hp, "attack_power": mob.attack_power,
+			"move_speed": mob.move_speed, "attack_range": mob.attack_range,
+			"attack_cooldown": mob.attack_cooldown, "mob_name": mob.mob_name})
+	var scene_stats: Dictionary = mob.get_meta("scene_stats")
+	var base: Dictionary = def.get("base", {})
+	var level := int(pack.get("level", 1))
+	var strength := HPRules.pack_strength(level)
+	var tuning: Dictionary = HPRules.spawn_tables().get("pack_tuning", {})
+	var hp := float(base.get("max_hp", scene_stats["max_hp"])) * strength
+	var attack := float(base.get("attack_power", scene_stats["attack_power"])) * strength * float(tuning.get("attack_multiplier", 0.75))
+	var exp := float(HPRules.pack_exp_reward(level))
+	var display := String(def.get("display", scene_stats["mob_name"]))
+	var elite := can_be_elite and HPRules.roll_elite(rng)
+	if elite:
+		var rules := HPRules.elite_rules()
+		hp *= float(rules.get("hp_mult", 3.0))
+		attack *= float(rules.get("attack_mult", 1.5))
+		exp *= float(rules.get("exp_mult", 3.0))
+		display = String(rules.get("name_prefix", "Elite ")) + display
+	mob.species = species
+	mob.is_elite = elite
+	mob.mob_name = display
+	mob.resist = HPRules.mob_resist(species)
+	mob.loot_table = String(def.get("loot_table", ""))
+	mob.max_hp = int(hp)
+	mob.attack_power = int(attack)
+	mob.exp_reward = int(exp)
+	mob.move_speed = float(base.get("move_speed", scene_stats["move_speed"]))
+	mob.attack_range = float(base.get("attack_range", scene_stats["attack_range"]))
+	mob.attack_cooldown = float(base.get("attack_cooldown", scene_stats["attack_cooldown"]))
+	# A pooled body resets to these on _respawn().
+	mob._base_attack = mob.attack_power
+	mob._base_speed = mob.move_speed
+	mob._base_cooldown = mob.attack_cooldown
 
 func _apply_boss(mob: Node3D, pack: Dictionary) -> void:
 	var overrides: Dictionary = HPRules.spawn_tables().get("boss_overrides", {})
@@ -348,6 +393,7 @@ func encounter_report() -> Array:
 			"escorts": int(pack.get("escorts", 0)),
 			"max_alive": int(pack.get("max_alive", 0)),
 			"alive": alive,
+			"elites": pack.members.filter(func(m): return is_instance_valid(m) and m.is_elite).size(),
 			"anchor": pack.get("anchor", Vector3.ZERO),
 		})
 	return out

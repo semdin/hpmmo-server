@@ -17,6 +17,7 @@ static var _zones: Dictionary = {}
 static var _spawns: Dictionary = {}
 static var _loot: Dictionary = {}
 static var _quests: Dictionary = {}
+static var _mobs: Dictionary = {}
 
 static var _loaded := false
 
@@ -31,6 +32,7 @@ static func ensure_loaded() -> void:
 	_spawns = _read_json(DATA_DIR + "spawn_tables.json")
 	_loot = _read_json(DATA_DIR + "loot_tables.json")
 	_quests = _read_json(DATA_DIR + "quests.json")
+	_mobs = _read_json(DATA_DIR + "mobs.json")
 	_loaded = true
 
 static func reload() -> void:
@@ -277,6 +279,15 @@ static func validate_encounters() -> Dictionary:
 			problems.append("%s: escort count must be 0 or exactly 2" % encounter_id)
 		var zone := String(pack.get("zone", ""))
 		per_region[zone] = int(per_region.get(zone, 0)) + 1
+		var species := String(pack.get("mob", ""))
+		if mob_def(species).is_empty():
+			problems.append("%s: mob '%s' is not in mobs.json" % [encounter_id, species])
+		var band := region_level_band(zone)
+		if not band.is_empty() and not is_boss_encounter(pack):
+			var level := int(pack.get("level", 1))
+			if level < int(band[0]) or level > int(band[1]):
+				problems.append("%s: level %d outside region %s band %d-%d" % [
+					encounter_id, level, zone, int(band[0]), int(band[1])])
 	for region in regions():
 		var id := String(region.get("id", ""))
 		var authored := int(per_region.get(id, 0))
@@ -556,11 +567,23 @@ static func spell_damage(spell_id: String, wand_tier: int, house: String, combo_
 		return 0
 	return int(float(data.get("damage", 0)) * damage_multiplier(spell_id, wand_tier, house, combo_multiplier, skill_level))
 
-## Damage after per-victim modifiers (fire weakness and the like).
-static func damage_after_resistances(raw: int, spell_id: String, weak_to_fire: bool) -> int:
-	if weak_to_fire and spell_id == "incendio":
-		return raw * 2
-	return raw
+## Damage after per-victim modifiers. `resist` is the victim's mobs.json
+## resistance map (element -> reduction fraction, -1.0 = double damage); the
+## legacy `weak_to_fire` flag still means fire x2 when no fire entry is given.
+static func damage_after_resistances(raw: int, spell_id: String, weak_to_fire: bool, resist: Dictionary = {}) -> int:
+	var element := spell_element(spell_id)
+	var factor := resist_factor(resist, element)
+	if weak_to_fire and element == "fire" and not resist.has("fire"):
+		factor = 2.0
+	return int(round(float(raw) * factor))
+
+## The element a spell deals (spells.json `element`; "arcane" when unset).
+static func spell_element(spell_id: String) -> String:
+	return String(spell(spell_id).get("element", "arcane"))
+
+## Damage factor for one element: 1 - resist, clamped to [0, 3].
+static func resist_factor(resist: Dictionary, element: String) -> float:
+	return clampf(1.0 - float(resist.get(element, 0.0)), 0.0, 3.0)
 
 static func aoe_falloff(distance: float, radius: float, floor_ratio: float) -> float:
 	if radius <= 0.0:
@@ -822,6 +845,80 @@ static func pack_exp_reward(level: int) -> int:
 	var tuning: Dictionary = _spawns.get("pack_tuning", {})
 	return int(float(tuning.get("exp_base", 25)) + float(level) * float(tuning.get("exp_per_level", 6)))
 
+# -------------------------------------------------------------- creatures
+
+static func mob_catalog() -> Dictionary:
+	ensure_loaded()
+	return _mobs.get("mobs", {})
+
+static func mob_ids() -> Array:
+	return mob_catalog().keys()
+
+static func mob_def(species: String) -> Dictionary:
+	return mob_catalog().get(species, {})
+
+## Scene for a species: the catalog first, spawn_tables `mob_scenes` as the
+## fallback for content authored before the catalog existed.
+static func mob_scene_path(species: String) -> String:
+	var path := String(mob_def(species).get("scene", ""))
+	if path != "":
+		return path
+	return String(spawn_tables().get("mob_scenes", {}).get(species, ""))
+
+static func mob_resist(species: String) -> Dictionary:
+	return (mob_def(species).get("resist", {}) as Dictionary).duplicate()
+
+static func elite_rules() -> Dictionary:
+	ensure_loaded()
+	return _mobs.get("elite", {})
+
+## One elite roll on the authority RNG (bosses and their escorts never roll).
+static func roll_elite(rng: RandomNumberGenerator) -> bool:
+	return rng.randf() < float(elite_rules().get("chance", 0.0))
+
+## Experience / drop factor for a player of `player_level` killing a mob of
+## `mob_level` (mobs.json level_gap bands, highest min_diff first).
+static func level_gap_band(player_level: int, mob_level: int) -> Dictionary:
+	ensure_loaded()
+	var diff := mob_level - player_level
+	var bands: Array = (_mobs.get("level_gap", {}) as Dictionary).get("bands", [])
+	var best: Dictionary = {}
+	var best_min := -INF
+	for band in bands:
+		var min_diff := float((band as Dictionary).get("min_diff", -999))
+		if diff >= min_diff and min_diff > best_min:
+			best = band
+			best_min = min_diff
+	return best
+
+static func level_gap_exp(player_level: int, mob_level: int) -> float:
+	return float(level_gap_band(player_level, mob_level).get("exp", 1.0))
+
+static func level_gap_drop(player_level: int, mob_level: int) -> float:
+	return float(level_gap_band(player_level, mob_level).get("drop", 1.0))
+
+## Hunting band [min, max] of a region, or [] when it is not a hunting region.
+static func region_level_band(zone_id: String) -> Array:
+	var region := region_by_id(zone_id)
+	if not region.has("level_min"):
+		return []
+	return [int(region.get("level_min", 1)), int(region.get("level_max", 1))]
+
+## The hunting region a point is INSIDE (strict radius test; "" when none).
+## Unlike `zone_id_for`, there is no nearest-region fallback: the HUD only
+## names a hunting ground the player actually stands in.
+static func hunting_region_at(point: Vector3) -> Dictionary:
+	ensure_loaded()
+	for region in _spawns.get("regions", []):
+		if not (region as Dictionary).has("level_min"):
+			continue
+		var center: Array = region.get("center", [0.0, 0.0])
+		if center.size() != 2:
+			continue
+		if Vector2(point.x - float(center[0]), point.z - float(center[1])).length() <= float(region.get("radius", 0.0)):
+			return region
+	return {}
+
 # -------------------------------------------------------------- rewards
 
 ## Every player that damaged the mob inside the credit window shares the reward.
@@ -852,15 +949,33 @@ static func roll_loot(table: Dictionary, rng: RandomNumberGenerator) -> Array:
 				"amount": rng.randi_range(int(entry.get("min", 1)), int(entry.get("max", 1)))})
 	return drops
 
-static func mob_loot(is_boss: bool, rng: RandomNumberGenerator) -> Array:
+## Mob drops: the base `mob` table, plus the species table (`tables[id]`), plus
+## the `elite` table for elites, plus the boss rows for bosses. `drop_factor`
+## (level gap) scales every probabilistic roll, never the `always` rows.
+static func mob_loot(is_boss: bool, rng: RandomNumberGenerator, table_id: String = "", elite: bool = false, drop_factor: float = 1.0) -> Array:
 	ensure_loaded()
 	var table: Dictionary = _loot.get("mob", {})
-	var drops := roll_loot(table, rng)
+	var drops := roll_loot(_scaled_table(table, drop_factor), rng)
+	var species_table: Dictionary = (_loot.get("tables", {}) as Dictionary).get(table_id, {})
+	if not species_table.is_empty():
+		drops.append_array(roll_loot(_scaled_table(species_table, drop_factor), rng))
+	if elite:
+		drops.append_array(roll_loot(_scaled_table(_loot.get("elite", {}), drop_factor), rng))
 	if is_boss:
-		drops.append_array(roll_loot({
+		drops.append_array(roll_loot(_scaled_table({
 			"always": table.get("boss_always", []),
-			"rolls": table.get("boss_rolls", [])}, rng))
+			"rolls": table.get("boss_rolls", [])}, drop_factor), rng))
 	return drops
+
+static func _scaled_table(table: Dictionary, factor: float) -> Dictionary:
+	if is_equal_approx(factor, 1.0):
+		return table
+	var rolls: Array = []
+	for entry in table.get("rolls", []):
+		var scaled: Dictionary = (entry as Dictionary).duplicate()
+		scaled["chance"] = float(scaled.get("chance", 0.0)) * factor
+		rolls.append(scaled)
+	return {"always": table.get("always", []), "rolls": rolls}
 
 static func monolith_loot(rng: RandomNumberGenerator) -> Array:
 	ensure_loaded()

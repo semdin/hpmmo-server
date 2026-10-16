@@ -42,7 +42,12 @@ class_name HPProtocol
 ##     ({spell_id: level}) and `skill_points`. Damage, cooldown and effect
 ##     duration scale with the caster's skill level, so a v12 client would
 ##     predict the wrong cooldowns; the mismatch is refused at join.
-const PROTOCOL_VERSION := 13
+## v14: creature catalog - `sim_mob_info(uid, info)` (reliable) tells a client a
+##     mob's display name, level and elite flag the first time it enters the
+##     interest set and again whenever the mob's meta revision changes (respawn
+##     re-rolls elite). Snapshots stay 30 bytes; a v13 client would label every
+##     mob with its scene defaults.
+const PROTOCOL_VERSION := 14
 
 ## Per-hit presentation bits carried by `sim_damage_event` / `entity_hit`.
 const HIT_CRIT := 1

@@ -44,6 +44,7 @@ signal loot_spawned(uid: int, item_id: String, amount: int, pos: Vector3)
 ## leashed home reset its encounter (its pending reward credit was cancelled).
 signal mob_telegraph(uid: int, data: Dictionary)
 signal mob_telegraph_end(uid: int)
+signal mob_info(uid: int, info: Dictionary)   # presentation: name/level/elite changed
 signal encounter_reset(pack_id: int, reason: String)
 signal loot_taken(uid: int, character_id: int, item_id: String, amount: int, collector_peer_id: int)
 signal reward_granted(uid: int, character_id: int, exp: int, galleons: int, items: Array, op_id: String)
@@ -412,6 +413,11 @@ func register_mob(node: Node3D, pack_id: int, zone_id: String) -> int:
 		"is_boss": node.get("is_boss") == true,
 		"weak_to_fire": node.get("weak_to_fire") == true,
 		"exp_reward": int(node.get("exp_reward")),
+		"species": String(node.get("species")) if node.get("species") != null else "",
+		"is_elite": node.get("is_elite") == true,
+		"resist": _node_resist(node),
+		"loot_table": String(node.get("loot_table")) if node.get("loot_table") != null else "",
+		"meta_rev": 1,
 		"level": int(node.get("level")),
 		"name": String(node.get("mob_name")),
 		"burn_until_tick": 0,
@@ -421,6 +427,10 @@ func register_mob(node: Node3D, pack_id: int, zone_id: String) -> int:
 		"stun_until_tick": 0,
 	})
 	return uid
+
+static func _node_resist(node: Node) -> Dictionary:
+	var resist = node.get("resist")
+	return (resist as Dictionary).duplicate() if resist is Dictionary else {}
 
 ## A mob came back (pack respawn, summoned lifecycle, monolith wave): clear its
 ## status effects and restore the record so replication reflects the new life.
@@ -432,6 +442,9 @@ func refresh_mob(node: Node3D) -> void:
 	record["max_hp"] = int(node.get("max_hp") if node.get("max_hp") != null else 0)
 	record["is_boss"] = node.get("is_boss") == true
 	record["weak_to_fire"] = node.get("weak_to_fire") == true
+	record["is_elite"] = node.get("is_elite") == true
+	record["resist"] = _node_resist(node)
+	record["meta_rev"] = int(record.get("meta_rev", 0)) + 1
 	if node.get("exp_reward") != null:
 		record["exp_reward"] = int(node.get("exp_reward"))
 	if node.get("level") != null:
@@ -1662,7 +1675,7 @@ func _apply_damage(target: Dictionary, raw: int, spell_id: String, attacker: Dic
 		if attacker_node2 != null and is_instance_valid(attacker_node2) and not HPRules.faction_ok(attacker_node2, target_node):
 			return 0
 
-	var amount := HPRules.damage_after_resistances(raw, spell_id, bool(target.get("weak_to_fire", false)))
+	var amount := HPRules.damage_after_resistances(raw, spell_id, bool(target.get("weak_to_fire", false)), target.get("resist", {}))
 	# Protego: projectiles are reflected (handled by the caller), everything else
 	# is reduced by the authored multiplier.
 	if int(target.get("ward_until_tick", 0)) > sim_tick and not _is_projectile_spell(spell_id):
@@ -1864,8 +1877,12 @@ func _grant_kill_rewards(target: Dictionary) -> void:
 		# same death cannot pay twice even if it were called again.
 		if _reward_already_granted(op_id):
 			continue
-		_grant_exp(player, exp_reward)
-		emit_signal("reward_granted", int(uid), character_id, exp_reward, 0, [], op_id)
+		# Level gap (Metin2 style): farming far-lower mobs pays little.
+		var earned := exp_reward
+		if int(target.get("kind", 0)) == HPProtocol.Kind.MOB:
+			earned = int(round(exp_reward * HPRules.level_gap_exp(_player_level(player), int(target.get("level", 1)))))
+		_grant_exp(player, earned)
+		emit_signal("reward_granted", int(uid), character_id, earned, 0, [], op_id)
 		if int(target.get("kind", 0)) == HPProtocol.Kind.MONOLITH:
 			quest_event(player, "monolith", "")
 		elif int(target.get("kind", 0)) == HPProtocol.Kind.MOB:
@@ -1882,6 +1899,12 @@ func _reward_already_granted(op_id: String) -> bool:
 	if _granted_ops.size() > 4096:
 		_granted_ops.clear()
 	return false
+
+func _player_level(player: Dictionary) -> int:
+	var node = player.get("node")
+	if node != null and is_instance_valid(node) and node.get("level") != null:
+		return int(node.get("level"))
+	return int(player.get("level", 1))
 
 func _grant_exp(player: Dictionary, exp: int) -> void:
 	if exp <= 0:
@@ -1922,7 +1945,12 @@ func _drop_loot(target: Dictionary) -> void:
 	if int(target.get("kind", 0)) == HPProtocol.Kind.MONOLITH:
 		drops = HPRules.monolith_loot(rng)
 	else:
-		drops = HPRules.mob_loot(is_boss, rng)
+		var killer: Dictionary = entities.get(killer_uid_of(target), {})
+		var drop_factor := 1.0
+		if not killer.is_empty() and int(killer.get("kind", 0)) == HPProtocol.Kind.PLAYER:
+			drop_factor = HPRules.level_gap_drop(_player_level(killer), int(target.get("level", 1)))
+		drops = HPRules.mob_loot(is_boss, rng, String(target.get("loot_table", "")),
+			bool(target.get("is_elite", false)), drop_factor)
 	if int(target.get("kind", 0)) == HPProtocol.Kind.MONOLITH:
 		if rng.randf() < 0.25: drops.append({"id": "ring_adept", "amount": 1})
 	elif is_boss or rng.randf() < 0.2:
@@ -2550,6 +2578,9 @@ func upsert_replica(uid: int, kind: int, pos: Vector3, rot_y: float, hp: int, ma
 			"dead": (flags & HPProtocol.FLAG_DEAD) != 0,
 		}
 		entities[uid] = record
+		if _pending_mob_info.has(uid):
+			_merge_mob_info(record, _pending_mob_info[uid])
+			_pending_mob_info.erase(uid)
 	var previous_hp := int(record.get("hp", hp))
 	var previous_flags := int(record.get("flags", 0))
 	var previous_record_dead := bool(record.get("dead", false))
@@ -2579,6 +2610,31 @@ func upsert_replica(uid: int, kind: int, pos: Vector3, rot_y: float, hp: int, ma
 	elif was_dead and not record["dead"]:
 		emit_signal("entity_respawned", uid)
 
+## What a client needs to label a mob (v14 `sim_mob_info`). `rev` changes when
+## the mob's identity does (a respawn can re-roll elite).
+static func mob_info_of(record: Dictionary) -> Dictionary:
+	return {"name": String(record.get("name", "")), "level": int(record.get("level", 1)),
+		"elite": bool(record.get("is_elite", false)), "rev": int(record.get("meta_rev", 0))}
+
+## Client side of `sim_mob_info`. The reliable event can overtake the first
+## unreliable snapshot, so info for an unknown uid waits in `_pending_mob_info`
+## and is merged when the replica record is created.
+var _pending_mob_info: Dictionary = {}
+
+func on_mob_info(uid: int, info: Dictionary) -> void:
+	var record: Dictionary = entities.get(uid, {})
+	if record.is_empty():
+		_pending_mob_info[uid] = info
+		return
+	_merge_mob_info(record, info)
+
+func _merge_mob_info(record: Dictionary, info: Dictionary) -> void:
+	record["name"] = String(info.get("name", record.get("name", "")))
+	record["level"] = int(info.get("level", record.get("level", 1)))
+	record["is_elite"] = bool(info.get("elite", false))
+	record["meta_rev"] = int(info.get("rev", 0))
+	emit_signal("mob_info", int(record.get("uid", 0)), info)
+
 ## A replica the server stopped announcing is gone: forget it, or the client
 ## accumulates records (and node ids) for entities that no longer exist.
 func drop_replica(uid: int) -> void:
@@ -2589,6 +2645,7 @@ func drop_replica(uid: int) -> void:
 	if node != null and is_instance_valid(node):
 		by_node.erase((node as Node).get_instance_id())
 	entities.erase(uid)
+	_pending_mob_info.erase(uid)
 
 func attach_view_node(uid: int, node: Node3D) -> void:
 	if node == null:

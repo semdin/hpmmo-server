@@ -81,7 +81,7 @@
       }
     ]
   },
-  "_regions_note": "Regions carry the separate pack-count setting and a spawn_area rect used when an encounter's region is chosen by weight (zones + weights).",
+  "_regions_note": "Regions carry the separate pack-count setting and a spawn_area rect used when an encounter's region is chosen by weight (zones + weights). Hunting regions also carry `display` and `level_min`/`level_max`: the HUD names the region and colours its level band against the player's level; validate_encounters reports a pack whose level falls outside its region's band. Regions without a band (courtyard, castle) are not hunting grounds.",
   "regions": [
     {
       "id": "courtyard",
@@ -117,6 +117,9 @@
     },
     {
       "id": "village",
+      "display": "Village Outskirts",
+      "level_min": 1,
+      "level_max": 8,
       "center": [
         520.0,
         10.0
@@ -133,6 +136,9 @@
     },
     {
       "id": "forest_sw",
+      "display": "Forest Edge",
+      "level_min": 1,
+      "level_max": 6,
       "center": [
         -345.0,
         30.0
@@ -149,6 +155,9 @@
     },
     {
       "id": "forest_e",
+      "display": "Snatcher Woods",
+      "level_min": 10,
+      "level_max": 16,
       "center": [
         -400.0,
         -440.0
@@ -165,6 +174,9 @@
     },
     {
       "id": "forest_w",
+      "display": "Acromantula Thicket",
+      "level_min": 6,
+      "level_max": 12,
       "center": [
         -540.0,
         -10.0
@@ -181,6 +193,9 @@
     },
     {
       "id": "forest_deep",
+      "display": "Crypt Hollow",
+      "level_min": 12,
+      "level_max": 18,
       "center": [
         -690.0,
         -230.0
@@ -197,6 +212,9 @@
     },
     {
       "id": "boss_w",
+      "display": "Spider Hollow",
+      "level_min": 22,
+      "level_max": 28,
       "center": [
         -700.0,
         430.0
@@ -213,6 +231,9 @@
     },
     {
       "id": "boss_e",
+      "display": "Smugglers' Camp",
+      "level_min": 18,
+      "level_max": 24,
       "center": [
         -440.0,
         -690.0

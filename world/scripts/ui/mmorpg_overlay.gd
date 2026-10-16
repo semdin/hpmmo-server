@@ -563,16 +563,45 @@ func _map_controller() -> Node:
 		return null
 	return world.get_node_or_null("MapController")
 
+## The hunting region (spawn_tables.json regions with a level band) the player
+## stands in, or {} indoors / between hunting grounds.
+func hunting_region() -> Dictionary:
+	var controller := _map_controller()
+	if controller != null and String(controller.get("current_map")) != HPProtocol.DEFAULT_MAP:
+		return {}
+	return HPRules.hunting_region_at(_player.global_position)
+
+## "Lv 6-12" for a band, coloured against the player's level: grey = far below
+## you, green = fair, gold = a stretch, red = dangerous.
+static func band_color(player_level: int, band_min: int, band_max: int) -> Color:
+	if player_level > band_max + 5:
+		return Color(0.62, 0.62, 0.62)
+	if player_level >= band_min:
+		return Color(0.55, 0.9, 0.5)
+	if player_level >= band_min - 4:
+		return Color(1.0, 0.82, 0.35)
+	return Color(1.0, 0.4, 0.33)
+
 func _update_zone() -> void:
 	var z := location_for_banner()
-	if z != _last_zone:
+	var hunt := hunting_region()
+	var title := String(hunt.get("display", z)) if not hunt.is_empty() else z
+	var key := title + "|" + String(hunt.get("id", ""))
+	if key != _last_zone:
 		var first := _last_zone == ""
-		_last_zone = z
+		_last_zone = key
 		if _map_title != null:
-			_map_title.text = z
-		_zone_label.text = z
+			_map_title.text = title
+		_zone_label.text = title
 		if _zone_banner_sub != null:
 			_zone_banner_sub.text = ""
+			_zone_banner_sub.add_theme_color_override("font_color", HudKit.PARCHMENT)
+			if not hunt.is_empty():
+				var lo := int(hunt.get("level_min", 1))
+				var hi := int(hunt.get("level_max", lo))
+				_zone_banner_sub.text = "Hunting grounds  ·  Lv %d-%d" % [lo, hi]
+				var player_level := int(_player.get("level")) if _player.get("level") != null else 1
+				_zone_banner_sub.add_theme_color_override("font_color", band_color(player_level, lo, hi))
 		# Announce crossings, not the place you logged in at.
 		_zone_timer = 0.0 if first else 3.2
 	var dt := get_process_delta_time()

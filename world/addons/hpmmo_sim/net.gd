@@ -711,6 +711,12 @@ func sim_telegraph(uid: int, data: Dictionary) -> void:
 		record["telegraph"] = data
 	SimAuthority.emit_signal("mob_telegraph", uid, data)
 
+## v14: a mob's label data (name, level, elite). Sent on first sight and on
+## every meta revision change, from the snapshot loop.
+@rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
+func sim_mob_info(uid: int, info: Dictionary) -> void:
+	SimAuthority.on_mob_info(uid, info)
+
 @rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
 func sim_telegraph_end(uid: int) -> void:
 	var record: Dictionary = SimAuthority.entities.get(uid, {})
@@ -919,6 +925,14 @@ func _broadcast_snapshots() -> void:
 		var current: Dictionary = {}
 		for uid in result["uids"]:
 			current[int(uid)] = true
+			# Mobs remember the meta revision this peer last saw, so a respawn
+			# that re-rolled elite is re-announced (v14 sim_mob_info).
+			var mob: Dictionary = SimAuthority.entities.get(int(uid), {})
+			if int(mob.get("kind", 0)) == HPProtocol.Kind.MOB:
+				var rev := int(mob.get("meta_rev", 0))
+				current[int(uid)] = rev
+				if known.get(int(uid)) != rev:
+					sim_mob_info.rpc_id(peer_id, int(uid), SimAuthority.mob_info_of(mob))
 		for uid in SimAuthority.entities.keys():
 			var loot: Dictionary = SimAuthority.entities[uid]
 			if int(loot.get("kind", 0)) != HPProtocol.Kind.LOOT:

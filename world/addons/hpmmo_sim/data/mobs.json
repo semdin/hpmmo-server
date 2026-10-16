@@ -1,0 +1,51 @@
+{
+  "_comment": "Server-owned creature catalog. One entry per species: the scene that renders it, its base stats (the encounter director scales them by level), resistances, loot table and display data. Encounters in spawn_tables.json name a species by its id here.",
+  "_resist_note": "resist[element] is a damage reduction fraction: 0.5 takes half, -1.0 takes double. Elements come from spells.json `element`. Absent = 0 (normal damage).",
+  "mobs": {
+    "inferi": {
+      "display": "Inferi Ghoul",
+      "family": "undead",
+      "role": "brute",
+      "scene": "res://scenes/entities/mobs/mob_inferi.tscn",
+      "base": { "max_hp": 220, "attack_power": 22, "move_speed": 6.2, "attack_range": 2.2, "attack_cooldown": 1.4 },
+      "resist": { "fire": -1.0, "stun": 0.0 },
+      "loot_table": "undead"
+    },
+    "acromantula": {
+      "display": "Acromantula",
+      "family": "beast",
+      "role": "skirmisher",
+      "scene": "res://scenes/entities/mobs/mob_acromantula.tscn",
+      "base": { "max_hp": 340, "attack_power": 32, "move_speed": 7.5, "attack_range": 2.8, "attack_cooldown": 1.4 },
+      "resist": { "fire": -0.25 },
+      "loot_table": "spider"
+    },
+    "darksnatcher": {
+      "display": "Dark Snatcher",
+      "family": "dark_wizard",
+      "role": "caster",
+      "scene": "res://scenes/entities/mobs/mob_darksnatcher.tscn",
+      "base": { "max_hp": 420, "attack_power": 40, "move_speed": 5.5, "attack_range": 14.0, "attack_cooldown": 2.0 },
+      "resist": { "stun": 0.25, "arcane": 0.15 },
+      "loot_table": "dark_wizard"
+    }
+  },
+  "_elite_note": "Any ordinary (non-boss) pack member may roll elite on each spawn. An elite is a stronger copy of the same species with its own label colour, more experience and an extra guaranteed loot roll.",
+  "elite": {
+    "chance": 0.03,
+    "hp_mult": 3.0,
+    "attack_mult": 1.5,
+    "exp_mult": 3.0,
+    "name_prefix": "Elite "
+  },
+  "_level_gap_note": "Metin2-style level gap. diff = mob level - player level. Experience and loot drop chances are scaled by the first band whose `min_diff` the diff reaches (bands sorted high to low).",
+  "level_gap": {
+    "bands": [
+      { "min_diff": 8, "exp": 1.2, "drop": 1.0 },
+      { "min_diff": -5, "exp": 1.0, "drop": 1.0 },
+      { "min_diff": -9, "exp": 0.6, "drop": 0.7 },
+      { "min_diff": -14, "exp": 0.25, "drop": 0.35 },
+      { "min_diff": -999, "exp": 0.05, "drop": 0.1 }
+    ]
+  }
+}

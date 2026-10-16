@@ -63,6 +63,14 @@ signal died(mob: Node3D)
 @export var voice_set := ""
 ## Ground speed the walk cycle was authored for (0 = unknown, no scaling).
 @export var walk_speed := 0.0
+## Creature catalog identity (mobs.json): species id, the elite roll, the
+## resistance map and loot table the authority uses. The encounter director
+## sets them; a mob spawned another way (monolith wave) fills them from the
+## catalog by its scene name.
+@export var species := ""
+@export var is_elite := false
+@export var resist: Dictionary = {}
+@export var loot_table := ""
 
 var managed_respawn := false
 var summoned := false
@@ -99,6 +107,8 @@ var _stuck_timer := 0.0
 var _last_pos := Vector3.ZERO
 ## Last replicated AI state a client view rendered (puppets only).
 var _puppet_state := -1
+## Last v14 mob-info revision a client view applied (puppets only).
+var _info_rev := -1
 ## True when this node is a CLIENT'S VIEW of a mob the world server owns: it
 ## runs no AI, applies no damage, and just follows the replicated state.
 var sim_puppet := false
@@ -149,6 +159,7 @@ func _ready() -> void:
 	_base_attack = attack_power
 	_base_speed = move_speed
 	_base_cooldown = attack_cooldown
+	_fill_catalog_identity()
 	if SimAuthority.is_authority():
 		SimAuthority.refresh_mob(self)
 	_apply_boss_visual()
@@ -158,6 +169,20 @@ func _ready() -> void:
 	_last_pos = global_position
 	_play_slot("idle")
 	_update_label()
+
+## A body nobody configured (monolith waves, test fixtures) still belongs to a
+## species: take its resistances and loot table from the catalog entry its
+## scene file names (`mob_<species>.tscn`).
+func _fill_catalog_identity() -> void:
+	if species == "" and scene_file_path != "":
+		species = scene_file_path.get_file().get_basename().trim_prefix("mob_")
+	var def := HPRules.mob_def(species)
+	if def.is_empty():
+		return
+	if resist.is_empty():
+		resist = (def.get("resist", {}) as Dictionary).duplicate()
+	if loot_table == "":
+		loot_table = String(def.get("loot_table", ""))
 
 ## Boss bodies are authored creatures, not a scaled-up ordinary mob: the scene
 ## carries `Visuals/NormalVariant` and `Visuals/BossVariant`, and the boss flag
@@ -282,8 +307,13 @@ func _update_label() -> void:
 	if label == null:
 		return
 	label.text = "[Lv.%d] %s%s\n%d / %d" % [level, mob_name, " • ENRAGED" if is_enraged else "", current_hp, max_hp]
-	label.modulate = Color(1, 0.72, 0.25) if is_boss else Color(1, 0.6, 0.5)
-	label.font_size = 26 if is_boss else 21
+	if is_boss:
+		label.modulate = Color(1, 0.72, 0.25)
+	elif is_elite:
+		label.modulate = Color(1.0, 0.9, 0.35)
+	else:
+		label.modulate = Color(1, 0.6, 0.5)
+	label.font_size = 26 if is_boss else (23 if is_elite else 21)
 	label.visibility_range_end = 40
 	WorldLabels.track(label, 17.0 if is_boss else 14.0)
 
@@ -1010,6 +1040,14 @@ func _update_puppet(delta: float) -> void:
 	if record.is_empty():
 		return
 	_draw_telegraph(record)
+	# v14: the server names the mob (catalog name, pack level, elite roll).
+	var rev := int(record.get("meta_rev", -1))
+	if rev != _info_rev and record.has("name"):
+		_info_rev = rev
+		mob_name = String(record.get("name", mob_name))
+		level = int(record.get("level", level))
+		is_elite = bool(record.get("is_elite", false))
+		_update_label()
 	var replicated := int(record.get("state", HPProtocol.MobState.IDLE))
 	# A replica learns it is a boss from the replicated flag, not from the
 	# scene: swap in the boss body the first time the flag is seen.

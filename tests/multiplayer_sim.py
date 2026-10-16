@@ -242,6 +242,18 @@ def test_agreement(out_dir, profile):
           "[%s] both clients agree on every shared mob's health (%d shared, %d disagreements)"
           % (profile, len(shared), len(mismatched)))
 
+    # v14 sim_mob_info: every mob a client was sent is named with its server
+    # level, and two clients agree on the name/level/elite of a shared mob.
+    unnamed = [m["uid"] for m in fa.get("visible_mobs", []) + fb.get("visible_mobs", [])
+               if not m.get("name") or int(m.get("level", 0)) <= 0]
+    check(not unnamed,
+          "[%s] every replicated mob carries its server name and level (%d unnamed)" % (profile, len(unnamed)))
+    label_mismatch = [uid for uid in shared
+                      if (by_uid_a[uid].get("name"), by_uid_a[uid].get("level"), by_uid_a[uid].get("elite"))
+                      != (by_uid_b[uid].get("name"), by_uid_b[uid].get("level"), by_uid_b[uid].get("elite"))]
+    check(not label_mismatch,
+          "[%s] both clients label every shared mob the same (%d disagreements)" % (profile, len(label_mismatch)))
+
     # Same health: compare the hp samples both recorded for the target.
     hp_a = [int(s["hp"]) for s in fa.get("target_hp_samples", [])]
     hp_b = [int(s["hp"]) for s in fb.get("target_hp_samples", [])]
