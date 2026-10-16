@@ -23,6 +23,8 @@ const NPCScript = preload("res://scripts/world/npc.gd")
 const DummyScript = preload("res://scripts/world/training_dummy.gd")
 
 var local_player: Node3D = null
+## cast_id -> the travelling bolt view drawn for it (see _on_cast_landed).
+var _bolt_views: Dictionary = {}
 var overlay: CanvasLayer = null
 ## Client half of map transfer: portal interaction, fade and
 ## loading UI, loading the castle interior and unloading the outdoor world.
@@ -50,6 +52,9 @@ func _ready() -> void:
 	if not NetworkManager.is_dedicated_server:
 		_spawn_local_player()
 		_setup_overlay()
+		var hit_feedback := HitFeedback.ensure(self)
+		if hit_feedback != null and is_instance_valid(local_player):
+			hit_feedback.local_player = local_player
 		_connect_ui_signals()
 		_setup_map_controller()
 	else:
@@ -516,6 +521,7 @@ func _on_cast_released(cast_id: int, caster_uid: int, spell_id: String, origin: 
 	# The bolt on screen is a VIEW: the authority already decided what it hits.
 	proj.visual_only = true
 	proj.setup(caster if caster is Node3D else null, spell_id, dir, null, 1.0)
+	_bolt_views[cast_id] = proj
 
 ## Where the client draws a spell from. The authority's `origin` stays the
 ## body-centred launch point that decided the hit geometry; only the drawn bolt
@@ -528,7 +534,17 @@ func _presentation_cast_origin(caster: Node, origin: Vector3) -> Vector3:
 		return tip.global_position
 	return origin
 
-func _on_cast_landed(_cast_id: int, _caster_uid: int, spell_id: String, hits: Array) -> void:
+func _on_cast_landed(cast_id: int, _caster_uid: int, spell_id: String, hits: Array) -> void:
+	var view = _bolt_views.get(cast_id)
+	_bolt_views.erase(cast_id)
+	# A single-target bolt that the authority says hit ends now, even if its view
+	# has not reached the body yet; area blasts and misses draw their own end.
+	if not hits.is_empty() and spell_id not in ["bombarda", "ultimate"] 			and view != null and is_instance_valid(view) and view.has_method("end_on_landed"):
+		view.end_on_landed()
+	if _bolt_views.size() > 64:
+		for key in _bolt_views.keys():
+			if not is_instance_valid(_bolt_views[key]):
+				_bolt_views.erase(key)
 	for hit in hits:
 		var victim = SimAuthority.record_by_uid(int(hit.get("uid", 0))).get("node")
 		if victim == null or not is_instance_valid(victim):

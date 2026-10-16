@@ -34,7 +34,19 @@ class_name HPProtocol
 ##     its own bag entry with a `uid` and `bonuses`, and `sim_equipment_request`
 ##     gains a trailing `uid` naming the instance to equip. A v10 client would
 ##     call the old six-argument RPC, so the mismatch is refused at join.
-const PROTOCOL_VERSION := 11
+## v12: critical hits and the combo chain - `sim_damage_event` gains a trailing
+##     `flags` (HIT_* bits) so every client can draw the crit / finisher number
+##     the server rolled.
+## v13: skill training - `sim_skill_request(spell_id)` asks the authority to
+##     spend one skill point on a spell, and the stats payload carries `skills`
+##     ({spell_id: level}) and `skill_points`. Damage, cooldown and effect
+##     duration scale with the caster's skill level, so a v12 client would
+##     predict the wrong cooldowns; the mismatch is refused at join.
+const PROTOCOL_VERSION := 13
+
+## Per-hit presentation bits carried by `sim_damage_event` / `entity_hit`.
+const HIT_CRIT := 1
+const HIT_FINISHER := 2
 
 ## Simulation / replication rates.
 const SIM_HZ := 20
@@ -91,6 +103,11 @@ const REJECT_ZONE := "wrong_zone"
 const REJECT_STATE := "invalid_state"
 ## The spell needs a higher house rank (spells.json `requires_house_rank`).
 const REJECT_HOUSE_RANK := "house_rank"
+## Skill training: no unspent point, the skill is already Master, or the spell
+## cannot be trained.
+const REJECT_NO_SKILL_POINTS := "no_skill_points"
+const REJECT_SKILL_MAX := "skill_max"
+const REJECT_SKILL_UNKNOWN := "skill_unknown"
 ## Map transfer.
 const REJECT_TRANSFER_PENDING := "transfer_pending"
 const REJECT_NO_PORTAL := "no_portal"

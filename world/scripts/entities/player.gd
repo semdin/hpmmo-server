@@ -36,6 +36,9 @@ const INTERACT_RADIUS := 3.5         # NPC / object interaction reach
 const PICKUP_RADIUS := 4.9           # loot reach (broom-length arm + lean)
 const TARGET_RANGE := 35.0
 const TARGET_AIM_HEIGHT := 1.15      # chest height of the taller silhouette
+## Upper-body clip per step of the basic attack chain (see _play_cast_animation).
+const BASIC_COMBO_CLIPS := ["Spellcast_Shoot", "Melee_Chop_A", "Spellcast_Heavy"]
+const AIM_ASSIST_PX := 42.0          # cursor snap to a hostile, px at 1080p
 const MOUNT_CLEAR_HEIGHT := 1.15     # headroom needed above the crown to take off
 const MOUNT_LATERAL_LENGTH := 2.35   # broom footprint length when mounted
 const MOUNT_LATERAL_WIDTH := 0.6
@@ -79,12 +82,19 @@ var house_rep: int = 0
 var quest_active: int = 0
 var quest_progress: int = 0
 var quest_done: Array = []
+## Trained spell levels {spell_id: level} (Metin2 skill training; a missing
+## spell is level 1, 10 is Master). Written by the authority, saved inside the
+## `quests` object as `skills`; unspent points are derived, never stored.
+var skill_levels: Dictionary = {}
+var skill_points: int = 0
 ## The persisted `quests` object, kept whole so keys this build does not know
 ## survive a load/save round trip.
 var _quest_state: Dictionary = {}
 ## Last house reputation this body announced (the authority may write
 ## `house_rep` before the stats payload arrives, so the delta is kept here).
 var _shown_house_rep: int = -1
+## False until the first stats payload carried `skills` (a load is not a level-up).
+var _skills_seen := false
 var inventory: Array[Dictionary] = []
 var equipment: Dictionary = {}
 var inventory_revision: int = 0
@@ -209,6 +219,24 @@ var _auto_facing := false
 const COMMITTED_SPELLS := {"bombarda": 0.35, "ultimate": 0.5}
 ## Spells cast with both hands (Spellcast_Heavy); every other cast is one-handed.
 const HEAVY_CAST_SPELLS := ["bombarda", "ultimate"]
+## Spells with their own retargeted clip (tools/blender/retarget_clip.py ->
+## assets/animations/hero/, merged by HeroAnimation.merge_extra_clips).
+## `release` is the clip fraction where the wand hand is furthest forward
+## (written by the retarget script), `hold` how long the cast layer owns the arm,
+## `aim` false for a swing that must keep its own arc (the wand is not held on
+## the target). The basic chain is keyed per step: "basic_cast:<step>".
+## Sources and trims: art/hero/motion_fal/*.json.
+const SPELL_CLIPS := {
+	"stupefy": {"clip": "Cast_Stupefy", "release": 0.226, "hold": 0.72},
+	"incendio": {"clip": "Cast_Incendio", "release": 0.25, "hold": 0.66, "aim": false},
+	"bombarda": {"clip": "Cast_Bombarda", "release": 0.182, "hold": 0.7},
+	"expelliarmus": {"clip": "Cast_Expelliarmus", "release": 0.128, "hold": 0.6},
+	"protego": {"clip": "Cast_Protego", "release": 0.128, "hold": 0.9, "aim": false},
+	"ultimate": {"clip": "Cast_Ultimate", "release": 0.158, "hold": 0.85},
+	"basic_cast:0": {"clip": "Cast_Basic1", "release": 0.182, "hold": 0.36},
+	"basic_cast:1": {"clip": "Cast_Basic2", "release": 0.182, "hold": 0.4, "aim": false},
+	"basic_cast:2": {"clip": "Cast_Basic3", "release": 0.179, "hold": 0.55},
+}
 const COMMITTED_MELEE := 0.45
 ## Deceleration (m/s^2) once a WALKING body's movement input is released. The
 ## authored value was `walk_speed * 12` = 102, which left 0.28 m of glide over 4
@@ -1395,6 +1423,8 @@ func restore_quest_state(quests: Variant) -> void:
 	_shown_house_rep = house_rep
 	quest_active = clampi(int(_quest_state.get("active", 0)), 0, HPRules.quest_chain().size())
 	quest_progress = maxi(0, int(_quest_state.get("progress", 0)))
+	skill_levels = HPRules.clean_skill_levels(_quest_state.get("skills", {}))
+	skill_points = HPRules.skill_points_available(level, skill_levels)
 	quest_done = []
 	if _quest_state.get("done") is Array:
 		for id in _quest_state["done"]:
@@ -1413,7 +1443,12 @@ func persisted_quests() -> Dictionary:
 	out["active"] = quest_active
 	out["progress"] = quest_progress
 	out["done"] = quest_done.duplicate()
+	out["skills"] = skill_levels.duplicate()
 	return out
+
+## This body's trained level of a spell (1 when untrained or not trainable).
+func skill_level(spell_id: String) -> int:
+	return HPRules.skill_level_of(skill_levels, spell_id)
 
 func house_rank() -> int:
 	return HPRules.house_rank_for(house_rep)
@@ -1428,6 +1463,10 @@ func wand_tip_position() -> Vector3:
 		return tip.global_position
 	return global_position + Vector3(0, CAST_ORIGIN_HEIGHT, 0)
 
+## Where a cast goes: exactly the point under the cursor. A locked target wins;
+## a hostile under (or right beside) the cursor is aimed at its chest; otherwise
+## the bolt goes to the ground or wall point the cursor shows, and the server
+## ends it there (an area spell bursts there).
 func get_mouse_aim_point() -> Vector3:
 	if is_instance_valid(current_target) and CombatRules.can_damage(self, current_target):
 		return current_target.global_position + Vector3.UP * TARGET_AIM_HEIGHT
@@ -1436,12 +1475,45 @@ func get_mouse_aim_point() -> Vector3:
 	var mouse_pos := get_viewport().get_mouse_position()
 	var origin := camera.project_ray_origin(mouse_pos)
 	var ray := camera.project_ray_normal(mouse_pos)
-	var query := PhysicsRayQueryParameters3D.create(origin, origin + ray * 100, 3)
+	var body := _hostile_under_cursor(mouse_pos, origin, ray)
+	if body != null:
+		return body.global_position + Vector3.UP * TARGET_AIM_HEIGHT
+	var query := PhysicsRayQueryParameters3D.create(origin, origin + ray * 200.0, 1)
 	query.exclude = [get_rid()]
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	if not hit.is_empty():
-		return hit.position + (Vector3.UP * 0.8 if hit.normal.y > 0.7 else Vector3.ZERO)
-	return origin + ray * 40.0
+		return hit.position
+	var ground = Plane(Vector3.UP, global_position.y).intersects_ray(origin, ray)
+	if ground is Vector3 and (ground as Vector3).distance_to(global_position) < 120.0:
+		return ground
+	# Cursor on the sky: keep its direction, from the caster's cast height.
+	return origin + ray * 60.0
+
+## The hostile body the cursor is on, or within AIM_ASSIST_PX of on screen
+## (nearest to the cursor wins), so a click a hair beside a mob still aims at it.
+func _hostile_under_cursor(mouse_pos: Vector2, origin: Vector3, ray: Vector3) -> Node3D:
+	var query := PhysicsRayQueryParameters3D.create(origin, origin + ray * 100.0, 2)
+	query.exclude = [get_rid()]
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	if not hit.is_empty() and hit.collider is Node3D and (hit.collider as Node3D).is_in_group("targetable") \
+			and CombatRules.can_damage(self, hit.collider):
+		return hit.collider
+	var best: Node3D = null
+	var best_px := AIM_ASSIST_PX * (get_viewport().get_visible_rect().size.y / 1080.0)
+	for node in get_tree().get_nodes_in_group("targetable"):
+		if not (node is Node3D) or node == self:
+			continue
+		var body := node as Node3D
+		var chest := body.global_position + Vector3.UP * TARGET_AIM_HEIGHT
+		if chest.distance_squared_to(global_position) > TARGET_RANGE * TARGET_RANGE or camera.is_position_behind(chest):
+			continue
+		var px := camera.unproject_position(chest).distance_to(mouse_pos)
+		var feet_px := camera.unproject_position(body.global_position).distance_to(mouse_pos)
+		px = minf(px, feet_px)
+		if px < best_px and CombatRules.can_damage(self, body):
+			best_px = px
+			best = body
+	return best
 
 func cast_spell(spell_id: String) -> void:
 	if is_dead or not GameData.SPELLS.has(spell_id):
@@ -1488,27 +1560,24 @@ func cast_spell(spell_id: String) -> void:
 
 	# Refined Basic Attack Chain (Section 4.3 of.md) - animation only; the
 	# damage multiplier is the server's combo counter.
+	# The chain is 3 steps (flick, backhand, overhead finisher); the window and
+	# step count are the same data the server's `_advance_combo` reads, so the
+	# predicted gesture matches the multiplier the server applies.
 	var anim_name := "Spellcast_Shoot"
-	var gesture_combo := basic_combo_index
+	var gesture_combo := 0
+	var combo_before := basic_combo_index
 	if spell_id == "basic_cast":
-		basic_combo_timer = 1.2
-		if basic_combo_index == 0:
-			anim_name = "Spellcast_Shoot"
-			basic_combo_index = 1
-		elif basic_combo_index == 1:
-			anim_name = "Spellcast_Shoot"
-			basic_combo_index = 2
-		else:
-			anim_name = "Spellcast_Shoot"
-			basic_combo_index = 0
-			_spawn_floating_text("3-HIT COMBO!", Color(1.0, 0.85, 0.2), 1.4)
+		var steps := maxi(1, HPRules.combo_multipliers("basic_cast").size())
+		gesture_combo = basic_combo_index % steps
+		basic_combo_timer = HPRules.combo_window("basic_cast")
+		basic_combo_index = (gesture_combo + 1) % steps
 
 	_cast_lock = float(s_data.get("cast_lock", 0.28))
 	_committed_until = maxf(_committed_until, float(COMMITTED_SPELLS.get(spell_id, 0.0)))
 	if anim_name.begins_with("1H_Melee") or anim_name == "Melee_Chop_A":
 		_committed_until = maxf(_committed_until, COMMITTED_MELEE)
 	_cast_seq += 1
-	_predicted_casts[_cast_seq] = {"spell_id": spell_id, "aim": aim_hit}
+	_predicted_casts[_cast_seq] = {"spell_id": spell_id, "aim": aim_hit, "combo_before": combo_before}
 	_play_cast_animation(anim_name, aim_hit, spell_id, gesture_combo)
 	if spell_id == "protego":
 		_activate_protego_preview()
@@ -1529,13 +1598,16 @@ func on_cast_answer(cast_seq: int, _cast_id: int, ok: bool, reason: String) -> v
 	_predicted_casts.erase(cast_seq)
 	var spell_id := String(prediction.get("spell_id", ""))
 	if ok:
-		var cd := HPRules.cooldown_for(spell_id, house)
+		var cd := HPRules.cooldown_for(spell_id, house, skill_level(spell_id))
 		if cd > 0.0:
 			spell_cooldowns[spell_id] = cd
 		emit_signal("spell_cast_signal", spell_id, cd)
 		return
 	# spell-effect hook: a rejected cast removes its predicted feedback.
 	preload("res://scripts/spells/skill_fx.gd").cancel_predicted(self, cast_seq)
+	# The server did not advance its chain for a refused cast, so neither do we.
+	if spell_id == "basic_cast":
+		basic_combo_index = int(prediction.get("combo_before", 0))
 	if spell_id == "protego":
 		_clear_protego_preview()
 	_cast_generation += 1
@@ -1584,10 +1656,23 @@ func _play_cast_animation(anim_name: String = "Spellcast_Shoot", aim: Variant = 
 		anim_name = "Spellcast_Heavy"
 	elif spell == "protego":
 		anim_name = "Spellcast_Raise"
+	elif spell == "basic_cast":
+		# The basic chain is three different moves: a quick shot, a wand slash,
+		# then a two-handed heavy finisher.
+		anim_name = BASIC_COMBO_CLIPS[clampi(combo, 0, BASIC_COMBO_CLIPS.size() - 1)]
+	var own: Dictionary = SPELL_CLIPS.get("basic_cast:%d" % clampi(combo, 0, 2) if spell == "basic_cast" else spell, {})
+	var release_fraction := 0.45
+	if not own.is_empty() and hero_anim != null and hero_anim.has_clip(String(own.clip) + "_Upper"):
+		anim_name = String(own.clip)
+		release_fraction = float(own.release)
+	else:
+		own = {}
 	var upper := anim_name + "_Upper"
 	var hold := 0.42
-	if spell == "basic_cast":
-		hold = 0.30 if combo != 2 else 0.36
+	if not own.is_empty():
+		hold = float(own.hold)
+	elif spell == "basic_cast":
+		hold = [0.30, 0.36, 0.46][clampi(combo, 0, 2)]
 	elif spell == "stupefy":
 		hold = 0.48
 	else:
@@ -1602,12 +1687,14 @@ func _play_cast_animation(anim_name: String = "Spellcast_Shoot", aim: Variant = 
 	if hero_anim:
 		hero_anim.start_cast(upper if hero_anim.has_clip(upper) else anim_name, hold)
 		if hero_anim.cast_layer:
-			hero_anim.cast_layer.set_gesture(spell, combo, hold)
-		hero_anim.align_cast(release, 0.45)
+			# A captured clip carries its own windup and snap; the procedural
+			# gesture overlay is for the generic shoot clip only.
+			hero_anim.cast_layer.set_gesture("" if not own.is_empty() else spell, combo, hold)
+		hero_anim.align_cast(release, release_fraction)
 		# A wand cast points the wand at the target; a melee chop is a SWING, so it
 		# keeps the clip's own arm (holding it on the target would freeze it). The
 		# aim lasts exactly as long as the cast - end_cast releases it.
-		if anim_name.begins_with("Melee") or anim_name.begins_with("1H_Melee"):
+		if anim_name.begins_with("Melee") or anim_name.begins_with("1H_Melee") or not bool(own.get("aim", true)):
 			hero_anim.clear_cast_aim()
 		else:
 			hero_anim.set_cast_aim(aim if aim is Vector3 else global_position + visuals.global_basis.z * 12.0)
@@ -1734,7 +1821,8 @@ func on_authoritative_damage(spell_type: String, attacker: Node3D, _stun_ms: int
 		actual_dmg = int(record.get("last_damage", 0))
 	if is_protego_active and actual_dmg > 0:
 		_spawn_floating_text("BLOCKED 60%!", Color(0.3, 0.7, 1.0))
-	elif actual_dmg > 0:
+	elif actual_dmg > 0 and not HitFeedback.enabled():
+		# On screen, HitFeedback draws every number (taken ones in red).
 		_spawn_floating_text(str(actual_dmg), Color(1.0, 0.2, 0.2), 1.3)
 	if not is_casting_anim and current_hp > 0 and actual_dmg > 0:
 		if hero_anim:
@@ -1899,6 +1987,18 @@ func apply_authoritative_stats(stats: Dictionary) -> void:
 	house_rep = int(stats.get("house_rep", house_rep))
 	quest_active = int(stats.get("quest_active", quest_active))
 	quest_progress = int(stats.get("quest_progress", quest_progress))
+	if stats.get("skills") is Dictionary:
+		var trained := HPRules.clean_skill_levels(stats["skills"])
+		if is_local_player and _skills_seen:
+			for spell_id in trained.keys():
+				var now := int(trained[spell_id])
+				if now > HPRules.skill_level_of(skill_levels, spell_id):
+					var spell_name := String(HPRules.spell(spell_id).get("name", spell_id))
+					var text := "%s mastered!" % spell_name if HPRules.skill_is_master(now) else "%s Lv.%d" % [spell_name, now]
+					_spawn_floating_text(text, Color(0.55, 0.85, 1.0), 1.3)
+		skill_levels = trained
+		_skills_seen = true
+	skill_points = int(stats.get("skill_points", HPRules.skill_points_available(level, skill_levels)))
 	if _shown_house_rep >= 0 and house_rep > _shown_house_rep and is_local_player:
 		_spawn_floating_text("+%d %s Reputation" % [house_rep - _shown_house_rep, house], Color(1.0, 0.78, 0.35), 1.1)
 	_shown_house_rep = house_rep

@@ -22,6 +22,7 @@ its own state. `server_relay` is off, so clients cannot address each other.
 | `sim_transfer_abort` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | token: int |
 | `sim_pickup_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | loot_uid: int |
 | `sim_talk_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | npc_name: String |
+| `sim_skill_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | spell_id: String |
 | `sim_chat_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | text: String |
 | `sim_join_result` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | ok: bool, reason: String, uid: int, character: Dictionary, tick: int, world_seed: int |
 | `sim_bind_result` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | ok: bool, reason: String, character: Dictionary |
@@ -29,7 +30,7 @@ its own state. `server_relay` is off, so clients cannot address each other.
 | `sim_cast_started` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | uid: int, cast_id: int, spell_id: String, aim: Vector3, release_tick: int |
 | `sim_cast_released` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | cast_id: int, caster_uid: int, spell_id: String, origin: Vector3, dir: Vector3 |
 | `sim_cast_landed` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | cast_id: int, caster_uid: int, spell_id: String, hits: Array |
-| `sim_damage_event` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | uid: int, amount: int, hp: int, spell_id: String, attacker_uid: int |
+| `sim_damage_event` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | uid: int, amount: int, hp: int, spell_id: String, attacker_uid: int, flags: int |
 | `sim_death_event` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | uid: int, killer_uid: int |
 | `sim_respawn_event` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | uid: int |
 | `sim_stats_event` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | uid: int, stats: Dictionary |
@@ -52,7 +53,7 @@ its own state. `server_relay` is off, so clients cannot address each other.
 | `sim_equipment_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | request_id: int, revision: int, operation: String, slot: String, item_id: String, tier: int, uid: int |
 | `sim_equipment_result` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | answer: Dictionary |
 
-Surface entries: 40. Hash of this document is pinned in the workspace lock;
+Surface entries: 41. Hash of this document is pinned in the workspace lock;
 Canonical gameplay catalogs live in `world/addons/hpmmo_sim/data/`; client content schemas live in `contracts/schemas/`.
 
-Surface hash: `be579a87f979fb4f3835cbedcb6f9a35141eb1cfd332f341089d033ee7423d5a`
+Surface hash: `5683b23ed0b323d239b67bf7b179b51f73fdc68f6d4559dbd4a8a93f5578c81a`

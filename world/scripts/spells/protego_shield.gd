@@ -60,6 +60,9 @@ func _build_layers() -> void:
 		material.shader = preload("res://assets/shaders/ward_surface.gdshader")
 		material.set_shader_parameter("flow_noise", load(VFX.asset_path("vfx_noise_flow")))
 		material.set_shader_parameter("tint", Color(colour.r, colour.g, colour.b, 0.26))
+		# hex lattice over the dome: the classic force-field read
+		material.set_shader_parameter("hex_lattice", load(VFX.asset_path("vfx_hex_shield")))
+		material.set_shader_parameter("use_hex", true)
 		material.set_shader_parameter("opacity", 0.85)
 		mesh.material_override = material
 		_shell = mesh
@@ -68,12 +71,12 @@ func _build_layers() -> void:
 	quad.size = Vector2(4.2, 4.2)
 	var glyph_material := ShaderMaterial.new()
 	glyph_material.shader = load(SHADER_ADD)
-	glyph_material.set_shader_parameter("atlas", load(VFX.asset_path("vfx_rune_masks")))
-	glyph_material.set_shader_parameter("grid", Vector2(2, 2))
-	glyph_material.set_shader_parameter("frame", 3.0)
+	glyph_material.set_shader_parameter("atlas", load(VFX.asset_path("vfx_rune_seal")))
+	glyph_material.set_shader_parameter("grid", Vector2(1, 1))
+	glyph_material.set_shader_parameter("frame", 0.0)
 	glyph_material.set_shader_parameter("billboard", false)
 	glyph_material.set_shader_parameter("tint", colour)
-	glyph_material.set_shader_parameter("opacity", 0.5)
+	glyph_material.set_shader_parameter("opacity", 0.65)
 	glyph_material.set_shader_parameter("soft_fade", 0.0)
 	quad.material = glyph_material
 	_glyph = MeshInstance3D.new()
@@ -130,7 +133,7 @@ func _process(delta: float) -> void:
 			var material := (ripple as MeshInstance3D).mesh.surface_get_material(0) as ShaderMaterial
 			if material != null:
 				material.set_shader_parameter("opacity", clampf(1.0 - age / life, 0.0, 1.0))
-				material.set_shader_parameter("frame", floor(clampf(age / life, 0.0, 0.999) * 16.0))
+				material.set_shader_parameter("frame", floor(clampf(age / life, 0.0, 0.999) * 64.0))
 			if age >= life:
 				ripple.queue_free()
 
@@ -154,14 +157,14 @@ func on_hit(point: Vector3) -> void:
 	if _hits_root.get_child_count() >= MAX_RIPPLES:
 		_hits_root.get_child(0).queue_free()
 	var quad := QuadMesh.new()
-	quad.size = Vector2(0.9, 0.9)
+	quad.size = Vector2(1.4, 1.4)
 	var material := ShaderMaterial.new()
 	material.shader = load(SHADER_ADD)
-	material.set_shader_parameter("atlas", load(VFX.asset_path("vfx_shield_ripple")))
-	material.set_shader_parameter("grid", Vector2(4, 4))
+	material.set_shader_parameter("atlas", load(VFX.asset_path("vfx_ripple_blue")))
+	material.set_shader_parameter("grid", Vector2(8, 8))
 	material.set_shader_parameter("frame", 0.0)
 	material.set_shader_parameter("billboard", true)
-	material.set_shader_parameter("tint", VFX.spell_colour("protego"))
+	material.set_shader_parameter("tint", Color.WHITE)
 	material.set_shader_parameter("opacity", 1.0)
 	material.set_shader_parameter("soft_fade", 0.0)
 	quad.material = material

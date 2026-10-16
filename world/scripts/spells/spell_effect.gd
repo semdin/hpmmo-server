@@ -102,6 +102,11 @@ func setup(p_spell: String, p_stage: String, p_quality: String, p_origin: Vector
 	follow_target = opts.get("follow_target", null)
 	target_position = opts.get("target_position", p_origin)
 	aoe_radius = float(opts.get("aoe_radius", 0.0))
+	if aoe_radius <= 0.0 and p_stage == "impact":
+		# a blast's ground ring is the gameplay area: read the radius the
+		# authority uses (spells.json) before the table's authored copy
+		aoe_radius = float((GameData.SPELLS.get(p_spell, {}) as Dictionary).get("radius",
+			(VFX.stages_for(p_spell).get("impact", {}) as Dictionary).get("aoe_radius", 0.0)))
 	if _live(follow_target):
 		_follow_anchor = follow_target.global_position
 		_follow_carried = follow_target.is_ancestor_of(self)
@@ -142,20 +147,6 @@ func setup(p_spell: String, p_stage: String, p_quality: String, p_origin: Vector
 
 func _build_layer(layer: Dictionary, colour: Color) -> Node3D:
 	match String(layer.get("kind", "")):
-		"signature":
-			var signature := preload("res://scripts/spells/spell_signature_vfx.gd").new()
-			signature.name = "SpellSignature"
-			add_child(signature)
-			var area := aoe_radius if aoe_radius > 0.0 else float(GameData.SPELLS.get(spell_id, {}).get("radius", 0.0))
-			signature.configure(spell_id, float(layer.get("life", 0.8)), area)
-			signature.setup(stage, quality, direction)
-			return signature
-		"stupefy_energy":
-			var energy := preload("res://scripts/spells/stupefy_vfx.gd").new()
-			energy.name = "StupefyEnergy"
-			add_child(energy)
-			energy.setup(stage, quality, direction)
-			return energy
 		"flipbook":
 			return _build_flipbook(layer, colour)
 		"sprite":
@@ -199,6 +190,8 @@ func _material_for(layer: Dictionary, colour: Color) -> ShaderMaterial:
 	material.set_shader_parameter("tint", _layer_colour(layer, colour))
 	material.set_shader_parameter("opacity", float(layer.get("opacity", 1.0)))
 	material.set_shader_parameter("soft_fade", 0.35 if not bool(layer.get("flat", false)) else 0.0)
+	if bool(layer.get("roll", false)):
+		material.set_shader_parameter("roll", randf() * TAU)
 	if layer.has("fracture"):
 		material.set_shader_parameter("erode", 0.0)
 		material.set_shader_parameter("erosion", load(VFX.asset_path("vfx_noise_erosion")))
@@ -335,6 +328,9 @@ func _build_mesh_layer(layer: Dictionary, colour: Color) -> Node3D:
 			ward.shader = preload("res://assets/shaders/ward_surface.gdshader")
 			ward.set_shader_parameter("flow_noise", load(VFX.asset_path("vfx_noise_flow")))
 			ward.set_shader_parameter("tint", tint)
+			if layer.has("hex") and VFX.asset_exists(String(layer["hex"])):
+				ward.set_shader_parameter("hex_lattice", load(VFX.asset_path(String(layer["hex"]))))
+				ward.set_shader_parameter("use_hex", true)
 			_set_mesh_material(instance, ward)
 		elif bool(layer.get("flow", false)):
 			# the shell carries a flowing noise field and a bright rim so the
@@ -443,23 +439,14 @@ func _tick_layer(entry: Dictionary, delta: float) -> void:
 	var age: float = _elapsed - float(entry["born"]) - float(entry["offset"])
 	if age < 0.0:
 		return
+	if bool(layer.get("hidden", false)):
+		return
 	node.visible = true
 	var life := float(layer.get("life", 0.0))
 	var kind := String(layer.get("kind", ""))
 	# fade curves: nothing pops, everything is a curve
 	var fade := _fade_for(layer, age, life)
 	match kind:
-		"signature":
-			var current_aim := direction
-			if is_instance_valid(follow_target) and "direction" in follow_target:
-				current_aim = follow_target.get("direction")
-			node.duration = maxf(0.1, life)
-			node.advance(age, current_aim)
-		"stupefy_energy":
-			var current_aim := direction
-			if is_instance_valid(follow_target) and "direction" in follow_target:
-				current_aim = follow_target.get("direction")
-			node.advance(age, current_aim)
 		"flipbook", "sprite":
 			var material := (node as MeshInstance3D).mesh.surface_get_material(0) as ShaderMaterial
 			if material != null:
@@ -478,9 +465,18 @@ func _tick_layer(entry: Dictionary, delta: float) -> void:
 					material.set_shader_parameter("erode", clampf(age / maxf(0.05, life), 0.0, 1.0))
 			if bool(node.get_meta("spin", false)):
 				node.rotate_y(delta * float(node.get_meta("spin")))
+			if layer.has("grow"):
+				# scale over life: a burst blooms, a flash pops and shrinks
+				var span: Array = layer["grow"]
+				var k := clampf(age / maxf(life, 0.01), 0.0, 1.0)
+				var eased := 1.0 - pow(1.0 - k, 2.2)
+				node.scale = Vector3.ONE * lerpf(float(span[0]), float(span[1]), eased)
 			if bool(node.get_meta("flicker", false)):
 				var s := 0.85 + 0.3 * sin(_elapsed * 47.0) * randf()
 				node.scale = Vector3.ONE * s
+				var flick := (node as MeshInstance3D).mesh.surface_get_material(0) as ShaderMaterial
+				if flick != null and randf() < 0.25:
+					flick.set_shader_parameter("roll", randf() * TAU)
 		"particles":
 			if not bool(layer.get("continuous", false)) and age > life and (node as GPUParticles3D).emitting:
 				(node as GPUParticles3D).emitting = false
@@ -523,7 +519,10 @@ func _tick_layer(entry: Dictionary, delta: float) -> void:
 func _flipbook_frame(layer: Dictionary, age: float) -> float:
 	var entry := VFX.asset(String(layer.get("atlas", layer.get("tex", ""))))
 	var frames := float(entry.get("frames", 1))
-	var fps := float(entry.get("fps", 20))
+	var fps := float(layer.get("fps", entry.get("fps", 20)))
+	if bool(layer.get("fit", false)) and float(layer.get("life", 0.0)) > 0.0:
+		# play the whole sequence over the layer's life (a short impact, a long burn)
+		fps = frames / float(layer["life"])
 	var base := float(layer.get("frame", 0))
 	if frames <= 1.0 or fps <= 0.0:
 		return base
@@ -615,10 +614,16 @@ func retire_travel() -> void:
 	_stop_audio()
 	for entry in _layers:
 		var node: Node = entry["node"]
+		var kind := String((entry["layer"] as Dictionary).get("kind", ""))
 		if node.has_method("retire"):
 			node.call("retire")
 		elif node is GPUParticles3D:
 			(node as GPUParticles3D).emitting = false
+		elif kind in ["flipbook", "sprite"] and node is Node3D:
+			# the bolt's heart is spent on impact: only the wake fades out
+			(node as Node3D).visible = false
+			entry["layer"] = (entry["layer"] as Dictionary).duplicate()
+			entry["layer"]["hidden"] = true
 
 
 func cancel(reason: String = "") -> void:

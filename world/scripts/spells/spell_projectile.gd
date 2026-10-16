@@ -144,14 +144,29 @@ func _handle_hit(target: Node) -> void:
 			SimAuthority.spell_area_impact(caster, global_position, radius, spell_id, damage)
 		elif Rules.can_damage(caster, target):
 			SimAuthority.apply_damage(target, damage, spell_id, caster)
-	SkillFX.play_impact(get_parent(), global_position, spell_id, target, direction)
+	# A view that reached a damageable body leaves the impact to the authority's
+	# `cast_landed` (game_world draws it on each victim); drawing it here too put
+	# two bursts on every hit. Ground, walls and area blasts are drawn here.
+	var victim_hit := visual_only and target != null and is_instance_valid(target) 		and target.has_method("take_damage") and spell_id not in ["bombarda", "ultimate"]
+	if not victim_hit:
+		SkillFX.play_impact(get_parent(), global_position, spell_id, target, direction)
 	if travel_effect != null and is_instance_valid(travel_effect):
 		_end_travel("spent")
 	queue_free()
 
+## The authority says this cast already hit (a bolt that brushed a body, or
+## landed before this view arrived): stop flying, the impact is drawn on the victim.
+func end_on_landed() -> void:
+	if spent:
+		return
+	spent = true
+	if travel_effect != null and is_instance_valid(travel_effect):
+		_end_travel("landed")
+	queue_free()
+
 
 func _end_travel(reason: String) -> void:
-	if spell_id in ["stupefy", "bombarda", "expelliarmus", "ultimate"]:
+	if spell_id in ["basic_cast", "stupefy", "bombarda", "expelliarmus", "ultimate"]:
 		# Keep the last quarter-second of filaments in world space at impact.
 		travel_effect.reparent(get_parent(), true)
 		travel_effect.call("retire_travel")

@@ -116,6 +116,8 @@ func setup(p_binder: UIStateBinder, p_player: Node3D) -> void:
 		binder.level_changed.connect(_on_level_changed)
 		binder.damage_taken.connect(_on_damage_taken)
 		binder.target_changed.connect(_on_target_changed)
+	if SimAuthority.has_signal("entity_hit"):
+		SimAuthority.entity_hit.connect(_on_entity_hit)
 	_update_status()
 
 func _build() -> void:
@@ -427,6 +429,22 @@ func _on_damage_taken(_amount: int, _hp: int, _max_hp: int, _spell_id: String) -
 		_shake_until = _now() + 0.35
 		_shake_strength = 0.16 * settings.shake_intensity
 		shakes += 1
+
+## The local player's own heavy hits (a critical or a combo finisher) kick the
+## camera a little - shorter and lighter than taking damage.
+func _on_entity_hit(_uid: int, amount: int, _hp: int, _spell_id: String, attacker_uid: int, flags: int) -> void:
+	if amount <= 0 or binder == null or attacker_uid == 0 or attacker_uid != binder.local_uid():
+		return
+	if flags & (HPProtocol.HIT_CRIT | HPProtocol.HIT_FINISHER) == 0:
+		return
+	var settings := GameSettings.instance()
+	if settings.shake_intensity <= 0.0:
+		return
+	var strength := (0.11 if flags & HPProtocol.HIT_CRIT != 0 else 0.07) * settings.shake_intensity
+	if _now() >= _shake_until or strength > _shake_strength:
+		_shake_strength = strength
+	_shake_until = maxf(_shake_until, _now() + 0.16)
+	shakes += 1
 
 func _on_target_changed(_target: Object) -> void:
 	_update_status()

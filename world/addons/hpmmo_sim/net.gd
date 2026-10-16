@@ -497,6 +497,16 @@ func sim_talk_request(npc_name: String) -> void:
 	if not bool(result.get("ok", false)):
 		sim_notice.rpc_id(multiplayer.get_remote_sender_id(), "talk", String(result.get("reason", "")))
 
+## Skill training: spend one skill point on a spell. The authority checks the
+## points and the cap; success arrives as a stats payload (`skills`).
+@rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
+func sim_skill_request(spell_id: String) -> void:
+	if is_client:
+		return
+	var result := SimAuthority.request_skill_up(multiplayer.get_remote_sender_id(), spell_id.left(32))
+	if not bool(result.get("ok", false)):
+		sim_notice.rpc_id(multiplayer.get_remote_sender_id(), "skill", String(result.get("reason", "")))
+
 @rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
 func sim_chat_request(text: String) -> void:
 	if is_client:
@@ -600,8 +610,8 @@ func sim_cast_landed(cast_id: int, caster_uid: int, spell_id: String, hits: Arra
 	SimAuthority.emit_signal("cast_landed", cast_id, caster_uid, spell_id, hits)
 
 @rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
-func sim_damage_event(uid: int, amount: int, hp: int, spell_id: String, attacker_uid: int) -> void:
-	SimAuthority.on_damage_event(uid, amount, hp, spell_id, attacker_uid)
+func sim_damage_event(uid: int, amount: int, hp: int, spell_id: String, attacker_uid: int, flags: int) -> void:
+	SimAuthority.on_damage_event(uid, amount, hp, spell_id, attacker_uid, flags)
 
 @rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
 func sim_death_event(uid: int, killer_uid: int) -> void:
@@ -797,6 +807,18 @@ func submit_talk(player_node: Node, npc_name: String) -> Dictionary:
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
 	return SimAuthority.request_talk(int(record.get("peer_id", 0)), npc_name)
 
+## Spend a skill point (the skill window). A network client asks the server and
+## learns the outcome from the stats payload or a "skill" notice; the authority
+## roles answer locally with the same validation.
+func submit_skill_up(player_node: Node, spell_id: String) -> Dictionary:
+	if is_client:
+		sim_skill_request.rpc_id(1, spell_id)
+		return HPProtocol.accept()
+	var record := SimAuthority.record_for(player_node)
+	if record.is_empty():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	return SimAuthority.skill_up_for_record(record, spell_id)
+
 ## Map transfer entry points, used by client code in EVERY role (Phase
 ## 8). In role CLIENT the exchange travels to the server; in the authority roles
 ## the same engine answers locally, so offline/host play exercises the identical
@@ -858,7 +880,7 @@ func bridge_authority() -> void:
 	if is_client:
 		return
 	SimAuthority.chat.connect(broadcast_chat)
-	SimAuthority.entity_damaged.connect(broadcast_damage)
+	SimAuthority.entity_hit.connect(broadcast_damage)
 	SimAuthority.entity_died.connect(broadcast_death)
 	SimAuthority.entity_respawned.connect(broadcast_respawn)
 	SimAuthority.cast_started.connect(broadcast_cast_started)
@@ -924,12 +946,12 @@ func _broadcast_snapshots() -> void:
 
 ## Event fan-out used by the world server for authority signals. Clients that
 ## cannot see the entity are skipped; that is the interest filter for events.
-func broadcast_damage(uid: int, amount: int, hp: int, spell_id: String, attacker_uid: int) -> void:
+func broadcast_damage(uid: int, amount: int, hp: int, spell_id: String, attacker_uid: int, flags := 0) -> void:
 	if not has_peers():
 		return
 	for peer_id in multiplayer.get_peers():
 		if _peer_can_see(peer_id, uid) or _peer_can_see(peer_id, attacker_uid):
-			sim_damage_event.rpc_id(peer_id, uid, amount, hp, spell_id, attacker_uid)
+			sim_damage_event.rpc_id(peer_id, uid, amount, hp, spell_id, attacker_uid, flags)
 
 func broadcast_death(uid: int, killer_uid: int) -> void:
 	if not has_peers():

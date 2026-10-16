@@ -97,6 +97,7 @@ func setup(animation_player: AnimationPlayer, skeleton_node: Skeleton3D, host: N
 	if anim_player == null:
 		enabled = false
 		return
+	merge_extra_clips(anim_player)
 	root = AnimationNodeBlendTree.new()
 	tree = AnimationTree.new()
 	tree.name = "HeroAnimationTree"
@@ -162,6 +163,64 @@ func setup(animation_player: AnimationPlayer, skeleton_node: Skeleton3D, host: N
 						if HeroBones.is_digit(path.get_slice(":", path.get_slice_count(":") - 1)):
 							anim.remove_track(t)
 
+
+## Clips retargeted outside the hero build (tools/blender/retarget_mixamo.py)
+## ship as small GLBs here - the hero armature, a carrier mesh and the clip -
+## and are merged into the hero's own library, so the hero GLB never has to be
+## rebuilt to gain a move.
+const EXTRA_CLIP_DIR := "res://assets/animations/hero/"
+
+static func merge_extra_clips(player: AnimationPlayer) -> int:
+	if player == null or not DirAccess.dir_exists_absolute(EXTRA_CLIP_DIR):
+		return 0
+	var added := 0
+	var seen := {}
+	for file in DirAccess.get_files_at(EXTRA_CLIP_DIR):
+		var glb := file.trim_suffix(".import").trim_suffix(".remap")
+		if not glb.ends_with(".glb") or seen.has(glb):
+			continue
+		seen[glb] = true
+		var packed := load(EXTRA_CLIP_DIR + glb) as PackedScene
+		if packed == null:
+			continue
+		var scene := packed.instantiate()
+		added += merge_clips_from(player, scene.find_child("AnimationPlayer", true, false) as AnimationPlayer)
+		scene.free()
+	return added
+
+## Copy every clip of `source` the hero does not have yet into its default
+## library, with the track paths moved onto the hero's own skeleton path (taken
+## from a clip the hero GLB already carries). `rename` maps a source clip name
+## to the name it gets here (the clip preview loads variants side by side).
+static func merge_clips_from(player: AnimationPlayer, source: AnimationPlayer, rename: Callable = Callable()) -> int:
+	if player == null or source == null:
+		return 0
+	var library := player.get_animation_library("")
+	if library == null:
+		return 0
+	var prefix := ""
+	for existing in player.get_animation_list():
+		var anim := player.get_animation(existing)
+		if anim != null and anim.get_track_count() > 0 and String(anim.track_get_path(0)).contains(":"):
+			prefix = String(anim.track_get_path(0)).get_slice(":", 0)
+			break
+	var added := 0
+	for clip_name in source.get_animation_list():
+		var target_name := String(clip_name).get_file()
+		if rename.is_valid():
+			target_name = String(rename.call(target_name))
+		if player.has_animation(target_name):
+			continue
+		var clip := (source.get_animation(clip_name) as Animation).duplicate(true) as Animation
+		if prefix != "":
+			for t in clip.get_track_count():
+				var path := String(clip.track_get_path(t))
+				if path.contains(":"):
+					clip.track_set_path(t, NodePath(prefix + ":" + path.get_slice(":", path.get_slice_count(":") - 1)))
+		clip.loop_mode = Animation.LOOP_NONE
+		library.add_animation(StringName(target_name), clip)
+		added += 1
+	return added
 
 ## Restrict the cast layer to the bone paths an upper-body clip owns, so every
 ## other path passes through the locomotion layer untouched.

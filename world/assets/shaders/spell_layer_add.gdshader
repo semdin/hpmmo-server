@@ -15,6 +15,7 @@ uniform sampler2D atlas : filter_linear_mipmap;
 uniform vec2 grid = vec2(8.0, 8.0);
 uniform float frame : hint_range(0.0, 255.0) = 0.0;
 uniform bool billboard = true;
+uniform float roll = 0.0;
 uniform vec4 tint : source_color = vec4(1.0, 1.0, 1.0, 1.0);
 uniform float opacity : hint_range(0.0, 1.0) = 1.0;
 // Soft-particle depth fade: hides the hard intersection where a quad meets
@@ -32,8 +33,16 @@ varying vec2 uv_frame;
 
 void vertex() {
 	if (billboard) {
+		// Face the camera but keep the node's scale (grow-over-life) and a
+		// per-layer roll, so two copies of one flipbook never read as clones.
+		float sx = length(MODEL_MATRIX[0].xyz);
+		float sy = length(MODEL_MATRIX[1].xyz);
+		vec3 right = INV_VIEW_MATRIX[0].xyz;
+		vec3 up = INV_VIEW_MATRIX[1].xyz;
+		vec3 r = right * cos(roll) + up * sin(roll);
+		vec3 u = -right * sin(roll) + up * cos(roll);
 		MODELVIEW_MATRIX = VIEW_MATRIX * mat4(
-			INV_VIEW_MATRIX[0], INV_VIEW_MATRIX[1], INV_VIEW_MATRIX[2], MODEL_MATRIX[3]);
+			vec4(r * sx, 0.0), vec4(u * sy, 0.0), INV_VIEW_MATRIX[2], MODEL_MATRIX[3]);
 	}
 	vec2 cell = vec2(1.0) / grid;
 	float idx = floor(frame + 0.5);

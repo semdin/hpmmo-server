@@ -140,7 +140,13 @@ static func play_impact(world: Node3D, pos: Vector3, spell_id: String, victim: N
 	var opts := {"target_position": pos}
 	if victim != null:
 		opts["follow_target"] = victim
-	var effect := spawn_stage(world, spell_id, "impact", pos, safe_direction(incoming), null, opts)
+	# A billboard burst centred ON a wall or a body is half buried in it: draw it
+	# half a metre back toward where the spell came from. Ground blasts keep
+	# their centre (their ring lies on the floor).
+	var at := pos
+	if not spell_id in ["bombarda", "ultimate"]:
+		at = pos - safe_direction(incoming) * 0.5
+	var effect := spawn_stage(world, spell_id, "impact", at, safe_direction(incoming), null, opts)
 	if effect == null:
 		return
 	if spell_id == "incendio" and victim != null:

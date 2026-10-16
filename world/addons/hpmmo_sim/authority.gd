@@ -34,6 +34,9 @@ signal cast_ack(cast_seq: int, cast_id: int, ok: bool, reason: String)
 signal cast_released(cast_id: int, caster_uid: int, spell_id: String, origin: Vector3, dir: Vector3)
 signal cast_landed(cast_id: int, caster_uid: int, spell_id: String, hits: Array)
 signal entity_damaged(uid: int, amount: int, hp: int, spell_id: String, attacker_uid: int)
+## Same hit as `entity_damaged` plus its HIT_* flags (crit, combo finisher). The
+## network bridge forwards this one; presentation (damage numbers) reads it.
+signal entity_hit(uid: int, amount: int, hp: int, spell_id: String, attacker_uid: int, flags: int)
 signal entity_died(uid: int, killer_uid: int)
 signal entity_respawned(uid: int)
 signal loot_spawned(uid: int, item_id: String, amount: int, pos: Vector3)
@@ -49,6 +52,8 @@ signal level_changed(uid: int, level: int)
 signal house_rank_changed(uid: int, house: String, rank: int)
 ## A player finished a quest of the chain (rewards already granted).
 signal quest_completed(uid: int, quest_id: String)
+## A player spent a skill point (see skill_up_for_record).
+signal skill_trained(uid: int, spell_id: String, level: int)
 signal player_joined(uid: int, character_id: int, peer_id: int)
 signal player_left(uid: int, character_id: int)
 ## Maintenance lifecycle. The dedicated server's admin
@@ -123,6 +128,8 @@ func local_map_id() -> String:
 const TICK_MS := 1000 / HPProtocol.SIM_HZ
 const AUTOSAVE_INTERVAL_MS := 30000
 const REGEN_INTERVAL_MS := 200
+## How far beside a body a projectile may pass and still hit it (aim forgiveness).
+const PROJECTILE_ASSIST_RADIUS := 0.55
 const PERSISTENCE_PENDING := "pending"
 
 ## Optional persistence bridge (server/host roles only). Assigned by the server
@@ -672,9 +679,13 @@ func cast_for_record(record: Dictionary, spell_id: String, aim: Vector3, cast_se
 	record["last_cast_seq"] = cast_seq
 	record["queued_spell"] = ""
 	var combo_mult := 1.0
+	var finisher := false
 	if spell_id == "basic_cast":
-		combo_mult = _advance_combo(record)
-	var cast_id := _begin_cast(record, spell_id, aim, combo_mult)
+		var multipliers: Array = HPRules.combo_multipliers("basic_cast")
+		var step := _advance_combo(record)
+		combo_mult = float(multipliers[step])
+		finisher = step > 0 and step == multipliers.size() - 1
+	var cast_id := _begin_cast(record, spell_id, aim, combo_mult, finisher)
 	_push_stats(record)
 	return {"ok": true, "reason": HPProtocol.REJECT_OK, "cast_id": cast_id}
 
@@ -682,7 +693,8 @@ func _reject_cast(record: Dictionary, cast_seq: int, reason: String) -> Dictiona
 	record["last_cast_seq"] = cast_seq
 	return {"ok": false, "reason": reason, "cast_id": 0}
 
-func _advance_combo(record: Dictionary) -> float:
+## Advances the caster's basic-attack chain and returns the step this cast is.
+func _advance_combo(record: Dictionary) -> int:
 	var multipliers: Array = HPRules.combo_multipliers("basic_cast")
 	var window_ticks := int(ceil(HPRules.combo_window("basic_cast") * HPProtocol.SIM_HZ))
 	if sim_tick > int(record.get("combo_until_tick", 0)):
@@ -690,9 +702,9 @@ func _advance_combo(record: Dictionary) -> float:
 	var index := int(record.get("combo_index", 0)) % maxi(1, multipliers.size())
 	record["combo_index"] = (index + 1) % maxi(1, multipliers.size())
 	record["combo_until_tick"] = sim_tick + window_ticks
-	return float(multipliers[index])
+	return index
 
-func _begin_cast(record: Dictionary, spell_id: String, aim: Vector3, combo_mult: float) -> int:
+func _begin_cast(record: Dictionary, spell_id: String, aim: Vector3, combo_mult: float, finisher := false) -> int:
 	var node: Node3D = record["node"]
 	var cast_id := _next_cast_id
 	_next_cast_id += 1
@@ -704,8 +716,9 @@ func _begin_cast(record: Dictionary, spell_id: String, aim: Vector3, combo_mult:
 	if dir.length_squared() < 0.0001:
 		dir = Vector3(0, 0, 1)
 	dir = dir.normalized()
+	var trained := skill_level(record, spell_id)
 	var cast := {
-		"damage": int(HPRules.spell_damage(spell_id, int(record.get("wand_tier", 0)), String(record.get("house", "")), combo_mult) * float(record.get("weapon_multiplier", 1.0))),
+		"damage": int(HPRules.spell_damage(spell_id, int(record.get("wand_tier", 0)), String(record.get("house", "")), combo_mult, trained) * float(record.get("weapon_multiplier", 1.0))),
 		"cast_id": cast_id,
 		"caster_uid": record["uid"],
 		"spell_id": spell_id,
@@ -717,11 +730,12 @@ func _begin_cast(record: Dictionary, spell_id: String, aim: Vector3, combo_mult:
 		"dir": dir,
 		"aim": aim,
 		"combo_mult": combo_mult,
+		"hit_flags": HPProtocol.HIT_FINISHER if finisher else 0,
 	}
 	casts[cast_id] = cast
 	record["cast_id"] = cast_id
 	record["cast_lock_until_tick"] = cast["end_tick"]
-	record["cooldowns"][spell_id] = sim_tick + int(ceil(HPRules.cooldown_for(spell_id, String(record.get("house", ""))) * HPProtocol.SIM_HZ))
+	record["cooldowns"][spell_id] = sim_tick + int(ceil(HPRules.cooldown_for(spell_id, String(record.get("house", "")), trained) * HPProtocol.SIM_HZ))
 	casts_by_node[node.get_instance_id()] = cast_id
 	# Face the cast direction immediately, matching the client's aim behaviour.
 	emit_signal("cast_started", int(record["uid"]), cast_id, spell_id, aim, int(cast["release_tick"]))
@@ -1202,6 +1216,10 @@ func _resolve_cast(cast: Dictionary) -> void:
 	var delivery := HPRules.delivery(spell_id)
 	var origin: Vector3 = caster["node"].global_position + Vector3(0, 1.2, 0)
 	var dir: Vector3 = cast["dir"]
+	# A cone aimed down at the ground in front of the caster still sweeps the
+	# ground level ahead: only its heading counts (and the flames are drawn so).
+	if delivery == "cone" and dir.y < 0.0 and Vector2(dir.x, dir.z).length_squared() > 0.0001:
+		dir = Vector3(dir.x, 0.0, dir.z).normalized()
 	emit_signal("cast_released", int(cast["cast_id"]), int(caster["uid"]), spell_id, origin, dir)
 	emit_signal("cast_finished", int(cast["cast_id"]), true, HPProtocol.REJECT_OK)
 
@@ -1218,7 +1236,8 @@ func _resolve_cast(cast: Dictionary) -> void:
 func _apply_self_cast(caster: Dictionary, spell_id: String) -> void:
 	if spell_id != "protego":
 		return
-	var ticks := int(ceil(float(HPRules.ward_duration_ms(spell_id)) / TICK_MS))
+	var duration := float(HPRules.ward_duration_ms(spell_id)) * HPRules.skill_effect_multiplier(skill_level(caster, spell_id))
+	var ticks := int(ceil(duration / TICK_MS))
 	caster["ward_until_tick"] = sim_tick + ticks
 	touch(caster)
 	_push_stats(caster)
@@ -1242,7 +1261,7 @@ func _resolve_cone(caster: Dictionary, cast: Dictionary, origin: Vector3, dir: V
 		if not HPRules.has_line_of_sight(caster["node"], node):
 			continue
 		var raw := int(cast["damage"])
-		var applied := _apply_damage(record, raw, spell_id, caster)
+		var applied := _apply_damage(record, raw, spell_id, caster, int(cast.get("hit_flags", 0)))
 		if applied > 0:
 			hits.append({"uid": target_uid, "amount": applied})
 			_apply_burn(record, spell_id, caster)
@@ -1265,6 +1284,7 @@ func _spawn_projectile(caster: Dictionary, cast: Dictionary, origin: Vector3, di
 		"radius": float(data.get("radius", 0.0)),
 		"combo_mult": float(cast["combo_mult"]),
 		"flat_damage": int(cast["damage"]),
+		"hit_flags": int(cast.get("hit_flags", 0)),
 		"hit_uid": 0,
 	})
 
@@ -1291,6 +1311,8 @@ func _advance_projectiles() -> void:
 			continue
 		var impact_uid := 0
 		var impact_pos := to
+		var path_end := to
+		var hit_world := false
 		if space != null:
 			var query := PhysicsRayQueryParameters3D.create(from, to, 3)
 			query.exclude = [(caster_node as CollisionObject3D).get_rid()]
@@ -1312,7 +1334,19 @@ func _advance_projectiles() -> void:
 				else:
 					impact_uid = 0
 					impact_pos = hit.position
-		if impact_uid == 0 and float(projectile["remaining"]) > 0.0:
+					path_end = hit.position
+					hit_world = true
+		# Aim forgiveness: a bolt that brushes past a body still hits it, so a
+		# click a hand's width beside a mob is not a miss. Only the stretch of this
+		# tick's path in front of any wall or ground counts.
+		if impact_uid == 0:
+			var assisted := _projectile_assist(int(projectile["caster_uid"]), caster_node, from, path_end)
+			if not assisted.is_empty():
+				impact_uid = int(assisted["uid"])
+				impact_pos = assisted["pos"]
+		# A bolt that meets the ground or a wall ends there (an area spell bursts
+		# at that point), so a cast aimed at the ground lands where it was aimed.
+		if impact_uid == 0 and not hit_world and float(projectile["remaining"]) > 0.0:
 			remaining.append(projectile)
 			continue
 		# Protego: a projectile that reaches an active ward is REFLECTED - it
@@ -1334,6 +1368,47 @@ func _advance_projectiles() -> void:
 		_projectile_impact(projectile, impact_uid, impact_pos, caster)
 	projectiles = remaining
 
+## The first damageable body whose upright column passes within
+## PROJECTILE_ASSIST_RADIUS of the segment `from` -> `to`, as {uid, pos}; {} if none.
+func _projectile_assist(caster_uid: int, caster_node: Node, from: Vector3, to: Vector3) -> Dictionary:
+	var seg := to - from
+	var seg_flat := Vector2(seg.x, seg.z)
+	var flat_len_sq := seg_flat.length_squared()
+	if flat_len_sq < 1e-6:
+		return {}
+	var reach := seg.length() * 0.5 + PROJECTILE_ASSIST_RADIUS + 1.5
+	var middle := from + seg * 0.5
+	var caster_map := String(entities.get(caster_uid, {}).get("map_id", ""))
+	var best := {}
+	var best_t := INF
+	for uid in entities.keys():
+		if uid == caster_uid:
+			continue
+		var record: Dictionary = entities[uid]
+		var kind := int(record.get("kind", 0))
+		if bool(record.get("dead", false)) or (kind != HPProtocol.Kind.MOB and kind != HPProtocol.Kind.PLAYER \
+				and kind != HPProtocol.Kind.DUMMY and kind != HPProtocol.Kind.MONOLITH):
+			continue
+		var node = record.get("node")
+		if node == null or not is_instance_valid(node) or not (node is Node3D):
+			continue
+		var body: Vector3 = (node as Node3D).global_position
+		if body.distance_squared_to(middle) > reach * reach:
+			continue
+		if caster_map != "" and String(record.get("map_id", HPProtocol.DEFAULT_MAP)) != caster_map:
+			continue
+		var t := clampf(Vector2(body.x - from.x, body.z - from.z).dot(seg_flat) / flat_len_sq, 0.0, 1.0)
+		var point := from + seg * t
+		if Vector2(point.x - body.x, point.z - body.z).length() > PROJECTILE_ASSIST_RADIUS:
+			continue
+		if point.y < body.y - 0.4 or point.y > body.y + 2.6:
+			continue
+		if t >= best_t or not node.has_method("take_damage") or not HPRules.can_damage(caster_node, node):
+			continue
+		best_t = t
+		best = {"uid": uid, "pos": point}
+	return best
+
 func _projectile_impact(projectile: Dictionary, impact_uid: int, impact_pos: Vector3, caster: Dictionary) -> void:
 	var spell_id := String(projectile["spell_id"])
 	var hits: Array = []
@@ -1352,14 +1427,14 @@ func _projectile_impact(projectile: Dictionary, impact_uid: int, impact_pos: Vec
 			if not HPRules.has_line_of_sight(caster["node"], node):
 				continue
 			var raw := int(float(_projectile_damage(projectile, caster)) * HPRules.aoe_falloff(distance, radius, floor_ratio))
-			var applied := _apply_damage(record, raw, spell_id, caster)
+			var applied := _apply_damage(record, raw, spell_id, caster, int(projectile.get("hit_flags", 0)))
 			if applied > 0:
 				hits.append({"uid": target_uid, "amount": applied})
 	elif impact_uid != 0:
 		var record: Dictionary = entities.get(impact_uid, {})
 		if not record.is_empty():
 			var raw := _projectile_damage(projectile, caster)
-			var applied := _apply_damage(record, raw, spell_id, caster)
+			var applied := _apply_damage(record, raw, spell_id, caster, int(projectile.get("hit_flags", 0)))
 			if applied > 0:
 				hits.append({"uid": impact_uid, "amount": applied})
 	emit_signal("cast_landed", int(projectile["cast_id"]), int(caster["uid"]), spell_id, hits)
@@ -1376,7 +1451,7 @@ func apply_spell_hit(target: Node, spell_id: String, caster: Node) -> int:
 		return 0
 	var caster_record := record_for(caster)
 	var raw := HPRules.spell_damage(spell_id, int(caster_record.get("wand_tier", 0)),
-		String(caster_record.get("house", "")), 1.0)
+		String(caster_record.get("house", "")), 1.0, skill_level(caster_record, spell_id))
 	raw = int(raw * float(caster_record.get("weapon_multiplier", 1.0)))
 	var applied := _apply_damage(target_record, raw, spell_id, caster_record)
 	if applied > 0:
@@ -1535,7 +1610,7 @@ func _projectile_damage(projectile: Dictionary, caster: Dictionary) -> int:
 	if projectile.has("flat_damage"):
 		return int(projectile["flat_damage"])
 	return HPRules.spell_damage(String(projectile["spell_id"]), int(caster.get("wand_tier", 0)),
-		String(caster.get("house", "")), float(projectile["combo_mult"]))
+		String(caster.get("house", "")), float(projectile["combo_mult"]), skill_level(caster, String(projectile["spell_id"])))
 
 func _damageable_targets(caster_uid: int) -> Array:
 	var out: Array = []
@@ -1559,7 +1634,9 @@ func _damageable_targets(caster_uid: int) -> Array:
 		out.append(uid)
 	return out
 
-func _apply_damage(target: Dictionary, raw: int, spell_id: String, attacker: Dictionary) -> int:
+## `hit_flags` carries what the cast already knows about the hit (HIT_FINISHER);
+## the crit roll here adds HIT_CRIT, and the result goes out on `entity_hit`.
+func _apply_damage(target: Dictionary, raw: int, spell_id: String, attacker: Dictionary, hit_flags := 0) -> int:
 	if mutations_frozen():
 		return 0   # the save barrier freezes damage, and therefore rewards
 	if raw <= 0 or target.is_empty() or bool(target.get("dead", false)):
@@ -1595,9 +1672,13 @@ func _apply_damage(target: Dictionary, raw: int, spell_id: String, attacker: Dic
 		# Enchanted "damage against creatures" (players only, against mobs).
 		if int(target.get("kind", -1)) == HPProtocol.Kind.MOB and float(attacker.get("monster_damage", 0.0)) > 0.0:
 			amount = int(round(amount * (1.0 + float(attacker.monster_damage) / 100.0)))
-		if float(attacker.get("crit_chance", 0.0)) > 0.0 and rng.randf() * 100.0 < float(attacker.crit_chance):
-			amount = int(round(amount * float(HPEquipment.enchant_rules().get("crit_multiplier", 1.5))))
-			target["last_crit"] = true
+		# Critical hits: players only (base chance + enchanted crit_chance, more on
+		# a combo finisher). The roll is the server's; clients only draw it.
+		if int(attacker.get("kind", -1)) == HPProtocol.Kind.PLAYER and amount > 0:
+			var chance := HPRules.crit_chance(float(attacker.get("crit_chance", 0.0)), hit_flags & HPProtocol.HIT_FINISHER != 0)
+			if chance > 0.0 and rng.randf() * 100.0 < chance:
+				amount = int(round(amount * HPRules.crit_multiplier()))
+				hit_flags |= HPProtocol.HIT_CRIT
 		# Enchanted "resist creatures" on a player hit by a creature.
 		if int(attacker.get("kind", -1)) == HPProtocol.Kind.MOB and float(target.get("creature_resist", 0.0)) > 0.0:
 			amount = int(round(amount * (1.0 - clampf(float(target.creature_resist), 0.0, 50.0) / 100.0)))
@@ -1623,6 +1704,7 @@ func _apply_damage(target: Dictionary, raw: int, spell_id: String, attacker: Dic
 	_apply_status_on_hit(target, spell_id, attacker)
 	_notify_damage(target, spell_id, attacker)
 	emit_signal("entity_damaged", int(target["uid"]), amount, int(target["hp"]), spell_id, int(attacker.get("uid", 0)))
+	emit_signal("entity_hit", int(target["uid"]), amount, int(target["hp"]), spell_id, int(attacker.get("uid", 0)), hit_flags)
 	emit_signal("entity_health", int(target["uid"]), int(target["hp"]), int(target.get("max_hp", 0)), flags_for(target))
 	if int(target["hp"]) <= 0:
 		_kill(target, attacker)
@@ -1671,13 +1753,14 @@ func _trim_damage_log(target: Dictionary) -> void:
 func _apply_status_on_hit(target: Dictionary, spell_id: String, attacker: Dictionary) -> void:
 	if target.get("kind", 0) == HPProtocol.Kind.PLAYER:
 		return
+	var effect := HPRules.skill_effect_multiplier(skill_level(attacker, spell_id))
 	var stun := HPRules.stun_ms(spell_id, target.get("is_boss") == true)
 	if stun > 0:
-		target["stun_until_tick"] = sim_tick + int(ceil(float(stun) / TICK_MS))
+		target["stun_until_tick"] = sim_tick + int(ceil(float(stun) * effect / TICK_MS))
 		interrupt_mob(target)
 	var weaken := HPRules.weaken_ms(spell_id)
 	if weaken > 0:
-		target["weak_until_tick"] = sim_tick + int(ceil(float(weaken) / TICK_MS))
+		target["weak_until_tick"] = sim_tick + int(ceil(float(weaken) * effect / TICK_MS))
 
 func _apply_burn(target: Dictionary, spell_id: String, attacker: Dictionary) -> void:
 	var burn: Dictionary = HPRules.burn_spec(spell_id)
@@ -2088,6 +2171,50 @@ func house_rank(record: Dictionary) -> int:
 static func _node_house_rep(node: Node) -> int:
 	return HPRules.clamp_house_rep(int(node.get("house_rep"))) if "house_rep" in node else 0
 
+# ------------------------------------------------------------------ skill training
+##
+## Metin2-style: every level above 1 is one skill point, and a point raises one
+## upgradeable spell by a level (Master at the top). Points are never stored -
+## they are derived from the character level and the levels already bought, so
+## a save can never carry more points than the character earned.
+
+## The caster's trained level of a spell (1 for creatures and untrained spells).
+func skill_level(record: Dictionary, spell_id: String) -> int:
+	if record.is_empty() or int(record.get("kind", -1)) != HPProtocol.Kind.PLAYER:
+		return 1
+	return HPRules.skill_level_of(record.get("skill_levels", {}), spell_id)
+
+func request_skill_up(peer_id: int, spell_id: String) -> Dictionary:
+	if not is_authority() or mutations_frozen():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	var record := player_record(peer_id)
+	if record.is_empty():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	return skill_up_for_record(record, spell_id)
+
+func skill_up_for_record(record: Dictionary, spell_id: String) -> Dictionary:
+	if not is_authority() or mutations_frozen() or record.is_empty():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	if not HPRules.skill_upgradeable(spell_id):
+		return HPProtocol.reject(HPProtocol.REJECT_SKILL_UNKNOWN)
+	var levels: Dictionary = HPRules.clean_skill_levels(record.get("skill_levels", {}))
+	var current := HPRules.skill_level_of(levels, spell_id)
+	if current >= HPRules.skill_max_level():
+		return HPProtocol.reject(HPProtocol.REJECT_SKILL_MAX)
+	if HPRules.skill_points_available(int(record.get("level", 1)), levels) <= 0:
+		return HPProtocol.reject(HPProtocol.REJECT_NO_SKILL_POINTS)
+	levels[spell_id] = current + 1
+	record["skill_levels"] = levels
+	var node = record.get("node")
+	if node != null and is_instance_valid(node) and "skill_levels" in node:
+		node.set("skill_levels", levels.duplicate())
+	touch(record)
+	_push_stats(record)
+	emit_signal("skill_trained", int(record["uid"]), spell_id, current + 1)
+	if persistence != null:
+		persistence.save_player(record)
+	return HPProtocol.accept()
+
 # ------------------------------------------------------------------ quests
 ##
 ## The quest chain (HPRules.quest_chain) is walked here and nowhere else: the
@@ -2103,6 +2230,7 @@ func _load_quest_state(record: Dictionary, node: Node) -> void:
 	record["quest_active"] = maxi(0, int(node.get("quest_active"))) if "quest_active" in node else 0
 	record["quest_progress"] = maxi(0, int(node.get("quest_progress"))) if "quest_progress" in node else 0
 	record["quest_done"] = (node.get("quest_done") as Array).duplicate() if "quest_done" in node else []
+	record["skill_levels"] = HPRules.clean_skill_levels(node.get("skill_levels")) if "skill_levels" in node else {}
 
 ## Something happened to this player that a quest may count. Advances the
 ## active quest when type and target match; completes it at its count.
@@ -2254,6 +2382,9 @@ func build_stats(record: Dictionary) -> Dictionary:
 		result["house_next_rep"] = HPRules.house_rank_threshold(rank + 1) if rank < HPRules.max_house_rank() else -1
 		result["quest_active"] = int(record.get("quest_active", 0))
 		result["quest_progress"] = int(record.get("quest_progress", 0))
+		var skills: Dictionary = record.get("skill_levels", {})
+		result["skills"] = skills.duplicate()
+		result["skill_points"] = HPRules.skill_points_available(int(record.get("level", 1)), skills)
 
 	result.merge(equipment_snapshot(record))
 	return result
@@ -2485,7 +2616,7 @@ func on_loot_event(uid: int, item_id: String, amount: int, pos: Vector3) -> void
 func on_cast_result(cast_seq: int, cast_id: int, ok: bool, reason: String) -> void:
 	emit_signal("cast_ack", cast_seq, cast_id, ok, reason)
 
-func on_damage_event(uid: int, amount: int, hp: int, spell_id: String, attacker_uid: int) -> void:
+func on_damage_event(uid: int, amount: int, hp: int, spell_id: String, attacker_uid: int, flags := 0) -> void:
 	var record: Dictionary = entities.get(uid, {})
 	if record.is_empty():
 		return
@@ -2493,6 +2624,7 @@ func on_damage_event(uid: int, amount: int, hp: int, spell_id: String, attacker_
 	record["hp"] = hp
 	_sync_node_health(record)
 	emit_signal("entity_damaged", uid, amount, hp, spell_id, attacker_uid)
+	emit_signal("entity_hit", uid, amount, hp, spell_id, attacker_uid, flags)
 	emit_signal("entity_health", uid, hp, max_hp, flags_for(record))
 
 func on_death_event(uid: int, killer_uid: int) -> void:

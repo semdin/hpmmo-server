@@ -310,6 +310,13 @@
     },
     "crit_multiplier": 1.5
   },
+  "critical": {
+    "_comment": "Every player hit rolls a critical: base_chance + the attacker's enchanted crit_chance, plus finisher_bonus on the last hit of the basic combo chain (all percent, capped at max_chance). A crit deals multiplier x damage. Creatures never crit.",
+    "base_chance": 5.0,
+    "finisher_bonus": 15.0,
+    "max_chance": 60.0,
+    "multiplier": 1.75
+  },
   "houses": {
     "Gryffindor": {
       "hp_multiplier": 1.0,
@@ -350,6 +357,16 @@
     "hp_per_second": 4.0,
     "mana_per_second": 8.0,
     "mana_per_second_slytherin": 10.0
+  },
+  "skills": {
+    "_comment": "Metin2-style skill training. Every level above 1 earns one skill point (points = level - 1 - points spent); a point raises one upgradeable skill by one level. Level 10 is Master (shown as M). Damage, cooldown and effect duration scale with the caster's level of that skill; level 1 is the unmodified spells.json value.",
+    "max_level": 10,
+    "master_level": 10,
+    "upgradeable": ["stupefy", "incendio", "bombarda", "expelliarmus", "protego", "ultimate"],
+    "damage_per_level": 0.06,
+    "master_damage_bonus": 0.10,
+    "cooldown_per_level": 0.02,
+    "effect_per_level": 0.04
   },
   "limits": {
     "max_level": 100,

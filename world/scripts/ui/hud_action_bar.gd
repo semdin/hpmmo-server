@@ -114,11 +114,14 @@ func _process(delta: float) -> void:
 		var spell_id := s.held_id
 		var spell: Dictionary = GameData.SPELLS.get(spell_id, {})
 		var cd: float = hud.cooldown_remaining(spell_id) if hud != null and hud.has_method("cooldown_remaining") else 0.0
-		var total := maxf(0.01, HPRules.cooldown_for(spell_id, String(player.house)))
+		var trained: int = player.skill_level(spell_id)
+		var total := maxf(0.01, HPRules.cooldown_for(spell_id, String(player.house), trained))
 		s.set_cooldown(cd, cd / total)
 		s.unusable = dead or int(player.current_mana) < int(spell.get("mana_cost", 0))
-		if s.tooltip_text == "":
-			s.tooltip_text = _spell_tooltip(s.key_text, spell)
+		s.badge_text = HPRules.skill_level_label(trained) if HPRules.skill_upgradeable(spell_id) else ""
+		var tip := _spell_tooltip(s.key_text, spell, trained, total)
+		if s.tooltip_text != tip:
+			s.tooltip_text = tip
 	for i in range(4):
 		var q := quick_slots[i]
 		var id := String(quick_items[i])
@@ -251,10 +254,12 @@ func _notice(text: String, kind: String) -> void:
 	if hud != null and hud.has_method("show_notice"):
 		hud.show_notice(text, kind)
 
-func _spell_tooltip(key: String, spell: Dictionary) -> String:
+func _spell_tooltip(key: String, spell: Dictionary, trained: int = 1, cooldown: float = -1.0) -> String:
 	if spell.is_empty():
 		return ""
-	return "[%s] %s\n%d mana · %.1fs cooldown\n%s" % [key, spell.get("name", ""), int(spell.get("mana_cost", 0)), float(spell.get("cooldown", 0.0)), spell.get("desc", "")]
+	var grade := "Master" if HPRules.skill_is_master(trained) else "Level %d" % trained
+	return "[%s] %s  ·  %s\n%d mana · %.1fs cooldown\n%s\n[V] Skill training" % [key, spell.get("name", ""), grade,
+		int(spell.get("mana_cost", 0)), cooldown if cooldown >= 0.0 else float(spell.get("cooldown", 0.0)), spell.get("desc", "")]
 
 func _item_tooltip(key: String, id: String) -> String:
 	if id == "":

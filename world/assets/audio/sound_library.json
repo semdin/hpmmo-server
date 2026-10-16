@@ -1,9 +1,9 @@
 {
  "schema": 1,
  "generator": "client/tools/audio/synth_spell_sfx.py",
- "generated": "2026-10-10",
- "provenance": "project-original synthesis (deterministic seeded DSP, Python NumPy/SciPy); no sampled, downloaded or third-party recordings. The music beds are original synthesised arrangements of public-domain classical works (Grieg, Pachelbel, Bach, Beethoven, Satie - all d. 1925 or earlier).",
- "license": "project-original (CC0-equivalent dedication by the project); the classical compositions referenced by the music beds are public domain",
+ "generated": "2026-10-16",
+ "provenance": "spell effects (spell_*): generated with ElevenLabs Sound Effects v2 via fal.ai (fal-ai/elevenlabs/sound-effects/v2), prompts in art/audio_fal/sfx_spec.json, imported by client/tools/audio/import_fal_sfx.py. Everything else: project-original synthesis (client/tools/audio/synth_spell_sfx.py, deterministic seeded DSP); the music beds are original synthesised arrangements of public-domain classical works (Grieg, Pachelbel, Bach, Beethoven, Satie - all d. 1925 or earlier).",
+ "license": "spell_* files: generated output, commercial use permitted under the ElevenLabs / fal.ai terms of the generating account; everything else project-original (CC0-equivalent dedication by the project)",
  "buses": [
   "Music",
   "SFX",
@@ -717,8 +717,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.26,
-   "purpose": "wand flick: snappy whip crack + sub-punch + arcane fizzle"
+   "seconds": 0.48,
+   "purpose": "Fantasy game basic attack: a quick light wand flick firing a small golden sparkle bolt, airy swish with a soft magical chime, very short",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_basic_cast_cast.wav"
   },
   "spell_basic_cast_cast_2": {
    "path": "assets/audio/spells/basic_cast/cast_02.wav",
@@ -729,8 +730,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.26,
-   "purpose": "basic cast variation 2"
+   "seconds": 0.351,
+   "purpose": "Fantasy game: a fast backhand wand slash, sharp whoosh of air with a bright golden magic shimmer, very short",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_basic_cast_cast_2.wav"
   },
   "spell_basic_cast_cast_3": {
    "path": "assets/audio/spells/basic_cast/cast_03.wav",
@@ -741,8 +743,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.26,
-   "purpose": "basic cast variation 3"
+   "seconds": 0.526,
+   "purpose": "Fantasy game combo finisher: a heavy two-handed magic push, deep whoosh building into a strong golden energy blast release, punchy",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_basic_cast_cast_3.wav"
   },
   "spell_basic_cast_end": {
    "path": "assets/audio/spells/basic_cast/end.wav",
@@ -753,8 +756,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.28,
-   "purpose": "subtle dissipate tail"
+   "seconds": 0.48,
+   "purpose": "A small magic spark fizzles out into the air, soft fading shimmer, very short",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_basic_cast_end.wav"
   },
   "spell_basic_cast_impact": {
    "path": "assets/audio/spells/basic_cast/impact.wav",
@@ -765,8 +769,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.35,
-   "purpose": "impact: punchy body thud + dispersion crack + sparkling flecks"
+   "seconds": 0.329,
+   "purpose": "Small golden magic bolt hits a target, crisp sparkly pop with a light thud, very short",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_basic_cast_impact.wav"
   },
   "spell_basic_cast_impact_2": {
    "path": "assets/audio/spells/basic_cast/impact_02.wav",
@@ -777,8 +782,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.35,
-   "purpose": "basic impact variation 2"
+   "seconds": 0.6,
+   "purpose": "Golden magic blast hits hard, bright sparkling burst with a punchy thump, short",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_basic_cast_impact_2.wav"
   },
   "spell_basic_cast_travel": {
    "path": "assets/audio/spells/basic_cast/travel.wav",
@@ -789,8 +795,9 @@
    "loop_mode": "forward",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.563,
-   "purpose": "aerodynamic slipstream whoosh while bolt is in flight"
+   "seconds": 1.44,
+   "purpose": "Small golden magic bolt flying through the air, soft sparkling hum with faint twinkles, steady seamless loop",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_basic_cast_travel.wav"
   },
   "spell_bombarda_cast": {
    "path": "assets/audio/spells/bombarda/cast.wav",
@@ -801,8 +808,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.42,
-   "purpose": "bombarda cast: volatile electrical build-up + concussive snap"
+   "seconds": 0.8,
+   "purpose": "Explosive spell cast: a deep concussive thrum charging and launching a heavy magic charge forward, punchy whoosh",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_bombarda_cast.wav"
   },
   "spell_bombarda_end": {
    "path": "assets/audio/spells/bombarda/end.wav",
@@ -813,8 +821,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 1.1,
-   "purpose": "falling debris and dust"
+   "seconds": 1.0,
+   "purpose": "After an explosion: small debris and pebbles settling, dust hiss fading, short",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_bombarda_end.wav"
   },
   "spell_bombarda_impact": {
    "path": "assets/audio/spells/bombarda/impact.wav",
@@ -825,8 +834,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 1.45,
-   "purpose": "bombarda impact: cinematic explosion with sub-bass boom and debris"
+   "seconds": 1.256,
+   "purpose": "Big magical explosion: a powerful boom with a concussive shockwave, debris and rumbling tail",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_bombarda_impact.wav"
   },
   "spell_bombarda_travel": {
    "path": "assets/audio/spells/bombarda/travel.wav",
@@ -837,8 +847,9 @@
    "loop_mode": "forward",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.563,
-   "purpose": "heavy rushing vortex slicing through air"
+   "seconds": 1.59,
+   "purpose": "A heavy fiery magic projectile flying, low rumbling hiss with sputtering embers, steady seamless loop",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_bombarda_travel.wav"
   },
   "spell_expelliarmus_cast": {
    "path": "assets/audio/spells/expelliarmus/cast.wav",
@@ -849,8 +860,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.32,
-   "purpose": "expelliarmus cast: fast whip-crack with energetic swirl"
+   "seconds": 0.68,
+   "purpose": "Disarming spell cast: a fast whip-crack of crimson magic energy snapping forward, sharp and bright",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_expelliarmus_cast.wav"
   },
   "spell_expelliarmus_end": {
    "path": "assets/audio/spells/expelliarmus/end.wav",
@@ -861,8 +873,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.4,
-   "purpose": "kinetic recoil tail"
+   "seconds": 0.6,
+   "purpose": "A crimson magic sparkle fading out with a soft descending shimmer, very short",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_expelliarmus_end.wav"
   },
   "spell_expelliarmus_impact": {
    "path": "assets/audio/spells/expelliarmus/impact.wav",
@@ -873,8 +886,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.52,
-   "purpose": "expelliarmus impact: forceful kinetic wand clash and ring"
+   "seconds": 0.564,
+   "purpose": "Disarming spell hit: a sharp magical crack that knocks a weapon away with a metallic clatter and a whoosh, short",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_expelliarmus_impact.wav"
   },
   "spell_expelliarmus_travel": {
    "path": "assets/audio/spells/expelliarmus/travel.wav",
@@ -885,8 +899,9 @@
    "loop_mode": "forward",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.488,
-   "purpose": "whistling high-speed ribbon trail"
+   "seconds": 1.44,
+   "purpose": "A spinning crimson magic bolt flying, fast whirring hum with a twisting shimmer, steady seamless loop",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_expelliarmus_travel.wav"
   },
   "spell_incendio_cast": {
    "path": "assets/audio/spells/incendio/cast.wav",
@@ -897,8 +912,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.55,
-   "purpose": "incendio cast: explosive flame ignition + turbulent whoosh"
+   "seconds": 0.848,
+   "purpose": "Fire spell: a roaring burst of flame bursting from a wand like a short flamethrower whoosh, crackling fire",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_incendio_cast.wav"
   },
   "spell_incendio_end": {
    "path": "assets/audio/spells/incendio/end.wav",
@@ -909,8 +925,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.7,
-   "purpose": "dying flame embers"
+   "seconds": 0.8,
+   "purpose": "Fire dies down, a hiss of smoke and last crackles fading, short",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_incendio_end.wav"
   },
   "spell_incendio_impact": {
    "path": "assets/audio/spells/incendio/impact.wav",
@@ -921,8 +938,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.6,
-   "purpose": "incendio impact: fiery eruption splash and sizzling heat"
+   "seconds": 0.506,
+   "purpose": "Flames engulf a target, fiery whoomph with crackling embers, short",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_incendio_impact.wav"
   },
   "spell_incendio_sustain": {
    "path": "assets/audio/spells/incendio/sustain.wav",
@@ -932,9 +950,10 @@
    "loop": true,
    "loop_mode": "forward",
    "spatial": true,
-   "sample_rate": 22050,
-   "seconds": 3.1,
-   "purpose": "rich roaring flame loop with wood pops"
+   "sample_rate": 44100,
+   "seconds": 2.94,
+   "purpose": "Burning flames crackling on a creature, steady fire crackle and soft roar, seamless loop",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_incendio_sustain.wav"
   },
   "spell_protego_cast": {
    "path": "assets/audio/spells/protego/cast.wav",
@@ -945,8 +964,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.55,
-   "purpose": "protego cast: crystal barrier summon chime + deep hum"
+   "seconds": 0.8,
+   "purpose": "Shield spell: a glassy blue magic barrier snaps into place around the caster with a resonant hum and shimmering chime",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_protego_cast.wav"
   },
   "spell_protego_end": {
    "path": "assets/audio/spells/protego/end.wav",
@@ -957,8 +977,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.65,
-   "purpose": "ward collapse: crystalline shatter and harmonic fade"
+   "seconds": 0.8,
+   "purpose": "A magic glass shield shatters and dissolves into tinkling crystal shards with a fading hum",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_protego_end.wav"
   },
   "spell_protego_impact": {
    "path": "assets/audio/spells/protego/impact.wav",
@@ -969,8 +990,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.45,
-   "purpose": "protego impact: crystalline deflection ping + bass displacement"
+   "seconds": 0.68,
+   "purpose": "A projectile deflects off a magic glass shield, bright ringing ping with a resonant reflection whoosh, short",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_protego_impact.wav"
   },
   "spell_protego_sustain": {
    "path": "assets/audio/spells/protego/sustain.wav",
@@ -980,9 +1002,10 @@
    "loop": true,
    "loop_mode": "forward",
    "spatial": false,
-   "sample_rate": 22050,
-   "seconds": 2.8,
-   "purpose": "sustained shimmering ward hum"
+   "sample_rate": 44100,
+   "seconds": 2.94,
+   "purpose": "A humming magical force field, gentle glassy resonance with soft shimmering pulses, seamless loop",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_protego_sustain.wav"
   },
   "spell_stupefy_cast": {
    "path": "assets/audio/spells/stupefy/cast.wav",
@@ -993,8 +1016,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.36,
-   "purpose": "stupefy cast: rising resonant charge with crisp release"
+   "seconds": 0.8,
+   "purpose": "Fantasy game spell cast: a sharp magical wand crack with a bright red energy zap whooshing forward, punchy and short",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_stupefy_cast.wav"
   },
   "spell_stupefy_end": {
    "path": "assets/audio/spells/stupefy/end.wav",
@@ -1005,8 +1029,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.65,
-   "purpose": "ringing stun halo"
+   "seconds": 0.8,
+   "purpose": "Dizzy stunned daze: faint ringing chimes and fading electric crackle, short",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_stupefy_end.wav"
   },
   "spell_stupefy_impact": {
    "path": "assets/audio/spells/stupefy/impact.wav",
@@ -1017,8 +1042,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.55,
-   "purpose": "stupefy impact: concussive shockwave + resonant bell ring"
+   "seconds": 0.847,
+   "purpose": "Fantasy game hit: a stunning red magic bolt slams into a target with a crackling electric burst and a heavy thump, short tail",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_stupefy_impact.wav"
   },
   "spell_stupefy_travel": {
    "path": "assets/audio/spells/stupefy/travel.wav",
@@ -1029,8 +1055,9 @@
    "loop_mode": "forward",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.6,
-   "purpose": "pulsing reverberant stun energy travel hum"
+   "seconds": 1.59,
+   "purpose": "A crackling red stunning spell bolt flying fast, electric buzzing hum with sizzling sparks, steady seamless loop",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_stupefy_travel.wav"
   },
   "spell_ultimate_cast": {
    "path": "assets/audio/spells/ultimate/cast.wav",
@@ -1041,8 +1068,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 1.25,
-   "purpose": "ultimate cast: gathering catastrophic arcane drone and quickening pulse"
+   "seconds": 1.48,
+   "purpose": "Ultimate dark spell cast: a deep ominous charge of green crackling lightning energy rising, then a powerful release blast, dramatic",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_ultimate_cast.wav"
   },
   "spell_ultimate_end": {
    "path": "assets/audio/spells/ultimate/end.wav",
@@ -1053,8 +1081,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 1.35,
-   "purpose": "residual arcane sparks and rolling tremor"
+   "seconds": 1.274,
+   "purpose": "Residual green electricity crackling and fizzling out after a huge blast, fading rumble",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_ultimate_end.wav"
   },
   "spell_ultimate_impact": {
    "path": "assets/audio/spells/ultimate/impact.wav",
@@ -1065,8 +1094,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 1.7,
-   "purpose": "ultimate impact: colossal thunder strike detonation and rolling shockwave"
+   "seconds": 2.0,
+   "purpose": "Huge green lightning explosion: a thunderous boom with crackling electric arcs, deep sub rumble and long rolling tail",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_ultimate_impact.wav"
   },
   "spell_ultimate_travel": {
    "path": "assets/audio/spells/ultimate/travel.wav",
@@ -1077,8 +1107,9 @@
    "loop_mode": "forward",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.75,
-   "purpose": "raging plasma roar in flight"
+   "seconds": 1.59,
+   "purpose": "A massive green lightning orb flying, intense electric crackling roar and buzzing, steady seamless loop",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_ultimate_travel.wav"
   },
   "spider_alert": {
    "path": "assets/audio/monsters/spider_alert.wav",

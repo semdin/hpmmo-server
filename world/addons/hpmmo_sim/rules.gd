@@ -357,11 +357,11 @@ static func respawn_position() -> Vector3:
 		return Vector3(0.0, 0.5, 5.0)
 	return Vector3(float(raw[0]), float(raw[1]), float(raw[2]))
 
-static func cooldown_for(spell_id: String, house: String) -> float:
+static func cooldown_for(spell_id: String, house: String, skill_level: int = 1) -> float:
 	var data := spell(spell_id)
 	if data.is_empty():
 		return 0.0
-	return float(data.get("cooldown", 0.0)) * house_modifier(house, "cooldown_multiplier")
+	return float(data.get("cooldown", 0.0)) * house_modifier(house, "cooldown_multiplier") * skill_cooldown_multiplier(skill_level)
 
 static func max_level() -> int:
 	ensure_loaded()
@@ -438,6 +438,78 @@ static func house_rank_meets(rep: int, required_rank: int) -> bool:
 static func spell_house_rank(spell_id: String) -> int:
 	return int(spell(spell_id).get("requires_house_rank", 1))
 
+# ------------------------------------------------------------ skill training
+##
+## Metin2-style: one skill point per level above 1, spent one at a time on an
+## upgradeable spell (combat.json `skills`). A character's levels live in a
+## {spell_id: level} dictionary; a spell missing from it is level 1.
+
+static func skill_rules() -> Dictionary:
+	ensure_loaded()
+	return _combat.get("skills", {})
+
+static func skill_max_level() -> int:
+	return int(skill_rules().get("max_level", 10))
+
+static func skill_master_level() -> int:
+	return int(skill_rules().get("master_level", skill_max_level()))
+
+static func upgradeable_skills() -> Array:
+	return skill_rules().get("upgradeable", [])
+
+static func skill_upgradeable(spell_id: String) -> bool:
+	return upgradeable_skills().has(spell_id)
+
+## The level of one skill in a levels dictionary, clamped to 1..max.
+static func skill_level_of(levels: Dictionary, spell_id: String) -> int:
+	if not skill_upgradeable(spell_id):
+		return 1
+	return clampi(int(levels.get(spell_id, 1)), 1, skill_max_level())
+
+## A saved/received levels object reduced to known skills with valid levels.
+static func clean_skill_levels(raw: Variant) -> Dictionary:
+	var out := {}
+	if raw is Dictionary:
+		for spell_id in upgradeable_skills():
+			var level := clampi(int((raw as Dictionary).get(spell_id, 1)), 1, skill_max_level())
+			if level > 1:
+				out[spell_id] = level
+	return out
+
+static func skill_points_spent(levels: Dictionary) -> int:
+	var spent := 0
+	for spell_id in upgradeable_skills():
+		spent += skill_level_of(levels, spell_id) - 1
+	return spent
+
+## Unspent points for a character level: one per level gained, minus spent.
+static func skill_points_available(character_level: int, levels: Dictionary) -> int:
+	return maxi(0, maxi(0, character_level - 1) - skill_points_spent(levels))
+
+static func skill_is_master(level: int) -> bool:
+	return level >= skill_master_level()
+
+## What a hotbar badge / the skill window prints: "1".."9", then "M".
+static func skill_level_label(level: int) -> String:
+	return "M" if skill_is_master(level) else str(maxi(1, level))
+
+static func skill_damage_multiplier(level: int) -> float:
+	var rules := skill_rules()
+	var lv := clampi(level, 1, skill_max_level())
+	var mult := 1.0 + float(rules.get("damage_per_level", 0.0)) * float(lv - 1)
+	if skill_is_master(lv):
+		mult += float(rules.get("master_damage_bonus", 0.0))
+	return mult
+
+static func skill_cooldown_multiplier(level: int) -> float:
+	var lv := clampi(level, 1, skill_max_level())
+	return maxf(0.25, 1.0 - float(skill_rules().get("cooldown_per_level", 0.0)) * float(lv - 1))
+
+## Duration scaling for a skill's lasting effect (ward, stun, weaken).
+static func skill_effect_multiplier(level: int) -> float:
+	var lv := clampi(level, 1, skill_max_level())
+	return 1.0 + float(skill_rules().get("effect_per_level", 0.0)) * float(lv - 1)
+
 # ------------------------------------------------------------ quests
 
 ## The quest chain, in order. The authority walks it; clients only display it.
@@ -475,14 +547,14 @@ static func quest_place_at(map_id: String, pos: Vector3) -> String:
 
 ## Full damage multiplier for a cast, matching the values the client used before
 ## authority moved to the server (wand tier, combo step, house affinity).
-static func damage_multiplier(spell_id: String, wand_tier: int, house: String, combo_multiplier: float = 1.0) -> float:
-	return wand_multiplier(wand_tier) * combo_multiplier * house_spell_damage(house, spell_id)
+static func damage_multiplier(spell_id: String, wand_tier: int, house: String, combo_multiplier: float = 1.0, skill_level: int = 1) -> float:
+	return wand_multiplier(wand_tier) * combo_multiplier * house_spell_damage(house, spell_id) * skill_damage_multiplier(skill_level)
 
-static func spell_damage(spell_id: String, wand_tier: int, house: String, combo_multiplier: float = 1.0) -> int:
+static func spell_damage(spell_id: String, wand_tier: int, house: String, combo_multiplier: float = 1.0, skill_level: int = 1) -> int:
 	var data := spell(spell_id)
 	if data.is_empty():
 		return 0
-	return int(float(data.get("damage", 0)) * damage_multiplier(spell_id, wand_tier, house, combo_multiplier))
+	return int(float(data.get("damage", 0)) * damage_multiplier(spell_id, wand_tier, house, combo_multiplier, skill_level))
 
 ## Damage after per-victim modifiers (fire weakness and the like).
 static func damage_after_resistances(raw: int, spell_id: String, weak_to_fire: bool) -> int:
@@ -545,6 +617,18 @@ static func combo_multipliers(spell_id: String) -> Array:
 
 static func combo_window(spell_id: String) -> float:
 	return float(spell(spell_id).get("combo_window", 0.0))
+
+## Critical-hit chance in percent for a player attacker carrying `bonus_chance`
+## (enchanted crit_chance); the last hit of a combo chain adds the finisher bonus.
+static func crit_chance(bonus_chance: float, finisher: bool) -> float:
+	var rules: Dictionary = combat().get("critical", {})
+	var chance := float(rules.get("base_chance", 0.0)) + bonus_chance
+	if finisher:
+		chance += float(rules.get("finisher_bonus", 0.0))
+	return clampf(chance, 0.0, float(rules.get("max_chance", 100.0)))
+
+static func crit_multiplier() -> float:
+	return float(combat().get("critical", {}).get("multiplier", 1.5))
 
 # --------------------------------------------------------- combat gating
 

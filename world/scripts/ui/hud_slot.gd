@@ -38,6 +38,13 @@ var unusable := false:
 			unusable = value
 			queue_redraw()
 var accept_drop: Callable
+## Skill level badge in the bottom-right corner ("1".."9", "M" for Master);
+## "" hides it. Spell slots only - item slots use `count` there.
+var badge_text := "":
+	set(value):
+		if value != badge_text:
+			badge_text = value
+			queue_redraw()
 ## Id of whatever this slot holds (a spell or an item); "" when empty.
 var held_id := ""
 var empty_hint := ""
@@ -116,6 +123,8 @@ func _draw() -> void:
 		var kp := Vector2(4, ks + 2)
 		draw_string_outline(kf, kp, key_text, HORIZONTAL_ALIGNMENT_LEFT, -1, ks, 4, Color(0, 0, 0, 0.95))
 		draw_string(kf, kp, key_text, HORIZONTAL_ALIGNMENT_LEFT, -1, ks, HudKit.PARCHMENT)
+	if badge_text != "":
+		_draw_badge(badge_text)
 	if count >= 0:
 		var cf := HudKit.bold()
 		var cs := 13
@@ -124,6 +133,35 @@ func _draw() -> void:
 		var cp := Vector2(size.x - cw - 4, size.y - 4)
 		draw_string_outline(cf, cp, ctext, HORIZONTAL_ALIGNMENT_LEFT, -1, cs, 4, Color(0, 0, 0, 0.95))
 		draw_string(cf, cp, ctext, HORIZONTAL_ALIGNMENT_LEFT, -1, cs, Color(1, 1, 1) if count > 0 else HudKit.RED)
+
+## The skill-level plate: a small dark tab with a gold rim for 1-9, and a solid
+## gold seal with dark ink for Master, so an "M" reads at a glance.
+func _draw_badge(txt: String) -> void:
+	var master := txt == "M"
+	var bf := HudKit.bold()
+	var fs := 12 if not master else 13
+	var tw := bf.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	var w := maxf(15.0, tw + 7.0)
+	var h := 15.0
+	var plate := Rect2(Vector2(size.x - w - 2.0, size.y - h - 2.0), Vector2(w, h))
+	var sb := StyleBoxFlat.new()
+	sb.set_corner_radius_all(4)
+	sb.set_border_width_all(1)
+	if master:
+		sb.bg_color = HudKit.GOLD_LT
+		sb.border_color = HudKit.GOLD_HI
+		sb.shadow_color = Color(1.0, 0.8, 0.35, 0.55)
+		sb.shadow_size = 3
+	else:
+		sb.bg_color = Color(0.02, 0.027, 0.043, 0.88)
+		sb.border_color = HudKit.GOLD.darkened(0.1)
+	draw_style_box(sb, plate)
+	var pos := Vector2(plate.position.x + (w - tw) * 0.5, plate.end.y - 3.0)
+	if master:
+		draw_string(bf, pos, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.28, 0.12, 0.03))
+	else:
+		draw_string_outline(bf, pos, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 3, Color(0, 0, 0, 0.9))
+		draw_string(bf, pos, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, HudKit.GOLD_HI)
 
 func _draw_sweep(rect: Rect2, fraction: float) -> void:
 	# A pie from 12 o'clock, clockwise over the elapsed part; the REMAINING part

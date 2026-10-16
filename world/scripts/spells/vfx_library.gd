@@ -27,27 +27,45 @@ extends RefCounted
 
 const QUALITY_LEVELS := ["low", "medium", "high"]
 
-## Asset paths published by tools/blender/spell_vfx.py + spell_meshes.py.
+## Asset paths. Spell effects come from tools/vfx/build_spell_vfx.py (generated
+## clips and stills, art/vfx/README.md); the noise fields, legacy masks and the
+## meshes from tools/blender/spell_vfx.py + spell_meshes.py.
 const ATLAS_DIR := "res://assets/vfx/atlases/"
 const TEX_DIR := "res://assets/vfx/tex/"
 const MESH_DIR := "res://assets/vfx/meshes/"
 
 const ASSETS := {
-	"vfx_flame_loop": {"path": ATLAS_DIR + "flame_loop_8x8_2k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 30, "loop": true, "colour": true},
-	"vfx_fire_burst": {"path": ATLAS_DIR + "fire_burst_8x8_2k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 40, "loop": false, "colour": true},
-	"vfx_smoke_puff": {"path": ATLAS_DIR + "smoke_puff_8x8_2k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 24, "loop": false, "colour": true},
-	"vfx_energy_impact": {"path": ATLAS_DIR + "energy_impact_8x8_2k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 40, "loop": false, "colour": true},
-	"vfx_shield_ripple": {"path": ATLAS_DIR + "shield_ripple_4x4_1k.png", "grid": Vector2(4, 4), "frames": 16, "fps": 24, "loop": false, "colour": true},
-	"vfx_ground_marks": {"path": ATLAS_DIR + "ground_marks_2x2_1k.png", "grid": Vector2(2, 2), "frames": 4, "loop": false, "colour": true},
-	"vfx_rune_masks": {"path": ATLAS_DIR + "rune_masks_2x2_1k.png", "grid": Vector2(2, 2), "frames": 4, "loop": false, "colour": false},
-	"vfx_lightning_branches": {"path": ATLAS_DIR + "lightning_branches_2x2_1k.png", "grid": Vector2(2, 2), "frames": 4, "loop": false, "colour": false},
+	# --- generated flipbooks (8 x 8, row-major) ---
+	"vfx_fire_burst": {"path": ATLAS_DIR + "fire_burst_8x8_2k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 22, "loop": false, "colour": true},
+	"vfx_flame_loop": {"path": ATLAS_DIR + "flame_loop_8x8_1k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 22, "loop": true, "colour": true},
+	"vfx_smoke_puff": {"path": ATLAS_DIR + "smoke_puff_8x8_1k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 22, "loop": false, "colour": true},
+	"vfx_explosion": {"path": ATLAS_DIR + "explosion_8x8_2k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 22, "loop": false, "colour": true},
+	"vfx_burst_gold": {"path": ATLAS_DIR + "burst_gold_8x8_1k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 22, "loop": false, "colour": true},
+	"vfx_burst_red": {"path": ATLAS_DIR + "burst_red_8x8_1k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 24, "loop": false, "colour": true},
+	"vfx_burst_crimson": {"path": ATLAS_DIR + "burst_crimson_8x8_1k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 23, "loop": false, "colour": true},
+	"vfx_burst_green": {"path": ATLAS_DIR + "burst_green_8x8_2k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 27, "loop": false, "colour": true},
+	"vfx_ripple_blue": {"path": ATLAS_DIR + "ripple_blue_8x8_1k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 25, "loop": false, "colour": true},
+	"vfx_shockwave": {"path": ATLAS_DIR + "shockwave_8x8_1k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 23, "loop": false, "colour": true},
+	"vfx_wand_flash": {"path": ATLAS_DIR + "wand_flash_8x8_1k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 48, "loop": false, "colour": true},
+	"vfx_spark_burst": {"path": ATLAS_DIR + "spark_burst_8x8_1k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 33, "loop": false, "colour": true},
+	"vfx_energy_orb": {"path": ATLAS_DIR + "energy_orb_8x8_1k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 44, "loop": true, "colour": true},
+	"vfx_fire_orb": {"path": ATLAS_DIR + "fire_orb_8x8_1k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 48, "loop": true, "colour": true},
+	# --- generated / procedural stills ---
+	"vfx_rune_seal": {"path": TEX_DIR + "rune_seal_512.png", "grid": Vector2(1, 1), "frames": 1, "loop": false, "colour": true},
+	"vfx_star_flare": {"path": TEX_DIR + "star_flare_256.png", "grid": Vector2(1, 1), "frames": 1, "loop": false, "colour": true},
+	"vfx_lightning_strands": {"path": TEX_DIR + "lightning_strands_512.png", "grid": Vector2(1, 1), "frames": 1, "loop": false, "colour": true},
+	"vfx_hex_shield": {"path": TEX_DIR + "hex_shield_512.png", "grid": Vector2(1, 1), "frames": 1, "loop": false, "colour": true},
+	"vfx_scorch_decal": {"path": TEX_DIR + "scorch_decal_512.png", "grid": Vector2(1, 1), "frames": 1, "loop": false, "colour": true},
+	"vfx_energy_streak": {"path": TEX_DIR + "energy_streak_1024x256.png", "grid": Vector2(1, 1), "frames": 1, "loop": false, "colour": true},
+	# --- authored noise fields and masks (tools/blender/spell_vfx.py) ---
 	"vfx_soft_glow": {"path": TEX_DIR + "soft_glow_512.png", "grid": Vector2(1, 1), "frames": 1, "loop": false, "colour": true},
 	"vfx_noise_flow": {"path": TEX_DIR + "noise_flow_512.png", "grid": Vector2(1, 1), "frames": 1, "loop": false, "colour": false},
 	"vfx_noise_erosion": {"path": TEX_DIR + "noise_erosion_512.png", "grid": Vector2(1, 1), "frames": 1, "loop": false, "colour": false},
 	"vfx_distortion": {"path": TEX_DIR + "distortion_512.png", "grid": Vector2(1, 1), "frames": 1, "loop": false, "colour": false},
-	"vfx_energy_streak": {"path": TEX_DIR + "energy_streak_1024x256.png", "grid": Vector2(1, 1), "frames": 1, "loop": false, "colour": true},
 	"vfx_shield_fracture": {"path": TEX_DIR + "shield_fracture_512.png", "grid": Vector2(1, 1), "frames": 1, "loop": false, "colour": false},
-	# Kenney Particle PackStill ingredients (CC0): detail sprites only, never the effect.
+	"vfx_ground_marks": {"path": ATLAS_DIR + "ground_marks_2x2_1k.png", "grid": Vector2(2, 2), "frames": 4, "loop": false, "colour": true},
+	"vfx_rune_masks": {"path": ATLAS_DIR + "rune_masks_2x2_1k.png", "grid": Vector2(2, 2), "frames": 4, "loop": false, "colour": false},
+	# Kenney Particle Pack ingredients (CC0): detail sprites only, never the effect.
 	"vfx_flame_static": {"path": "res://assets/vfx/flame_01.png", "grid": Vector2(1, 1), "frames": 1, "loop": false, "colour": true},
 	"vfx_spark_static": {"path": "res://assets/vfx/spark_01.png", "grid": Vector2(1, 1), "frames": 1, "loop": false, "colour": true},
 	"vfx_trail_mesh": {"mesh": MESH_DIR + "trail_ribbon.glb", "tris": 48},
@@ -60,184 +78,255 @@ const ASSETS := {
 const LAYER_PRESETS := {
 	"glow_flash": {"kind": "sprite", "tex": "vfx_soft_glow", "blend": "add", "core": true,
 		"size": 0.9, "life": 0.22, "fade": "out", "light": {"energy": 2.6, "range": 6.0, "life": 0.25}},
-	"impact_ring": {"kind": "flipbook", "atlas": "vfx_energy_impact", "blend": "add", "core": true,
-		"size": 1.5, "life": 0.55, "speed": 1.0},
-	"smoke_puff": {"kind": "flipbook", "atlas": "vfx_smoke_puff", "blend": "alpha", "core": false,
-		"size": 1.4, "life": 0.9, "rise": 0.5, "optional": false},
-	"ember_sparks": {"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "core": false,
+	"ember_sparks": {"kind": "particles", "tex": "vfx_star_flare", "blend": "add", "core": false,
 		"amount": 16, "life": 0.55, "speed": 4.0, "spread": 55.0, "gravity": -6.0, "size": 0.09},
-	"ground_scorch": {"kind": "sprite", "atlas": "vfx_ground_marks", "frame": 0, "blend": "alpha",
-		"flat": true, "lift": 0.05, "size": 3.0, "life": 4.0, "fade": "slow", "optional": true},
-	"rune_ring": {"kind": "sprite", "atlas": "vfx_rune_masks", "frame": 0, "blend": "add", "flat": true,
-		"lift": 0.06, "size": 1.0, "life": 1.0, "fade": "out", "core": true},
+	"ground_scorch": {"kind": "sprite", "atlas": "vfx_scorch_decal", "blend": "alpha", "optional": true,
+		"flat": true, "lift": 0.04, "size": 3.0, "life": 4.0, "fade": "slow"},
 }
 
-## The composition table (12.3). `colour` is the spell tint from
-## data/json/spells.json; the tint is applied to the atlas layers so one atlas
-## serves every spell while each keeps its own identity.
+## The composition table (12.3). Every spell is built from the generated
+## flipbooks: a wand flash at the tip, a looping orb core with a ribbon wake in
+## flight, a signature burst on impact and a smoke/ember tail. `colour: true`
+## tints a white (mono) asset with the spell colour; the coloured clips (fire,
+## the bursts) keep their own colour. `fit` plays the whole flipbook over the
+## layer's life, `grow` scales it over life, `roll` gives each copy a random
+## rotation so two copies never read as clones.
 const SPELLS := {
 	"basic_cast": {
-		"colour": Color(1.0, 0.67, 0.22),
+		"colour": Color(1.0, 0.72, 0.28),
 		"stages": {
 			"cast": {"layers": [
-				{"kind": "sprite", "energy_shape": 3, "blend": "add", "core": true, "colour": true, "size": 0.75, "life": 0.16}
-			], "length": 0.3, "audio": "spell_basic_cast_cast", "core": "cast_snap"},
+				{"kind": "flipbook", "atlas": "vfx_wand_flash", "blend": "add", "core": true, "colour": true,
+					"size": 0.7, "life": 0.2, "fit": true, "roll": true, "grow": [0.7, 1.2]},
+				{"kind": "particles", "tex": "vfx_star_flare", "blend": "add", "colour": true, "optional": true,
+					"amount": 8, "life": 0.3, "speed": 3.0, "size": 0.07, "spread": 30.0, "gravity": -1.0, "forward": true},
+				{"kind": "light", "colour": true, "energy": 1.6, "range": 2.5, "life": 0.14},
+			], "length": 0.25, "audio": "spell_basic_cast_cast", "core": "cast_snap"},
 			"travel": {"layers": [
-				{"kind": "sprite", "energy_shape": 1, "blend": "add", "core": true, "colour": true, "size": 0.36, "life": 0.0, "stretch": 4.0, "forward": -0.36},
-				{"kind": "sprite", "energy_shape": 0, "blend": "add", "core": true, "colour": true, "size": 0.48, "life": 0.0, "opacity": 0.45},
-				{"kind": "ribbon", "tex": "vfx_energy_streak", "blend": "add", "core": true, "colour": true, "width": 0.065, "length": 2.6, "life": 0.0, "follow": true},
-				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "colour": true, "amount": 12, "life": 0.18, "speed": 0.6, "size": 0.045, "spread": 150.0, "gravity": 0.0, "optional": true, "continuous": true}
+				{"kind": "flipbook", "atlas": "vfx_energy_orb", "blend": "add", "core": true, "colour": true,
+					"size": 0.8, "life": 0.0, "loop": true, "roll": true},
+				{"kind": "ribbon", "tex": "vfx_energy_streak", "blend": "add", "core": true, "colour": true,
+					"width": 0.2, "length": 3.0, "life": 0.0, "follow": true},
+				{"kind": "particles", "tex": "vfx_star_flare", "blend": "add", "colour": true, "optional": true,
+					"amount": 14, "life": 0.35, "speed": 0.4, "size": 0.05, "spread": 180.0, "gravity": -0.5, "continuous": true},
 			], "length": 0.0, "audio": "spell_basic_cast_travel", "loop_audio": true},
 			"impact": {"layers": [
-				{"kind": "sprite", "energy_shape": 3, "blend": "add", "core": true, "colour": true, "size": 1.05, "life": 0.16},
-				{"kind": "sprite", "energy_shape": 2, "blend": "add", "core": true, "colour": true, "size": 1.3, "life": 0.26},
-				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "colour": true, "amount": 14, "life": 0.32, "speed": 3.2, "size": 0.05, "spread": 150.0, "gravity": -1.5}
-			], "length": 0.4, "audio": "spell_basic_cast_impact", "core": "impact_fleck"},
+				{"kind": "flipbook", "atlas": "vfx_burst_gold", "blend": "add", "core": true,
+					"size": 1.6, "life": 0.55, "fit": true, "roll": true},
+				{"kind": "flipbook", "atlas": "vfx_spark_burst", "blend": "add", "colour": true, "optional": true,
+					"size": 1.2, "life": 0.35, "fit": true, "roll": true},
+				{"kind": "light", "colour": true, "energy": 2.4, "range": 3.5, "life": 0.2},
+			], "length": 0.55, "audio": "spell_basic_cast_impact", "core": "impact_fleck"},
 			"end": {"layers": [
-				{"kind": "sprite", "energy_shape": 0, "blend": "add", "core": true, "colour": true, "size": 0.45, "life": 0.2, "opacity": 0.4}
-			], "length": 0.25, "audio": "spell_basic_cast_end"}
+				{"kind": "flipbook", "atlas": "vfx_spark_burst", "blend": "add", "core": true, "colour": true,
+					"size": 0.6, "life": 0.25, "fit": true, "opacity": 0.6},
+			], "length": 0.25, "audio": "spell_basic_cast_end"},
 		},
 	},
 	"stupefy": {
-		"colour": Color(1.0, 0.025, 0.075),
+		"colour": Color(1.0, 0.12, 0.12),
 		"stages": {
 			"cast": {"layers": [
-				{"kind": "stupefy_energy", "core": true, "life": 0.32},
-				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "colour": true,
-					"amount": 14, "life": 0.24, "speed": 2.4, "size": 0.045, "spread": 65.0, "gravity": 0.0, "forward": true, "optional": true},
+				{"kind": "flipbook", "atlas": "vfx_wand_flash", "blend": "add", "core": true, "colour": true,
+					"size": 1.0, "life": 0.24, "fit": true, "roll": true, "grow": [0.6, 1.3]},
+				{"kind": "particles", "tex": "vfx_star_flare", "blend": "add", "colour": true, "optional": true,
+					"amount": 14, "life": 0.3, "speed": 3.4, "size": 0.06, "spread": 40.0, "gravity": 0.0, "forward": true},
 				{"kind": "light", "colour": true, "energy": 2.6, "range": 3.0, "life": 0.22},
-			], "length": 0.34, "audio": "spell_stupefy_cast", "core": "spiral_discharge"},
+			], "length": 0.3, "audio": "spell_stupefy_cast", "core": "spiral_discharge"},
 			"travel": {"layers": [
-				{"kind": "stupefy_energy", "core": true, "life": 0.0},
+				{"kind": "flipbook", "atlas": "vfx_energy_orb", "blend": "add", "core": true, "colour": true,
+					"size": 1.15, "life": 0.0, "loop": true, "roll": true},
 				{"kind": "ribbon", "tex": "vfx_energy_streak", "blend": "add", "core": true, "colour": true,
-					"width": 0.11, "length": 4.8, "life": 0.0, "follow": true},
-				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "colour": true,
-					"amount": 32, "life": 0.22, "speed": 1.1, "size": 0.045, "spread": 150.0, "gravity": 0.0, "optional": true, "continuous": true},
+					"width": 0.3, "length": 5.5, "life": 0.0, "follow": true},
+				{"kind": "sprite", "atlas": "vfx_lightning_strands", "blend": "add", "colour": true, "optional": true,
+					"size": 1.1, "life": 0.0, "flicker": true, "opacity": 0.7},
+				{"kind": "particles", "tex": "vfx_star_flare", "blend": "add", "colour": true, "optional": true,
+					"amount": 24, "life": 0.25, "speed": 1.0, "size": 0.05, "spread": 180.0, "gravity": 0.0, "continuous": true},
 			], "length": 0.0, "audio": "spell_stupefy_travel", "loop_audio": true},
 			"impact": {"layers": [
-				{"kind": "stupefy_energy", "core": true, "life": 0.72},
-				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "colour": true,
-					"amount": 40, "life": 0.58, "speed": 4.8, "size": 0.055, "spread": 170.0, "gravity": -2.0, "optional": true},
+				{"kind": "flipbook", "atlas": "vfx_burst_red", "blend": "add", "core": true,
+					"size": 2.4, "life": 0.7, "fit": true, "roll": true},
+				{"kind": "flipbook", "atlas": "vfx_spark_burst", "blend": "add", "colour": true, "optional": true,
+					"size": 1.8, "life": 0.4, "fit": true, "roll": true},
 				{"kind": "light", "colour": true, "energy": 3.2, "range": 4.0, "life": 0.28},
-			], "length": 0.76, "audio": "spell_stupefy_impact", "core": "torn_energy_burst"},
+			], "length": 0.72, "audio": "spell_stupefy_impact", "core": "torn_energy_burst"},
 			"sustain": {"layers": [
-				{"kind": "sprite", "atlas": "vfx_rune_masks", "frame": 1, "blend": "add", "core": true, "colour": true,
-					"size": 0.85, "life": 1.8, "fade": "hold"},
+				{"kind": "sprite", "atlas": "vfx_rune_seal", "blend": "add", "core": true, "colour": true,
+					"size": 0.9, "life": 1.8, "fade": "hold", "flat": true, "lift": 0.0, "spin": true},
 			], "length": 1.8, "audio": "spell_stupefy_end", "core": "stun_indicator"},
 		},
 	},
 	"incendio": {
-		"colour": Color(1.0, 0.27, 0.025),
+		"colour": Color(1.0, 0.42, 0.06),
 		"stages": {
+			# The cone: four rolling fire bursts marching along the aim, each a
+			# beat later and larger, plus embers thrown the full length.
 			"cast": {"layers": [
-				{"kind": "signature", "core": true, "life": 0.7, "blend": "add"},
-				{"kind": "flipbook", "atlas": "vfx_fire_burst", "blend": "alpha", "colour": true, "life": 0.4, "size": 0.9, "loop": false, "opacity": 0.3},
-				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "colour": true, "amount": 28, "life": 0.4, "speed": 5, "size": 0.06, "spread": 145.0, "gravity": -2.0, "optional": true},
-				{"kind": "light", "colour": true, "energy": 3, "range": 5.0, "life": 0.45}
-			], "length": 0.7, "audio": "spell_incendio_cast", "core": "incendio_cast"},
+				# core: three bursts spanning the cone (all that the low preset keeps)
+				{"kind": "flipbook", "atlas": "vfx_fire_burst", "blend": "add", "core": true,
+					"size": 2.0, "forward": 1.0, "life": 0.6, "fit": true, "roll": true, "grow": [0.6, 1.15]},
+				{"kind": "flipbook", "atlas": "vfx_fire_burst", "blend": "add", "core": true,
+					"size": 3.2, "forward": 3.1, "life": 0.62, "delay": 0.05, "fit": true, "roll": true, "grow": [0.6, 1.2]},
+				{"kind": "flipbook", "atlas": "vfx_fire_burst", "blend": "add", "core": true,
+					"size": 4.4, "forward": 5.6, "life": 0.62, "delay": 0.1, "fit": true, "roll": true, "grow": [0.6, 1.25]},
+				# fill: between and beyond, for a continuous jet on medium/high
+				{"kind": "flipbook", "atlas": "vfx_fire_burst", "blend": "add", "optional": true,
+					"size": 2.6, "forward": 2.0, "life": 0.6, "delay": 0.03, "fit": true, "roll": true, "grow": [0.6, 1.15]},
+				{"kind": "flipbook", "atlas": "vfx_fire_burst", "blend": "add", "optional": true,
+					"size": 3.8, "forward": 4.3, "life": 0.62, "delay": 0.08, "fit": true, "roll": true, "grow": [0.6, 1.2]},
+				{"kind": "flipbook", "atlas": "vfx_fire_burst", "blend": "add", "optional": true,
+					"size": 4.8, "forward": 7.2, "life": 0.58, "delay": 0.14, "fit": true, "roll": true, "grow": [0.6, 1.25]},
+				{"kind": "particles", "tex": "vfx_flame_static", "blend": "add", "colour": true, "optional": true,
+					"amount": 30, "life": 0.7, "speed": 14.0, "size": 0.35, "spread": 24.0, "gravity": 1.5, "forward": true},
+				{"kind": "light", "colour": true, "energy": 3.4, "range": 7.0, "life": 0.55},
+			], "length": 0.8, "audio": "spell_incendio_cast", "core": "incendio_cast"},
 			"impact": {"layers": [
-				{"kind": "signature", "core": true, "life": 0.6, "blend": "add"},
-				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "colour": true, "amount": 24, "life": 0.45, "speed": 3.5, "size": 0.06, "spread": 145.0, "gravity": -2.0, "optional": true},
-				{"kind": "light", "colour": true, "energy": 2.5, "range": 5.0, "life": 0.3}
+				{"kind": "flipbook", "atlas": "vfx_fire_burst", "blend": "add", "core": true,
+					"size": 1.8, "life": 0.55, "fit": true, "roll": true},
+				{"kind": "particles", "tex": "vfx_star_flare", "blend": "add", "colour": true, "optional": true,
+					"amount": 16, "life": 0.5, "speed": 3.5, "size": 0.06, "spread": 150.0, "gravity": -3.0},
+				{"kind": "light", "colour": true, "energy": 2.5, "range": 4.0, "life": 0.3},
 			], "length": 0.6, "audio": "spell_incendio_impact", "core": "incendio_impact"},
 			"sustain": {"layers": [
-				{"kind": "signature", "core": true, "life": 3.0, "blend": "add"},
-				{"kind": "flipbook", "atlas": "vfx_flame_loop", "blend": "alpha", "colour": true, "life": 3.0, "size": 1.0, "loop": true, "opacity": 0.3},
-				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "colour": true, "amount": 12, "life": 0.6, "speed": 1.2, "size": 0.06, "spread": 145.0, "gravity": -2.0, "optional": true}
+				{"kind": "flipbook", "atlas": "vfx_flame_loop", "blend": "add", "core": true,
+					"size": 1.6, "life": 3.0, "loop": true, "fade": "hold"},
+				{"kind": "particles", "tex": "vfx_flame_static", "blend": "add", "colour": true, "optional": true,
+					"amount": 10, "life": 0.8, "speed": 1.2, "size": 0.18, "spread": 30.0, "gravity": 2.0},
 			], "length": 3.0, "audio": "spell_incendio_sustain", "core": "incendio_sustain", "loop_audio": true},
 			"end": {"layers": [
-				{"kind": "signature", "core": true, "life": 0.65, "blend": "add"},
-				{"kind": "flipbook", "atlas": "vfx_smoke_puff", "blend": "alpha", "size": 2.6, "life": 0.65, "optional": true, "opacity": 0.3}
-			], "length": 0.65, "audio": "spell_incendio_end", "core": "incendio_end"}
+				{"kind": "flipbook", "atlas": "vfx_smoke_puff", "blend": "alpha", "core": true,
+					"size": 2.2, "life": 0.9, "fit": true, "roll": true, "opacity": 0.55},
+			], "length": 0.9, "audio": "spell_incendio_end", "core": "incendio_end"},
 		},
 	},
 	"bombarda": {
-		"colour": Color(1.0, 0.48, 0.035),
+		"colour": Color(1.0, 0.55, 0.12),
 		"stages": {
 			"cast": {"layers": [
-				{"kind": "signature", "core": true, "life": 0.4, "blend": "add"},
-				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "colour": true, "amount": 10, "life": 0.3, "speed": 1.5, "size": 0.06, "spread": 145.0, "gravity": -2.0, "optional": true},
-				{"kind": "light", "colour": true, "energy": 2.5, "range": 5.0, "life": 0.3}
-			], "length": 0.4, "audio": "spell_bombarda_cast", "core": "bombarda_cast"},
+				{"kind": "flipbook", "atlas": "vfx_wand_flash", "blend": "add", "core": true, "colour": true,
+					"size": 1.2, "life": 0.26, "fit": true, "roll": true, "grow": [0.6, 1.4]},
+				{"kind": "particles", "tex": "vfx_flame_static", "blend": "add", "colour": true, "optional": true,
+					"amount": 10, "life": 0.35, "speed": 3.0, "size": 0.2, "spread": 40.0, "gravity": 1.0, "forward": true},
+				{"kind": "light", "colour": true, "energy": 2.5, "range": 4.0, "life": 0.3},
+			], "length": 0.35, "audio": "spell_bombarda_cast", "core": "bombarda_cast"},
 			"travel": {"layers": [
-				{"kind": "signature", "core": true, "life": 0.0, "blend": "add"},
-				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "colour": true, "amount": 18, "life": 0.25, "speed": 1.0, "size": 0.06, "spread": 145.0, "gravity": -2.0, "optional": true, "continuous": true}
+				{"kind": "flipbook", "atlas": "vfx_fire_orb", "blend": "add", "core": true,
+					"size": 1.3, "life": 0.0, "loop": true, "roll": true},
+				{"kind": "ribbon", "tex": "vfx_energy_streak", "blend": "add", "core": true, "colour": true,
+					"width": 0.4, "length": 4.0, "life": 0.0, "follow": true},
+				{"kind": "particles", "tex": "vfx_flame_static", "blend": "add", "colour": true, "optional": true,
+					"amount": 22, "life": 0.4, "speed": 0.6, "size": 0.22, "spread": 180.0, "gravity": 1.5, "continuous": true},
 			], "length": 0.0, "audio": "spell_bombarda_travel", "core": "bombarda_travel", "loop_audio": true},
 			"impact": {"layers": [
-				{"kind": "signature", "core": true, "life": 1.05, "blend": "add"},
-				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "colour": true, "amount": 38, "life": 0.7, "speed": 6.0, "size": 0.06, "spread": 145.0, "gravity": -2.0, "optional": true},
-				{"kind": "flipbook", "atlas": "vfx_smoke_puff", "blend": "alpha", "size": 2.6, "life": 1.05, "optional": true, "opacity": 0.3},
-				{"kind": "light", "colour": true, "energy": 4, "range": 5.0, "life": 0.45}
-			], "length": 1.05, "audio": "spell_bombarda_impact", "core": "bombarda_impact", "aoe_radius": 9.0},
+				{"kind": "flipbook", "atlas": "vfx_explosion", "blend": "add", "core": true,
+					"forward": -1.6, "size": 6.0, "life": 1.0, "fit": true, "roll": true},
+				{"kind": "flipbook", "atlas": "vfx_shockwave", "blend": "add", "core": true, "colour": true,
+					"flat": true, "lift": 0.08, "size": 2.0, "life": 0.6, "fit": true},
+				{"kind": "flipbook", "atlas": "vfx_smoke_puff", "blend": "alpha", "optional": true,
+					"forward": -1.6, "size": 5.0, "life": 1.4, "delay": 0.25, "fit": true, "roll": true, "opacity": 0.5},
+				"ground_scorch",
+				{"kind": "light", "colour": true, "energy": 4.5, "range": 9.0, "life": 0.5},
+			], "length": 1.4, "audio": "spell_bombarda_impact", "core": "bombarda_impact", "aoe_radius": 9.0},
 			"end": {"layers": [
-				{"kind": "signature", "core": true, "life": 1.1, "blend": "add"},
-				{"kind": "flipbook", "atlas": "vfx_smoke_puff", "blend": "alpha", "size": 2.6, "life": 1.1, "optional": true, "opacity": 0.3}
-			], "length": 1.1, "audio": "spell_bombarda_end", "core": "bombarda_end"}
+				{"kind": "flipbook", "atlas": "vfx_smoke_puff", "blend": "alpha", "core": true,
+					"size": 3.6, "life": 1.1, "fit": true, "roll": true, "opacity": 0.45},
+			], "length": 1.1, "audio": "spell_bombarda_end", "core": "bombarda_end"},
 		},
 	},
 	"expelliarmus": {
-		"colour": Color(1.0, 0.12, 0.38),
+		"colour": Color(1.0, 0.18, 0.5),
 		"stages": {
 			"cast": {"layers": [
-				{"kind": "signature", "core": true, "life": 0.32, "blend": "add"},
-				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "colour": true, "amount": 10, "life": 0.25, "speed": 2.0, "size": 0.06, "spread": 145.0, "gravity": -2.0, "optional": true}
-			], "length": 0.32, "audio": "spell_expelliarmus_cast", "core": "expelliarmus_cast"},
+				{"kind": "flipbook", "atlas": "vfx_wand_flash", "blend": "add", "core": true, "colour": true,
+					"size": 0.9, "life": 0.22, "fit": true, "roll": true, "grow": [0.6, 1.25]},
+				{"kind": "particles", "tex": "vfx_star_flare", "blend": "add", "colour": true, "optional": true,
+					"amount": 10, "life": 0.28, "speed": 3.0, "size": 0.06, "spread": 35.0, "gravity": 0.0, "forward": true},
+				{"kind": "light", "colour": true, "energy": 2.2, "range": 3.0, "life": 0.2},
+			], "length": 0.28, "audio": "spell_expelliarmus_cast", "core": "expelliarmus_cast"},
 			"travel": {"layers": [
-				{"kind": "signature", "core": true, "life": 0.0, "blend": "add"},
-				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "colour": true, "amount": 14, "life": 0.18, "speed": 0.5, "size": 0.06, "spread": 145.0, "gravity": -2.0, "optional": true, "continuous": true}
+				{"kind": "flipbook", "atlas": "vfx_energy_orb", "blend": "add", "core": true, "colour": true,
+					"size": 0.95, "life": 0.0, "loop": true, "roll": true, "spin": true},
+				{"kind": "ribbon", "tex": "vfx_energy_streak", "blend": "add", "core": true, "colour": true,
+					"width": 0.24, "length": 4.2, "life": 0.0, "follow": true},
+				{"kind": "particles", "tex": "vfx_star_flare", "blend": "add", "colour": true, "optional": true,
+					"amount": 16, "life": 0.22, "speed": 0.6, "size": 0.05, "spread": 180.0, "gravity": 0.0, "continuous": true},
 			], "length": 0.0, "audio": "spell_expelliarmus_travel", "core": "expelliarmus_travel", "loop_audio": true},
 			"impact": {"layers": [
-				{"kind": "signature", "core": true, "life": 0.55, "blend": "add"},
-				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "colour": true, "amount": 22, "life": 0.35, "speed": 3.0, "size": 0.06, "spread": 145.0, "gravity": -2.0, "optional": true},
-				{"kind": "light", "colour": true, "energy": 2.5, "range": 5.0, "life": 0.2}
-			], "length": 0.55, "audio": "spell_expelliarmus_impact", "core": "expelliarmus_impact"},
+				{"kind": "flipbook", "atlas": "vfx_burst_crimson", "blend": "add", "core": true,
+					"size": 2.2, "life": 0.6, "fit": true, "roll": true},
+				{"kind": "flipbook", "atlas": "vfx_spark_burst", "blend": "add", "colour": true, "optional": true,
+					"size": 1.6, "life": 0.4, "fit": true, "roll": true},
+				{"kind": "light", "colour": true, "energy": 2.6, "range": 4.0, "life": 0.22},
+			], "length": 0.6, "audio": "spell_expelliarmus_impact", "core": "expelliarmus_impact"},
 			"end": {"layers": [
-				{"kind": "signature", "core": true, "life": 0.4, "blend": "add"}
-			], "length": 0.4, "audio": "spell_expelliarmus_end", "core": "expelliarmus_end"}
+				{"kind": "flipbook", "atlas": "vfx_spark_burst", "blend": "add", "core": true, "colour": true,
+					"size": 0.7, "life": 0.3, "fit": true, "opacity": 0.6},
+			], "length": 0.3, "audio": "spell_expelliarmus_end", "core": "expelliarmus_end"},
 		},
 	},
 	"protego": {
-		"colour": Color(0.16, 0.55, 1.0),
+		"colour": Color(0.25, 0.62, 1.0),
 		"stages": {
 			"cast": {"layers": [
-				{"kind": "signature", "core": true, "life": 0.35, "blend": "add"},
-				{"kind": "light", "colour": true, "energy": 2.5, "range": 5.0, "life": 0.3}
-			], "length": 0.35, "audio": "spell_protego_cast", "core": "protego_cast"},
+				{"kind": "flipbook", "atlas": "vfx_ripple_blue", "blend": "add", "core": true,
+					"size": 2.8, "life": 0.5, "fit": true},
+				{"kind": "light", "colour": true, "energy": 2.5, "range": 5.0, "life": 0.3},
+			], "length": 0.5, "audio": "spell_protego_cast", "core": "protego_cast"},
 			"sustain": {"layers": [
-				{"kind": "mesh", "mesh": "vfx_shield_mesh", "blend": "add", "core": true, "colour": true, "size": Vector3(1.8, 1.8, 1.8), "life": 3.5, "ward": true},
-				{"kind": "signature", "core": true, "life": 3.5, "blend": "add"}
+				{"kind": "mesh", "mesh": "vfx_shield_mesh", "blend": "add", "core": true, "colour": true,
+					"size": Vector3(1.8, 1.8, 1.8), "life": 3.5, "ward": true, "hex": "vfx_hex_shield"},
+				{"kind": "particles", "tex": "vfx_star_flare", "blend": "add", "colour": true, "optional": true,
+					"amount": 12, "life": 1.2, "speed": 0.3, "size": 0.05, "spread": 180.0, "gravity": 0.3, "continuous": true},
 			], "length": 3.5, "audio": "spell_protego_sustain", "core": "protego_sustain", "loop_audio": true},
 			"impact": {"layers": [
-				{"kind": "sprite", "energy_shape": 2, "core": true, "colour": true, "blend": "add", "size": 1.35, "life": 0.45, "at_hit": true},
-				{"kind": "light", "colour": true, "energy": 2.5, "range": 5.0, "life": 0.2}
+				{"kind": "flipbook", "atlas": "vfx_ripple_blue", "blend": "add", "core": true,
+					"size": 1.5, "life": 0.45, "fit": true, "at_hit": true},
+				{"kind": "light", "colour": true, "energy": 2.5, "range": 4.0, "life": 0.2},
 			], "length": 0.45, "audio": "spell_protego_impact", "core": "protego_impact"},
 			"end": {"layers": [
-				{"kind": "mesh", "mesh": "vfx_shield_mesh", "blend": "add", "core": true, "colour": true, "size": Vector3(1.8, 1.8, 1.8), "life": 0.5, "ward": true, "fracture": true},
-				{"kind": "signature", "core": true, "life": 0.5, "blend": "add"}
-			], "length": 0.5, "audio": "spell_protego_end", "core": "protego_end"}
+				{"kind": "mesh", "mesh": "vfx_shield_mesh", "blend": "add", "core": true, "colour": true,
+					"size": Vector3(1.8, 1.8, 1.8), "life": 0.5, "ward": true, "hex": "vfx_hex_shield", "fracture": true},
+				{"kind": "flipbook", "atlas": "vfx_spark_burst", "blend": "add", "colour": true, "optional": true,
+					"size": 2.4, "life": 0.45, "fit": true, "roll": true},
+			], "length": 0.5, "audio": "spell_protego_end", "core": "protego_end"},
 		},
 	},
 	"ultimate": {
-		"colour": Color(0.04, 1.0, 0.4),
+		"colour": Color(0.15, 1.0, 0.45),
 		"stages": {
 			"cast": {"layers": [
-				{"kind": "signature", "core": true, "life": 0.6, "blend": "add"},
-				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "colour": true, "amount": 18, "life": 0.4, "speed": 1.7, "size": 0.06, "spread": 145.0, "gravity": -2.0, "optional": true},
-				{"kind": "light", "colour": true, "energy": 3, "range": 5.0, "life": 0.4}
-			], "length": 0.6, "audio": "spell_ultimate_cast", "core": "ultimate_cast"},
+				{"kind": "flipbook", "atlas": "vfx_wand_flash", "blend": "add", "core": true, "colour": true,
+					"size": 1.6, "life": 0.32, "fit": true, "roll": true, "grow": [0.6, 1.5]},
+				{"kind": "sprite", "atlas": "vfx_lightning_strands", "blend": "add", "colour": true, "optional": true,
+					"size": 1.8, "life": 0.35, "flicker": true},
+				{"kind": "light", "colour": true, "energy": 3.2, "range": 5.0, "life": 0.4},
+			], "length": 0.45, "audio": "spell_ultimate_cast", "core": "ultimate_cast"},
 			"travel": {"layers": [
-				{"kind": "signature", "core": true, "life": 0.0, "blend": "add"},
-				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "colour": true, "amount": 28, "life": 0.22, "speed": 1.2, "size": 0.06, "spread": 145.0, "gravity": -2.0, "optional": true, "continuous": true}
+				{"kind": "flipbook", "atlas": "vfx_energy_orb", "blend": "add", "core": true, "colour": true,
+					"size": 1.8, "life": 0.0, "loop": true, "roll": true},
+				{"kind": "ribbon", "tex": "vfx_energy_streak", "blend": "add", "core": true, "colour": true,
+					"width": 0.5, "length": 5.0, "life": 0.0, "follow": true},
+				{"kind": "sprite", "atlas": "vfx_lightning_strands", "blend": "add", "colour": true, "optional": true,
+					"size": 2.2, "life": 0.0, "flicker": true, "opacity": 0.85},
+				{"kind": "particles", "tex": "vfx_star_flare", "blend": "add", "colour": true, "optional": true,
+					"amount": 28, "life": 0.3, "speed": 1.4, "size": 0.07, "spread": 180.0, "gravity": 0.0, "continuous": true},
 			], "length": 0.0, "audio": "spell_ultimate_travel", "core": "ultimate_travel", "loop_audio": true},
 			"impact": {"layers": [
-				{"kind": "signature", "core": true, "life": 1.1, "blend": "add"},
-				{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "colour": true, "amount": 40, "life": 0.65, "speed": 5, "size": 0.06, "spread": 145.0, "gravity": -2.0, "optional": true},
-				{"kind": "light", "colour": true, "energy": 4, "range": 5.0, "life": 0.45}
-			], "length": 1.1, "audio": "spell_ultimate_impact", "core": "ultimate_impact", "aoe_radius": 12.0},
+				{"kind": "flipbook", "atlas": "vfx_burst_green", "blend": "add", "core": true,
+					"forward": -2.0, "size": 8.0, "life": 1.1, "fit": true, "roll": true},
+				{"kind": "flipbook", "atlas": "vfx_shockwave", "blend": "add", "core": true, "colour": true,
+					"flat": true, "lift": 0.08, "size": 2.0, "life": 0.7, "fit": true},
+				{"kind": "flipbook", "atlas": "vfx_smoke_puff", "blend": "alpha", "optional": true,
+					"forward": -2.0, "size": 6.0, "life": 1.5, "delay": 0.3, "fit": true, "roll": true, "opacity": 0.4},
+				"ground_scorch",
+				{"kind": "light", "colour": true, "energy": 5.0, "range": 12.0, "life": 0.6},
+			], "length": 1.5, "audio": "spell_ultimate_impact", "core": "ultimate_impact", "aoe_radius": 12.0},
 			"end": {"layers": [
-				{"kind": "signature", "core": true, "life": 0.85, "blend": "add"},
-				{"kind": "flipbook", "atlas": "vfx_smoke_puff", "blend": "alpha", "size": 2.6, "life": 0.85, "optional": true, "opacity": 0.3}
-			], "length": 0.85, "audio": "spell_ultimate_end", "core": "ultimate_end"}
+				{"kind": "sprite", "atlas": "vfx_lightning_strands", "blend": "add", "core": true, "colour": true,
+					"size": 3.0, "life": 0.6, "flicker": true, "opacity": 0.6},
+				{"kind": "flipbook", "atlas": "vfx_smoke_puff", "blend": "alpha", "optional": true,
+					"size": 4.0, "life": 0.9, "fit": true, "roll": true, "opacity": 0.4},
+			], "length": 0.9, "audio": "spell_ultimate_end", "core": "ultimate_end"},
 		},
 	},
 }

@@ -75,6 +75,7 @@ var chat: HudChat = null
 var game_menu: HudGameMenu = null
 var world_map: HudWorldMap = null
 var quest_scroll: HudQuestScroll = null
+var skill_window: HudSkillWindow = null
 var _exp_ticks: Control = null
 var _level := 1
 ## Last house rank shown; 0 until the first payload so a load is not a "rank up".
@@ -179,16 +180,21 @@ func _setup_panels() -> void:
 	modal.add_child(world_map)
 	quest_scroll = HudQuestScroll.new()
 	modal.add_child(quest_scroll)
+	skill_window = HudSkillWindow.new()
+	skill_window.hud = self
+	modal.add_child(skill_window)
 	game_menu = HudGameMenu.new()
 	modal.add_child(game_menu)
 	game_menu.settings_requested.connect(func(): settings.open())
 	game_menu.map_requested.connect(func(): world_map.open())
 
 	_add_quick_button("JournalBtn", "menu_journal", "Guide", "[J] Training guide", open_guide)
+	_add_quick_button("SkillsBtn", "stupefy", "Skills", "[V] Skill training", func(): skill_window.toggle())
 	_add_quick_button("MapBtn", "menu_map", "Map", "[M] World map", func(): world_map.toggle())
 	_add_quick_button("MenuBtn", "menu_settings", "Menu", "[Esc] Menu - settings, change character, quit", func(): game_menu.toggle())
 	_ensure_ui_action("toggle_onboarding", KEY_J)
 	_ensure_ui_action("toggle_map", KEY_M)
+	_ensure_ui_action("toggle_skills", KEY_V)
 
 ## Name, house and purse, on a small brass plate in the top-left corner.
 ## Previously a bare label that overlapped the chat log.
@@ -277,6 +283,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 		world_map.toggle()
 		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("toggle_skills"):
+		if settings != null and settings.is_open():
+			return
+		skill_window.toggle()
+		get_viewport().set_input_as_handled()
 
 func bind_player(p_player: Node3D) -> void:
 	if player == p_player and binder != null and binder.player == p_player:
@@ -295,6 +306,8 @@ func bind_player(p_player: Node3D) -> void:
 		buff_bar.bind(player, binder)
 	if world_map != null:
 		world_map.player = player
+	if skill_window != null:
+		skill_window.player = player
 	if unit_frame != null:
 		unit_frame.set_identity(String(player.player_name), String(player.house), int(player.level))
 	if feedback != null:
@@ -692,6 +705,9 @@ func handle_escape(world: Node = null) -> String:
 	if world_map != null and world_map.is_open():
 		world_map.close()
 		return "map"
+	if skill_window != null and skill_window.is_open():
+		skill_window.close()
+		return "skills"
 	if quest_scroll != null and quest_scroll.is_open():
 		quest_scroll.close()
 		return "quest"

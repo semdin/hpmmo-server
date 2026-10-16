@@ -60,13 +60,16 @@ var gesture_duration := 0.42
 var gesture_strength := 0.0
 var gesture_side := 1.0
 var gesture_spell := ""
+## Basic-attack chain step: 0 forehand flick, 1 backhand, 2 overhead finisher.
+var gesture_combo := 0
 
 func set_gesture(spell: String, combo: int, duration: float) -> void:
 	gesture_time = 0.0
 	gesture_duration = duration
 	gesture_spell = spell
+	gesture_combo = clampi(combo, 0, 2)
 	gesture_strength = float({"stupefy": 1.0, "incendio": 0.8, "bombarda": 1.2,
-		"expelliarmus": 0.75, "protego": 0.55, "ultimate": 1.4}.get(spell, (0.8 if combo == 2 else 0.6) if spell == "basic_cast" else 0.0))
+		"expelliarmus": 0.75, "protego": 0.55, "ultimate": 1.4}.get(spell, [0.6, 0.7, 1.15][gesture_combo] if spell == "basic_cast" else 0.0))
 	gesture_side = -1.0 if combo == 1 else 1.0
 
 func _bone_of(path: NodePath) -> String:
@@ -183,6 +186,13 @@ func _apply_cast_torso(skeleton: Skeleton3D) -> void:
 	var yaw := 0.0
 	var pitch := 0.0
 	match gesture_spell:
+		"basic_cast":
+			# The chain reads in the torso: twist through, twist back, then lean
+			# back and slam forward on the finisher.
+			match gesture_combo:
+				0: yaw = lerpf(0.14, -0.10, phase) * envelope
+				1: yaw = lerpf(-0.17, 0.12, phase) * envelope
+				_: pitch = lerpf(0.12, -0.24, smoothstep(0.2, 0.62, phase)) * envelope
 		"incendio": yaw = lerpf(-0.16, 0.16, phase) * envelope
 		"bombarda": pitch = -0.13 * envelope
 		"expelliarmus": yaw = 0.17 * sin(phase * TAU) * envelope
@@ -229,6 +239,19 @@ func _apply_aim(skeleton: Skeleton3D) -> void:
 	var sweep := sin(phase * PI * 2.0) * (1.0 - snap) * gesture_strength * 0.12 * gesture_side
 	var lift := 0.0
 	match gesture_spell:
+		"basic_cast":
+			var swing := smoothstep(0.0, _release_phase, phase)
+			match gesture_combo:
+				0:
+					sweep = lerpf(0.22, -0.12, swing) * (1.0 - 0.5 * recoil)
+					lift = 0.04 * sin(phase * PI)
+				1:
+					sweep = lerpf(-0.25, 0.15, swing) * (1.0 - 0.5 * recoil)
+					lift = 0.06 * sin(phase * PI) - 0.04 * recoil
+				_:
+					# Wand raised overhead, then driven down at the target.
+					lift = 0.34 * (1.0 - snap) - 0.09 * recoil
+					sweep = 0.05 * sin(phase * PI)
 		"incendio":
 			sweep = lerpf(-0.2, 0.22, smoothstep(0, 0.65, phase)) * sin(phase * PI)
 			lift = 0.05 * sin(phase * PI)
