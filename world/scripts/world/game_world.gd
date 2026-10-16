@@ -591,6 +591,10 @@ func _on_loot_spawned(uid: int, item_id: String, amount: int, pos: Vector3) -> v
 	# only the tracked node, so a copy of the item would stay on the ground.
 	if is_instance_valid(_views.get(uid)):
 		return
+	# Personal loot (a dungeon drop, v15) is drawn for its owner only.
+	var owner := int(SimAuthority.entities.get(uid, {}).get("owner_uid", 0))
+	if owner != 0 and SimAuthority.local_uid > 0 and owner != SimAuthority.local_uid:
+		return
 	var node = LOOT_SCENE.instantiate()
 	add_child(node)
 	node.global_position = pos

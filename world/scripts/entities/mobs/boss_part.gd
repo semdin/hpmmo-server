@@ -41,6 +41,17 @@ func on_authoritative_death(_killer: Node3D) -> void:
 		label.visible = false
 	died.emit(self)
 
+## A wipe reset the body: the part stands again at full health (authority).
+func revive() -> void:
+	current_hp = max_hp
+	_set_state(State.IDLE)
+	add_to_group("targetable")
+	_set_collision_enabled(true)
+	if label:
+		label.visible = true
+	SimAuthority.refresh_mob(self)
+	_update_label()
+
 func _respawn() -> void:
 	# A part lives once; a puppet that sees it alive again just shows it.
 	if sim_puppet:

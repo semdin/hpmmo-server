@@ -53,6 +53,10 @@ signal world_event(kind: String, data: Dictionary)
 signal party_state(uid: int, state: Dictionary)
 ## `uid` was invited by `from_name` (answer with /accept or /decline).
 signal party_invited(uid: int, from_name: String)
+## v15: the authority shoved a player (knockback, a pixie's lift, Fluffy's
+## breath on the stair). The owning client applies the same impulse to its
+## predicted body so both sides move it the same way.
+signal player_pushed(uid: int, force: Vector3)
 ## An instance copy (`<base>#<slot>`) opened for its first player / was torn
 ## down empty. The dungeon director runs and clears its script on these.
 signal instance_opened(map_id: String)
@@ -523,6 +527,15 @@ func set_mob_hp(node: Node, hp: int, max_hp: int = -1) -> void:
 	_sync_node_health(record)
 	touch(record)
 	emit_signal("entity_health", int(record["uid"]), int(record["hp"]), int(record.get("max_hp", 0)), flags_for(record))
+
+## A wipe reset the creature: every part stands again.
+func clear_parts_down(node: Node) -> void:
+	var record := record_for(node)
+	if record.is_empty():
+		return
+	record["parts_down"] = []
+	record["meta_rev"] = int(record.get("meta_rev", 0)) + 1
+	touch(record)
 
 ## A part fell: clients droop/wither it from the body's mob info.
 func mark_part_down(node: Node, part: String) -> void:
@@ -1853,7 +1866,10 @@ func _apply_damage(target: Dictionary, raw: int, spell_id: String, attacker: Dic
 				and target_node.has_method("apply_knockback"):
 			var force := HPRules.knockback_force(spell_id, (target_node as Node3D).global_position - (attacker_node as Node3D).global_position)
 			if force != Vector3.ZERO:
-				target_node.call("apply_knockback", force)
+				if int(target.get("kind", 0)) == HPProtocol.Kind.PLAYER:
+					push_player(target, force)
+				else:
+					target_node.call("apply_knockback", force)
 
 	return amount
 
@@ -2067,8 +2083,9 @@ func _grant_kill_rewards(target: Dictionary) -> void:
 			quest_event(player, "monolith", "")
 		elif int(target.get("kind", 0)) == HPProtocol.Kind.MOB:
 			quest_event(player, "kill", _mob_species(target))
-	# Loot is dropped once, server-side, for everyone to race for.
-	_drop_loot(target)
+	# Loot is dropped once, server-side: for everyone to race for in the open
+	# world, one roll per eligible player (personal loot) in a dungeon copy.
+	_drop_loot(target, eligible)
 
 var _granted_ops: Dictionary = {}
 
@@ -2119,7 +2136,19 @@ func _grant_exp(player: Dictionary, exp: int) -> void:
 	touch(player)
 	_push_stats(player)
 
-func _drop_loot(target: Dictionary) -> void:
+func _drop_loot(target: Dictionary, eligible: Array = []) -> void:
+	var node = target.get("node")
+	var origin: Vector3 = node.global_position if node != null and is_instance_valid(node) else Vector3.ZERO
+	var map_id := String(target.get("map_id", HPMaps.map_for_point(origin)))
+	if HPMaps.instance_slot(map_id) > 0 and not eligible.is_empty():
+		for uid in eligible:
+			for drop in _roll_drops(target):
+				_spawn_loot_node(String(drop["id"]), int(drop["amount"]), origin, map_id, int(uid))
+		return
+	for drop in _roll_drops(target):
+		_spawn_loot_node(String(drop["id"]), int(drop["amount"]), origin, map_id)
+
+func _roll_drops(target: Dictionary) -> Array:
 	var is_boss := bool(target.get("is_boss", false))
 	var drops: Array = []
 	if int(target.get("kind", 0)) == HPProtocol.Kind.MONOLITH:
@@ -2135,15 +2164,11 @@ func _drop_loot(target: Dictionary) -> void:
 		if rng.randf() < 0.25: drops.append({"id": "ring_adept", "amount": 1})
 	elif is_boss or rng.randf() < 0.2:
 		drops.append({"id": HPEquipment.BASIC_ACCESSORIES[rng.randi_range(0, 5)], "amount": 1})
-	var node = target.get("node")
-	var origin: Vector3 = node.global_position if node != null and is_instance_valid(node) else Vector3.ZERO
-	var map_id := String(target.get("map_id", HPMaps.map_for_point(origin)))
-	for drop in drops:
-		_spawn_loot_node(String(drop["id"]), int(drop["amount"]), origin, map_id)
+	return drops
 
 ## Spawned by the authority; in the dedicated server the loot node is a plain
 ## replicated marker, on the host/offline it is the real pickup scene.
-func _spawn_loot_node(item_id: String, amount: int, origin: Vector3, map_id: String = "") -> void:
+func _spawn_loot_node(item_id: String, amount: int, origin: Vector3, map_id: String = "", owner_uid: int = 0) -> void:
 	var uid := _make_uid()
 	if map_id == "":
 		map_id = HPMaps.map_for_point(origin)
@@ -2160,6 +2185,7 @@ func _spawn_loot_node(item_id: String, amount: int, origin: Vector3, map_id: Str
 		"amount": amount,
 		"pos": origin + _loot_scatter(),
 		"spawned_tick": sim_tick,
+		"owner_uid": owner_uid,
 	}
 	emit_signal("loot_spawned", uid, item_id, amount, entities[uid]["pos"])
 
@@ -2192,6 +2218,8 @@ func request_pickup(peer_id: int, loot_uid: int) -> Dictionary:
 	var node: Node3D = player["node"]
 	if node.global_position.distance_to(loot["pos"]) > LOOT_PICKUP_RANGE:
 		return HPProtocol.reject(HPProtocol.REJECT_RANGE)
+	if not loot_visible_to(loot, player):
+		return HPProtocol.reject(HPProtocol.REJECT_NOT_OWNER)
 	var bag: Array = node.inventory.duplicate(true)
 	if String(loot.item_id) != "galleons":
 		HPEquipment.add(bag, String(loot.item_id), 0, int(loot.amount))
@@ -2200,6 +2228,34 @@ func request_pickup(peer_id: int, loot_uid: int) -> Dictionary:
 	return HPProtocol.accept()
 
 const LOOT_PICKUP_RANGE := 7.0
+
+## Personal loot (owner_uid set) is seen and taken by its owner only.
+static func loot_visible_to(loot: Dictionary, player: Dictionary) -> bool:
+	var owner := int(loot.get("owner_uid", 0))
+	return owner == 0 or owner == int(player.get("uid", -1))
+
+## Shove a player (a server-side impulse). The authority's body takes it now;
+## the owning client gets the same impulse (net `sim_push`) for its prediction.
+func push_player(record: Dictionary, force: Vector3) -> void:
+	if record.is_empty() or bool(record.get("dead", false)) or force == Vector3.ZERO:
+		return
+	var node = record.get("node")
+	if node != null and is_instance_valid(node) and node.has_method("apply_knockback"):
+		node.call("apply_knockback", force)
+	emit_signal("player_pushed", int(record.get("uid", 0)), force)
+
+## A title (dungeons.json first_clear_title) for a player; true when new. The
+## body keeps it in the character's `quests` (saved with the sheet).
+func grant_title(record: Dictionary, title_id: String) -> bool:
+	var node = record.get("node")
+	if node == null or not is_instance_valid(node) or not node.has_method("grant_title"):
+		return false
+	if not bool(node.call("grant_title", title_id)):
+		return false
+	_push_stats(record)
+	if persistence != null:
+		persistence.save_player(record)
+	return true
 
 func _collect_loot(loot: Dictionary, player: Dictionary) -> void:
 	var loot_uid := int(loot["uid"])
@@ -2658,6 +2714,9 @@ func build_stats(record: Dictionary) -> Dictionary:
 		result["skills"] = skills.duplicate()
 		result["despair_until_tick"] = int(record.get("despair_until_tick", 0))
 		result["skill_points"] = HPRules.skill_points_available(int(record.get("level", 1)), skills)
+		var node = record.get("node")
+		if node != null and is_instance_valid(node) and "titles" in node:
+			result["titles"] = (node.get("titles") as Array).duplicate()
 
 	result.merge(equipment_snapshot(record))
 	return result
@@ -2981,6 +3040,15 @@ func publish_dungeon_state(map_id: String, state: Dictionary) -> void:
 ## loot on that map.
 func drop_loot_table(table_id: String, pos: Vector3, map_id: String) -> void:
 	var table: Dictionary = HPRules.loot_tables().get(table_id, {})
+	# A dungeon chest rolls once for every player in the copy (personal loot).
+	if HPMaps.instance_slot(map_id) > 0:
+		for uid in entities.keys():
+			var r: Dictionary = entities[uid]
+			if int(r.get("kind", 0)) != HPProtocol.Kind.PLAYER or String(r.get("map_id", "")) != map_id:
+				continue
+			for drop in HPRules.roll_loot(table, rng):
+				_spawn_loot_node(String(drop["id"]), int(drop["amount"]), pos, map_id, int(uid))
+		return
 	for drop in HPRules.roll_loot(table, rng):
 		_spawn_loot_node(String(drop["id"]), int(drop["amount"]), pos, map_id)
 

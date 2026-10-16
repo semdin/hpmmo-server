@@ -1,5 +1,5 @@
 {
-  "_comment": "Scripted dungeon runs. A run starts when the first player enters a copy of `map` and walks `steps` in order: each step waits for its trigger, then acts. Positions are local to the copy (the instance offset is added). Triggers: enter | cleared:<step id> (every creature that step spawned is dead) | area:<z_below> (a player stands deeper than local z). Actions: spawn (creatures, optional boss_key/template), open / close (gate ids), message (shown to the copy), chest (loot table at a point), complete. D1 adds: trigger hp_below:<step id>:<fraction> (a creature that step spawned is alive below that share of its hit points); a spawn entry may carry `harp` (local point; Fluffy's lullaby pedestal); `entries_per_day` caps new runs per character per server day.",
+  "_comment": "Scripted dungeon runs. A run starts when the first player enters a copy of `map` and walks `steps` in order: each step waits for its trigger, then acts. Positions are local to the copy (the instance offset is added). Triggers: enter | cleared:<step id> (every creature that step spawned is dead) | area:<z_below> (a player stands deeper than local z). Actions: spawn (creatures, optional boss_key/template), open / close (gate ids), message (shown to the copy), chest (loot table at a point), complete. D1 adds: trigger hp_below:<step id>:<fraction> (a creature that step spawned is alive below that share of its hit points); a spawn entry may carry `harp` (local point; Fluffy's lullaby pedestal); `entries_per_day` caps new runs per character per server day. Wipe: while a step's closed gates hold a living boss and no living player is past its area, the gates open (respawned players walk back; crossing again seals them). hazards: periodic shoves of every player inside a local z band while the run is between from_step and until_step. first_clear_title: granted to everyone in the copy when the run completes.",
   "dungeons": {
     "trial": {
       "map": "dng_trial",
@@ -377,6 +377,30 @@
               -224.0
             ]
           }
+        }
+      ],
+      "first_clear_title": {
+        "id": "fc_explorer",
+        "name": "Forbidden Corridor Explorer"
+      },
+      "hazards": [
+        {
+          "id": "breath",
+          "z": [
+            -160.0,
+            -140.0
+          ],
+          "push": [
+            0.0,
+            0.0,
+            11.0
+          ],
+          "lift": 2.5,
+          "every_s": 7.0,
+          "warn_s": 1.5,
+          "from_step": "cellar_done",
+          "until_step": "fluffy",
+          "message": "Fluffy's sleeping breath rolls down the stair - brace yourself!"
         }
       ]
     }

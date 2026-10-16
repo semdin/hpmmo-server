@@ -97,6 +97,10 @@ func _spawn_parts() -> void:
 		part.exp_reward = 0
 		part.position = _bone_position(part.bone_name)
 		get_parent().add_child(part)
+		# The part sits inside the body's own capsule: without the exception
+		# move_and_slide keeps pushing the body off its own heads/vines.
+		add_collision_exception_with(part)
+		part.add_collision_exception_with(self)
 		SimAuthority.register_mob(part, pack_id, "")
 		parts[String(key)] = part
 	if hp_is_sum:
@@ -148,7 +152,35 @@ func living_parts() -> Array:
 			out.append(parts[key])
 	return out
 
+## Walking home after a wipe (no living target left): once home, every part
+## stands again at full health, fainted chains lift, and the body is immune
+## again - the next attempt starts from the top.
+func _return_home(delta: float) -> void:
+	super(delta)
+	if state == State.IDLE and SimAuthority.is_authority() and not sim_puppet:
+		reset_parts()
+
+func reset_parts() -> void:
+	var touched := false
+	for part in parts.values():
+		if is_instance_valid(part) and (part.state == State.DEAD or part.current_hp < part.max_hp):
+			part.revive()
+			touched = true
+	if not touched and parts_down.is_empty():
+		return
+	parts_down.clear()
+	SimAuthority.clear_parts_down(self)
+	_apply_droop()
+	immune = true
+	SimAuthority.set_mob_immune(self, true)
+	if hp_is_sum and not parts.is_empty():
+		SimAuthority.set_mob_hp(self, max_hp, max_hp)
+	_on_reset()
+
 ## Subclass hooks.
+func _on_reset() -> void:
+	pass
+
 func _on_part_down(_key: String) -> void:
 	pass
 

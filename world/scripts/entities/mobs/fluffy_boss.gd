@@ -60,6 +60,18 @@ func _update_phase() -> void:
 		phase = next
 		dungeon_message.emit("Fluffy howls in fury!" if phase == 2 else "Fluffy is frenzied - the harp holds it only briefly!")
 
+func _on_reset() -> void:
+	phase = 1
+	_fight_time = 0.0
+	_harp_uid = 0
+	_harp_progress = 0.0
+	_harp_ready_at = 0.0
+	if is_enraged:
+		is_enraged = false
+		attack_power = _base_attack
+		move_speed = _base_speed
+		attack_cooldown = _base_cooldown
+
 func _on_part_down(key: String) -> void:
 	var side: String = {"L": "left", "M": "middle", "R": "right"}.get(key, key)
 	dungeon_message.emit("Fluffy's %s head slumps!" % side)

@@ -607,6 +607,21 @@ func _send_party_invite(uid: int, from_name: String) -> void:
 		return
 	sim_party_invite.rpc_id(peer, from_name)
 
+## v15: the authority shoved this player; the owner applies the same impulse
+## to its predicted body (the authority's copy already took it).
+func _send_push(uid: int, force: Vector3) -> void:
+	var peer := int(SimAuthority.record_by_uid(uid).get("peer_id", 0))
+	if peer == 0 or peer == local_peer_id or not has_peers():
+		return
+	sim_push.rpc_id(peer, force)
+
+@rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
+func sim_push(force: Vector3) -> void:
+	var record := SimAuthority.player_record(local_peer_id)
+	var node = record.get("node")
+	if node != null and is_instance_valid(node) and node.has_method("apply_knockback"):
+		node.call("apply_knockback", force)
+
 ## v14: the receiving player's party view (members, leader, live health).
 @rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
 func sim_party_state(state: Dictionary) -> void:
@@ -972,6 +987,7 @@ func bridge_authority() -> void:
 	SimAuthority.world_event.connect(broadcast_world_event)
 	SimAuthority.party_state.connect(_send_party_state)
 	SimAuthority.party_invited.connect(_send_party_invite)
+	SimAuthority.player_pushed.connect(_send_push)
 	SimAuthority.dungeon_state.connect(_send_dungeon_state)
 	SimAuthority.maintenance_event.connect(broadcast_maintenance)
 	SimAuthority.transfer_granted.connect(broadcast_transfer_granted)
@@ -1016,6 +1032,8 @@ func _broadcast_snapshots() -> void:
 			if String(loot.get("map_id", HPProtocol.DEFAULT_MAP)) != String(record.get("map_id", HPProtocol.DEFAULT_MAP)):
 				continue   # loot on another map is not this client's to see
 			if (loot["pos"] as Vector3).distance_to(center) > HPProtocol.INTEREST_RADIUS:
+				continue
+			if not SimAuthority.loot_visible_to(loot, record):
 				continue
 			current[int(uid)] = true
 			if not known.has(int(uid)):
@@ -1090,6 +1108,8 @@ func broadcast_loot(uid: int, item_id: String, amount: int, pos: Vector3) -> voi
 		var record := SimAuthority.player_record(peer_id)
 		if record.is_empty() or String(record.get("map_id", HPProtocol.DEFAULT_MAP)) != loot_map:
 			continue
+		if not SimAuthority.loot_visible_to(SimAuthority.entities.get(uid, {}), record):
+			continue   # personal loot (v15): its owner's only
 		sim_loot_event.rpc_id(peer_id, uid, item_id, amount, pos)
 
 func broadcast_loot_taken(uid: int, character_id: int, item_id: String, amount: int, collector_peer_id: int = 0) -> void:

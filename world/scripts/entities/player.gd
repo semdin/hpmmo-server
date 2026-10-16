@@ -86,6 +86,14 @@ var quest_done: Array = []
 ## spell is level 1, 10 is Master). Written by the authority, saved inside the
 ## `quests` object as `skills`; unspent points are derived, never stored.
 var skill_levels: Dictionary = {}
+## Titles earned (dungeons.json first_clear_title ids, `quests.titles`); the
+## newest is shown above the name.
+var titles: Array = []
+const TITLE_NAMES := {"fc_explorer": "Forbidden Corridor Explorer"}
+## An authority shove (knockback, a pixie's lift, Fluffy's breath): a velocity
+## of its own that rides on top of the input-driven one and fades out.
+var _shove := Vector3.ZERO
+const SHOVE_DECAY := 26.0
 var skill_points: int = 0
 ## The persisted `quests` object, kept whole so keys this build does not know
 ## survive a load/save round trip.
@@ -513,6 +521,7 @@ func _apply_house_customization() -> void:
 ## billboarded, outlined and drawn over the world so hair and hats never cut
 ## them; the local player's name is a soft gold, everyone else's is white.
 var _nameplate_sub: Label3D = null
+var _nameplate_title: Label3D = null
 
 func _update_nameplate() -> void:
 	if nameplate == null:
@@ -555,6 +564,28 @@ func _update_nameplate() -> void:
 		_nameplate_sub.font = font
 	WorldLabels.track(nameplate, 20.0)
 	WorldLabels.track(_nameplate_sub, 14.0)
+	# The newest title rides above the name.
+	var title := String(TITLE_NAMES.get(titles[-1], titles[-1])) if not titles.is_empty() else ""
+	if title != "" and _nameplate_title == null:
+		_nameplate_title = Label3D.new()
+		_nameplate_title.name = "NameplateTitle"
+		_nameplate_title.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		_nameplate_title.double_sided = false
+		_nameplate_title.no_depth_test = true
+		_nameplate_title.render_priority = 5
+		_nameplate_title.outline_render_priority = 4
+		_nameplate_title.font_size = 28
+		_nameplate_title.outline_size = 8
+		_nameplate_title.pixel_size = 0.0034
+		_nameplate_title.outline_modulate = Color(0.04, 0.03, 0.02, 0.85)
+		_nameplate_title.modulate = Color(1.0, 0.8, 0.42)
+		_nameplate_title.position = Vector3(0, 0.15, 0)
+		if font != null:
+			_nameplate_title.font = font
+		nameplate.add_child(_nameplate_title)
+		WorldLabels.track(_nameplate_title, 14.0)
+	if _nameplate_title != null:
+		_nameplate_title.text = "« %s »" % title if title != "" else ""
 
 func _init_starter_inventory() -> void:
 	inventory.clear()
@@ -853,7 +884,15 @@ func _physics_process(delta: float) -> void:
 	else:
 		_slide_speed = 0.0
 	_step_up()
+	var shoved := _shove != Vector3.ZERO
+	if shoved:
+		velocity.x += _shove.x
+		velocity.z += _shove.z
 	move_and_slide()
+	if shoved:
+		velocity.x -= _shove.x
+		velocity.z -= _shove.z
+		_shove = _shove.move_toward(Vector3.ZERO, SHOVE_DECAY * delta)
 	_record_steep_contact()
 	if is_local_player and not sim_server_controlled:
 		var planar_speed := Vector2(velocity.x, velocity.z).length()
@@ -1428,6 +1467,7 @@ func restore_quest_state(quests: Variant) -> void:
 	quest_active = clampi(int(_quest_state.get("active", 0)), 0, HPRules.quest_chain().size())
 	quest_progress = maxi(0, int(_quest_state.get("progress", 0)))
 	skill_levels = HPRules.clean_skill_levels(_quest_state.get("skills", {}))
+	titles = (_quest_state.get("titles", []) as Array).duplicate() if _quest_state.get("titles") is Array else []
 	skill_points = HPRules.skill_points_available(level, skill_levels)
 	quest_done = []
 	if _quest_state.get("done") is Array:
@@ -1448,6 +1488,7 @@ func persisted_quests() -> Dictionary:
 	out["progress"] = quest_progress
 	out["done"] = quest_done.duplicate()
 	out["skills"] = skill_levels.duplicate()
+	out["titles"] = titles.duplicate()
 	return out
 
 ## Dungeon runs started today (`quests.dungeons`, authority-written).
@@ -1459,6 +1500,24 @@ func record_dungeon_entry(dungeon_id: String, day: String) -> void:
 	var all: Dictionary = _quest_state.get("dungeons", {})
 	all[dungeon_id] = {"day": day, "entries": dungeon_entries_on(dungeon_id, day) + 1}
 	_quest_state["dungeons"] = all
+
+## A shove from the authority (its own copy and, via sim_push, the owner's
+## prediction): horizontal as a fading extra velocity, vertical as a hop.
+func apply_knockback(force: Vector3) -> void:
+	if is_dead or is_mounted:
+		return
+	_shove += Vector3(force.x, 0.0, force.z)
+	if force.y > 0.0:
+		velocity.y = maxf(velocity.y, force.y)
+
+## A title; true when it is new.
+func grant_title(title_id: String) -> bool:
+	if titles.has(title_id):
+		return false
+	titles.append(title_id)
+	_quest_state["titles"] = titles.duplicate()
+	_update_nameplate()
+	return true
 
 ## This body's trained level of a spell (1 when untrained or not trainable).
 func skill_level(spell_id: String) -> int:
@@ -2006,6 +2065,13 @@ func apply_authoritative_stats(stats: Dictionary) -> void:
 	house_rep = int(stats.get("house_rep", house_rep))
 	quest_active = int(stats.get("quest_active", quest_active))
 	quest_progress = int(stats.get("quest_progress", quest_progress))
+	if stats.get("titles") is Array and stats["titles"] != titles:
+		var fresh: Array = (stats["titles"] as Array).filter(func(t): return not titles.has(t))
+		titles = (stats["titles"] as Array).duplicate()
+		_update_nameplate()
+		if is_local_player and _skills_seen:
+			for t in fresh:
+				_spawn_floating_text("New title: %s" % TITLE_NAMES.get(t, t), Color(1.0, 0.82, 0.4), 1.6)
 	if stats.get("skills") is Dictionary:
 		var trained := HPRules.clean_skill_levels(stats["skills"])
 		if is_local_player and _skills_seen:

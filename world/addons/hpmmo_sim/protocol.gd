@@ -53,7 +53,13 @@ class_name HPProtocol
 ##     `sim_party_invite(from_name)` answer the members.
 ##     Instanced maps travel as `<base>#<slot>` map ids; `sim_dungeon_state`
 ##     carries a copy's run state (step, open gates, message).
-const PROTOCOL_VERSION := 14
+## v15: the Forbidden Corridor - mob variants 7-13 (pixie, armours, Devil's
+##     Snare and its vines, Fluffy and its heads); mob info carries
+##     `parts_down`; `sim_push(force)` (reliable) gives the owning client the
+##     impulse the authority shoved its body with; loot may carry an owner
+##     (personal dungeon loot: sent to and taken by that player only); the
+##     stats payload carries `titles`.
+const PROTOCOL_VERSION := 15
 
 ## Per-hit presentation bits carried by `sim_damage_event` / `entity_hit`.
 const HIT_CRIT := 1
@@ -117,6 +123,8 @@ const REJECT_HOUSE_RANK := "house_rank"
 ## The spell needs a higher character level (spells.json `requires_level`).
 const REJECT_LEVEL := "level_too_low"
 const REJECT_DAILY_LIMIT := "daily_limit"
+## v15: personal loot (dungeons) belongs to one player.
+const REJECT_NOT_OWNER := "not_yours"
 ## Skill training: no unspent point, the skill is already Master, or the spell
 ## cannot be trained.
 const REJECT_NO_SKILL_POINTS := "no_skill_points"

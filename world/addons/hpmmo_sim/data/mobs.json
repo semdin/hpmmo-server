@@ -200,7 +200,23 @@
         "stun": -0.3,
         "force": -0.3
       },
-      "loot_table": ""
+      "loot_table": "",
+      "abilities": [
+        {
+          "id": "lift",
+          "kind": "area",
+          "at_target": true,
+          "clip": "Swing",
+          "anticipation": 0.7,
+          "recovery": 0.6,
+          "radius": 1.8,
+          "damage_multiplier": 0.6,
+          "every": 3,
+          "push": 3.0,
+          "lift": 7.5,
+          "spell_id": "pixie_lift"
+        }
+      ]
     },
     "armour_guard": {
       "display": "Enchanted Armour",
@@ -392,6 +408,6 @@
     ]
   },
   "_exp_note": "exp_mult scales the level-based pack experience for creatures that are slower to kill than their level suggests (trolls, dementors).",
-  "_abilities_note": "abilities: telegraphed patterns an ordinary creature mixes in (`every` N attacks) or throws at a target out of reach (`min_range`/`max_range` + `cooldown`). at_target centres the area on the target; despair_s stops the victim's regeneration; drain heals the attacker by that share of the damage. aura: while fighting, players within `radius` take attack_power x damage_ratio per regeneration beat and despair.",
+  "_abilities_note": "abilities: telegraphed patterns an ordinary creature mixes in (`every` N attacks) or throws at a target out of reach (`min_range`/`max_range` + `cooldown`). at_target centres the area on the target; despair_s stops the victim's regeneration; drain heals the attacker by that share of the damage. aura: while fighting, players within `radius` take attack_power x damage_ratio per regeneration beat and despair. push/lift: shove each victim (m/s away from the attacker, and up) - the pixie's lift.",
   "_parts_note": "D1 multi-part creatures: `parts` names the bones a body grows targetable parts on (their species and hit points come from the part's own entry and boss_overrides part_hp). The body is immune while any part stands. `front_guard`: share of a blow from in front (~60 degrees) that a shield-bearer ignores."
 }

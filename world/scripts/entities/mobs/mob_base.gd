@@ -1047,11 +1047,22 @@ func _resolve_attack(plan: Dictionary) -> void:
 ## victim, and a drain that heals the attacker by a share of what it dealt.
 func _apply_riders(plan: Dictionary, hits: Array) -> void:
 	var despair := float(plan.get("despair_s", 0.0))
+	var push := float(plan.get("push", 0.0))
+	var lift := float(plan.get("lift", 0.0))
 	var dealt := 0
 	for hit in hits:
 		dealt += int((hit as Dictionary).get("amount", 0))
 		if despair > 0.0:
 			SimAuthority.apply_despair(int((hit as Dictionary).get("uid", 0)), despair)
+		# A shove: away from the attacker, and up (the pixie's lift).
+		if push > 0.0 or lift > 0.0:
+			var victim := SimAuthority.record_by_uid(int((hit as Dictionary).get("uid", 0)))
+			var vnode = victim.get("node")
+			if vnode is Node3D and is_instance_valid(vnode):
+				var away := (vnode as Node3D).global_position - global_position
+				away.y = 0.0
+				away = away.normalized() * push if away.length_squared() > 0.0001 else Vector3.ZERO
+				SimAuthority.push_player(victim, away + Vector3.UP * lift)
 	if dealt > 0 and float(plan.get("drain", 0.0)) > 0.0:
 		SimAuthority.heal_mob(self, int(dealt * float(plan.get("drain", 0.0))))
 		current_hp = int(SimAuthority.record_for(self).get("hp", current_hp))

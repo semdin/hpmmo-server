@@ -33,7 +33,7 @@ func open_run(map_id: String) -> void:
 	if def.is_empty() or runs.has(map_id):
 		return
 	runs[map_id] = {"def": def, "step": 0, "spawned": {}, "open": {}, "message": "",
-		"complete": false, "origin": HPMaps.instance_origin(map_id)}
+		"complete": false, "origin": HPMaps.instance_origin(map_id), "done": {}, "lock": {}, "hazard_t": {}}
 	print("[Dungeon] run '%s' opened in %s" % [def.get("id", "?"), map_id])
 	advance(map_id)
 
@@ -55,6 +55,88 @@ func _process(delta: float) -> void:
 	_timer = TICK
 	for map_id in runs.keys():
 		advance(map_id)
+		var run: Dictionary = runs.get(map_id, {})
+		if not run.is_empty():
+			_tick_lock(map_id, run)
+			_tick_hazards(map_id, run, TICK)
+
+## The living players in a copy (records with a body).
+func _players(map_id: String, alive_only: bool = true) -> Array:
+	var out: Array = []
+	for uid in SimAuthority.entities.keys():
+		var record: Dictionary = SimAuthority.entities[uid]
+		if int(record.get("kind", 0)) != HPProtocol.Kind.PLAYER or String(record.get("map_id", "")) != map_id:
+			continue
+		if alive_only and bool(record.get("dead", false)):
+			continue
+		var node = record.get("node")
+		if node is Node3D and is_instance_valid(node):
+			out.append(record)
+	return out
+
+## Wipe and retry: a boss step that shut gates behind the party holds them shut
+## only while somebody alive stands past its trigger. When nobody does (the
+## party died and respawned at the entrance, or walked out) the gates open so
+## the way back is free - cleared rooms stay cleared, the boss has gone home
+## and reset - and crossing the trigger line again seals them once more.
+func _tick_lock(map_id: String, run: Dictionary) -> void:
+	var lock: Dictionary = run["lock"]
+	if lock.is_empty():
+		return
+	var bosses: Array = (run["spawned"] as Dictionary).get(String(lock["step"]), [])
+	var alive := bosses.any(func(m): return is_instance_valid(m) and m.state != m.State.DEAD)
+	if not alive:
+		run["lock"] = {}
+		return
+	var origin: Vector3 = run["origin"]
+	var inside := false
+	for record in _players(map_id):
+		if ((record["node"] as Node3D).global_position.z - origin.z) < float(lock["z"]):
+			inside = true
+			break
+	if inside == bool(lock["sealed"]):
+		return
+	lock["sealed"] = inside
+	for gate in lock["gates"]:
+		if inside:
+			run["open"].erase(String(gate))
+		else:
+			run["open"][String(gate)] = true
+	run["message"] = String(lock["message"]) if inside else "The way back is open. Regroup and try again."
+	_publish(map_id, run)
+
+## dungeons.json `hazards`: a periodic shove of every player inside a band of
+## the copy (Fluffy's breath down the stair), between two steps of the run.
+func _tick_hazards(map_id: String, run: Dictionary, dt: float) -> void:
+	var origin: Vector3 = run["origin"]
+	for hazard in run["def"].get("hazards", []):
+		var h: Dictionary = hazard
+		var id := String(h.get("id", ""))
+		var done: Dictionary = run["done"]
+		if not done.has(String(h.get("from_step", ""))) or done.has(String(h.get("until_step", ""))):
+			continue
+		var t := float(run["hazard_t"].get(id, 0.0)) + dt
+		var every := float(h.get("every_s", 6.0))
+		var warn := float(h.get("warn_s", 1.0))
+		var band: Array = h.get("z", [0.0, 0.0])
+		var victims: Array = []
+		for record in _players(map_id):
+			var z: float = (record["node"] as Node3D).global_position.z - origin.z
+			if z >= float(band[0]) and z <= float(band[1]):
+				victims.append(record)
+		if victims.is_empty():
+			run["hazard_t"][id] = 0.0
+			continue
+		if t >= every - warn and t - dt < every - warn and h.has("message"):
+			run["message"] = String(h["message"])
+			_publish(map_id, run)
+		if t >= every:
+			t = 0.0
+			var p: Array = h.get("push", [0, 0, 0])
+			var force := Vector3(float(p[0]), float(h.get("lift", 0.0)), float(p[2]))
+			for record in victims:
+				SimAuthority.push_player(record, force)
+		run["hazard_t"][id] = t
 
 ## Walk the run as far as its triggers allow.
 func advance(map_id: String) -> void:
@@ -132,7 +214,23 @@ func _act(map_id: String, run: Dictionary, step: Dictionary) -> void:
 		SimAuthority.drop_loot_table(String(chest.get("table", "")), origin + _vec(chest.get("at", [])), map_id)
 	if bool(step.get("complete", false)):
 		run["complete"] = true
+		_grant_title(map_id, run)
+	run["done"][id] = true
+	# A boss behind shut gates: remembered so a wipe can reopen them.
+	var on := String(step.get("on", ""))
+	if not (step.get("close", []) as Array).is_empty() and on.begins_with("area:"):
+		run["lock"] = {"step": id, "gates": (step["close"] as Array).duplicate(), "z": float(on.substr(5)),
+			"sealed": true, "message": String(step.get("message", ""))}
 	print("[Dungeon] %s step '%s'" % [map_id, id])
+
+## dungeons.json first_clear_title: everyone in the copy when the run completes.
+func _grant_title(map_id: String, run: Dictionary) -> void:
+	var title: Dictionary = run["def"].get("first_clear_title", {})
+	if title.is_empty():
+		return
+	for record in _players(map_id, false):
+		if SimAuthority.grant_title(record, String(title.get("id", ""))):
+			SimNet._tell(record, "New title earned: %s!" % String(title.get("name", "")))
 
 func _spawn(map_id: String, entry: Dictionary, origin: Vector3, pack_id: int) -> Node3D:
 	var species := String(entry.get("mob", ""))
