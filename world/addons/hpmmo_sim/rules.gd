@@ -981,6 +981,14 @@ static func monolith_loot(rng: RandomNumberGenerator) -> Array:
 	ensure_loaded()
 	return roll_loot(_loot.get("monolith", {}), rng)
 
+## Respawn delay for one authored encounter: its own `respawn_s` [min, max]
+## (world bosses come back on a long timer) or the shared table.
+static func encounter_respawn_ms(entry: Dictionary, is_boss: bool, rng: RandomNumberGenerator) -> int:
+	var own: Array = entry.get("respawn_s", [])
+	if own.size() == 2 and OS.get_environment("HPMMO_DEV_FAST_RESPAWN") == "":
+		return rng.randi_range(int(float(own[0]) * 1000.0), int(float(own[1]) * 1000.0))
+	return respawn_delay_ms(is_boss, rng, true)
+
 static func respawn_delay_ms(is_boss: bool, rng: RandomNumberGenerator, pack: bool = false) -> int:
 	ensure_loaded()
 	# Test affordance (never set in production): compresses respawn timers so the

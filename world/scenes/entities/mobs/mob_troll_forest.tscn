@@ -1,0 +1,58 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/entities/mobs/mob_base.gd" id="1_mb"]
+[ext_resource type="PackedScene" path="res://assets/models/monsters/troll_forest.glb" id="2_body"]
+[ext_resource type="PackedScene" path="res://assets/models/monsters/troll_forest.glb" id="3_boss"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
+radius = 0.9
+height = 3.8
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_boss"]
+radius = 1.1
+height = 4.6
+
+[node name="MobTrollForest" type="CharacterBody3D" groups=["mobs", "targetable"]]
+collision_layer = 2
+collision_mask = 7
+script = ExtResource("1_mb")
+mob_name = "Forest Troll"
+level = 16
+max_hp = 900
+attack_power = 70
+move_speed = 3.2
+aggro_radius = 11.0
+attack_range = 3.8
+attack_cooldown = 2.6
+anim_set = "troll"
+voice_set = "inferi"
+walk_speed = 0.898
+attack_anticipation = 1.1
+attack_recovery = 0.8
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.9, 0)
+shape = SubResource("CapsuleShape3D_1")
+
+[node name="CollisionShape3DBoss" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.3, 0)
+shape = SubResource("CapsuleShape3D_boss")
+disabled = true
+
+[node name="Visuals" type="Node3D" parent="."]
+
+[node name="NormalVariant" parent="Visuals" instance=ExtResource("2_body")]
+
+[node name="BossVariant" parent="Visuals" instance=ExtResource("3_boss")]
+transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0, 0, 0)
+visible = false
+
+[node name="Label3D" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, 0)
+billboard = 1
+double_sided = false
+text = "[Lv.16] Forest Troll
+900 / 900"
+font_size = 32
+outline_size = 8
+outline_modulate = Color(0, 0, 0, 1)

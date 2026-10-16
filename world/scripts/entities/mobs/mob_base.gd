@@ -71,6 +71,11 @@ signal died(mob: Node3D)
 @export var is_elite := false
 @export var resist: Dictionary = {}
 @export var loot_table := ""
+## Ordinary attack timing for heavy creatures (0 = the MELEE_/RANGED_
+## defaults). The anticipation/attack clips are time-stretched to fit, so a
+## troll's 1.5 s authored windup lands exactly on the server's release.
+@export var attack_anticipation := 0.0
+@export var attack_recovery := 0.0
 
 var managed_respawn := false
 var summoned := false
@@ -131,6 +136,14 @@ const ANIM_SETS := {
 	"wizard": {"idle": "Idle", "walk": "Walk", "run": "Walk", "turn": "Walk",
 		"anticipation": "Cast_Directional_Anticipation", "attack": "Cast_Directional_Attack",
 		"hit": "Hit", "stun": "Stun", "death": "Death"},
+	# Meshy-rigged trolls (art/pipeline/scripts/meshy_merge_clips.py).
+	"troll": {"idle": "Idle", "walk": "Walk", "run": "Run", "turn": "Walk",
+		"anticipation": "Swing_Anticipation", "attack": "Swing_Attack", "hit": "Hit",
+		"stun": "Hit", "death": "Death"},
+	# Floating wraiths (art/pipeline/scripts/wraith_rig.py).
+	"wraith": {"idle": "Idle", "walk": "Float", "run": "Float", "turn": "Float",
+		"anticipation": "Reach_Anticipation", "attack": "Reach_Attack", "hit": "Hit",
+		"stun": "Stun", "death": "Death"},
 	"generic": {"idle": "Idle", "walk": "Walking_A", "run": "Running_A", "turn": "Running_A",
 		"anticipation": "1H_Melee_Attack_Chop", "attack": "1H_Melee_Attack_Chop",
 		"hit": "Hit_A", "stun": "Hit_A", "death": "Death_A"},
@@ -214,7 +227,7 @@ func _apply_boss_visual() -> void:
 		for animation in anim_player.get_animation_list():
 			var clip := anim_player.get_animation(animation)
 			clip.loop_mode = Animation.LOOP_LINEAR if animation in ["Idle", "Walk", "Run", "Walking_A",
-				"Running_A", "Stun", "Stun_Loop"] else Animation.LOOP_NONE
+				"Running_A", "Stun", "Stun_Loop", "Float"] else Animation.LOOP_NONE
 
 ## LOD switch for bodies whose GLB ships a second skinned mesh (Creature pass
 ## creatures). Ordinary mobs use LOD1 only (art-direction §4).
@@ -272,9 +285,20 @@ func _play_slot(slot: String, blend: float = 0.18) -> void:
 		return
 	if slot in ["walk", "run"]:
 		_update_anim_speed()
+	else:
+		# The walk-cycle scale must not leak into attacks and reactions.
+		anim_player.speed_scale = 1.0
 	var clip := _clip_for(slot)
 	if anim_player.has_animation(clip) and (anim_player.current_animation != clip or not anim_player.is_playing()):
-		anim_player.play(clip, blend)
+		anim_player.play(clip, blend, _phase_speed(slot, clip))
+
+## Time-stretch for an attack phase clip so it spans the authored phase
+## (attack_anticipation / attack_recovery); 1.0 for everything else.
+func _phase_speed(slot: String, clip: String) -> float:
+	var span := attack_anticipation if slot == "anticipation" else (attack_recovery if slot == "attack" else 0.0)
+	if span <= 0.0 or not anim_player.has_animation(clip):
+		return 1.0
+	return clampf(anim_player.get_animation(clip).length / span, 0.4, 3.0)
 
 ## Attack clips: a boss pattern names its clip pair in data ("Slam" ->
 ## Slam_Anticipation / Slam_Attack, "Cast_Area" -> Cast_Area_Anticipation / ...),
@@ -319,7 +343,32 @@ func _update_label() -> void:
 
 # ---------------------------------------------------------------- main tick
 
+## Presentation LOD: a body far from the camera stops drawing and stops
+## posing its skeleton. Offline play runs every pack on the map in this
+## process (~170 skinned creatures), so this is what keeps an integrated GPU
+## and its CPU out of the animation bill. AI, timers and the authority are
+## untouched; the dedicated server draws nothing and never gets here.
+const VISUAL_RANGE := 120.0
+var _lod_timer := 0.0
+var _visual_dormant := false
+
+func _tick_visual_lod(delta: float) -> void:
+	_lod_timer -= delta
+	if _lod_timer > 0.0:
+		return
+	_lod_timer = 0.5 + randf() * 0.1
+	var cam := get_viewport().get_camera_3d()
+	var dormant := cam != null and cam.global_position.distance_to(global_position) > VISUAL_RANGE
+	if dormant == _visual_dormant:
+		return
+	_visual_dormant = dormant
+	visuals.visible = not dormant
+	if is_instance_valid(anim_player):
+		anim_player.active = not dormant
+
 func _physics_process(delta: float) -> void:
+	if not NetworkManager.is_dedicated_server:
+		_tick_visual_lod(delta)
 	# Client view of a server-owned mob: no AI, no damage, no physics authority -
 	# only interpolation towards the last replicated sample, presentation from
 	# the replicated state byte, and the boss warning drawn from the server's
@@ -501,9 +550,11 @@ func _choose_plan() -> Dictionary:
 			pattern["telegraph"] = true
 			return pattern
 		return {"kind": "melee", "anticipation": 1.1, "recovery": 0.9, "telegraph": true}
+	var anticipation := RANGED_ANTICIPATION if is_ranged else MELEE_ANTICIPATION
+	var recovery := RANGED_RECOVERY if is_ranged else MELEE_RECOVERY
 	return {"kind": "ranged" if is_ranged else "melee",
-		"anticipation": RANGED_ANTICIPATION if is_ranged else MELEE_ANTICIPATION,
-		"recovery": RANGED_RECOVERY if is_ranged else MELEE_RECOVERY}
+		"anticipation": attack_anticipation if attack_anticipation > 0.0 else anticipation,
+		"recovery": attack_recovery if attack_recovery > 0.0 else recovery}
 
 func _direction_to_target() -> Vector3:
 	if not is_instance_valid(target_player):
@@ -1003,6 +1054,9 @@ func _respawn() -> void:
 	knockback_velocity = Vector3.ZERO
 	velocity = Vector3.ZERO
 	attack_timer = 1
+	# A fresh idle beat, like _ready: an expired timer from the previous life
+	# would send the body wandering on its first frame back.
+	wander_timer = randf_range(1, 4)
 	_pattern_index = 0
 	_cancel_attack()
 	_corpse_time = 0

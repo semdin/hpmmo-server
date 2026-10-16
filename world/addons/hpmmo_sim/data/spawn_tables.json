@@ -38,6 +38,26 @@
       "arena_radius": 16.0,
       "leash_distance": 40.0,
       "attack_style": "wizard"
+    },
+    "boss_troll": {
+      "pack_size": 1,
+      "max_alive": 1,
+      "boss": true,
+      "escorts": 0,
+      "respawn": "boss",
+      "arena_radius": 22.0,
+      "leash_distance": 45.0,
+      "attack_style": "troll"
+    },
+    "boss_wraith": {
+      "pack_size": 1,
+      "max_alive": 1,
+      "boss": true,
+      "escorts": 0,
+      "respawn": "boss",
+      "arena_radius": 22.0,
+      "leash_distance": 45.0,
+      "attack_style": "wraith"
     }
   },
   "_pattern_note": "Boss attack patterns (Creature pass): anticipation -> release -> recovery. `anticipation` and `recovery` are seconds; the authority converts them to ticks and publishes the release tick with the telegraph, so the client-rendered warning is driven by the same clock that lands the damage.",
@@ -77,6 +97,44 @@
         "anticipation": 1.2,
         "recovery": 1.7,
         "radius": 6.0,
+        "damage_multiplier": 1.6
+      }
+    ],
+    "troll": [
+      {
+        "kind": "directional",
+        "clip": "Swing",
+        "anticipation": 1.4,
+        "recovery": 1.2,
+        "range": 7.0,
+        "half_angle": 0.75,
+        "damage_multiplier": 1.3
+      },
+      {
+        "kind": "area",
+        "clip": "Slam",
+        "anticipation": 1.6,
+        "recovery": 1.6,
+        "radius": 7.5,
+        "damage_multiplier": 1.8
+      }
+    ],
+    "wraith": [
+      {
+        "kind": "directional",
+        "clip": "Reach",
+        "anticipation": 1.0,
+        "recovery": 1.0,
+        "range": 8.0,
+        "half_angle": 0.5,
+        "damage_multiplier": 1.25
+      },
+      {
+        "kind": "area",
+        "clip": "Cast_Area",
+        "anticipation": 1.5,
+        "recovery": 1.4,
+        "radius": 8.5,
         "damage_multiplier": 1.6
       }
     ]
@@ -247,6 +305,424 @@
         28.0,
         28.0
       ]
+    },
+    {
+      "id": "troll_hollow",
+      "display": "Troll Hollow",
+      "level_min": 14,
+      "level_max": 20,
+      "center": [
+        -800.0,
+        720.0
+      ],
+      "radius": 40.0,
+      "weight": 1.0,
+      "pack_count": 2,
+      "spawn_area": [
+        -824.0,
+        696.0,
+        48.0,
+        48.0
+      ]
+    },
+    {
+      "id": "highland_moor",
+      "display": "Highland Moor",
+      "level_min": 30,
+      "level_max": 36,
+      "center": [
+        60.0,
+        -760.0
+      ],
+      "radius": 45.0,
+      "weight": 1.0,
+      "pack_count": 2,
+      "spawn_area": [
+        33.0,
+        -787.0,
+        54.0,
+        54.0
+      ]
+    },
+    {
+      "id": "misty_shore",
+      "display": "Misty Shore",
+      "level_min": 40,
+      "level_max": 46,
+      "center": [
+        840.0,
+        520.0
+      ],
+      "radius": 40.0,
+      "weight": 1.0,
+      "pack_count": 2,
+      "spawn_area": [
+        816.0,
+        496.0,
+        48.0,
+        48.0
+      ]
+    },
+    {
+      "id": "greenhouse_meadow",
+      "display": "Greenhouse Meadow",
+      "level_min": 2,
+      "level_max": 6,
+      "center": [
+        -230.0,
+        -230.0
+      ],
+      "radius": 35.0,
+      "weight": 1.0,
+      "pack_count": 2,
+      "spawn_area": [
+        -251.0,
+        -251.0,
+        42.0,
+        42.0
+      ]
+    },
+    {
+      "id": "pitch_outskirts",
+      "display": "Pitch Outskirts",
+      "level_min": 2,
+      "level_max": 6,
+      "center": [
+        150.0,
+        -260.0
+      ],
+      "radius": 35.0,
+      "weight": 1.0,
+      "pack_count": 2,
+      "spawn_area": [
+        129.0,
+        -281.0,
+        42.0,
+        42.0
+      ]
+    },
+    {
+      "id": "eastern_road",
+      "display": "Eastern Road",
+      "level_min": 5,
+      "level_max": 9,
+      "center": [
+        320.0,
+        -40.0
+      ],
+      "radius": 35.0,
+      "weight": 1.0,
+      "pack_count": 2,
+      "spawn_area": [
+        299.0,
+        -61.0,
+        42.0,
+        42.0
+      ]
+    },
+    {
+      "id": "hogsmeade_road",
+      "display": "Hogsmeade Road",
+      "level_min": 8,
+      "level_max": 12,
+      "center": [
+        470.0,
+        -300.0
+      ],
+      "radius": 40.0,
+      "weight": 1.0,
+      "pack_count": 2,
+      "spawn_area": [
+        446.0,
+        -324.0,
+        48.0,
+        48.0
+      ]
+    },
+    {
+      "id": "pitch_woods",
+      "display": "Pitch Woods",
+      "level_min": 10,
+      "level_max": 14,
+      "center": [
+        520.0,
+        -480.0
+      ],
+      "radius": 40.0,
+      "weight": 1.0,
+      "pack_count": 2,
+      "spawn_area": [
+        496.0,
+        -504.0,
+        48.0,
+        48.0
+      ]
+    },
+    {
+      "id": "lakeside_glade",
+      "display": "Lakeside Glade",
+      "level_min": 10,
+      "level_max": 14,
+      "center": [
+        -640.0,
+        160.0
+      ],
+      "radius": 35.0,
+      "weight": 1.0,
+      "pack_count": 2,
+      "spawn_area": [
+        -661.0,
+        139.0,
+        42.0,
+        42.0
+      ]
+    },
+    {
+      "id": "dark_thicket",
+      "display": "Dark Thicket",
+      "level_min": 14,
+      "level_max": 20,
+      "center": [
+        -900.0,
+        -120.0
+      ],
+      "radius": 40.0,
+      "weight": 1.0,
+      "pack_count": 2,
+      "spawn_area": [
+        -924.0,
+        -144.0,
+        48.0,
+        48.0
+      ]
+    },
+    {
+      "id": "spider_woods",
+      "display": "Spider Woods",
+      "level_min": 18,
+      "level_max": 24,
+      "center": [
+        -880.0,
+        330.0
+      ],
+      "radius": 40.0,
+      "weight": 1.0,
+      "pack_count": 2,
+      "spawn_area": [
+        -904.0,
+        306.0,
+        48.0,
+        48.0
+      ]
+    },
+    {
+      "id": "southern_barrows",
+      "display": "Southern Barrows",
+      "level_min": 18,
+      "level_max": 24,
+      "center": [
+        -430.0,
+        860.0
+      ],
+      "radius": 40.0,
+      "weight": 1.0,
+      "pack_count": 2,
+      "spawn_area": [
+        -454.0,
+        836.0,
+        48.0,
+        48.0
+      ]
+    },
+    {
+      "id": "ridge_path",
+      "display": "Ridge Path",
+      "level_min": 20,
+      "level_max": 26,
+      "center": [
+        -230.0,
+        -640.0
+      ],
+      "radius": 35.0,
+      "weight": 1.0,
+      "pack_count": 2,
+      "spawn_area": [
+        -251.0,
+        -661.0,
+        42.0,
+        42.0
+      ]
+    },
+    {
+      "id": "crypt_gate",
+      "display": "Crypt Gate",
+      "level_min": 22,
+      "level_max": 28,
+      "center": [
+        -820.0,
+        -330.0
+      ],
+      "radius": 35.0,
+      "weight": 1.0,
+      "pack_count": 2,
+      "spawn_area": [
+        -841.0,
+        -351.0,
+        42.0,
+        42.0
+      ]
+    },
+    {
+      "id": "western_moor",
+      "display": "Western Moor",
+      "level_min": 26,
+      "level_max": 32,
+      "center": [
+        -90.0,
+        -900.0
+      ],
+      "radius": 40.0,
+      "weight": 1.0,
+      "pack_count": 2,
+      "spawn_area": [
+        -114.0,
+        -924.0,
+        48.0,
+        48.0
+      ]
+    },
+    {
+      "id": "eastern_moor",
+      "display": "Eastern Moor",
+      "level_min": 32,
+      "level_max": 38,
+      "center": [
+        560.0,
+        -700.0
+      ],
+      "radius": 45.0,
+      "weight": 1.0,
+      "pack_count": 2,
+      "spawn_area": [
+        533.0,
+        -727.0,
+        54.0,
+        54.0
+      ]
+    },
+    {
+      "id": "hogsmeade_heights",
+      "display": "Hogsmeade Heights",
+      "level_min": 28,
+      "level_max": 34,
+      "center": [
+        880.0,
+        -380.0
+      ],
+      "radius": 35.0,
+      "weight": 1.0,
+      "pack_count": 2,
+      "spawn_area": [
+        859.0,
+        -401.0,
+        42.0,
+        42.0
+      ]
+    },
+    {
+      "id": "station_mist",
+      "display": "Station Mist",
+      "level_min": 40,
+      "level_max": 46,
+      "center": [
+        720.0,
+        380.0
+      ],
+      "radius": 35.0,
+      "weight": 1.0,
+      "pack_count": 2,
+      "spawn_area": [
+        699.0,
+        359.0,
+        42.0,
+        42.0
+      ]
+    },
+    {
+      "id": "fog_barrens",
+      "display": "Fog Barrens",
+      "level_min": 44,
+      "level_max": 50,
+      "center": [
+        180.0,
+        880.0
+      ],
+      "radius": 40.0,
+      "weight": 1.0,
+      "pack_count": 2,
+      "spawn_area": [
+        156.0,
+        856.0,
+        48.0,
+        48.0
+      ]
+    },
+    {
+      "id": "grey_marsh",
+      "display": "Grey Marsh",
+      "level_min": 46,
+      "level_max": 52,
+      "center": [
+        620.0,
+        830.0
+      ],
+      "radius": 40.0,
+      "weight": 1.0,
+      "pack_count": 2,
+      "spawn_area": [
+        596.0,
+        806.0,
+        48.0,
+        48.0
+      ]
+    },
+    {
+      "id": "stone_summit",
+      "display": "Stone Circle Summit",
+      "center": [
+        280.0,
+        -760.0
+      ],
+      "radius": 30.0,
+      "weight": 1.0,
+      "pack_count": 1,
+      "spawn_area": [
+        268.0,
+        -772.0,
+        24.0,
+        24.0
+      ],
+      "level_min": 38,
+      "level_max": 38
+    },
+    {
+      "id": "warden_barrow",
+      "display": "Warden's Barrow",
+      "center": [
+        880.0,
+        860.0
+      ],
+      "radius": 30.0,
+      "weight": 1.0,
+      "pack_count": 1,
+      "spawn_area": [
+        868.0,
+        848.0,
+        24.0,
+        24.0
+      ],
+      "level_min": 50,
+      "level_max": 50
     }
   ],
   "_encounters_note": "The authored encounter list. Only the first `pack_count` encounters assigned to each region are active; the rest are authored content that waits for a pack-count change (and are reported by the director, never silently ignored). `zones` (id + weight) makes the region choice weighted; without it the fixed `zone` field is used.",
@@ -417,6 +893,816 @@
       "assist_radius": 16.0,
       "leash_distance": 26.0,
       "_dormant": true
+    },
+    {
+      "id": 9,
+      "encounter_id": "enc_troll_hollow_forest_trolls",
+      "template": "pack_three",
+      "zone": "troll_hollow",
+      "area": [
+        -824.0,
+        696.0,
+        48.0,
+        48.0
+      ],
+      "mob": "troll_forest",
+      "level": 16,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "reactive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 10,
+      "encounter_id": "enc_highland_moor_mountain_trolls",
+      "template": "pack_three",
+      "zone": "highland_moor",
+      "area": [
+        33.0,
+        -787.0,
+        54.0,
+        54.0
+      ],
+      "mob": "troll_mountain",
+      "level": 33,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "reactive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 11,
+      "encounter_id": "enc_misty_shore_dementors",
+      "template": "pack_three",
+      "zone": "misty_shore",
+      "area": [
+        816.0,
+        496.0,
+        48.0,
+        48.0
+      ],
+      "mob": "dementor",
+      "level": 43,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "aggressive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 12,
+      "encounter_id": "enc_troll_hollow_troll_forest_12",
+      "template": "pack_three",
+      "zone": "troll_hollow",
+      "area": [
+        -792.0,
+        700.0,
+        24.0,
+        40.0
+      ],
+      "mob": "troll_forest",
+      "level": 18,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "reactive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 13,
+      "encounter_id": "enc_highland_moor_troll_mountain_13",
+      "template": "pack_three",
+      "zone": "highland_moor",
+      "area": [
+        69.0,
+        -782.5,
+        27.0,
+        45.0
+      ],
+      "mob": "troll_mountain",
+      "level": 35,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "reactive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 14,
+      "encounter_id": "enc_misty_shore_dementor_14",
+      "template": "pack_three",
+      "zone": "misty_shore",
+      "area": [
+        848.0,
+        500.0,
+        24.0,
+        40.0
+      ],
+      "mob": "dementor",
+      "level": 45,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "aggressive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 15,
+      "encounter_id": "enc_greenhouse_meadow_inferi_15",
+      "template": "pack_three",
+      "zone": "greenhouse_meadow",
+      "area": [
+        -258.0,
+        -247.5,
+        21.0,
+        35.0
+      ],
+      "mob": "inferi",
+      "level": 3,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "reactive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 16,
+      "encounter_id": "enc_greenhouse_meadow_acromantula_16",
+      "template": "pack_three",
+      "zone": "greenhouse_meadow",
+      "area": [
+        -223.0,
+        -247.5,
+        21.0,
+        35.0
+      ],
+      "mob": "acromantula",
+      "level": 5,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "reactive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 17,
+      "encounter_id": "enc_pitch_outskirts_acromantula_17",
+      "template": "pack_three",
+      "zone": "pitch_outskirts",
+      "area": [
+        122.0,
+        -277.5,
+        21.0,
+        35.0
+      ],
+      "mob": "acromantula",
+      "level": 3,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "reactive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 18,
+      "encounter_id": "enc_pitch_outskirts_inferi_18",
+      "template": "pack_three",
+      "zone": "pitch_outskirts",
+      "area": [
+        157.0,
+        -277.5,
+        21.0,
+        35.0
+      ],
+      "mob": "inferi",
+      "level": 5,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "reactive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 19,
+      "encounter_id": "enc_eastern_road_inferi_19",
+      "template": "pack_three",
+      "zone": "eastern_road",
+      "area": [
+        292.0,
+        -57.5,
+        21.0,
+        35.0
+      ],
+      "mob": "inferi",
+      "level": 6,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "reactive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 20,
+      "encounter_id": "enc_eastern_road_acromantula_20",
+      "template": "pack_three",
+      "zone": "eastern_road",
+      "area": [
+        327.0,
+        -57.5,
+        21.0,
+        35.0
+      ],
+      "mob": "acromantula",
+      "level": 8,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "reactive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 21,
+      "encounter_id": "enc_hogsmeade_road_darksnatcher_21",
+      "template": "pack_three",
+      "zone": "hogsmeade_road",
+      "area": [
+        438.0,
+        -320.0,
+        24.0,
+        40.0
+      ],
+      "mob": "darksnatcher",
+      "level": 9,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "reactive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 22,
+      "encounter_id": "enc_hogsmeade_road_darksnatcher_22",
+      "template": "pack_three",
+      "zone": "hogsmeade_road",
+      "area": [
+        478.0,
+        -320.0,
+        24.0,
+        40.0
+      ],
+      "mob": "darksnatcher",
+      "level": 11,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "reactive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 23,
+      "encounter_id": "enc_pitch_woods_acromantula_23",
+      "template": "pack_five",
+      "zone": "pitch_woods",
+      "area": [
+        488.0,
+        -500.0,
+        24.0,
+        40.0
+      ],
+      "mob": "acromantula",
+      "level": 11,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "reactive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 24,
+      "encounter_id": "enc_pitch_woods_acromantula_24",
+      "template": "pack_three",
+      "zone": "pitch_woods",
+      "area": [
+        528.0,
+        -500.0,
+        24.0,
+        40.0
+      ],
+      "mob": "acromantula",
+      "level": 13,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "reactive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 25,
+      "encounter_id": "enc_lakeside_glade_inferi_25",
+      "template": "pack_three",
+      "zone": "lakeside_glade",
+      "area": [
+        -668.0,
+        142.5,
+        21.0,
+        35.0
+      ],
+      "mob": "inferi",
+      "level": 11,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "reactive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 26,
+      "encounter_id": "enc_lakeside_glade_acromantula_26",
+      "template": "pack_three",
+      "zone": "lakeside_glade",
+      "area": [
+        -633.0,
+        142.5,
+        21.0,
+        35.0
+      ],
+      "mob": "acromantula",
+      "level": 13,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "reactive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 27,
+      "encounter_id": "enc_dark_thicket_darksnatcher_27",
+      "template": "pack_three",
+      "zone": "dark_thicket",
+      "area": [
+        -932.0,
+        -140.0,
+        24.0,
+        40.0
+      ],
+      "mob": "darksnatcher",
+      "level": 15,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "reactive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 28,
+      "encounter_id": "enc_dark_thicket_darksnatcher_28",
+      "template": "pack_five",
+      "zone": "dark_thicket",
+      "area": [
+        -892.0,
+        -140.0,
+        24.0,
+        40.0
+      ],
+      "mob": "darksnatcher",
+      "level": 18,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "reactive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 29,
+      "encounter_id": "enc_spider_woods_acromantula_29",
+      "template": "pack_five",
+      "zone": "spider_woods",
+      "area": [
+        -912.0,
+        310.0,
+        24.0,
+        40.0
+      ],
+      "mob": "acromantula",
+      "level": 19,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "reactive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 30,
+      "encounter_id": "enc_spider_woods_acromantula_30",
+      "template": "pack_three",
+      "zone": "spider_woods",
+      "area": [
+        -872.0,
+        310.0,
+        24.0,
+        40.0
+      ],
+      "mob": "acromantula",
+      "level": 22,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "reactive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 31,
+      "encounter_id": "enc_southern_barrows_inferi_31",
+      "template": "pack_five",
+      "zone": "southern_barrows",
+      "area": [
+        -462.0,
+        840.0,
+        24.0,
+        40.0
+      ],
+      "mob": "inferi",
+      "level": 20,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "reactive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 32,
+      "encounter_id": "enc_southern_barrows_inferi_32",
+      "template": "pack_three",
+      "zone": "southern_barrows",
+      "area": [
+        -422.0,
+        840.0,
+        24.0,
+        40.0
+      ],
+      "mob": "inferi",
+      "level": 23,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "reactive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 33,
+      "encounter_id": "enc_ridge_path_darksnatcher_33",
+      "template": "pack_three",
+      "zone": "ridge_path",
+      "area": [
+        -258.0,
+        -657.5,
+        21.0,
+        35.0
+      ],
+      "mob": "darksnatcher",
+      "level": 21,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "reactive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 34,
+      "encounter_id": "enc_ridge_path_darksnatcher_34",
+      "template": "pack_three",
+      "zone": "ridge_path",
+      "area": [
+        -223.0,
+        -657.5,
+        21.0,
+        35.0
+      ],
+      "mob": "darksnatcher",
+      "level": 24,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "reactive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 35,
+      "encounter_id": "enc_crypt_gate_inferi_35",
+      "template": "pack_five",
+      "zone": "crypt_gate",
+      "area": [
+        -848.0,
+        -347.5,
+        21.0,
+        35.0
+      ],
+      "mob": "inferi",
+      "level": 24,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "reactive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 36,
+      "encounter_id": "enc_crypt_gate_inferi_36",
+      "template": "pack_three",
+      "zone": "crypt_gate",
+      "area": [
+        -813.0,
+        -347.5,
+        21.0,
+        35.0
+      ],
+      "mob": "inferi",
+      "level": 27,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "reactive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 37,
+      "encounter_id": "enc_western_moor_troll_forest_37",
+      "template": "pack_three",
+      "zone": "western_moor",
+      "area": [
+        -122.0,
+        -920.0,
+        24.0,
+        40.0
+      ],
+      "mob": "troll_forest",
+      "level": 27,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "aggressive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 38,
+      "encounter_id": "enc_western_moor_troll_forest_38",
+      "template": "pack_three",
+      "zone": "western_moor",
+      "area": [
+        -82.0,
+        -920.0,
+        24.0,
+        40.0
+      ],
+      "mob": "troll_forest",
+      "level": 30,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "aggressive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 39,
+      "encounter_id": "enc_eastern_moor_troll_mountain_39",
+      "template": "pack_three",
+      "zone": "eastern_moor",
+      "area": [
+        524.0,
+        -722.5,
+        27.0,
+        45.0
+      ],
+      "mob": "troll_mountain",
+      "level": 34,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "aggressive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 40,
+      "encounter_id": "enc_eastern_moor_darksnatcher_40",
+      "template": "pack_five",
+      "zone": "eastern_moor",
+      "area": [
+        569.0,
+        -722.5,
+        27.0,
+        45.0
+      ],
+      "mob": "darksnatcher",
+      "level": 36,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 41,
+      "encounter_id": "enc_hogsmeade_heights_darksnatcher_41",
+      "template": "pack_five",
+      "zone": "hogsmeade_heights",
+      "area": [
+        852.0,
+        -397.5,
+        21.0,
+        35.0
+      ],
+      "mob": "darksnatcher",
+      "level": 29,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 42,
+      "encounter_id": "enc_hogsmeade_heights_darksnatcher_42",
+      "template": "pack_three",
+      "zone": "hogsmeade_heights",
+      "area": [
+        887.0,
+        -397.5,
+        21.0,
+        35.0
+      ],
+      "mob": "darksnatcher",
+      "level": 32,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "aggressive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 43,
+      "encounter_id": "enc_station_mist_dementor_43",
+      "template": "pack_three",
+      "zone": "station_mist",
+      "area": [
+        692.0,
+        362.5,
+        21.0,
+        35.0
+      ],
+      "mob": "dementor",
+      "level": 41,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "aggressive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 44,
+      "encounter_id": "enc_station_mist_dementor_44",
+      "template": "pack_three",
+      "zone": "station_mist",
+      "area": [
+        727.0,
+        362.5,
+        21.0,
+        35.0
+      ],
+      "mob": "dementor",
+      "level": 44,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "aggressive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 45,
+      "encounter_id": "enc_fog_barrens_dementor_45",
+      "template": "pack_five",
+      "zone": "fog_barrens",
+      "area": [
+        148.0,
+        860.0,
+        24.0,
+        40.0
+      ],
+      "mob": "dementor",
+      "level": 46,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 46,
+      "encounter_id": "enc_fog_barrens_dementor_46",
+      "template": "pack_three",
+      "zone": "fog_barrens",
+      "area": [
+        188.0,
+        860.0,
+        24.0,
+        40.0
+      ],
+      "mob": "dementor",
+      "level": 48,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "aggressive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 47,
+      "encounter_id": "enc_grey_marsh_dementor_47",
+      "template": "pack_three",
+      "zone": "grey_marsh",
+      "area": [
+        588.0,
+        810.0,
+        24.0,
+        40.0
+      ],
+      "mob": "dementor",
+      "level": 49,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "aggressive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 48,
+      "encounter_id": "enc_grey_marsh_dementor_48",
+      "template": "pack_five",
+      "zone": "grey_marsh",
+      "area": [
+        628.0,
+        810.0,
+        24.0,
+        40.0
+      ],
+      "mob": "dementor",
+      "level": 51,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 18.0,
+      "leash_distance": 30.0
+    },
+    {
+      "id": 49,
+      "encounter_id": "enc_stone_summit_troll_mountain_49",
+      "template": "boss_troll",
+      "zone": "stone_summit",
+      "area": [
+        268.0,
+        -772.0,
+        24.0,
+        24.0
+      ],
+      "mob": "troll_mountain",
+      "level": 38,
+      "count": 1,
+      "max_alive": 1,
+      "aggro_mode": "reactive",
+      "assist_radius": 24.0,
+      "leash_distance": 45.0,
+      "boss": true,
+      "boss_key": "grak",
+      "respawn_s": [
+        600,
+        900
+      ]
+    },
+    {
+      "id": 50,
+      "encounter_id": "enc_warden_barrow_dementor_50",
+      "template": "boss_wraith",
+      "zone": "warden_barrow",
+      "area": [
+        868.0,
+        848.0,
+        24.0,
+        24.0
+      ],
+      "mob": "dementor",
+      "level": 50,
+      "count": 1,
+      "max_alive": 1,
+      "aggro_mode": "reactive",
+      "assist_radius": 24.0,
+      "leash_distance": 45.0,
+      "boss": true,
+      "boss_key": "warden",
+      "respawn_s": [
+        600,
+        900
+      ]
     }
   ],
   "_exclusions_note": "Authored keep-outs on the new grounds. Lake water needs no entry: the encounter director rejects any point over water (GroundsLake.is_water_at) and steep ground.",
@@ -495,6 +1781,28 @@
       "name": "Dark Snatcher Commander",
       "move_speed": 3.6,
       "walk_speed": 1.5
+    },
+    "grak": {
+      "hp": 9000,
+      "attack_power": 140,
+      "attack_range": 5.0,
+      "exp_reward": 2500,
+      "scale": 1.0,
+      "name": "Grak, Mountain Troll Chieftain",
+      "move_speed": 3.0,
+      "walk_speed": 1.123,
+      "label_y": 6.0
+    },
+    "warden": {
+      "hp": 12000,
+      "attack_power": 160,
+      "attack_range": 4.5,
+      "exp_reward": 4000,
+      "scale": 1.0,
+      "name": "The Azkaban Warden",
+      "move_speed": 4.5,
+      "walk_speed": 0.0,
+      "label_y": 4.0
     }
   },
   "monoliths": [

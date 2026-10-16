@@ -46,7 +46,8 @@ class_name HPProtocol
 ##     mob's display name, level and elite flag the first time it enters the
 ##     interest set and again whenever the mob's meta revision changes (respawn
 ##     re-rolls elite). Snapshots stay 30 bytes; a v13 client would label every
-##     mob with its scene defaults.
+##     mob with its scene defaults. Mob variants 4-6 (forest troll, mountain
+##     troll, dementor) are part of v14: a v13 client cannot render them.
 const PROTOCOL_VERSION := 14
 
 ## Per-hit presentation bits carried by `sim_damage_event` / `entity_hit`.
@@ -214,11 +215,17 @@ const FLAG_BOSS := 1 << 7
 const MOB_VARIANT_INFERI := 1
 const MOB_VARIANT_ACROMANTULA := 2
 const MOB_VARIANT_DARKSATCHER := 3
+const MOB_VARIANT_TROLL_FOREST := 4
+const MOB_VARIANT_TROLL_MOUNTAIN := 5
+const MOB_VARIANT_DEMENTOR := 6
 
 const MOB_SCENES := {
 	MOB_VARIANT_INFERI: "res://scenes/entities/mobs/mob_inferi.tscn",
 	MOB_VARIANT_ACROMANTULA: "res://scenes/entities/mobs/mob_acromantula.tscn",
 	MOB_VARIANT_DARKSATCHER: "res://scenes/entities/mobs/mob_darksnatcher.tscn",
+	MOB_VARIANT_TROLL_FOREST: "res://scenes/entities/mobs/mob_troll_forest.tscn",
+	MOB_VARIANT_TROLL_MOUNTAIN: "res://scenes/entities/mobs/mob_troll_mountain.tscn",
+	MOB_VARIANT_DEMENTOR: "res://scenes/entities/mobs/mob_dementor.tscn",
 }
 
 static func mob_variant(scene_path: String) -> int:

@@ -287,7 +287,7 @@ func _configure_member(mob: Node3D, pack: Dictionary, can_be_elite: bool) -> voi
 	var tuning: Dictionary = HPRules.spawn_tables().get("pack_tuning", {})
 	var hp := float(base.get("max_hp", scene_stats["max_hp"])) * strength
 	var attack := float(base.get("attack_power", scene_stats["attack_power"])) * strength * float(tuning.get("attack_multiplier", 0.75))
-	var exp := float(HPRules.pack_exp_reward(level))
+	var exp := float(HPRules.pack_exp_reward(level)) * float(def.get("exp_mult", 1.0))
 	var display := String(def.get("display", scene_stats["mob_name"]))
 	var elite := can_be_elite and HPRules.roll_elite(rng)
 	if elite:
@@ -314,7 +314,8 @@ func _configure_member(mob: Node3D, pack: Dictionary, can_be_elite: bool) -> voi
 
 func _apply_boss(mob: Node3D, pack: Dictionary) -> void:
 	var overrides: Dictionary = HPRules.spawn_tables().get("boss_overrides", {})
-	var key := "commander" if pack.get("commander", false) else "matriarch"
+	# `boss_key` names the boss_overrides entry; the two original bosses predate it.
+	var key := String(pack.get("boss_key", "commander" if pack.get("commander", false) else "matriarch"))
 	var data: Dictionary = overrides.get(key, {})
 	mob.is_boss = true
 	mob.is_commander = pack.get("commander", false)
@@ -338,7 +339,7 @@ func _apply_boss(mob: Node3D, pack: Dictionary) -> void:
 		visuals.scale = Vector3.ONE * scale
 	var label := mob.get_node_or_null("Label3D")
 	if label:
-		label.position.y = 4.2
+		label.position.y = float(data.get("label_y", 4.2))
 	# The boss body is authored art (assets/models/monsters/boss_*.glb) selected
 	# by the mob scene itself when `is_boss` is set - the director never swaps in
 	# a scaled-up placeholder.
@@ -351,7 +352,7 @@ func _on_member_died(_mob: Node3D, index: int) -> void:
 		if member.state != member.State.DEAD:
 			return
 	var is_boss: bool = bool(pack.get("boss", false))
-	pack.timer = float(HPRules.respawn_delay_ms(is_boss, rng, true)) / 1000.0
+	pack.timer = float(HPRules.encounter_respawn_ms(pack.get("entry", {}), is_boss, rng)) / 1000.0
 	print("[Encounters] %s wiped; respawn in %.1fs" % [pack.get("encounter_id", "?"), pack.timer])
 
 ## A pack that leashed home (or lost every valid target) resets: the authority

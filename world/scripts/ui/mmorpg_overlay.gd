@@ -20,6 +20,8 @@ var _map: Control = null
 var _map_view: SubViewport = null
 var _map_cam: Camera3D = null
 var _map_overlay: Control = null
+## Hunting regions drawn under the markers (ring tinted by level band).
+var _zone_layer: Control = null
 var _map_zoom := 150.0
 var _dots: Dictionary = {}
 var _quest_panel: Panel = null
@@ -109,6 +111,13 @@ func _build() -> void:
 	disc.material = _disc_mask_material()
 	disc.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_map.add_child(disc)
+
+	_zone_layer = Control.new()
+	_zone_layer.name = "HuntingZones"
+	_zone_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_zone_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_zone_layer.draw.connect(_draw_hunting_zones)
+	_map.add_child(_zone_layer)
 
 	_map_overlay = Control.new()
 	_map_overlay.name = "Markers"
@@ -415,6 +424,33 @@ func _follow_minimap() -> void:
 		if _map_view.render_target_update_mode != wanted:
 			_map_view.render_target_update_mode = wanted
 
+## Hunting regions (spawn_tables.json regions with a level band) inside the
+## disc: a filled tint and a ring coloured like the zone banner's level band.
+func _draw_hunting_zones() -> void:
+	if not is_instance_valid(_player):
+		return
+	var controller := _map_controller()
+	if controller != null and String(controller.get("current_map")) != HPProtocol.DEFAULT_MAP:
+		return
+	var player_level := int(_player.get("level")) if _player.get("level") != null else 1
+	var span := maxf(_map_zoom, 1.0)
+	var half := MAP_PX * 0.5
+	for region in HPRules.regions():
+		if not (region as Dictionary).has("level_min"):
+			continue
+		var c: Array = region.get("center", [0.0, 0.0])
+		var at := _world_to_map(Vector3(float(c[0]), 0.0, float(c[1])))
+		var r := float(region.get("radius", 30.0)) / span * MAP_PX
+		# The layer is not under the disc mask: keep rings inside the disc
+		# (a zone at the edge shrinks to fit instead of spilling onto the frame).
+		var room := half - 4.0 - (at - Vector2(half, half)).length()
+		if room <= 2.0:
+			continue
+		r = minf(r, room)
+		var tint := band_color(player_level, int(region.get("level_min", 1)), int(region.get("level_max", 1)))
+		_zone_layer.draw_circle(at, r, Color(tint, 0.16))
+		_zone_layer.draw_arc(at, r, 0.0, TAU, 40, Color(tint, 0.75), 1.5, true)
+
 ## World position -> pixel inside the map disc.
 ##
 ## The map camera is orthographic and looks straight down, so the projection is
@@ -460,9 +496,19 @@ func _update_minimap() -> void:
 		var cam_yaw := deg_to_rad(float(_player.get("camera_rot_y")))
 		_marker.camera_dir = Vector2(-sin(cam_yaw), -cos(cam_yaw))
 		_marker.queue_redraw()
-	# mobs: the crown for a world boss, the shard for the rest
+	if _zone_layer != null:
+		_zone_layer.queue_redraw()
+	# mobs: the crown for a world boss, the shard for the rest. Offline play
+	# holds every pack on the map: bodies outside the disc get no marker work.
+	var reach := maxf(_map_zoom, 1.0) * 0.75
 	for m in get_tree().get_nodes_in_group("mobs"):
 		if not is_instance_valid(m):
+			continue
+		var off: Vector3 = m.global_position - _player.global_position
+		if Vector2(off.x, off.z).length() > reach:
+			var stale_key := "mob_%d" % m.get_instance_id()
+			if _dots.has(stale_key):
+				_dots[stale_key].visible = false
 			continue
 		var boss: bool = "is_boss" in m and bool(m.is_boss)
 		var size := 18.0 if boss else 12.0
