@@ -90,7 +90,11 @@ static func show_equipped_wand(root: Node, entry: Dictionary) -> void:
 	skeleton.add_child(attachment)
 	var grip := wand_grip_transform(skeleton)
 	RigFollower.of(skeleton).attach(attachment, bone, grip)
-	var wand := WAND.instantiate() as Node3D
+	# A tiered wand names its own model (items.json `model`, authored in this
+	# prop's frame by art/wands/scripts/build_wands.py); others keep the default.
+	var model_path := String(HPEquipment.item(String(entry.get("id", ""))).get("model", ""))
+	var scene: PackedScene = load(model_path) as PackedScene if model_path != "" and ResourceLoader.exists(model_path) else WAND
+	var wand := scene.instantiate() as Node3D
 	wand.transform = Transform3D(Basis().scaled(Vector3.ONE * WAND_SCALE), Vector3.ZERO)
 	attachment.add_child(wand)
 	# One definition of "the wand's tip", authored in the prop's own space so it

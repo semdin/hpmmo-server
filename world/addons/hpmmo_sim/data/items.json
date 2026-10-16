@@ -25,6 +25,86 @@
       "main_hand"
     ]
   },
+  "wand_ashwood": {
+    "id": "wand_ashwood",
+    "name": "Ashwood Twig",
+    "type": "weapon",
+    "desc": "Knotted pale ash, its handle bound in hemp twine. Every spell starts with a first wand.",
+    "rarity": "common",
+    "item_tier": 1,
+    "required_level": 1,
+    "upgrade_tier": 0,
+    "base_multiplier": 1.0,
+    "model": "res://assets/models/props/wands/wand_ashwood.glb",
+    "icon": "wand",
+    "slots": [
+      "main_hand"
+    ]
+  },
+  "wand_runebound": {
+    "id": "wand_runebound",
+    "name": "Runebound Walnut Wand",
+    "type": "weapon",
+    "desc": "Polished walnut banded in brass; its pale runes steady the aim.",
+    "rarity": "uncommon",
+    "item_tier": 2,
+    "required_level": 10,
+    "upgrade_tier": 0,
+    "base_multiplier": 1.1,
+    "model": "res://assets/models/props/wands/wand_runebound.glb",
+    "icon": "wand",
+    "slots": [
+      "main_hand"
+    ]
+  },
+  "wand_silverthorn": {
+    "id": "wand_silverthorn",
+    "name": "Silverthorn Wand",
+    "type": "weapon",
+    "desc": "Black ebony gripped by a silver thorn vine, an emerald set in its pommel.",
+    "rarity": "rare",
+    "item_tier": 3,
+    "required_level": 20,
+    "upgrade_tier": 0,
+    "base_multiplier": 1.2,
+    "model": "res://assets/models/props/wands/wand_silverthorn.glb",
+    "icon": "wand",
+    "slots": [
+      "main_hand"
+    ]
+  },
+  "wand_emberwing": {
+    "id": "wand_emberwing",
+    "name": "Emberwing Wand",
+    "type": "weapon",
+    "desc": "Crimson lacquer and gold feathers around a glowing amber heart; its tip holds a live ember.",
+    "rarity": "epic",
+    "item_tier": 4,
+    "required_level": 35,
+    "upgrade_tier": 0,
+    "base_multiplier": 1.32,
+    "model": "res://assets/models/props/wands/wand_emberwing.glb",
+    "icon": "wand",
+    "slots": [
+      "main_hand"
+    ]
+  },
+  "wand_moonveil": {
+    "id": "wand_moonveil",
+    "name": "Moonveil Sceptre",
+    "type": "weapon",
+    "desc": "Moonwood threaded with starlight behind a mithril crescent, crowned with a star crystal.",
+    "rarity": "legendary",
+    "item_tier": 5,
+    "required_level": 50,
+    "upgrade_tier": 0,
+    "base_multiplier": 1.45,
+    "model": "res://assets/models/props/wands/wand_moonveil.glb",
+    "icon": "wand",
+    "slots": [
+      "main_hand"
+    ]
+  },
   "robe_apprentice": {
     "id": "robe_apprentice",
     "name": "Apprentice Robe",
