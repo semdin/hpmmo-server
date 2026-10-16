@@ -439,6 +439,12 @@ func _physics_process(delta: float) -> void:
 	if state == State.DEAD:
 		_tick_corpse(delta)
 		return
+	# Server-side sleep: an idle creature with no player anywhere near skips its
+	# AI and physics entirely. 160+ mobs each wandering, raycasting and
+	# separating 60 times a second is what dropped the world server to ~5 fps
+	# (players rubber-banded: their server body fell behind the client's).
+	if state in [State.IDLE, State.WANDER] and _asleep(delta):
+		return
 	# Enemies displaced inside a protected volume cancel the fight and
 	# walk home instead of attacking through the boundary.
 	if state != State.RETURN and SafeZone.is_protected_point(global_position) and not SafeZone.is_protected_point(spawn_point):
@@ -889,10 +895,41 @@ func _check_stuck(delta: float) -> void:
 		_stuck_timer = 0.0
 		velocity = velocity.rotated(Vector3.UP, PI * 0.5) * 1.0
 
+## A player within AWAKE_RANGE (any map: the range is small next to the map
+## separation) keeps a creature awake; checked a few times a second, staggered.
+const AWAKE_RANGE := 90.0
+var _sleep_check := 0.0
+var _sleeping := false
+
+func _asleep(delta: float) -> bool:
+	_sleep_check -= delta
+	if _sleep_check <= 0.0:
+		_sleep_check = randf_range(0.4, 0.6)
+		var near := false
+		for player in get_tree().get_nodes_in_group("players"):
+			if (player as Node3D).global_position.distance_squared_to(global_position) < AWAKE_RANGE * AWAKE_RANGE:
+				near = true
+				break
+		_sleeping = not near
+		if _sleeping:
+			velocity = Vector3.ZERO
+	return _sleeping
+
+## The live mob list, gathered once per physics frame for every mob's
+## separation (each mob asking the tree for the group was O(n^2) allocations).
+static var _mob_list: Array = []
+static var _mob_list_frame := -1
+
 func _separation() -> Vector3:
 	var radius := float(HPRules.pack_tuning("separation_radius", 1.7))
 	var push := Vector3.ZERO
-	for mob in get_tree().get_nodes_in_group("mobs"):
+	var frame := Engine.get_physics_frames()
+	if frame != _mob_list_frame:
+		_mob_list_frame = frame
+		_mob_list = get_tree().get_nodes_in_group("mobs")
+	for mob in _mob_list:
+		if not is_instance_valid(mob):
+			continue
 		if mob == self or mob.state == State.DEAD:
 			continue
 		var offset: Vector3 = global_position - (mob as Node3D).global_position
