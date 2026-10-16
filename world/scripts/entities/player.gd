@@ -229,6 +229,8 @@ const HEAVY_CAST_SPELLS := ["bombarda", "ultimate"]
 const SPELL_CLIPS := {
 	"stupefy": {"clip": "Cast_Stupefy", "release": 0.226, "hold": 0.72},
 	"incendio": {"clip": "Cast_Incendio", "release": 0.25, "hold": 0.66, "aim": false},
+	# The stag leaves the wand like Incendio's cone: same thrust, silver.
+	"patronum": {"clip": "Cast_Incendio", "release": 0.25, "hold": 0.7, "aim": false},
 	"bombarda": {"clip": "Cast_Bombarda", "release": 0.182, "hold": 0.7},
 	"expelliarmus": {"clip": "Cast_Expelliarmus", "release": 0.128, "hold": 0.6},
 	"protego": {"clip": "Cast_Protego", "release": 0.128, "hold": 0.9, "aim": false},
@@ -1116,6 +1118,8 @@ func _handle_hotkeys() -> void:
 		cast_spell("protego")
 	elif Input.is_action_just_pressed("spell_e"):
 		cast_spell("ultimate")
+	elif Input.is_action_just_pressed("spell_5"):
+		cast_spell("patronum")
 	elif Input.is_action_just_pressed("mount_broom"):
 		toggle_broom_mount()
 	elif Input.is_action_just_pressed("target_cycle"):
@@ -1530,6 +1534,11 @@ func cast_spell(spell_id: String) -> void:
 		return
 
 	var s_data: Dictionary = GameData.SPELLS[spell_id]
+	if level < int(s_data.get("requires_level", 1)):
+		if _mount_notice_cd <= 0.0:
+			_mount_notice_cd = 0.8
+			show_notice("%s unlocks at level %d" % [String(s_data.get("name", spell_id)), int(s_data.get("requires_level", 1))])
+		return
 	var remaining := maxf(_cast_lock, float(spell_cooldowns.get(spell_id, 0.0)))
 	if remaining > 0:
 		if remaining <= 0.25:

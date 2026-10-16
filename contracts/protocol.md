@@ -49,12 +49,13 @@ its own state. `server_relay` is off, so clients cannot address each other.
 | `sim_snapshot` | `authority, call_remote, unreliable, HPProtocol.CH_SNAPSHOT` | tick: int, chunk: int, chunks: int, data: PackedByteArray |
 | `sim_despawn` | `authority, call_remote, reliable, HPProtocol.CH_SNAPSHOT` | uid: int |
 | `sim_telegraph` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | uid: int, data: Dictionary |
+| `sim_world_event` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | kind: String, data: Dictionary |
 | `sim_mob_info` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | uid: int, info: Dictionary |
 | `sim_telegraph_end` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | uid: int |
 | `sim_equipment_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | request_id: int, revision: int, operation: String, slot: String, item_id: String, tier: int, uid: int |
 | `sim_equipment_result` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | answer: Dictionary |
 
-Surface entries: 42. Hash of this document is pinned in the workspace lock;
+Surface entries: 43. Hash of this document is pinned in the workspace lock;
 Canonical gameplay catalogs live in `world/addons/hpmmo_sim/data/`; client content schemas live in `contracts/schemas/`.
 
-Surface hash: `34c93372c55d4f75a7f83ea6e4502b2381b8e11ffb748282620f7b4f43139d27`
+Surface hash: `f636409c580f26e897b43bc7743da742b64dca589c28213d6d2d1890d594e1d0`

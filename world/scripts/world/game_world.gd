@@ -390,6 +390,7 @@ func _setup_replication() -> void:
 	SimAuthority.cast_landed.connect(_on_cast_landed)
 	SimAuthority.loot_spawned.connect(_on_loot_spawned)
 	SimAuthority.chat.connect(_on_chat)
+	SimAuthority.world_event.connect(_on_world_event)
 	SimAuthority.chat_line.connect(_on_chat_line)
 	if is_instance_valid(local_player):
 		SimAuthority.cast_ack.connect(local_player.on_cast_answer)
@@ -509,7 +510,9 @@ func _on_cast_released(cast_id: int, caster_uid: int, spell_id: String, origin: 
 	# direction, so a replicated cast reads the same as the caster's prediction.
 	if caster != null and is_instance_valid(caster) and caster.has_method("present_replicated_cast"):
 		caster.call("present_replicated_cast", origin, dir, spell_id, cast_id)
-	if spell_id in ["incendio", "protego"]:
+	# Cones (Incendio, Patronum) and self casts (Protego) draw at the caster;
+	# everything else flies as a bolt.
+	if String(HPRules.spell(spell_id).get("delivery", "")) in ["cone", "self"]:
 		preload("res://scripts/spells/skill_fx.gd").play_cast(self, caster if caster is Node3D else null, spell_id, origin, dir)
 		return
 	var proj = preload("res://scenes/spells/spell_projectile.tscn").instantiate()
@@ -574,6 +577,10 @@ func _on_loot_spawned(uid: int, item_id: String, amount: int, pos: Vector3) -> v
 	node.set_meta("sim_uid", uid)
 	SimAuthority.attach_view_node(uid, node)
 	_views[uid] = node
+
+func _on_world_event(kind: String, data: Dictionary) -> void:
+	if hud != null and hud.has_method("show_world_event"):
+		hud.show_world_event(kind, data)
 
 func _on_chat(text: String) -> void:
 	if hud != null and hud.has_method("add_system_chat"):

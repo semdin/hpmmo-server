@@ -199,6 +199,37 @@ const SPELLS := {
 			], "length": 0.9, "audio": "spell_incendio_end", "core": "incendio_end"},
 		},
 	},
+	# Expecto Patronum: a silver charge down a wide cone - rippling moonlight
+	# rings marching along the aim, star dust thrown the full length.
+	"patronum": {
+		"colour": Color(0.82, 0.9, 1.0),
+		"stages": {
+			"cast": {"layers": [
+				{"kind": "flipbook", "atlas": "vfx_ripple_blue", "blend": "add", "core": true,
+					"size": 2.4, "forward": 1.6, "life": 0.6, "fit": true, "roll": true, "grow": [0.6, 1.2]},
+				{"kind": "flipbook", "atlas": "vfx_ripple_blue", "blend": "add", "core": true,
+					"size": 3.8, "forward": 5.4, "life": 0.65, "delay": 0.08, "fit": true, "roll": true, "grow": [0.6, 1.3]},
+				{"kind": "flipbook", "atlas": "vfx_ripple_blue", "blend": "add", "optional": true,
+					"size": 5.0, "forward": 9.5, "life": 0.65, "delay": 0.16, "fit": true, "roll": true, "grow": [0.6, 1.35]},
+				{"kind": "particles", "tex": "vfx_star_flare", "blend": "add", "colour": true, "optional": true,
+					"amount": 40, "life": 0.9, "speed": 18.0, "size": 0.12, "spread": 22.0, "gravity": 0.0, "forward": true},
+				{"kind": "light", "colour": true, "energy": 4.0, "range": 9.0, "life": 0.7},
+			], "length": 0.9, "audio": "spell_patronum_cast", "core": "patronum_charge"},
+			"impact": {"layers": [
+				{"kind": "flipbook", "atlas": "vfx_ripple_blue", "blend": "add", "core": true,
+					"size": 2.0, "life": 0.5, "fit": true, "roll": true},
+				{"kind": "particles", "tex": "vfx_star_flare", "blend": "add", "colour": true, "optional": true,
+					"amount": 18, "life": 0.6, "speed": 3.0, "size": 0.07, "spread": 160.0, "gravity": -2.0},
+			], "length": 0.6, "audio": "spell_patronum_impact", "core": "patronum_impact"},
+			# The stag dissolves into drifting silver mist.
+			"end": {"layers": [
+				{"kind": "flipbook", "atlas": "vfx_smoke_puff", "blend": "add", "core": true,
+					"size": 2.6, "life": 1.0, "fit": true, "roll": true, "opacity": 0.35},
+				{"kind": "particles", "tex": "vfx_star_flare", "blend": "add", "colour": true, "optional": true,
+					"amount": 10, "life": 1.0, "speed": 0.8, "size": 0.05, "spread": 180.0, "gravity": -0.6},
+			], "length": 1.0, "audio": "spell_basic_cast_end", "core": "patronum_fade"},
+		},
+	},
 	"bombarda": {
 		"colour": Color(1.0, 0.55, 0.12),
 		"stages": {
@@ -501,6 +532,8 @@ static func validate_table() -> Array:
 				expected = ["cast", "sustain", "impact", "end"]
 			"ultimate":
 				expected = ["cast", "travel", "impact", "end"]
+			"patronum":
+				expected = ["cast", "impact", "end"]
 		for stage in expected:
 			if not stages.has(stage):
 				problems.append("%s is missing its '%s' stage" % [spell_id, stage])

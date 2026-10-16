@@ -201,6 +201,22 @@ func _clear_anchor(area: Rect2, member_count: int) -> Vector3:
 
 # ---------------------------------------------------------------------- spawn
 
+# --------------------------------------------------------------- world bosses
+
+## A world boss (`world_boss: true`) is announced to the whole realm a minute
+## before it returns, when it appears and when it falls.
+func _is_world_boss(pack: Dictionary) -> bool:
+	return bool((pack.get("entry", {}) as Dictionary).get("world_boss", false))
+
+func _world_boss_data(pack: Dictionary) -> Dictionary:
+	var region := HPRules.region_by_id(String(pack.get("zone", "")))
+	var overrides: Dictionary = HPRules.spawn_tables().get("boss_overrides", {})
+	var boss: Dictionary = overrides.get(String(pack.get("boss_key", "")), {})
+	return {"encounter_id": String(pack.get("encounter_id", "")),
+		"name": String(boss.get("name", pack.get("mob", ""))),
+		"region": String(region.get("display", pack.get("zone", ""))),
+		"level": int(pack.get("level", 1))}
+
 func _spawn_pack(index: int) -> void:
 	var pack := packs[index]
 	if pack.get("scene") == null:
@@ -263,6 +279,9 @@ func _spawn_pack(index: int) -> void:
 				_configure_member(mob, pack, true)
 			mob._respawn()
 	pack["spawns"] = int(pack.get("spawns", 0)) + 1
+	pack["announced_soon"] = false
+	if _is_world_boss(pack) and SimAuthority.is_authority():
+		SimAuthority.announce_world_event("boss_spawned", _world_boss_data(pack))
 	if members.size() > 0:
 		print("[Encounters] %s (#%d) spawned at (%.1f, %.1f, %.1f) zone=%s cycle=%d" % [
 			pack.get("encounter_id", "?"), int(pack.get("pack_id", index + 1)),
@@ -301,6 +320,8 @@ func _configure_member(mob: Node3D, pack: Dictionary, can_be_elite: bool) -> voi
 	mob.mob_name = display
 	mob.resist = HPRules.mob_resist(species)
 	mob.loot_table = String(def.get("loot_table", ""))
+	mob.abilities = (def.get("abilities", []) as Array).duplicate(true)
+	mob.aura = (def.get("aura", {}) as Dictionary).duplicate()
 	mob.max_hp = int(hp)
 	mob.attack_power = int(attack)
 	mob.exp_reward = int(exp)
@@ -346,11 +367,15 @@ func _apply_boss(mob: Node3D, pack: Dictionary) -> void:
 
 # -------------------------------------------------------------- lifecycle
 
-func _on_member_died(_mob: Node3D, index: int) -> void:
+func _on_member_died(mob: Node3D, index: int) -> void:
 	var pack := packs[index]
 	for member in pack.members:
 		if member.state != member.State.DEAD:
 			return
+	if _is_world_boss(pack) and SimAuthority.is_authority():
+		var data := _world_boss_data(pack)
+		data["killer"] = SimAuthority.killer_name_of(SimAuthority.record_for(mob))
+		SimAuthority.announce_world_event("boss_slain", data)
 	var is_boss: bool = bool(pack.get("boss", false))
 	pack.timer = float(HPRules.encounter_respawn_ms(pack.get("entry", {}), is_boss, rng)) / 1000.0
 	print("[Encounters] %s wiped; respawn in %.1fs" % [pack.get("encounter_id", "?"), pack.timer])
@@ -374,6 +399,11 @@ func _process(delta: float) -> void:
 	for index in range(packs.size()):
 		if packs[index].timer >= 0:
 			packs[index].timer -= delta
+			if _is_world_boss(packs[index]) and packs[index].timer <= 60.0 					and not bool(packs[index].get("announced_soon", false)):
+				packs[index]["announced_soon"] = true
+				var soon := _world_boss_data(packs[index])
+				soon["seconds"] = int(ceil(packs[index].timer))
+				SimAuthority.announce_world_event("boss_soon", soon)
 			if packs[index].timer <= 0:
 				_spawn_pack(index)
 

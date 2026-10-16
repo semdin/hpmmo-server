@@ -57,6 +57,10 @@ func current_effects() -> Dictionary:
 		if stun > tick:
 			out["stun"] = {"icon": "status_stun", "title": "Stunned", "desc": "You cannot act.",
 				"remaining": float(stun - tick) * dt, "duration": maxf(1.0, float(stun - tick) * dt), "debuff": true}
+		var despair := int(record.get("despair_until_tick", 0))
+		if despair > tick:
+			out["despair"] = {"icon": "status_despair", "title": "Despair", "desc": "A dementor's cold: no natural health recovery.",
+				"remaining": float(despair - tick) * dt, "duration": maxf(1.0, float(despair - tick) * dt), "debuff": true}
 		var burn := int(record.get("burn_until_tick", 0))
 		if burn > tick:
 			out["burn"] = {"icon": "status_burn", "title": "Burning", "desc": "Taking fire damage over time.",

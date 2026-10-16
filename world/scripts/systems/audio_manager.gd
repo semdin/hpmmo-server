@@ -136,7 +136,7 @@ const COMBAT_LINGER := 8.0
 const COMBAT_TARGET_RANGE := 45.0
 
 ## Spells whose cast is a commitment to a fight.
-const COMBAT_SPELLS := ["basic_cast", "stupefy", "incendio", "bombarda", "expelliarmus", "ultimate", "protego"]
+const COMBAT_SPELLS := ["basic_cast", "stupefy", "incendio", "bombarda", "expelliarmus", "ultimate", "protego", "patronum"]
 
 var library: Dictionary = {}
 var music: Dictionary = {}

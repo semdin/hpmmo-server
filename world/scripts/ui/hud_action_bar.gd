@@ -1,7 +1,7 @@
 extends Control
 class_name HudActionBar
 
-## The action bar: the six spell slots (1-4, Q, E) and, after a gap, four quick
+## The action bar: the seven spell slots (1-4, Q, E, 5 = Expecto Patronum) and, after a gap, four quick
 ## slots on F1-F4 that hold consumables - Wiggenweld and Mana Draught by default,
 ## any potion dragged onto them from the bag. A filled slot can be dragged onto
 ## another (move or swap) or out onto the world to empty it; right-click clears too. The
@@ -16,7 +16,7 @@ const GAP := 4.0
 const GROUP_GAP := 18.0
 const SPELLS := [
 	["stupefy", "1"], ["incendio", "2"], ["bombarda", "3"],
-	["expelliarmus", "4"], ["protego", "Q"], ["ultimate", "E"],
+	["expelliarmus", "4"], ["protego", "Q"], ["ultimate", "E"], ["patronum", "5"],
 ]
 const QUICK_KEYS := ["F1", "F2", "F3", "F4"]
 const QUICK_ACTIONS := ["quickslot_1", "quickslot_2", "quickslot_3", "quickslot_4"]
@@ -75,7 +75,7 @@ func bind(p_hud: Control, p_player: Node3D) -> void:
 		player.equipment_answer.connect(_on_answer)
 
 func bar_width() -> float:
-	return SLOT * 10.0 + GAP * 8.0 + GROUP_GAP
+	return SLOT * float(SPELLS.size() + 4) + GAP * float(SPELLS.size() + 2) + GROUP_GAP
 
 func _layout() -> void:
 	custom_minimum_size = Vector2(bar_width(), SLOT)

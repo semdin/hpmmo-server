@@ -119,5 +119,22 @@
     "projectile_speed": 40.0,
     "color": "#00ff77",
     "hotkey": "E"
+  },
+  "patronum": {
+    "id": "patronum",
+    "element": "patronus",
+    "name": "Expecto Patronum",
+    "desc": "Conjures a silver stag that charges through a wide cone. Dementors take triple damage and the stag breaks a dementor's attack, kiss included. Requires level 40.",
+    "delivery": "cone",
+    "damage": 110,
+    "cooldown": 9.0,
+    "mana_cost": 60,
+    "cast_lock": 0.3,
+    "range": 20.0,
+    "cone_angle": 55.0,
+    "banishes": ["dementor"],
+    "requires_level": 40,
+    "color": "#d6ecff",
+    "hotkey": "5"
   }
 }

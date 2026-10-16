@@ -617,6 +617,15 @@ static func weaken_ms(spell_id: String) -> int:
 static func weaken_factor(spell_id: String) -> float:
 	return float(spell(spell_id).get("weaken_factor", 1.0))
 
+## Character level a spell unlocks at (spells.json `requires_level`, 1 = always).
+static func spell_required_level(spell_id: String) -> int:
+	return int(spell(spell_id).get("requires_level", 1))
+
+## Creature families a spell banishes: a hit cancels that creature's attack
+## (Expecto Patronum breaks a dementor's kiss).
+static func spell_banishes(spell_id: String, family: String) -> bool:
+	return family != "" and (spell(spell_id).get("banishes", []) as Array).has(family)
+
 static func spell_interrupts(spell_id: String) -> bool:
 	return bool(spell(spell_id).get("interrupts", false))
 

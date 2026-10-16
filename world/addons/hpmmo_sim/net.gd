@@ -711,6 +711,10 @@ func sim_telegraph(uid: int, data: Dictionary) -> void:
 		record["telegraph"] = data
 	SimAuthority.emit_signal("mob_telegraph", uid, data)
 
+@rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
+func sim_world_event(kind: String, data: Dictionary) -> void:
+	SimAuthority.emit_signal("world_event", kind, data)
+
 ## v14: a mob's label data (name, level, elite). Sent on first sight and on
 ## every meta revision change, from the snapshot loop.
 @rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
@@ -897,6 +901,7 @@ func bridge_authority() -> void:
 	SimAuthority.loot_taken.connect(broadcast_loot_taken)
 	SimAuthority.mob_telegraph.connect(broadcast_telegraph)
 	SimAuthority.mob_telegraph_end.connect(broadcast_telegraph_end)
+	SimAuthority.world_event.connect(broadcast_world_event)
 	SimAuthority.maintenance_event.connect(broadcast_maintenance)
 	SimAuthority.transfer_granted.connect(broadcast_transfer_granted)
 	SimAuthority.transfer_committed.connect(broadcast_transfer_committed)
@@ -1065,6 +1070,13 @@ func broadcast_telegraph_end(uid: int) -> void:
 	for peer_id in multiplayer.get_peers():
 		if _peer_can_see(peer_id, uid):
 			sim_telegraph_end.rpc_id(peer_id, uid)
+
+## v14: realm-wide events (world boss soon / up / slain) reach every peer,
+## whatever map or interest set it is in.
+func broadcast_world_event(kind: String, data: Dictionary) -> void:
+	if not has_peers():
+		return
+	sim_world_event.rpc(kind, data)
 
 func broadcast_chat(text: String) -> void:
 	if not has_peers():

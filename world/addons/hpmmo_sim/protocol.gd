@@ -48,6 +48,7 @@ class_name HPProtocol
 ##     re-rolls elite). Snapshots stay 30 bytes; a v13 client would label every
 ##     mob with its scene defaults. Mob variants 4-6 (forest troll, mountain
 ##     troll, dementor) are part of v14: a v13 client cannot render them.
+##     `sim_world_event(kind, data)` announces world bosses realm-wide.
 const PROTOCOL_VERSION := 14
 
 ## Per-hit presentation bits carried by `sim_damage_event` / `entity_hit`.
@@ -109,6 +110,8 @@ const REJECT_ZONE := "wrong_zone"
 const REJECT_STATE := "invalid_state"
 ## The spell needs a higher house rank (spells.json `requires_house_rank`).
 const REJECT_HOUSE_RANK := "house_rank"
+## The spell needs a higher character level (spells.json `requires_level`).
+const REJECT_LEVEL := "level_too_low"
 ## Skill training: no unspent point, the skill is already Master, or the spell
 ## cannot be trained.
 const REJECT_NO_SKILL_POINTS := "no_skill_points"

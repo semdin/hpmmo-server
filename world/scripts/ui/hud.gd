@@ -681,6 +681,31 @@ func show_notice(text: String, kind: String = "warn") -> void:
 	if notices != null:
 		notices.show_notice(text, kind)
 
+## A realm-wide event (v14 `sim_world_event`): a line in the chat log, the
+## centre band in the boss colour and the boss horn. Returns the text shown.
+static func world_event_text(kind: String, data: Dictionary) -> String:
+	var name := String(data.get("name", "A world boss"))
+	var region := String(data.get("region", "the wilds"))
+	match kind:
+		"boss_soon":
+			return "%s stirs at %s - %d seconds!" % [name, region, int(data.get("seconds", 60))]
+		"boss_spawned":
+			return "%s has appeared at %s (Lv %d)!" % [name, region, int(data.get("level", 1))]
+		"boss_slain":
+			var killer := String(data.get("killer", ""))
+			return ("%s has been slain by %s!" % [name, killer]) if killer != "" else ("%s has fallen!" % name)
+	return ""
+
+func show_world_event(kind: String, data: Dictionary) -> String:
+	var text := world_event_text(kind, data)
+	if text == "":
+		return ""
+	_add_system_chat("[World] " + text)
+	show_notice(text, "boss")
+	if AudioManager.has_sound("boss_alert"):
+		AudioManager.play_sound_at("boss_alert", Vector3.ZERO, null, true)
+	return text
+
 func open_guide() -> void:
 	if onboarding != null:
 		onboarding.toggle_panel()

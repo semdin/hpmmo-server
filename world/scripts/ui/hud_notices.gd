@@ -92,6 +92,8 @@ class NoticeBand extends Control:
 				colour = HudKit.PARCHMENT
 			"good":
 				colour = Color(0.65, 1.0, 0.6)
+			"boss":
+				colour = Color(1.0, 0.62, 0.95)
 		_label = HudKit.label(text, 19, colour, HudKit.bold(), 5)
 		_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -113,6 +115,8 @@ class NoticeBand extends Control:
 		# Horizontal band, opaque in the middle and fading to nothing at the ends,
 		# with hairlines top and bottom in the notice's colour.
 		var accent := Color(1.0, 0.45, 0.35) if _kind == "error" else (Color(0.45, 0.65, 1.0) if _kind == "mana" else HudKit.GOLD)
+		if _kind == "boss":
+			accent = Color(0.85, 0.35, 0.95)
 		var steps := 24
 		for i in range(steps):
 			var t0 := float(i) / steps

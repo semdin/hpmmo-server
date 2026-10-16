@@ -244,6 +244,7 @@ func _register_input_actions() -> void:
 	_ensure_action("spell_4", [KEY_4])
 	_ensure_action("spell_q", [KEY_Q])
 	_ensure_action("spell_e", [KEY_E])
+	_ensure_action("spell_5", [KEY_5])
 	# Quick slots (potions) and the windows.
 	_ensure_action("quickslot_1", [KEY_F1])
 	_ensure_action("quickslot_2", [KEY_F2])

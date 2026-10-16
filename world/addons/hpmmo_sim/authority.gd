@@ -45,6 +45,9 @@ signal loot_spawned(uid: int, item_id: String, amount: int, pos: Vector3)
 signal mob_telegraph(uid: int, data: Dictionary)
 signal mob_telegraph_end(uid: int)
 signal mob_info(uid: int, info: Dictionary)   # presentation: name/level/elite changed
+## Realm-wide happenings every player hears about (world boss soon / up /
+## slain). `data` carries ids and names; the client words the message.
+signal world_event(kind: String, data: Dictionary)
 signal encounter_reset(pack_id: int, reason: String)
 signal loot_taken(uid: int, character_id: int, item_id: String, amount: int, collector_peer_id: int)
 signal reward_granted(uid: int, character_id: int, exp: int, galleons: int, items: Array, op_id: String)
@@ -503,6 +506,8 @@ func begin_mob_telegraph(node: Node3D, pattern: Dictionary, release_tick: int,
 		"range": float(pattern.get("range", 0.0)),
 		"half_angle": float(pattern.get("half_angle", 0.0)),
 		"pack_id": int(record.get("pack_id", 0)),
+		# Presentation extra (a thrown boulder flies on this clock).
+		"fx": String(pattern.get("fx", "")),
 	}
 	record["telegraph"] = data
 	touch(record)
@@ -654,6 +659,8 @@ func cast_for_record(record: Dictionary, spell_id: String, aim: Vector3, cast_se
 		return _reject_cast(record, cast_seq, HPProtocol.REJECT_UNKNOWN_SPELL)
 	if not HPRules.house_rank_meets(int(record.get("house_rep", 0)), HPRules.spell_house_rank(spell_id)):
 		return _reject_cast(record, cast_seq, HPProtocol.REJECT_HOUSE_RANK)
+	if _player_level(record) < HPRules.spell_required_level(spell_id):
+		return _reject_cast(record, cast_seq, HPProtocol.REJECT_LEVEL)
 	var node: Node3D = record.get("node")
 	if node == null or not is_instance_valid(node):
 		return _reject_cast(record, cast_seq, HPProtocol.REJECT_STATE)
@@ -1771,6 +1778,8 @@ func _apply_status_on_hit(target: Dictionary, spell_id: String, attacker: Dictio
 	if stun > 0:
 		target["stun_until_tick"] = sim_tick + int(ceil(float(stun) * effect / TICK_MS))
 		interrupt_mob(target)
+	if HPRules.spell_banishes(spell_id, String(HPRules.mob_def(String(target.get("species", ""))).get("family", ""))):
+		interrupt_mob(target)
 	var weaken := HPRules.weaken_ms(spell_id)
 	if weaken > 0:
 		target["weak_until_tick"] = sim_tick + int(ceil(float(weaken) * effect / TICK_MS))
@@ -2094,9 +2103,13 @@ func _respawn_player(record: Dictionary) -> void:
 # --------------------------------------------------------------- regeneration
 
 func _tick_regeneration() -> void:
+	_tick_creature_auras()
 	for uid in entities.keys():
 		var record: Dictionary = entities[uid]
 		if int(record.get("kind", 0)) != HPProtocol.Kind.PLAYER or bool(record.get("dead", false)):
+			continue
+		# Despair (dementor kiss / aura): no natural recovery while it lasts.
+		if int(record.get("despair_until_tick", 0)) > sim_tick:
 			continue
 		var node = record.get("node")
 		if node != null and is_instance_valid(node) and node.has_method("_tick_regeneration"):
@@ -2116,6 +2129,66 @@ func _tick_regeneration() -> void:
 			record["mana"] = mana
 			touch(record)
 			_push_stats(record)
+
+# ------------------------------------------------------- creature riders
+
+## Despair: the victim's natural regeneration stops for `seconds` (the
+## dementor's kiss and cold aura). Players are never stunned or rooted by
+## design; this is the dementors' hold on them instead.
+func apply_despair(uid: int, seconds: float) -> void:
+	var record: Dictionary = entities.get(uid, {})
+	if record.is_empty() or int(record.get("kind", 0)) != HPProtocol.Kind.PLAYER:
+		return
+	var until := sim_tick + int(ceil(seconds * 1000.0 / TICK_MS))
+	if until <= int(record.get("despair_until_tick", 0)):
+		return
+	record["despair_until_tick"] = until
+	touch(record)
+	_push_stats(record)
+
+## A mob drinks back `amount` health (the kiss drains what it deals).
+func heal_mob(node: Node, amount: int) -> void:
+	var record := record_for(node)
+	if record.is_empty() or amount <= 0 or bool(record.get("dead", false)):
+		return
+	var hp := mini(int(record.get("max_hp", 0)), int(record.get("hp", 0)) + amount)
+	record["hp"] = hp
+	if is_instance_valid(node) and node.get("current_hp") != null:
+		node.set("current_hp", hp)
+	touch(record)
+
+## Cold auras (mobs.json `aura`): every regeneration beat, a fighting creature
+## with an aura chills the players near it - a little damage and despair.
+func _tick_creature_auras() -> void:
+	for uid in entities.keys():
+		var mob: Dictionary = entities[uid]
+		if int(mob.get("kind", 0)) != HPProtocol.Kind.MOB or bool(mob.get("dead", false)):
+			continue
+		var node = mob.get("node")
+		if node == null or not is_instance_valid(node):
+			continue
+		var aura = node.get("aura")
+		if not (aura is Dictionary) or (aura as Dictionary).is_empty():
+			continue
+		if not is_instance_valid(node.get("target_player")):
+			continue   # only a creature in a fight radiates
+		var radius := float(aura.get("radius", 6.0))
+		var damage := int(round(float(node.get("attack_power")) * float(aura.get("damage_ratio", 0.1))))
+		for pid in entities.keys():
+			var player: Dictionary = entities[pid]
+			if int(player.get("kind", 0)) != HPProtocol.Kind.PLAYER or bool(player.get("dead", false)):
+				continue
+			if String(player.get("map_id", HPProtocol.DEFAULT_MAP)) != String(mob.get("map_id", HPProtocol.DEFAULT_MAP)):
+				continue
+			var pnode = player.get("node")
+			if pnode == null or not is_instance_valid(pnode):
+				continue
+			if (pnode as Node3D).global_position.distance_to((node as Node3D).global_position) > radius:
+				continue
+			if not HPRules.can_damage(node, pnode):
+				continue
+			if _apply_damage(player, damage, "dementor_aura", mob) > 0:
+				apply_despair(int(pid), float(aura.get("despair_s", 2.0)))
 
 ## Respawn timers are checked on the sim clock (never on client timing), which
 ## is also what keeps a disconnected player from staying dead forever.
@@ -2412,6 +2485,7 @@ func build_stats(record: Dictionary) -> Dictionary:
 		result["quest_progress"] = int(record.get("quest_progress", 0))
 		var skills: Dictionary = record.get("skill_levels", {})
 		result["skills"] = skills.duplicate()
+		result["despair_until_tick"] = int(record.get("despair_until_tick", 0))
 		result["skill_points"] = HPRules.skill_points_available(int(record.get("level", 1)), skills)
 
 	result.merge(equipment_snapshot(record))
@@ -2609,6 +2683,18 @@ func upsert_replica(uid: int, kind: int, pos: Vector3, rot_y: float, hp: int, ma
 		emit_signal("entity_died", uid, 0)
 	elif was_dead and not record["dead"]:
 		emit_signal("entity_respawned", uid)
+
+func announce_world_event(kind: String, data: Dictionary) -> void:
+	print("[Authority] world event %s %s" % [kind, str(data)])
+	emit_signal("world_event", kind, data)
+
+## Display name of the player entity that dealt the last blow to `record`
+## ("" when it was no player).
+func killer_name_of(record: Dictionary) -> String:
+	var killer: Dictionary = entities.get(killer_uid_of(record), {})
+	if int(killer.get("kind", 0)) != HPProtocol.Kind.PLAYER:
+		return ""
+	return String(killer.get("name", ""))
 
 ## What a client needs to label a mob (v14 `sim_mob_info`). `rev` changes when
 ## the mob's identity does (a respawn can re-roll elite).

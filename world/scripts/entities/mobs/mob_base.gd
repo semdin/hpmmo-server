@@ -76,6 +76,16 @@ signal died(mob: Node3D)
 ## troll's 1.5 s authored windup lands exactly on the server's release.
 @export var attack_anticipation := 0.0
 @export var attack_recovery := 0.0
+## Special attacks (mobs.json `abilities`): telegraphed patterns an ordinary
+## creature mixes in - `every` N attacks (troll slam, dementor kiss) or, with
+## `max_range`, thrown at a target out of reach (troll boulder).
+@export var abilities: Array = []
+## Passive cold aura (mobs.json `aura`), resolved by the authority each
+## regeneration beat while this creature fights.
+@export var aura: Dictionary = {}
+var _attack_count := 0
+var _ability_ready_tick: Dictionary = {}
+var _boulder_tick := -1
 
 var managed_respawn := false
 var summoned := false
@@ -153,6 +163,8 @@ const ANIM_SETS := {
 ## instead of every monster borrowing the spider's. Bosses use their own alert
 ## and death cue regardless of family.
 const VOICE_SETS := {
+	"troll": {"move": "troll_move_%d", "alert": "troll_alert", "attack": "troll_attack", "death": "troll_death"},
+	"dementor": {"move": "dementor_move_%d", "alert": "dementor_alert", "attack": "dementor_attack", "death": "dementor_death"},
 	"spider": {"move": "spider_move_%d", "alert": "spider_alert", "attack": "spider_bite", "death": "spider_death"},
 	"snatcher": {"move": "snatcher_move_%d", "alert": "snatcher_alert", "attack": "snatcher_attack", "death": "snatcher_death"},
 	"inferi": {"move": "inferi_move_%d", "alert": "inferi_alert", "attack": "inferi_attack", "death": "inferi_death"},
@@ -196,6 +208,10 @@ func _fill_catalog_identity() -> void:
 		resist = (def.get("resist", {}) as Dictionary).duplicate()
 	if loot_table == "":
 		loot_table = String(def.get("loot_table", ""))
+	if abilities.is_empty():
+		abilities = (def.get("abilities", []) as Array).duplicate(true)
+	if aura.is_empty():
+		aura = (def.get("aura", {}) as Dictionary).duplicate()
 
 ## Boss bodies are authored creatures, not a scaled-up ordinary mob: the scene
 ## carries `Visuals/NormalVariant` and `Visuals/BossVariant`, and the boss flag
@@ -382,7 +398,7 @@ func _physics_process(delta: float) -> void:
 	# listen-host play) draws the boss warning from the same replicated ticks a
 	# connected client uses, so single-player shows exactly what a client sees.
 	# The dedicated server draws nothing.
-	if is_boss and not NetworkManager.is_dedicated_server:
+	if (is_boss or not abilities.is_empty()) and not NetworkManager.is_dedicated_server:
 		var authored_record := SimAuthority.record_for(self)
 		if not authored_record.is_empty():
 			_draw_telegraph(authored_record)
@@ -516,13 +532,17 @@ func _begin_attack(plan: Dictionary) -> void:
 	_attack_plan = plan
 	_attack_kind = String(plan.get("kind", "melee"))
 	_attack_center = global_position
+	# A target-locked pattern lands where the target stood when it began:
+	# the warning is under their feet and stepping out of it dodges.
+	if bool(plan.get("at_target", false)) and _valid_target():
+		_attack_center = (target_player as Node3D).global_position
 	_attack_dir = _direction_to_target()
 	_windup = float(plan.get("anticipation", MELEE_ANTICIPATION))
 	_recovery = float(plan.get("recovery", MELEE_RECOVERY))
 	attack_phase = AttackPhase.ANTICIPATION
 	_play_attack_clip(plan, "anticipation")
 	_publish_state()
-	if is_boss and bool(plan.get("telegraph", false)) and SimAuthority.is_authority():
+	if bool(plan.get("telegraph", false)) and SimAuthority.is_authority():
 		var release_tick := SimAuthority.sim_tick + maxi(1, int(round(_windup * float(HPProtocol.SIM_HZ))))
 		SimAuthority.begin_mob_telegraph(self, plan, release_tick, _attack_dir, _attack_center)
 
@@ -532,7 +552,7 @@ func _release_attack() -> void:
 	_play_attack_clip(plan, "attack", 0.06)
 	_set_state(State.ATTACK)
 	_publish_state()
-	if is_boss and bool(plan.get("telegraph", false)) and SimAuthority.is_authority():
+	if bool(plan.get("telegraph", false)) and SimAuthority.is_authority():
 		SimAuthority.end_mob_telegraph(self)
 	# spell-effect hook: the release cue fires on the authoritative release tick.
 	if is_instance_valid(_warning_effect):
@@ -550,11 +570,36 @@ func _choose_plan() -> Dictionary:
 			pattern["telegraph"] = true
 			return pattern
 		return {"kind": "melee", "anticipation": 1.1, "recovery": 0.9, "telegraph": true}
+	_attack_count += 1
+	for ability in abilities:
+		var every := int((ability as Dictionary).get("every", 0))
+		if every > 0 and _attack_count % every == 0:
+			var plan: Dictionary = (ability as Dictionary).duplicate(true)
+			plan["telegraph"] = true
+			return plan
 	var anticipation := RANGED_ANTICIPATION if is_ranged else MELEE_ANTICIPATION
 	var recovery := RANGED_RECOVERY if is_ranged else MELEE_RECOVERY
 	return {"kind": "ranged" if is_ranged else "melee",
 		"anticipation": attack_anticipation if attack_anticipation > 0.0 else anticipation,
 		"recovery": attack_recovery if attack_recovery > 0.0 else recovery}
+
+## A thrown ability whose range band holds `distance` and whose cooldown has
+## run out (authority clock), or {}.
+func _ranged_ability(distance: float) -> Dictionary:
+	for ability in abilities:
+		var a: Dictionary = ability
+		if not a.has("max_range"):
+			continue
+		if distance < float(a.get("min_range", 0.0)) or distance > float(a.get("max_range", 0.0)):
+			continue
+		var id := String(a.get("id", ""))
+		if SimAuthority.sim_tick < int(_ability_ready_tick.get(id, 0)):
+			continue
+		_ability_ready_tick[id] = SimAuthority.sim_tick + int(float(a.get("cooldown", 8.0)) * HPProtocol.SIM_HZ)
+		var plan := a.duplicate(true)
+		plan["telegraph"] = true
+		return plan
+	return {}
 
 func _direction_to_target() -> Vector3:
 	if not is_instance_valid(target_player):
@@ -572,7 +617,8 @@ func _cancel_attack() -> void:
 	_attack_kind = ""
 	_attack_plan = {}
 	_cancel_warning()
-	if is_boss and SimAuthority.is_authority():
+	# Any telegraphed attack (boss pattern or creature ability) ends with it.
+	if SimAuthority.is_authority():
 		SimAuthority.end_mob_telegraph(self)
 
 # ------------------------------------------------------------------ corpse
@@ -676,6 +722,17 @@ func _fight(delta: float) -> void:
 		_break_fight("no_target" if _valid_target() == false else "leash")
 		return
 	var distance := global_position.distance_to(target_player.global_position)
+	# A target out of reach may be worth a thrown attack (troll boulder).
+	if attack_phase == AttackPhase.NONE and attack_timer <= 0 and distance > attack_range:
+		var thrown := _ranged_ability(distance)
+		if not thrown.is_empty() and Rules.has_line_of_sight(self, target_player):
+			_set_state(State.ATTACK)
+			velocity.x = 0
+			velocity.z = 0
+			_face_direction(target_player.global_position - global_position, delta)
+			attack_timer = attack_cooldown
+			_begin_attack(thrown)
+			return
 	var reach := 15.0 if is_ranged else attack_range
 	var engaged := _has_attack_slot()
 	if distance > reach or not Rules.has_line_of_sight(self, target_player) or not engaged:
@@ -934,15 +991,18 @@ func _resolve_attack(plan: Dictionary) -> void:
 	var multiplier := float(plan.get("damage_multiplier", 1.0))
 	if kind == "area" or kind == "slam":
 		var radius := float(plan.get("radius", 5.5))
-		FX.play_impact(get_parent(), center, "bombarda")
+		FX.play_impact(get_parent(), center, String(plan.get("impact_fx", "bombarda")))
 		# AoE victims are chosen by the engine from its own entity table: a
 		# protected player inside the circle simply is not a victim.
-		SimAuthority.mob_area_attack(self, center, radius, int(power * multiplier), "boss_area" if is_boss else "boss_slam")
+		var hits: Array = SimAuthority.mob_area_attack(self, center, radius, int(power * multiplier),
+			String(plan.get("spell_id", "boss_area" if is_boss else "boss_slam")))
+		_apply_riders(plan, hits)
 	elif kind == "directional":
 		var range_len := float(plan.get("range", 8.0))
 		var half_angle := float(plan.get("half_angle", 0.6))
 		FX.play_cast(get_parent(), self, "expelliarmus", global_position + Vector3.UP * 1.2, _attack_dir)
-		SimAuthority.mob_cone_attack(self, _attack_dir, half_angle, range_len, int(power * multiplier), "boss_cone")
+		var cone_hits: Array = SimAuthority.mob_cone_attack(self, _attack_dir, half_angle, range_len, int(power * multiplier), "boss_cone")
+		_apply_riders(plan, cone_hits)
 	elif kind == "ranged":
 		if _valid_target() and Rules.has_line_of_sight(self, target_player):
 			var dir := (target_player.global_position + Vector3.UP - (global_position + Vector3.UP * 1.2)).normalized()
@@ -952,6 +1012,20 @@ func _resolve_attack(plan: Dictionary) -> void:
 		if global_position.distance_to(target_player.global_position) <= attack_range + 0.4:
 			_play_voice(_voice_key("attack"))
 			SimAuthority.mob_melee(self, target_player, power)
+
+## What a pattern does beyond its damage: despair (no regeneration) on every
+## victim, and a drain that heals the attacker by a share of what it dealt.
+func _apply_riders(plan: Dictionary, hits: Array) -> void:
+	var despair := float(plan.get("despair_s", 0.0))
+	var dealt := 0
+	for hit in hits:
+		dealt += int((hit as Dictionary).get("amount", 0))
+		if despair > 0.0:
+			SimAuthority.apply_despair(int((hit as Dictionary).get("uid", 0)), despair)
+	if dealt > 0 and float(plan.get("drain", 0.0)) > 0.0:
+		SimAuthority.heal_mob(self, int(dealt * float(plan.get("drain", 0.0))))
+		current_hp = int(SimAuthority.record_for(self).get("hp", current_hp))
+		_update_label()
 
 # ------------------------------------------------------------------- damage
 
@@ -1058,6 +1132,8 @@ func _respawn() -> void:
 	# would send the body wandering on its first frame back.
 	wander_timer = randf_range(1, 4)
 	_pattern_index = 0
+	_attack_count = 0
+	_ability_ready_tick.clear()
 	_cancel_attack()
 	_corpse_time = 0
 	_stuck_timer = 0
@@ -1164,6 +1240,9 @@ func _draw_telegraph(record: Dictionary) -> void:
 	if SimAuthority.sim_tick > int(data.get("recovery_until_tick", release_tick)) + 2:
 		_cancel_warning()
 		return
+	if String(data.get("fx", "")) == "boulder" and start_tick != _boulder_tick:
+		_boulder_tick = start_tick
+		_throw_boulder(data.get("center", global_position), release_tick)
 	if not is_instance_valid(_warning):
 		_show_warning(data)
 	if not is_instance_valid(_warning):
@@ -1178,3 +1257,34 @@ func _draw_telegraph(record: Dictionary) -> void:
 	# authority ticks this fill is - never by a client-side guess.
 	if is_instance_valid(_warning_effect) and _warning_effect.has_method("set_progress"):
 		_warning_effect.call("set_progress", progress)
+
+## The boulder a troll throws: lifted overhead, then flown on an arc so it
+## lands on the authority's release tick (presentation only - the damage is the
+## telegraphed area resolved by the server).
+func _throw_boulder(target: Vector3, release_tick: int) -> void:
+	var parent := get_parent()
+	if parent == null:
+		return
+	var rock := MeshInstance3D.new()
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.75
+	mesh.height = 1.3
+	rock.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.42, 0.4, 0.37)
+	mat.roughness = 0.95
+	rock.material_override = mat
+	parent.add_child(rock)
+	var start := global_position + Vector3.UP * 4.6
+	rock.global_position = start
+	var total := maxf(0.2, float(release_tick - SimAuthority.sim_tick) * HPProtocol.SIM_DT)
+	var flight := minf(0.75, total)
+	var tween := rock.create_tween()
+	tween.tween_interval(total - flight)
+	tween.tween_method(_fly_boulder.bind(rock, start, target), 0.0, 1.0, flight)
+	tween.tween_callback(rock.queue_free)
+
+func _fly_boulder(t: float, rock: Node3D, start: Vector3, target: Vector3) -> void:
+	if is_instance_valid(rock):
+		rock.global_position = start.lerp(target, t) + Vector3.UP * sin(t * PI) * 5.0
+		rock.rotation.x = t * 9.0

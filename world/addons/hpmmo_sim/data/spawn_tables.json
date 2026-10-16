@@ -117,6 +117,17 @@
         "recovery": 1.6,
         "radius": 7.5,
         "damage_multiplier": 1.8
+      },
+      {
+        "kind": "area",
+        "clip": "Swing",
+        "at_target": true,
+        "anticipation": 1.6,
+        "recovery": 1.0,
+        "radius": 4.5,
+        "damage_multiplier": 1.5,
+        "fx": "boulder",
+        "spell_id": "troll_boulder"
       }
     ],
     "wraith": [
@@ -136,6 +147,19 @@
         "recovery": 1.4,
         "radius": 8.5,
         "damage_multiplier": 1.6
+      },
+      {
+        "kind": "area",
+        "clip": "Reach",
+        "at_target": true,
+        "anticipation": 1.4,
+        "recovery": 1.3,
+        "radius": 3.0,
+        "damage_multiplier": 2.4,
+        "despair_s": 8.0,
+        "drain": 0.5,
+        "impact_fx": "expelliarmus",
+        "spell_id": "dementor_kiss"
       }
     ]
   },
@@ -1677,7 +1701,8 @@
       "respawn_s": [
         600,
         900
-      ]
+      ],
+      "world_boss": true
     },
     {
       "id": 50,
@@ -1702,7 +1727,8 @@
       "respawn_s": [
         600,
         900
-      ]
+      ],
+      "world_boss": true
     }
   ],
   "_exclusions_note": "Authored keep-outs on the new grounds. Lake water needs no entry: the encounter director rejects any point over water (GroundsLake.is_water_at) and steep ground.",
