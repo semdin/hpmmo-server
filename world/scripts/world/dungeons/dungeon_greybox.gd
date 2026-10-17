@@ -10,6 +10,9 @@ extends Node3D
 ## `apply_state` opens/closes from the replicated run state.
 
 const GROUP := "dungeon_instance"
+## The castle's world-space PBR kit (triplanar, no UVs): a dungeon reads as
+## part of the same castle, not a grey box.
+const Kit = preload("res://scripts/world/castle/castle_blockout.gd")
 
 ## Set by the loader before the node enters the tree.
 var map_id := ""
@@ -18,8 +21,13 @@ var floor_y := 1000.0
 var wall_h := 8.0
 
 var _gates: Dictionary = {}   # gate id -> StaticBody3D
-var _stone: StandardMaterial3D
+var _stone: Material
 var _iron: StandardMaterial3D
+var _floor_mat: Material
+var _vault: Material
+var _trim: Material
+## Pilaster spacing along a room's long walls (0 = none).
+var bay := 6.0
 
 func setup(p_map_id: String, p_collision_only: bool = false) -> void:
 	map_id = p_map_id
@@ -30,7 +38,10 @@ func setup(p_map_id: String, p_collision_only: bool = false) -> void:
 func _ready() -> void:
 	add_to_group(GROUP)
 	if not collision_only:
-		_stone = _mat(Color(0.33, 0.32, 0.34), 0.95)
+		_stone = Kit.kit_material_for_quality("stone_cold")
+		_floor_mat = Kit.kit_material_for_quality("stone_floor")
+		_vault = Kit.kit_material_for_quality("stone_vault_cold")
+		_trim = Kit.kit_material_for_quality("trim_cold")
 		_iron = _mat(Color(0.16, 0.15, 0.15), 0.5, 0.6)
 	_build()
 
@@ -95,7 +106,7 @@ func _deco(center: Vector3, size: Vector3, material: Material) -> void:
 ## leaving an 8 m doorway wherever an opening point lies on a wall.
 func _room(center: Vector2, size: Vector2, openings: Array, door: float = 8.0, y: float = INF) -> void:
 	var fy := floor_y if y == INF else y
-	_box(Vector3(center.x, fy - 0.5, center.y), Vector3(size.x, 1, size.y))
+	_box(Vector3(center.x, fy - 0.5, center.y), Vector3(size.x, 1, size.y), _floor_mat)
 	var hx := size.x * 0.5
 	var hz := size.y * 0.5
 	var wy := fy + wall_h * 0.5
@@ -114,11 +125,67 @@ func _room(center: Vector2, size: Vector2, openings: Array, door: float = 8.0, y
 				_box(Vector3(center.x - (door * 0.5 + seg * 0.5), wy, wz), Vector3(seg, wall_h, 1))
 				_box(Vector3(center.x + (door * 0.5 + seg * 0.5), wy, wz), Vector3(seg, wall_h, 1))
 	# A ceiling keeps the light in and the sky out.
-	_deco(Vector3(center.x, fy + wall_h + 0.25, center.y), Vector3(size.x + 2, 0.5, size.y + 2), _stone)
+	_deco(Vector3(center.x, fy + wall_h + 0.25, center.y), Vector3(size.x + 2, 0.5, size.y + 2), _vault)
+	_dress_room(center, size, fy)
 
+## Dressed stone on a plain room: a plinth along every wall, pilasters every
+## `bay` metres down the long walls carrying transverse ribs under the ceiling,
+## and a cornice where wall meets vault.
+func _dress_room(center: Vector2, size: Vector2, fy: float) -> void:
+	if collision_only:
+		return
+	var hx := size.x * 0.5
+	var hz := size.y * 0.5
+	for side in [-1.0, 1.0]:
+		_deco(Vector3(center.x + side * (hx - 0.15), fy + 0.25, center.y), Vector3(0.3, 0.5, size.y), _trim)
+		_deco(Vector3(center.x, fy + 0.25, center.y + side * (hz - 0.15)), Vector3(size.x, 0.5, 0.3), _trim)
+		_deco(Vector3(center.x + side * (hx - 0.2), fy + wall_h - 0.3, center.y), Vector3(0.4, 0.6, size.y), _trim)
+	if bay <= 0.0:
+		return
+	var count := int(floor(size.y / bay))
+	for i in range(1, count + 1):
+		var z := center.y + hz - i * bay
+		if z <= center.y - hz + 0.5:
+			break
+		for side in [-1.0, 1.0]:
+			_deco(Vector3(center.x + side * (hx - 0.35), fy + wall_h * 0.5, z), Vector3(0.7, wall_h, 0.9), _trim)
+		_deco(Vector3(center.x, fy + wall_h - 0.2, z), Vector3(size.x, 0.4, 0.6), _trim)
+
+## A portcullis: iron bars and cross straps (the body's collision is the
+## full box; the bars are what a client sees).
 func _gate(id: String, center: Vector3, size: Vector3) -> void:
-	_gates[id] = _box(center, size, _iron)
-	(_gates[id] as StaticBody3D).name = "Gate_" + id
+	var body := StaticBody3D.new()
+	body.name = "Gate_" + id
+	body.position = center
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = size
+	shape.shape = box
+	body.add_child(shape)
+	add_child(body)
+	_gates[id] = body
+	if collision_only:
+		return
+	var bars := int(size.x / 0.45)
+	for i in range(bars + 1):
+		var bar := MeshInstance3D.new()
+		var cyl := CylinderMesh.new()
+		cyl.top_radius = 0.06
+		cyl.bottom_radius = 0.06
+		cyl.height = size.y
+		cyl.radial_segments = 8
+		bar.mesh = cyl
+		bar.material_override = _iron
+		bar.position = Vector3(-size.x * 0.5 + i * size.x / bars, 0, 0)
+		body.add_child(bar)
+	for y in [-size.y * 0.3, 0.0, size.y * 0.3]:
+		var strap := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = Vector3(size.x + 0.1, 0.16, 0.12)
+		strap.mesh = bm
+		strap.material_override = _iron
+		strap.position = Vector3(0, y, 0)
+		body.add_child(strap)
 
 func _portal_ring(at: Vector3) -> void:
 	if collision_only:
@@ -157,6 +224,17 @@ func _torch(at: Vector3, color: Color = Color(1.0, 0.68, 0.35), energy: float = 
 	flame.material_override = mat
 	flame.position = at
 	add_child(flame)
+	# The iron sconce under the flame.
+	var cup := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = 0.2
+	cm.bottom_radius = 0.08
+	cm.height = 0.3
+	cm.radial_segments = 10
+	cup.mesh = cm
+	cup.material_override = _iron
+	cup.position = at - Vector3(0, 0.25, 0)
+	add_child(cup)
 
 ## An authored model as static scenery (client only), e.g. a suit of armour on
 ## its plinth. It stands in its bind pose (no clip is played).

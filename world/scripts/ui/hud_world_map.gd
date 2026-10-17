@@ -24,6 +24,13 @@ const PLACES := [
 
 var player: Node3D = null
 var view: MapView
+var _hint: Label
+## The bestiary's "Show on map": one creature's packs (grounds x, z), its
+## bosses, and its regions' names with their level bands.
+var focus_name := ""
+var focus_points: Array = []
+var focus_bosses: Array = []
+var focus_regions: Array = []
 
 func _init() -> void:
 	super._init("World Map", Vector2(620, 560))
@@ -39,9 +46,69 @@ func _ready() -> void:
 	if ResourceLoader.exists(MAP_TEXTURE):
 		view.texture = load(MAP_TEXTURE)
 	body.add_child(view)
-	var hint := HudKit.label("Wheel: zoom  ·  Drag: move  ·  M / Esc: close", 13, HudKit.TEXT_DIM, HudKit.body(), 0)
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	body.add_child(hint)
+	_hint = HudKit.label("", 13, HudKit.TEXT_DIM, HudKit.body(), 0)
+	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	body.add_child(_hint)
+	_update_hint()
+
+func _update_hint() -> void:
+	if _hint == null:
+		return
+	_hint.text = "Wheel: zoom  ·  Drag: move  ·  M / Esc: close  ·  B: bestiary"
+	if focus_name != "":
+		_hint.text = "Showing %s (red marks)  ·  " % focus_name + _hint.text
+
+## Mark every pack of `species` (and its bosses and regions) and open centred
+## on the nearest one.
+func focus_species(species: String, display: String) -> void:
+	focus_name = display
+	focus_points.clear()
+	focus_bosses.clear()
+	focus_regions.clear()
+	var bands := {}
+	for pack in HPRules.spawn_tables().get("packs", []):
+		if String(pack.get("mob", "")) != species:
+			continue
+		var area: Array = pack.get("area", [0, 0, 0, 0])
+		var at := Vector2(float(area[0]) + float(area[2]) * 0.5, float(area[1]) + float(area[3]) * 0.5)
+		if bool(pack.get("boss", false)):
+			focus_bosses.append(at)
+			continue
+		focus_points.append(at)
+		var zone := String(pack.get("zone", ""))
+		var band: Vector2i = bands.get(zone, Vector2i(999, 0))
+		bands[zone] = Vector2i(mini(band.x, int(pack.get("level", 1))), maxi(band.y, int(pack.get("level", 1))))
+	for zone in bands.keys():
+		var region := HPRules.region_by_id(String(zone))
+		var c: Array = region.get("center", [0, 0])
+		var band: Vector2i = bands[zone]
+		focus_regions.append([String(region.get("display", zone)), Vector2(float(c[0]), float(c[1])),
+			"Lv %d" % band.x if band.x == band.y else "Lv %d–%d" % [band.x, band.y]])
+	_update_hint()
+	super.open()
+	if view == null:
+		return
+	await get_tree().process_frame
+	view.zoom = maxf(view._min_zoom(), 0.3)
+	var from := Vector2.ZERO
+	if player != null and is_instance_valid(player):
+		from = Vector2(player.global_position.x, player.global_position.z)
+	var best := from
+	var best_d := INF
+	for p in focus_points + focus_bosses:
+		if (p as Vector2).distance_to(from) < best_d:
+			best_d = (p as Vector2).distance_to(from)
+			best = p
+	view.centre = best
+	view._clamp()
+
+func close() -> void:
+	super.close()
+	focus_name = ""
+	focus_points.clear()
+	focus_bosses.clear()
+	focus_regions.clear()
+	_update_hint()
 
 func open() -> void:
 	super.open()
@@ -131,6 +198,24 @@ class MapView extends Control:
 			var at := p - Vector2(w * 0.5, 0)
 			draw_string_outline(f, at, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 5, Color(0.98, 0.94, 0.84, 0.85))
 			draw_string(f, at, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.22, 0.13, 0.06))
+		# The bestiary's creature: its packs, bosses and regions.
+		if host.focus_name != "":
+			var dot := clampf(2.2 + zoom * 2.2, 2.5, 6.0)
+			for w in host.focus_points:
+				var sp := world_to_screen(w)
+				draw_circle(sp, dot + 1.2, Color(0.1, 0.02, 0.02, 0.9))
+				draw_circle(sp, dot, Color(0.92, 0.2, 0.14))
+			for w in host.focus_bosses:
+				var bp := world_to_screen(w)
+				draw_circle(bp, dot * 2.0 + 2.0, Color(0.1, 0.02, 0.02, 0.9))
+				draw_circle(bp, dot * 2.0, Color(1.0, 0.78, 0.25))
+			var rf := HudKit.bold()
+			for spec in host.focus_regions:
+				var rp := world_to_screen(spec[1]) + Vector2(0, -14)
+				var txt := "%s  %s" % [spec[0], spec[2]]
+				var w2 := rf.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
+				draw_string_outline(rf, rp - Vector2(w2 * 0.5, 0), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, 5, Color(0, 0, 0, 0.9))
+				draw_string(rf, rp - Vector2(w2 * 0.5, 0), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(1.0, 0.82, 0.7))
 		var tree := get_tree()
 		# People to talk to.
 		for n in tree.get_nodes_in_group("npcs"):

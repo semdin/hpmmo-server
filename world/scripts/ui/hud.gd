@@ -77,6 +77,7 @@ var game_menu: HudGameMenu = null
 var world_map: HudWorldMap = null
 var quest_scroll: HudQuestScroll = null
 var skill_window: HudSkillWindow = null
+var bestiary: HudBestiary = null
 var _exp_ticks: Control = null
 var _level := 1
 ## Last house rank shown; 0 until the first payload so a load is not a "rank up".
@@ -184,6 +185,9 @@ func _setup_panels() -> void:
 	modal.add_child(world_map)
 	quest_scroll = HudQuestScroll.new()
 	modal.add_child(quest_scroll)
+	bestiary = HudBestiary.new()
+	bestiary.world_map = world_map
+	modal.add_child(bestiary)
 	skill_window = HudSkillWindow.new()
 	skill_window.hud = self
 	modal.add_child(skill_window)
@@ -195,10 +199,12 @@ func _setup_panels() -> void:
 	_add_quick_button("JournalBtn", "menu_journal", "Guide", "[J] Training guide", open_guide)
 	_add_quick_button("SkillsBtn", "stupefy", "Skills", "[V] Skill training", func(): skill_window.toggle())
 	_add_quick_button("MapBtn", "menu_map", "Map", "[M] World map", func(): world_map.toggle())
+	_add_quick_button("BestiaryBtn", "menu_map", "Bestiary", "[B] Bestiary - where every creature lives", func(): bestiary.toggle())
 	_add_quick_button("MenuBtn", "menu_settings", "Menu", "[Esc] Menu - settings, change character, quit", func(): game_menu.toggle())
 	_ensure_ui_action("toggle_onboarding", KEY_J)
 	_ensure_ui_action("toggle_map", KEY_M)
 	_ensure_ui_action("toggle_skills", KEY_V)
+	_ensure_ui_action("toggle_bestiary", KEY_B)
 
 ## Name, house and purse, on a small brass plate in the top-left corner.
 ## Previously a bare label that overlapped the chat log.
@@ -291,6 +297,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		if settings != null and settings.is_open():
 			return
 		skill_window.toggle()
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("toggle_bestiary"):
+		if settings != null and settings.is_open():
+			return
+		bestiary.toggle()
 		get_viewport().set_input_as_handled()
 
 func bind_player(p_player: Node3D) -> void:
@@ -737,6 +748,9 @@ func handle_escape(world: Node = null) -> String:
 	if skill_window != null and skill_window.is_open():
 		skill_window.close()
 		return "skills"
+	if bestiary != null and bestiary.is_open():
+		bestiary.close()
+		return "bestiary"
 	if quest_scroll != null and quest_scroll.is_open():
 		quest_scroll.close()
 		return "quest"

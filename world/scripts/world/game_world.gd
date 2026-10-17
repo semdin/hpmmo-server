@@ -467,8 +467,11 @@ func _create_view(record: Dictionary) -> void:
 			scene = _mob_scene(int(record.get("variant", HPProtocol.MOB_VARIANT_INFERI)))
 		HPProtocol.Kind.MONOLITH:
 			scene = MONOLITH_SCENE
+		HPProtocol.Kind.DUMMY:
+			_bind_dummy(record)
+			return
 		_:
-			return   # dummies are authored scenery in every process
+			return
 	if scene == null:
 		return
 	var view: Node3D = scene.instantiate()
@@ -512,6 +515,26 @@ func _create_view(record: Dictionary) -> void:
 	if "visuals" in view and view.visuals:
 		view.visuals.rotation.y = float(record.get("rot_y", 0.0))
 
+## Dummies are authored scenery in every process: a client never builds one
+## from a record, it binds the replicated record to its own dummy at that spot,
+## so the authority's hits show (numbers, health bar, wobble) on it.
+func _bind_dummy(record: Dictionary) -> void:
+	var pos: Vector3 = record.get("pos", Vector3.ZERO)
+	var best: Node3D = null
+	var best_d := 3.0
+	for node in get_tree().get_nodes_in_group("dummies"):
+		var d: float = (node as Node3D).global_position.distance_to(pos)
+		if d < best_d:
+			best_d = d
+			best = node
+	if best == null:
+		return
+	_views[int(record["uid"])] = best
+	SimAuthority.attach_view_node(int(record["uid"]), best)
+	best.current_hp = int(record.get("hp", best.current_hp))
+	best.max_hp = int(record.get("max_hp", best.max_hp))
+	best._update_label()
+
 func _on_entity_despawned(uid: int) -> void:
 	_queued.erase(uid)
 	SimAuthority.drop_replica(uid)
@@ -519,6 +542,8 @@ func _on_entity_despawned(uid: int) -> void:
 		return
 	var view = _views[uid]
 	_views.erase(uid)
+	if is_instance_valid(view) and view.is_in_group("dummies"):
+		return   # scenery stays; it rebinds when the record comes back
 	if is_instance_valid(view):
 		if view.has_method("despawn"):
 			view.despawn()

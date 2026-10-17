@@ -487,6 +487,10 @@ func _load_map(map_id: String) -> bool:
 	_apply_interior_ambience(true)
 	return true
 
+const DOOR_MODEL := "res://assets/dungeons/forbidden_corridor/fc_door.glb"
+## The model's depth (stone frame relief), metres.
+const DOOR_DEPTH := 0.71
+
 ## Portals that are a place in the map, not just a trigger (maps.json
 ## `dressing`): the locked third-floor door of the Forbidden Corridor gets its
 ## door, its iron bands and its warning sign. Presentation only.
@@ -498,41 +502,53 @@ func _dress_portals(map_id: String, parent: Node3D) -> void:
 		var door := Node3D.new()
 		door.name = "PortalDoor_" + String(entry.get("id", ""))
 		parent.add_child(door)
-		# Flush with the wall the trigger stands against (1 m behind its centre).
-		door.global_position = Vector3(float(c[0]), float(c[1]) - 0.5, float(c[2]) - 0.85)
-		var wood := StandardMaterial3D.new()
-		wood.albedo_color = Color(0.32, 0.2, 0.11)
-		wood.roughness = 0.85
-		var iron := StandardMaterial3D.new()
-		iron.albedo_color = Color(0.14, 0.13, 0.13)
-		iron.metallic = 0.6
-		iron.roughness = 0.5
-		var parts := [[Vector3(0, 1.8, 0), Vector3(2.2, 3.6, 0.2), wood]]
-		for y in [0.6, 1.8, 3.0]:
-			parts.append([Vector3(0, y, 0.12), Vector3(2.3, 0.14, 0.05), iron])
-		parts.append([Vector3(0.75, 1.6, 0.14), Vector3(0.16, 0.22, 0.05), iron])
-		for spec in parts:
-			var mesh := MeshInstance3D.new()
-			var box := BoxMesh.new()
-			box.size = spec[1]
-			mesh.mesh = box
-			mesh.material_override = spec[2]
-			mesh.position = spec[0]
-			door.add_child(mesh)
+		# The generated door (art/forbidden_corridor: gpt-image concept ->
+		# Hunyuan 3D -> prop_prepare.py) stands in its own wall bay, its stone
+		# frame flush on the corridor's inner wall (z -12, local to the castle).
+		door.global_position = Vector3(float(c[0]), float(c[1]) - 0.5, -12.0 + DOOR_DEPTH * 0.5)
+		if ResourceLoader.exists(DOOR_MODEL):
+			door.add_child((load(DOOR_MODEL) as PackedScene).instantiate())
 		var sign := Label3D.new()
-		sign.text = "The third-floor corridor on the right-hand side
-is OUT OF BOUNDS"
-		sign.font_size = 28
-		sign.outline_size = 6
-		sign.modulate = Color(1.0, 0.85, 0.6)
-		sign.position = Vector3(0, 4.1, 0.2)
+		sign.text = "OUT OF BOUNDS"
+		sign.font = HudKit.deco()
+		sign.font_size = 40
+		sign.outline_size = 8
+		sign.modulate = Color(1.0, 0.86, 0.6)
+		sign.position = Vector3(0, 5.6, DOOR_DEPTH * 0.5)
 		door.add_child(sign)
-		var glow := OmniLight3D.new()
-		glow.light_color = Color(1.0, 0.7, 0.4)
-		glow.light_energy = 0.8
-		glow.omni_range = 4.0
-		glow.position = Vector3(0, 2.4, 1.2)
-		door.add_child(glow)
+		for side in [-1.0, 1.0]:
+			var torch := OmniLight3D.new()
+			torch.light_color = Color(1.0, 0.66, 0.36)
+			torch.light_energy = 1.4
+			torch.omni_range = 7.0
+			torch.position = Vector3(side * 2.35, 3.4, 0.9)
+			door.add_child(torch)
+			var flame := MeshInstance3D.new()
+			var sphere := SphereMesh.new()
+			sphere.radius = 0.14
+			sphere.height = 0.28
+			flame.mesh = sphere
+			var fm := StandardMaterial3D.new()
+			fm.albedo_color = Color(1.0, 0.7, 0.35)
+			fm.emission_enabled = true
+			fm.emission = Color(1.0, 0.62, 0.3)
+			fm.emission_energy_multiplier = 4.0
+			flame.material_override = fm
+			flame.position = Vector3(side * 2.35, 3.3, 0.75)
+			door.add_child(flame)
+			var cup := MeshInstance3D.new()
+			var cm := CylinderMesh.new()
+			cm.top_radius = 0.16
+			cm.bottom_radius = 0.06
+			cm.height = 0.26
+			cup.mesh = cm
+			var iron := StandardMaterial3D.new()
+			iron.albedo_color = Color(0.14, 0.13, 0.13)
+			iron.metallic = 0.6
+			iron.roughness = 0.5
+			cup.material_override = iron
+			cup.position = Vector3(side * 2.35, 3.08, 0.75)
+			door.add_child(cup)
 
 ## An interior is not lit by the open sky. While the castle interior is the
 ## resident map the environment is the castle's (castle/castle_atmosphere.gd:

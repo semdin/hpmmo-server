@@ -660,6 +660,8 @@ func reset_encounter(pack_id: int, reason: String) -> void:
 ## Training dummies never die; at zero HP they snap back to full so every client
 ## sees the same bar.
 func reset_dummy(node: Node3D) -> void:
+	if not is_authority():
+		return   # a client's dummy is a view: the authority's reset arrives as health
 	var record := record_for(node)
 	if record.is_empty():
 		return

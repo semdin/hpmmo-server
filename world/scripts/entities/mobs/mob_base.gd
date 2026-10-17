@@ -269,6 +269,14 @@ func _apply_boss_visual() -> void:
 	if NetworkManager.is_dedicated_server and visuals:
 		for player in visuals.find_children("*", "AnimationPlayer", true, false):
 			(player as AnimationPlayer).active = false
+		# Nor does it keep what only a screen needs: an ordinary creature drops its
+		# unused boss body and every mesh (~0.1 MB a body, thousands of bodies).
+		# Bosses keep theirs (multipart creatures read their skeleton).
+		if not is_boss:
+			if boss_node != null and normal != null:
+				boss_node.free()
+			for mesh in visuals.find_children("*", "MeshInstance3D", true, false):
+				mesh.free()
 	if anim_player:
 		# Imported monster animations use different names from the wizard rig.
 		for animation in anim_player.get_animation_list():
