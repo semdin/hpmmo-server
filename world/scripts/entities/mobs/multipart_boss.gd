@@ -206,3 +206,4 @@ func _exit_tree() -> void:
 			if is_instance_valid(part):
 				SimAuthority.unregister_node(part)
 				part.queue_free()
+	super()

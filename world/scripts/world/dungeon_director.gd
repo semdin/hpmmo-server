@@ -63,8 +63,8 @@ func _process(delta: float) -> void:
 ## The living players in a copy (records with a body).
 func _players(map_id: String, alive_only: bool = true) -> Array:
 	var out: Array = []
-	for uid in SimAuthority.entities.keys():
-		var record: Dictionary = SimAuthority.entities[uid]
+	for uid in SimAuthority.players_by_peer.values():
+		var record: Dictionary = SimAuthority.entities.get(uid, {})
 		if int(record.get("kind", 0)) != HPProtocol.Kind.PLAYER or String(record.get("map_id", "")) != map_id:
 			continue
 		if alive_only and bool(record.get("dead", false)):
@@ -181,8 +181,8 @@ func _triggered(map_id: String, run: Dictionary, on: String) -> bool:
 	if on.begins_with("area:"):
 		var z_below := float(on.substr(5))
 		var origin: Vector3 = run["origin"]
-		for uid in SimAuthority.entities.keys():
-			var record: Dictionary = SimAuthority.entities[uid]
+		for uid in SimAuthority.players_by_peer.values():
+			var record: Dictionary = SimAuthority.entities.get(uid, {})
 			if int(record.get("kind", 0)) != HPProtocol.Kind.PLAYER or String(record.get("map_id", "")) != map_id:
 				continue
 			var node = record.get("node")

@@ -94,11 +94,20 @@ func _physics_process(delta: float) -> void:
 			excluded.append(player.get_rid())
 	if is_instance_valid(caster) and caster is CollisionObject3D:
 		excluded.append(caster.get_rid())
-	if is_instance_valid(caster) and caster.is_in_group("mobs"):
-		for mob in get_tree().get_nodes_in_group("mobs"):
-			excluded.append(mob.get_rid())
 	query.exclude = excluded
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	# A creature's bolt passes through other creatures. Skip the ones actually
+	# on the segment instead of excluding every creature in the world (~4500
+	# RIDs per bolt per frame on the server).
+	var mob_caster := is_instance_valid(caster) and caster.is_in_group("mobs")
+	var skips := 0
+	while mob_caster and not hit.is_empty() and hit.collider is Node and (hit.collider as Node).is_in_group("mobs") and skips < 8:
+		excluded.append((hit.collider as CollisionObject3D).get_rid())
+		query.exclude = excluded
+		hit = get_world_3d().direct_space_state.intersect_ray(query)
+		skips += 1
+	if mob_caster and not hit.is_empty() and hit.collider is Node and (hit.collider as Node).is_in_group("mobs"):
+		hit = {}
 	if not hit.is_empty():
 		global_position = hit.position
 		_on_body_entered(hit.collider)

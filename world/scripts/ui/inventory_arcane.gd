@@ -1,7 +1,7 @@
 extends Control
 
 const SLOT_LABELS := {"head":"Head", "chest":"Robes", "hands":"Hands", "feet":"Feet", "main_hand":"Wand", "off_hand":"Focus", "neck":"Neck", "ring_left":"Ring I", "ring_right":"Ring II", "broom":"Broom"}
-const REASONS := {"in_combat":"Wait five seconds after combat.", "casting":"Finish casting first.", "dead":"You are defeated.", "mounted":"Dismount before changing your broom.", "level_too_low":"Your level is too low for that item.", "bag_full":"No room for the replaced item.", "wrong_slot":"That item does not fit.", "item_missing":"That item is no longer available.", "stale_inventory":"Inventory changed. Please try again.", "stale_request":"Action already handled.", "no_gold":"Not enough Galleons.", "no_material":"Missing refinement material.", "no_wand":"Equip a wand first.", "max_tier":"Already fully refined.", "refined":"Refined!", "enchanted":"The enchantment holds!", "enchant_failed":"The weave slipped - the scroll is spent.", "no_scroll":"You have no such scroll.", "bonus_full":"This item cannot hold more enchantments.", "no_bonus":"There is nothing to reweave yet.", "not_enchantable":"That item cannot be enchanted.", "nothing_equipped":"Equip an item in that slot first.", "not_refinable":"That item cannot be refined.", "refinement_failed":"Refinement failed.", "save_conflict":"Inventory refreshed from your saved character.", "transfer_pending":"Wait until the map loads.", "invalid_state":"Equipment temporarily unavailable.", "resource_full":"That resource is already full.", "consumed":"Potion used."}
+const REASONS := {"in_combat":"Wait five seconds after combat.", "casting":"Finish casting first.", "dead":"You are defeated.", "mounted":"Dismount before changing your broom.", "level_too_low":"Your level is too low for that item.", "bag_full":"No room for the replaced item.", "wrong_slot":"That item does not fit.", "item_missing":"That item is no longer available.", "stale_inventory":"Inventory changed. Please try again.", "stale_request":"Action already handled.", "no_gold":"Not enough Galleons.", "no_material":"Missing refinement material.", "no_wand":"Equip a wand first.", "max_tier":"Already fully refined.", "refined":"Refined!", "enchanted":"The enchantment holds!", "enchant_failed":"The weave slipped - the scroll is spent.", "no_scroll":"You have no such scroll.", "bonus_full":"This item cannot hold more enchantments.", "no_bonus":"There is nothing to reweave yet.", "not_enchantable":"That item cannot be enchanted.", "nothing_equipped":"Equip an item in that slot first.", "not_refinable":"That item cannot be refined.", "refinement_failed":"Refinement failed.", "save_conflict":"Inventory refreshed from your saved character.", "transfer_pending":"Wait until the map loads.", "invalid_state":"Equipment temporarily unavailable.", "resource_full":"That resource is already full.", "consumed":"Potion used.", "sold":"Sold.", "not_sellable":"No merchant wants that."}
 var player: Node3D
 var item_container: GridContainer
 var galleons_label: Label
@@ -20,6 +20,8 @@ var _details: Label
 var _message: Label
 var _ring_menu: PopupMenu
 var _ring_entry: Dictionary = {}
+var _sell_button: Button
+var _sell_entry: Dictionary = {}
 var _pending := false
 var _pending_id := -1
 var _last_operation := ""
@@ -93,9 +95,14 @@ func _ready() -> void:
 	_details.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_details.custom_minimum_size.y = 42
 	_bag_page.add_child(_details)
+	_sell_button = Button.new()
+	_sell_button.name = "SellButton"
+	_sell_button.hide()
+	_sell_button.pressed.connect(_sell_selected)
+	_bag_page.add_child(_sell_button)
 	galleons_label = UITheme.body("", 15, UITheme.c("gold_hi"))
 	_window.body.add_child(galleons_label)
-	_message = UITheme.body("Right-click / double-click to equip · Drag to a slot", 13)
+	_message = UITheme.body("Right-click / double-click to equip · Drag to a slot · Select a bag item to sell it", 13)
 	_message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_window.body.add_child(_message)
 	_tooltip = ItemTooltip.new()
@@ -159,6 +166,13 @@ func refresh() -> void:
 	var stats := HPEquipment.stats(player.base_max_hp, player.base_max_mana, player.equipment)
 	_stats.text = "Health %d   Mana %d\nSpell power ×%.2f   Defense %.0f%%\nBroom speed %.0f" % [stats.max_hp, stats.max_mana, stats.weapon_multiplier * HPRules.wand_multiplier(stats.wand_tier), stats.defense, stats.mount_speed]
 	_preview.show_player(player)
+	# The sold piece (or a stack that ran out) is no longer selectable.
+	var selected_slot: UISlot = null
+	for slot in _bag_slots:
+		if slot.selected:
+			selected_slot = slot
+			break
+	_update_sell(selected_slot)
 
 func _on_inventory_changed() -> void:
 	if visible: refresh()
@@ -169,6 +183,27 @@ func _select(slot: UISlot) -> void:
 	for other in _doll_slots + _bag_slots: other.selected = _selection_key(other) == _selected_key
 	var data := HPEquipment.item(slot.item_id)
 	_details.text = "%s\n%s" % [data.get("name", slot.item_id), _comparison(slot)]
+	_update_sell(slot)
+
+## Only bag items sell (one piece at a time); worn gear must be taken off first.
+func _update_sell(slot: UISlot) -> void:
+	_sell_entry = {}
+	if slot == null or slot.equipment_slot != "" or slot.item_id == "":
+		_sell_button.hide()
+		return
+	var price := HPEquipment.sell_price(slot.item_id, int(slot.entry.get("tier", 0)))
+	if price <= 0:
+		_sell_button.hide()
+		return
+	_sell_entry = slot.entry.duplicate(true)
+	_sell_button.text = "Sell for %d Galleons" % price
+	_sell_button.disabled = _pending
+	_sell_button.show()
+
+func _sell_selected() -> void:
+	if _sell_entry.is_empty() or not is_instance_valid(player) or player.is_dead:
+		return
+	_request("sell", "", _sell_entry)
 
 func _selection_key(slot: UISlot) -> String:
 	return "%s:%s:%d" % [slot.equipment_slot,slot.item_id,int(slot.entry.get("tier",0))]

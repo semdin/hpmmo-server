@@ -101,6 +101,20 @@ static func take(bag: Array, id: String, tier: int, amount: int = 1) -> bool:
 				bag.erase(entry)
 	return true
 
+## What a merchant pays for one piece: by rarity, +50% per refinement tier.
+## Stackables (potions, materials) fetch a tenth - they drop by the dozen.
+## items.json `sell_price` overrides the rarity rule.
+const SELL_BY_RARITY := {"common": 40, "uncommon": 120, "rare": 300, "epic": 800, "legendary": 2000}
+
+static func sell_price(id: String, tier: int = 0) -> int:
+	var data := item(id)
+	if data.is_empty():
+		return 0
+	var base := int(data.get("sell_price", SELL_BY_RARITY.get(String(data.get("rarity", "common")), 40)))
+	if not data.has("sell_price") and stackable(id):
+		base = maxi(1, base / 10)
+	return int(round(float(base) * (1.0 + 0.5 * float(maxi(0, tier)))))
+
 ## Remove and return the instance `uid` ({} when the bag does not hold it).
 static func take_instance(bag: Array, uid: int) -> Dictionary:
 	for entry in bag:

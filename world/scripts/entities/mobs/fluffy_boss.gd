@@ -137,8 +137,8 @@ func _tick_harp(delta: float) -> void:
 ## The living player standing at the harp (on this copy), or {}.
 func _harp_player() -> Dictionary:
 	var map_id := String(SimAuthority.record_for(self).get("map_id", ""))
-	for uid in SimAuthority.entities.keys():
-		var record: Dictionary = SimAuthority.entities[uid]
+	for uid in SimAuthority.players_by_peer.values():
+		var record: Dictionary = SimAuthority.entities.get(uid, {})
 		if int(record.get("kind", 0)) != HPProtocol.Kind.PLAYER or bool(record.get("dead", false)):
 			continue
 		if String(record.get("map_id", "")) != map_id:

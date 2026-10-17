@@ -156,6 +156,15 @@ func _build() -> void:
 	_map_title.clip_text = true
 	_map.add_child(_map_title)
 
+	# Round-trip time to the world server, in the disc's empty top-left corner.
+	_ping_label = HudKit.label("", 13, HudKit.PARCHMENT, HudKit.title(), 4)
+	_ping_label.name = "Ping"
+	_ping_label.position = Vector2(-6.0, -4.0)
+	_ping_label.size = Vector2(72.0, 18.0)
+	_ping_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ping_label.hide()
+	_map.add_child(_ping_label)
+
 	_build_map_buttons()
 	add_child(_map)
 
@@ -408,6 +417,28 @@ func _process(_delta: float) -> void:
 	_update_zone()
 	_update_boss()
 	_update_vignette()
+	_update_ping()
+
+var _ping_label: Label = null
+var _ping_next_ms := 0
+
+## Online only (offline play has no server to measure). Refreshed twice a
+## second; green under 80 ms, amber under 150, red above.
+func _update_ping() -> void:
+	if _ping_label == null:
+		return
+	var now := Time.get_ticks_msec()
+	if now < _ping_next_ms:
+		return
+	_ping_next_ms = now + 500
+	var ms: int = SimNet.ping_ms() if SimNet.has_method("ping_ms") else -1
+	if ms < 0:
+		_ping_label.hide()
+		return
+	_ping_label.text = "%d ms" % ms
+	var colour := Color(0.55, 0.9, 0.5) if ms < 80 else (Color(1.0, 0.78, 0.35) if ms < 150 else Color(1.0, 0.42, 0.36))
+	_ping_label.add_theme_color_override("font_color", colour)
+	_ping_label.show()
 
 
 ## Park the map camera over the player. It only renders while the overlay is on

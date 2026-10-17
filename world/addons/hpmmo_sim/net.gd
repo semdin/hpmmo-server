@@ -97,6 +97,16 @@ const PEER_TIMEOUT_LIMIT := 64
 const PEER_TIMEOUT_MIN_MS := 20000
 const PEER_TIMEOUT_MAX_MS := 40000
 
+## Client: smoothed round-trip time to the world server in ms (ENet's own
+## estimate), or -1 when this process is not connected as a client.
+func ping_ms() -> int:
+	if not is_client or not (multiplayer.multiplayer_peer is ENetMultiplayerPeer):
+		return -1
+	var server := (multiplayer.multiplayer_peer as ENetMultiplayerPeer).get_peer(1)
+	if server == null:
+		return -1
+	return int(server.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME))
+
 static func _relax_timeout(packet_peer: ENetPacketPeer) -> void:
 	if packet_peer != null:
 		packet_peer.set_timeout(PEER_TIMEOUT_LIMIT, PEER_TIMEOUT_MIN_MS, PEER_TIMEOUT_MAX_MS)

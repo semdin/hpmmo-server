@@ -3369,6 +3369,8 @@ func request_equipment(peer_id: int, request_id: int, revision: int, operation: 
 			result = HPEquipment.enchant(node.inventory, node.equipment, item_id, uid, rng)
 		elif operation == "consume":
 			result = _consume_item(node, item_id, tier)
+		elif operation == "sell":
+			result = _sell_item(node, item_id, tier, uid)
 		else:
 			result.reason = "invalid_operation"
 		if bool(result.ok):
@@ -3388,6 +3390,25 @@ func request_equipment(peer_id: int, request_id: int, revision: int, operation: 
 	record["equipment_seq"] = maxi(request_id, int(record.get("equipment_seq", -1)))
 	record["equipment_reply"] = result.duplicate(true)
 	return result
+
+## Sell one piece from the bag (never a worn item) for its merchant price.
+## Without this a full satchel (40 slots) could never be emptied, and every new
+## gear drop stayed on the ground.
+func _sell_item(node: Node, item_id: String, tier: int, uid: int) -> Dictionary:
+	var bag: Array = node.inventory.duplicate(true)
+	var sold_tier := tier
+	if uid > 0:
+		var entry := HPEquipment.take_instance(bag, uid)
+		if entry.is_empty() or String(entry.get("id", "")) != item_id:
+			return {"ok": false, "reason": "item_missing"}
+		sold_tier = int(entry.get("tier", 0))
+	elif not HPEquipment.take(bag, item_id, tier):
+		return {"ok": false, "reason": "item_missing"}
+	var price := HPEquipment.sell_price(item_id, sold_tier)
+	if price <= 0:
+		return {"ok": false, "reason": "not_sellable"}
+	node.galleons += price
+	return {"ok": true, "reason": "sold", "inventory": bag, "galleons": price}
 
 func _consume_item(node: Node, item_id: String, tier: int) -> Dictionary:
 	if item_id not in ["potion_health", "potion_mana"]:

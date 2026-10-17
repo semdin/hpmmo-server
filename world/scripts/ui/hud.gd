@@ -101,6 +101,7 @@ func _ready() -> void:
 	chat.name = "Chat"
 	add_child(chat)
 	chat.setup($ChatContainer, chat_history, chat_input)
+	SimAuthority.notice.connect(_on_authority_notice)
 
 	slot_1.pressed.connect(func(): _trigger_player_spell("stupefy"))
 	slot_2.pressed.connect(func(): _trigger_player_spell("incendio"))
@@ -711,6 +712,31 @@ func _add_system_chat(msg: String) -> void:
 func show_notice(text: String, kind: String = "warn") -> void:
 	if notices != null:
 		notices.show_notice(text, kind)
+
+## Server refusals (`sim_notice`, "kind:reason"). A refused pickup used to be
+## silent: with a full bag the item simply stayed on the ground.
+const PICKUP_REASONS := {
+	"bag_full": "Your bag is full (40/40). Sell or discard something to pick this up.",
+	"out_of_range": "Too far away to pick that up.",
+	"not_yours": "That loot belongs to someone else.",
+	"transfer_pending": "Wait until the map loads.",
+}
+var _notice_last_ms: Dictionary = {}
+
+func _on_authority_notice(text: String, _color: Color) -> void:
+	var kind := text.get_slice(":", 0)
+	var reason := text.get_slice(":", 1)
+	var line := ""
+	if kind == "pickup":
+		line = String(PICKUP_REASONS.get(reason, ""))
+	if line == "":
+		return
+	# Pickup retries twice a second while the player stands on the item.
+	var now := Time.get_ticks_msec()
+	if now - int(_notice_last_ms.get(text, -100000)) < 4000:
+		return
+	_notice_last_ms[text] = now
+	show_notice(line, "warn")
 
 ## A realm-wide event (v14 `sim_world_event`): a line in the chat log, the
 ## centre band in the boss colour and the boss horn. Returns the text shown.

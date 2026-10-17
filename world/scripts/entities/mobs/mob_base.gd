@@ -47,7 +47,14 @@ signal died(mob: Node3D)
 @export var exp_reward := 65
 @export var weak_to_fire := false
 @export var is_ranged := false
-@export var pack_id := 0
+@export var pack_id := 0:
+	set(value):
+		if value == pack_id:
+			return
+		_pack_index_remove()
+		pack_id = value
+		if is_inside_tree():
+			_pack_index_add()
 @export var pack_anchor := Vector3.ZERO
 @export var is_boss := false
 @export var is_commander := false
@@ -742,8 +749,8 @@ func aggro_on(player: Node3D, alert_pack: bool = true) -> void:
 	if newly_aggroed:
 		_play_voice("boss_alert" if is_boss else _voice_key("alert"))
 	if alert_pack and pack_id > 0:
-		for mob in get_tree().get_nodes_in_group("mobs"):
-			if mob != self and mob.pack_id == pack_id and global_position.distance_to(mob.global_position) <= assist_radius:
+		for mob in pack_mates():
+			if mob != self and is_instance_valid(mob) and global_position.distance_to(mob.global_position) <= assist_radius:
 				mob.aggro_on(player, false)
 
 func _valid_target() -> bool:
@@ -811,8 +818,8 @@ func _has_attack_slot() -> bool:
 	var slots := int(HPRules.pack_tuning("attack_slots", 3.0))
 	var mine := get_instance_id()
 	var ahead := 0
-	for mob in get_tree().get_nodes_in_group("mobs"):
-		if mob == self or mob.pack_id != pack_id or mob.target_player != target_player:
+	for mob in pack_mates():
+		if mob == self or not is_instance_valid(mob) or mob.target_player != target_player:
 			continue
 		if mob.state == State.DEAD:
 			continue
@@ -834,8 +841,8 @@ func _hold_attack_ring(delta: float) -> void:
 ## instance id, so every waiting mob picks a distinct slice of the ring.
 func _ring_angle() -> float:
 	var ids: Array = []
-	for mob in get_tree().get_nodes_in_group("mobs"):
-		if mob.pack_id == pack_id and mob.state != State.DEAD:
+	for mob in pack_mates():
+		if is_instance_valid(mob) and mob.state != State.DEAD:
 			ids.append(mob.get_instance_id())
 	ids.sort()
 	var index := ids.find(get_instance_id())
@@ -954,24 +961,13 @@ func wake() -> void:
 		if is_instance_valid(anim_player) and not NetworkManager.is_dedicated_server:
 			anim_player.active = true
 
-## Pack mates by pack id, gathered once per physics frame: a creature only
-## keeps its distance from its own pack (packs stand tens of metres apart), so
-## separation is O(pack) instead of O(every creature in the world).
-static var _packs: Dictionary = {}
-static var _packs_frame := -1
-
+## A creature only keeps its distance from its own pack (packs stand tens of
+## metres apart), so separation is O(pack) instead of O(every creature).
 func _separation() -> Vector3:
 	var radius := float(HPRules.pack_tuning("separation_radius", 1.7))
 	var push := Vector3.ZERO
-	var frame := Engine.get_physics_frames()
-	if frame != _packs_frame:
-		_packs_frame = frame
-		_packs = {}
-		for mob in get_tree().get_nodes_in_group("mobs"):
-			if not mob._sleeping:
-				(_packs.get_or_add(mob.pack_id, []) as Array).append(mob)
-	for mob in _packs.get(pack_id, []):
-		if not is_instance_valid(mob):
+	for mob in pack_mates():
+		if not is_instance_valid(mob) or mob._sleeping:
 			continue
 		if mob == self or mob.state == State.DEAD:
 			continue
@@ -1199,8 +1195,8 @@ func on_authoritative_death(killer: Node3D) -> void:
 		spider.die()
 	_corpse_time = 0
 	_respawn_delay = float(HPRules.respawn_delay_ms(is_boss, SimAuthority.rng)) / 1000.0
-	for mob in get_tree().get_nodes_in_group("mobs"):
-		if pack_id > 0 and mob != self and mob.pack_id == pack_id and mob.is_commander:
+	for mob in pack_mates():
+		if pack_id > 0 and mob != self and is_instance_valid(mob) and mob.is_commander:
 			mob.trigger_enrage()
 	died.emit(self)
 
@@ -1274,10 +1270,36 @@ func _respawn() -> void:
 	if SimAuthority.is_authority():
 		SimAuthority.refresh_mob(self)
 
+func _enter_tree() -> void:
+	_pack_index_add()
+
 func _exit_tree() -> void:
+	_pack_index_remove()
 	_cancel_attack()
 	_cancel_warning()
 	SimAuthority.unregister_node(self)
+
+## Creatures by pack id, kept as they enter/leave the tree. Pack logic (assist,
+## attack slots, ring places, separation, enrage) used to walk the "mobs" group -
+## every creature in the world, ~4500 - per fighting mob per physics frame. With
+## two or three packs engaged that was most of the server's frame: mobs froze,
+## players were corrected back and casts waited on "still recovering".
+static var _pack_index: Dictionary = {}
+
+func _pack_index_add() -> void:
+	(_pack_index.get_or_add(pack_id, []) as Array).append(self)
+
+func _pack_index_remove() -> void:
+	var members: Array = _pack_index.get(pack_id, [])
+	members.erase(self)
+	if members.is_empty():
+		_pack_index.erase(pack_id)
+
+## This creature's pack, itself included. Pack 0 means "no pack": nobody shares it.
+func pack_mates() -> Array:
+	if pack_id <= 0:
+		return [self]
+	return _pack_index.get(pack_id, [self])
 
 # ------------------------------------------------------------------ puppets
 
