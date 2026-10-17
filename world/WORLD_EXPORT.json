@@ -1,7 +1,7 @@
 {
  "generated": "2026-10-17",
  "source_repository": "hpmmo-client",
- "source_revision": "fa683345a6cfc8aedd40b62cb0a1d00643e3a938",
+ "source_revision": "8862615880c01e668a68a2987ac170dcf2ebc414",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/audio/sound_library.json": "1beddb2e83b72a255999f1cf1d2833b1dd6576553827f05ecadf5bbb07ca868e",
@@ -551,8 +551,8 @@
   "scripts/world/dungeons/dungeon_forbidden_corridor.gd": "c83967ed8e4aa25f73efef0e8dcd972e6b43ba75da37c43ad2ae217d3e631425",
   "scripts/world/dungeons/dungeon_greybox.gd": "432688c36a1bc8c093c6a797255bdde47c5fd23ae1017ffe6ed8dd4650bc15da",
   "scripts/world/dungeons/dungeon_trial.gd": "074e2cf213d9d3e96672f4250ab5d8dd071bb70b8f94e2cf6dd3a370033a45f2",
-  "scripts/world/encounter_director.gd": "cfec0bcc3c54bd077948619e3a83f871f641fd98051f788b2f737921f6fe05f8",
-  "scripts/world/game_world.gd": "ea637ae55f167012fbaa68a6f8647aa89123dd1a27e63f2e512ba7a333d02221",
+  "scripts/world/encounter_director.gd": "938661265aa522cc69e720c570992ebceba7ae240aff7a8cd6c2ba7c40579f30",
+  "scripts/world/game_world.gd": "9a8097009d7f7364b3906c28805e98de7004d29d883d70a691b73ac243227291",
   "scripts/world/grounds/arch_kit.gd": "34e4aa046d3c8171931789fd564b0ea20ae9111ebe1d1ab8cfc0b4ef3540ec1d",
   "scripts/world/grounds/castle_exterior.gd": "33268c2b2a4c18521480bbda0a0168f36f541ffcd778e1627ae5ed31b2c6eda8",
   "scripts/world/grounds/grounds_builder.gd": "ac318eae2e20ed461a4f501257cff7727321f7e88547a24b37f2723d3f9b5a00",

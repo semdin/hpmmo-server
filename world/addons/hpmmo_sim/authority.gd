@@ -118,6 +118,11 @@ var players_by_peer: Dictionary = {} # peer_id -> uid
 var players_by_character: Dictionary = {} # character_id -> uid
 
 var _next_uid: int = 1
+## The loot entries of `entities`, rebuilt only when the table changed (an
+## added entry bumps _next_uid, a removed one shrinks it): per-peer snapshots
+## look up a handful of drops instead of walking thousands of creatures.
+var _loot_key := Vector2i(-1, -1)
+var _loot_uids: Array = []
 var _next_cast_id: int = 1
 var _next_death_seq: int = 1
 var _accumulator: float = 0.0
@@ -709,6 +714,16 @@ func remove_player(peer_id: int) -> void:
 			# mobs keep chasing and that nothing can ever despawn.
 			node.queue_free()
 		emit_signal("player_left", uid, int(record.get("character_id", 0)))
+
+func loot_uids() -> Array:
+	var key := Vector2i(entities.size(), _next_uid)
+	if key != _loot_key:
+		_loot_key = key
+		_loot_uids.clear()
+		for uid in entities:
+			if int((entities[uid] as Dictionary).get("kind", 0)) == HPProtocol.Kind.LOOT:
+				_loot_uids.append(uid)
+	return _loot_uids
 
 func player_record(peer_id: int) -> Dictionary:
 	if not players_by_peer.has(peer_id):

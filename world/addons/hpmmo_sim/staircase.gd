@@ -496,11 +496,13 @@ func _arrive(tick: int) -> void:
 	_publish_now(tick)
 
 ## While docked the rider set is exactly who is on the deck right now, so a body
-## that steps off before the warning is not carried away with it.
+## that steps off before the warning is not carried away with it. Only players
+## ride: walk the connected players, never the whole entity table (thousands of
+## creatures x seven flights x every tick held the world server at half rate).
 func _collect_riders(tick: int) -> void:
 	_riders.clear()
-	for uid in SimAuthority.entities.keys():
-		var record: Dictionary = SimAuthority.entities[uid]
+	for uid in SimAuthority.players_by_peer.values():
+		var record: Dictionary = SimAuthority.entities.get(uid, {})
 		if int(record.get("kind", 0)) != HPProtocol.Kind.PLAYER:
 			continue
 		if bool(record.get("dead", false)):
@@ -516,8 +518,8 @@ func _collect_riders(tick: int) -> void:
 ## against the closed gate is told why too (the gate itself is solid, so this is
 ## presentation - but the plan asks for feedback, not just a wall).
 func _enforce_entry(tick: int) -> void:
-	for uid in SimAuthority.entities.keys():
-		var record: Dictionary = SimAuthority.entities[uid]
+	for uid in SimAuthority.players_by_peer.values():
+		var record: Dictionary = SimAuthority.entities.get(uid, {})
 		if int(record.get("kind", 0)) != HPProtocol.Kind.PLAYER:
 			continue
 		if bool(record.get("dead", false)) or _riders.has(int(uid)):

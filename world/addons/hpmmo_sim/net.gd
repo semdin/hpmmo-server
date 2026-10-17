@@ -1033,8 +1033,8 @@ func _broadcast_snapshots() -> void:
 				current[int(uid)] = rev
 				if known.get(int(uid)) != rev:
 					sim_mob_info.rpc_id(peer_id, int(uid), SimAuthority.mob_info_of(mob))
-		for uid in SimAuthority.entities.keys():
-			var loot: Dictionary = SimAuthority.entities[uid]
+		for uid in SimAuthority.loot_uids():
+			var loot: Dictionary = SimAuthority.entities.get(uid, {})
 			if int(loot.get("kind", 0)) != HPProtocol.Kind.LOOT:
 				continue
 			if String(loot.get("map_id", HPProtocol.DEFAULT_MAP)) != String(record.get("map_id", HPProtocol.DEFAULT_MAP)):

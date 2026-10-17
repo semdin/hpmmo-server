@@ -155,7 +155,12 @@ func _process(delta: float) -> void:
 				(node as Node3D).global_position.x, (node as Node3D).global_position.y,
 				(node as Node3D).global_position.z, int(record.get("hp", 0)),
 				int(record.get("exp", 0))])
-	print("[WorldServer] tick=%d state=%s entities=%d players=%d inputs=%d casts=%d | %s" % [
+	# Frame cost: one physics step per sim tick, so physics_ms + process_ms
+	# near 1000 / SIM_HZ means the server cannot hold its tick rate (players
+	# then see their corrections pull them back).
+	print("[WorldServer] tick=%d state=%s entities=%d players=%d inputs=%d casts=%d physics_ms=%.1f process_ms=%.1f | %s" % [
 		SimAuthority.sim_tick, SimAuthority.maintenance_state(), SimAuthority.entities.size(),
 		SimAuthority.players_by_peer.size(), SimNet.inputs_received, SimNet.cast_requests_received,
+		Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0,
+		Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
 		" ; ".join(players)])

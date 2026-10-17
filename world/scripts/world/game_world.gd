@@ -84,6 +84,11 @@ func _exit_tree() -> void:
 
 func _process(delta: float) -> void:
 	_drain_view_queue()
+	if DisplayServer.get_name() == "headless":
+		# Dedicated server / tests: nothing below is gameplay - it is candle,
+		# torch and particle dressing, and the particle sweep walks the whole
+		# tree (thousands of creatures) every second.
+		return
 	_candle_t += delta
 	# Reduced-quality particle budget: effects spawn during play, so the preset
 	# is re-applied on a slow sweep rather than once at build time.
@@ -182,7 +187,9 @@ func _notification(what: int) -> void:
 		_save_offline_state()
 
 func _save_offline_state() -> void:
-	if not is_instance_valid(local_player):
+	# Also reached from PREDELETE, when the body may already be out of the tree
+	# (its global transform is then undefined).
+	if not is_instance_valid(local_player) or not local_player.is_inside_tree():
 		return
 	if NetworkManager.is_server and not NetworkManager.is_dedicated_server:
 		var save_data := {

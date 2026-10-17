@@ -136,6 +136,10 @@ func _placement_refusal(anchor: Vector3, pack: Dictionary) -> String:
 			return "player_nearby"
 	return ""
 
+func _has_floor(point: Vector3) -> bool:
+	var query := PhysicsRayQueryParameters3D.create(point + Vector3.UP * 30.0, point - Vector3.UP * 30.0, 1)
+	return not container.get_world_3d().direct_space_state.intersect_ray(query).is_empty()
+
 ## Standable ground: a floor hit with a sane normal (no cliffs), within a step
 ## of the terrain height at that spot (not on a roof or a rock).
 func _ground_ok(point: Vector3) -> bool:
@@ -185,6 +189,11 @@ func _formation_clear(anchor: Vector3, member_count: int) -> bool:
 func _sample_anchor(pack: Dictionary) -> Vector3:
 	var attempts := int(HPRules.pack_tuning("placement_attempts", 40.0))
 	var area: Rect2 = pack["area"]
+	# No collision there at all (a client only has terrain collision round its
+	# camera): every attempt would fail the same way, so one ray says "later"
+	# instead of forty placements times every pack on the map.
+	if not _has_floor(_on_ground(Vector3(area.get_center().x, 0.0, area.get_center().y))):
+		return Vector3.INF
 	for _attempt in range(attempts):
 		var point := _on_ground(Vector3(rng.randf_range(area.position.x, area.end.x), 0.0,
 			rng.randf_range(area.position.y, area.end.y)))
@@ -234,10 +243,14 @@ func _spawn_pack(index: int) -> void:
 	var anchor := _sample_anchor(pack)
 	if not anchor.is_finite():
 		# Defer instead of placing enemies inside walls or on top of players.
-		pack.timer = float(HPRules.pack_tuning("respawn_retry_seconds", 5.0))
+		# Jittered, so a map full of deferred packs does not retry all at once
+		# (a synchronised burst every 5 s froze the client for a second).
+		var retry := float(HPRules.pack_tuning("respawn_retry_seconds", 5.0))
+		pack.timer = retry * rng.randf_range(1.0, 2.0)
+		if not bool(pack.get("deferred", false)):
+			# once per deferral, not on every retry (a thousand lines a cycle)
+			print("[Encounters] %s deferred (no valid anchor; retrying)" % pack.get("encounter_id", "?"))
 		pack.deferred = true
-		print("[Encounters] %s deferred (no valid anchor; retry in %.1fs)" % [
-			pack.get("encounter_id", "?"), pack.timer])
 		return
 	pack["anchor"] = anchor
 	pack.deferred = false
