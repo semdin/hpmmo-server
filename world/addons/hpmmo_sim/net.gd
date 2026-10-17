@@ -87,6 +87,20 @@ func profile_values() -> Dictionary:
 
 # ------------------------------------------------------------------ hosting
 
+## ENet drops a peer that has not acknowledged anything for ~5 s (its default
+## minimum). Entering the world builds terrain, the castle and shaders on the
+## main thread, and on an integrated GPU that frame can take longer than that,
+## so the session died right after the loading screen and the client was left in
+## a world with no server. Both ends allow a long hitch; a peer that is really
+## gone is still dropped after PEER_TIMEOUT_MAX_MS.
+const PEER_TIMEOUT_LIMIT := 64
+const PEER_TIMEOUT_MIN_MS := 20000
+const PEER_TIMEOUT_MAX_MS := 40000
+
+static func _relax_timeout(packet_peer: ENetPacketPeer) -> void:
+	if packet_peer != null:
+		packet_peer.set_timeout(PEER_TIMEOUT_LIMIT, PEER_TIMEOUT_MIN_MS, PEER_TIMEOUT_MAX_MS)
+
 func host(port: int = DEFAULT_PORT) -> Error:
 	# RPC receivers must exist before any peer can send a staircase update,
 	# including a client whose initial map is still loading.
@@ -156,6 +170,8 @@ func leave() -> void:
 
 func _on_connected_to_server() -> void:
 	local_peer_id = multiplayer.get_unique_id()
+	if multiplayer.multiplayer_peer is ENetMultiplayerPeer:
+		_relax_timeout((multiplayer.multiplayer_peer as ENetMultiplayerPeer).get_peer(1))
 	sim_join.rpc_id(1, join_token, HPProtocol.PROTOCOL_VERSION, CLIENT_VERSION)
 	print("[SimNet] connected as peer %d; join sent" % local_peer_id)
 
@@ -247,6 +263,8 @@ func _avoid_spawn_overlap(node: Node3D) -> void:
 
 func _on_peer_connected(peer_id: int) -> void:
 	print("[SimNet] peer %d connected" % peer_id)
+	if not is_client and multiplayer.multiplayer_peer is ENetMultiplayerPeer:
+		_relax_timeout((multiplayer.multiplayer_peer as ENetMultiplayerPeer).get_peer(peer_id))
 
 func _on_peer_disconnected(peer_id: int) -> void:
 	print("[SimNet] peer %d disconnected" % peer_id)

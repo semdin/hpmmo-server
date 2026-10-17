@@ -1,7 +1,7 @@
 {
  "generated": "2026-10-17",
  "source_repository": "hpmmo-client",
- "source_revision": "a2efdf639a237c4bd3eec0e5970c89411a675f96",
+ "source_revision": "169395234e181abc439b9519f2889ddd4a2f2abc",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/audio/sound_library.json": "1beddb2e83b72a255999f1cf1d2833b1dd6576553827f05ecadf5bbb07ca868e",
@@ -526,7 +526,7 @@
   "scripts/ui/inventory_ui.gd": "5c05bb8bc0ed70dd10357d7274326d68418deb967a21fbc6934ebaba2a3f3699",
   "scripts/ui/item_tooltip.gd": "d77a2c92feb6e82a979d6a16d53ce5efb979af06cbacb96d41230fd5a802993d",
   "scripts/ui/main_menu.gd": "0b08f374cbfb4d9c710df8d344b8099ffe8cf7d146d006c6cc51a9b62201e560",
-  "scripts/ui/maintenance_ui.gd": "5067131201d77c1158cd60d197d9ef3385add794c6d882cf0bf3cf2a2c3a6b1c",
+  "scripts/ui/maintenance_ui.gd": "eeeb2a6873cbb13f6ac9b5c4a97d9be3b5d45cc6b2f18694c425073b33225e70",
   "scripts/ui/map_marker.gd": "9d9306f5ac56641f942cd178e899e8a1e51103343d046121a111d022b8e060ac",
   "scripts/ui/mmorpg_overlay.gd": "7b91fe28282ab072b1d878f637e9521594d308b565515f46b1b82eba4679c230",
   "scripts/ui/ollivander_ui.gd": "1ebf874a87ba3d717e547bdf1762fc90c2eba8f7e8f4040da45dc4e647a25fef",

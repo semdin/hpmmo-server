@@ -29,6 +29,7 @@ var _deadline_ms := 0
 ## Set once the transport dropped during a cycle: the player is sent back to the
 ## login screen (which then shows the maintenance notice) after a short pause.
 var _return_at_ms := 0
+var _login_notice := "maintenance"
 const RETURN_TO_LOGIN_MS := 5000
 const LOGIN_SCENE := "res://scenes/main/main_menu.tscn"
 
@@ -125,14 +126,24 @@ func _post_chat_warning() -> void:
 		print("[Maintenance] " + line)
 
 func _on_disconnected(disconnect_reason: String) -> void:
+	# Both SimNet and NetworkManager report the same drop; answer it once.
+	if _return_at_ms != 0:
+		return
 	if active and (TERMINAL_STATES.has(state) or state == "ANNOUNCING" or state == "DRAINING"):
 		_title.text = "Bakım nedeniyle oyundan çıkarıldın"
 		_detail.text = "İlerlemen kaydedildi. Giriş ekranına dönülüyor…"
-		_panel.show()
-		active = true
-		state = "DISCONNECTED"
-		if _return_at_ms == 0:
-			_return_at_ms = Time.get_ticks_msec() + RETURN_TO_LOGIN_MS
+		_login_notice = "maintenance"
+	else:
+		# Any other drop (timeout, server restart): the world left behind has no
+		# authority - no creatures, casts that never resolve, refused portals.
+		# Never leave the player in it; say so and go back to the login screen.
+		_title.text = "Sunucu bağlantısı koptu"
+		_detail.text = "Giriş ekranına dönülüyor…"
+		_login_notice = "disconnected"
+	_panel.show()
+	active = true
+	state = "DISCONNECTED"
+	_return_at_ms = Time.get_ticks_msec() + RETURN_TO_LOGIN_MS
 
 func _on_server_disconnected() -> void:
 	_on_disconnected("the server closed the connection")
@@ -202,7 +213,7 @@ func _return_to_login() -> void:
 	if not is_inside_tree() or DisplayServer.get_name() == "headless":
 		return
 	var tree := get_tree()
-	tree.root.set_meta("hpmmo_login_notice", "maintenance")
+	tree.root.set_meta("hpmmo_login_notice", _login_notice)
 	var network := get_node_or_null("/root/NetworkManager")
 	if network != null and network.has_method("disconnect_game"):
 		network.call("disconnect_game")
