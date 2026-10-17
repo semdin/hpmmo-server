@@ -451,6 +451,7 @@ func register_mob(node: Node3D, pack_id: int, zone_id: String) -> int:
 		"no_rewards": node.get("no_rewards") == true,
 		"parts_down": [],
 	})
+	_track_aura(uid, node)
 	return uid
 
 static func _node_resist(node: Node) -> Dictionary:
@@ -491,6 +492,7 @@ func refresh_mob(node: Node3D) -> void:
 	record["no_rewards"] = node.get("no_rewards") == true
 	record["parts_down"] = []
 	record["vulnerable_until_tick"] = 0
+	_track_aura(int(record["uid"]), node)
 	touch(record)
 
 ## --- Multi-part creatures (D1: Fluffy's heads, the Devil's Snare's vines) ---
@@ -1187,8 +1189,10 @@ func _settle_to_safe_spawn(record: Dictionary) -> void:
 ## The last valid safe spawn is refreshed while a body stands still on real
 ## ground in its own map: that is where a failed transfer returns it.
 func _tick_safe_spawns() -> void:
-	for uid in entities.keys():
-		var record: Dictionary = entities[uid]
+	for uid in _player_uids():
+		var record: Dictionary = entities.get(uid, {})
+		if record.is_empty():
+			continue
 		if int(record.get("kind", 0)) != HPProtocol.Kind.PLAYER:
 			continue
 		if bool(record.get("dead", false)) or int(record.get("pending_transfer", 0)) != 0:
@@ -1268,8 +1272,10 @@ func _step() -> void:
 ## flight phase, derived here from authoritative input and the body's own speed,
 ## so every client renders the same phase for the same rider.
 func _tick_mount_phases() -> void:
-	for uid in entities.keys():
-		var record: Dictionary = entities[uid]
+	for uid in _player_uids():
+		var record: Dictionary = entities.get(uid, {})
+		if record.is_empty():
+			continue
 		if int(record.get("kind", 0)) != HPProtocol.Kind.PLAYER:
 			continue
 		var mounted := bool(record.get("mounted", false))
@@ -1386,6 +1392,7 @@ func _apply_self_cast(caster: Dictionary, spell_id: String) -> void:
 	var duration := float(HPRules.ward_duration_ms(spell_id)) * HPRules.skill_effect_multiplier(skill_level(caster, spell_id))
 	var ticks := int(ceil(duration / TICK_MS))
 	caster["ward_until_tick"] = sim_tick + ticks
+	_ticking[int(caster.get("uid", 0))] = true
 	touch(caster)
 	_push_stats(caster)
 
@@ -1947,14 +1954,30 @@ func _apply_burn(target: Dictionary, spell_id: String, attacker: Dictionary) -> 
 		return
 	var interval := int(burn.get("interval_ms", 1000))
 	target["burn_until_tick"] = sim_tick + int(burn.get("ticks", 0)) * int(ceil(float(interval) / TICK_MS))
+	_ticking[int(target.get("uid", 0))] = true
 	target["burn_next_tick"] = sim_tick + int(ceil(float(interval) / TICK_MS))
 	target["burn_damage"] = int(burn.get("damage", 0))
 	target["burn_source_uid"] = int(attacker.get("uid", 0)) if not attacker.is_empty() else 0
 
+## Entities with something to advance each tick (a burn, a Protego ward,
+## ground loot waiting to expire). The tick used to walk every entity - with
+## ~1700 creatures in the world that was most of the server's step.
+var _ticking: Dictionary = {}
+
+## The players' uids (most per-tick upkeep concerns players only).
+func _player_uids() -> Array:
+	return players_by_peer.values()
+
 func _advance_effects() -> void:
 	var interval_ticks := maxi(1, int(ceil(1000.0 / TICK_MS)))
-	for uid in entities.keys():
-		var record: Dictionary = entities[uid]
+	for uid in _ticking.keys():
+		var record: Dictionary = entities.get(uid, {})
+		if record.is_empty():
+			_ticking.erase(uid)
+			continue
+		if int(record.get("burn_until_tick", 0)) == 0 and int(record.get("ward_until_tick", 0)) == 0 				and int(record.get("kind", 0)) != HPProtocol.Kind.LOOT:
+			_ticking.erase(uid)
+			continue
 		if bool(record.get("dead", false)):
 			continue
 		var burn_until := int(record.get("burn_until_tick", 0))
@@ -2187,6 +2210,7 @@ func _spawn_loot_node(item_id: String, amount: int, origin: Vector3, map_id: Str
 		"spawned_tick": sim_tick,
 		"owner_uid": owner_uid,
 	}
+	_ticking[uid] = true
 	emit_signal("loot_spawned", uid, item_id, amount, entities[uid]["pos"])
 
 func _loot_scatter() -> Vector3:
@@ -2331,8 +2355,10 @@ func _respawn_player(record: Dictionary) -> void:
 
 func _tick_regeneration() -> void:
 	_tick_creature_auras()
-	for uid in entities.keys():
-		var record: Dictionary = entities[uid]
+	for uid in _player_uids():
+		var record: Dictionary = entities.get(uid, {})
+		if record.is_empty():
+			continue
 		if int(record.get("kind", 0)) != HPProtocol.Kind.PLAYER or bool(record.get("dead", false)):
 			continue
 		# Despair (dementor kiss / aura): no natural recovery while it lasts.
@@ -2386,9 +2412,24 @@ func heal_mob(node: Node, amount: int) -> void:
 
 ## Cold auras (mobs.json `aura`): every regeneration beat, a fighting creature
 ## with an aura chills the players near it - a little damage and despair.
+## Creatures that carry an aura (dementors), kept at registration: walking all
+## ~1700 creatures and reading node properties once a second to find them was
+## a ~20 ms stall per second on the server.
+var _aura_uids: Dictionary = {}
+
+func _track_aura(uid: int, node: Node) -> void:
+	var aura = node.get("aura") if node != null else null
+	if aura is Dictionary and not (aura as Dictionary).is_empty():
+		_aura_uids[uid] = true
+	else:
+		_aura_uids.erase(uid)
+
 func _tick_creature_auras() -> void:
-	for uid in entities.keys():
-		var mob: Dictionary = entities[uid]
+	for uid in _aura_uids.keys():
+		var mob: Dictionary = entities.get(uid, {})
+		if mob.is_empty():
+			_aura_uids.erase(uid)
+			continue
 		if int(mob.get("kind", 0)) != HPProtocol.Kind.MOB or bool(mob.get("dead", false)):
 			continue
 		var node = mob.get("node")
@@ -2420,8 +2461,10 @@ func _tick_creature_auras() -> void:
 ## Respawn timers are checked on the sim clock (never on client timing), which
 ## is also what keeps a disconnected player from staying dead forever.
 func _check_respawns() -> void:
-	for uid in entities.keys():
-		var record: Dictionary = entities[uid]
+	for uid in _player_uids():
+		var record: Dictionary = entities.get(uid, {})
+		if record.is_empty():
+			continue
 		if int(record.get("kind", 0)) != HPProtocol.Kind.PLAYER:
 			continue
 		var respawn_tick := int(record.get("respawn_tick", 0))
@@ -2434,8 +2477,10 @@ func _check_respawns() -> void:
 ## players never see. The floor is per map, which is also what
 ## keeps a body inside an empty greybox map at a valid location.
 func _check_fall_protection() -> void:
-	for uid in entities.keys():
-		var record: Dictionary = entities[uid]
+	for uid in _player_uids():
+		var record: Dictionary = entities.get(uid, {})
+		if record.is_empty():
+			continue
 		if int(record.get("kind", 0)) != HPProtocol.Kind.PLAYER:
 			continue
 		var node = record.get("node")
