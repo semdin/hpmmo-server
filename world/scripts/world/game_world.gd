@@ -66,6 +66,7 @@ func _ready() -> void:
 			loot_window = LootWindow.new()
 			loot_window.name = "LootWindow"
 			canvas.add_child(loot_window)
+		add_child(TargetRing.new())
 	else:
 		print("[Dedicated Server] Headless world active (no local player/UI).")
 		var cl = get_node_or_null("CanvasLayer")

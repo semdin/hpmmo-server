@@ -82,6 +82,7 @@ func _build() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_window = HudWindow.new("Settings", WINDOW_SIZE)
+	_window.modal = true   # key rebinding takes the keyboard
 	_window.closed.connect(func():
 		_listening_action = ""
 		UIFocus.unblock(self))

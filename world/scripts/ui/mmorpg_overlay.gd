@@ -32,8 +32,10 @@ var _zone_timer: float = 0.0
 var _boss_panel: Panel = null
 var _boss_bar: ProgressBar = null
 var _boss_name: Label = null
-var _dialog_panel: Panel = null
+var _dialog_panel: PanelContainer = null
 var _dialog_text: Label = null
+var _dialog_speaker: Label = null
+var _dialog_serial := 0
 var _help_panel: Panel = null
 var _vignette: ColorRect = null
 var _player: Node3D = null
@@ -201,7 +203,7 @@ func _build() -> void:
 	# The old always-open quest card is replaced by the collapsible tracker.
 	_quest_panel.hide()
 	tracker = HudTracker.new()
-	tracker.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	tracker.set_anchors_preset(Control.PRESET_CENTER_LEFT)
 	add_child(tracker)
 
 	# --- zone banner (top center, above the target frame) ---
@@ -263,25 +265,43 @@ func _build() -> void:
 	add_child(_boss_panel)
 
 	# --- dialogue box (bottom center, clear of the cast bar and the deck) ---
-	_dialog_panel = Panel.new()
-	_dialog_panel.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	UILayout.place_centred(_dialog_panel, Vector2(520, 100), Vector2(0, -400))
-	_dialog_panel.custom_minimum_size = Vector2(520, 100)
-	_dialog_panel.hide()
+	# A card that grows with its text: speaker on top, the lines, a dim hint.
+	_dialog_panel = PanelContainer.new()
+	_dialog_panel.name = "Dialogue"
 	_dialog_panel.theme = UITheme.get_theme()
-	_dialog_panel.theme_type_variation = UITheme.V_WINDOW
-	_dialog_text = Label.new()
-	_dialog_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_dialog_text.custom_minimum_size = Vector2(470, 80)
-	_dialog_text.position = Vector2(36, 10)
-	_dialog_text.add_theme_color_override("font_color", UITheme.c("parchment"))
-	_dialog_text.add_theme_font_size_override("font_size", UITheme.FS_BODY)
+	var dialog_box := ArcaneSkin.card()
+	dialog_box.set_content_margin_all(22)
+	dialog_box.content_margin_left = 26
+	dialog_box.content_margin_right = 26
+	_dialog_panel.add_theme_stylebox_override("panel", dialog_box)
+	_dialog_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	_dialog_panel.gui_input.connect(func(event: InputEvent):
+		if event is InputEventMouseButton and event.pressed:
+			_dialog_panel.hide())
+	_dialog_panel.hide()
 	add_child(_dialog_panel)
-	_dialog_panel.add_child(_dialog_text)
-	var dialog_icon := UITheme.icon_rect("ui_chat", 18.0)
+	ArcaneSkin.decorate(_dialog_panel)
+	var dialog_column := VBoxContainer.new()
+	dialog_column.add_theme_constant_override("separation", 8)
+	dialog_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_dialog_panel.add_child(dialog_column)
+	var dialog_head := HBoxContainer.new()
+	dialog_head.add_theme_constant_override("separation", 8)
+	dialog_head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dialog_column.add_child(dialog_head)
+	var dialog_icon := UITheme.icon_rect("ui_chat", 20.0)
 	dialog_icon.name = "DialogIcon"
-	dialog_icon.position = Vector2(11, 9)
-	_dialog_panel.add_child(dialog_icon)
+	dialog_head.add_child(dialog_icon)
+	_dialog_speaker = HudKit.label("", 18, HudKit.GOLD_LT, HudKit.title(), 3)
+	dialog_head.add_child(_dialog_speaker)
+	dialog_column.add_child(UITheme.divider())
+	_dialog_text = UITheme.body("", UITheme.FS_BODY, UITheme.c("parchment"))
+	_dialog_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_dialog_text.custom_minimum_size = Vector2(DIALOG_W - 40, 0)
+	dialog_column.add_child(_dialog_text)
+	var dialog_hint := UITheme.body("Click or Esc to close", UITheme.FS_TINY, UITheme.c("text_dim"))
+	dialog_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	dialog_column.add_child(dialog_hint)
 
 	# --- low hp vignette ---
 	_vignette = ColorRect.new()
@@ -385,12 +405,33 @@ func _map_zoom_step(direction: int) -> void:
 		_map_cam.size = _map_zoom
 
 
+const DIALOG_W := 560.0
+
 func show_dialogue(speaker: String, lines: Array) -> void:
+	_dialog_serial += 1
+	var serial := _dialog_serial
+	_dialog_speaker.text = speaker
+	_dialog_text.text = "\n\n".join(lines)
 	_dialog_panel.show()
-	_dialog_text.text = "[%s]\n%s\n\n(Esc to close)" % [speaker, "\n".join(lines)]
-	await get_tree().create_timer(6.0).timeout
-	if is_instance_valid(_dialog_panel):
+	_place_dialogue()
+	# Long enough to read; a newer line resets the clock.
+	var words := _dialog_text.text.split(" ").size()
+	await get_tree().create_timer(clampf(4.0 + words * 0.3, 7.0, 20.0)).timeout
+	if is_instance_valid(_dialog_panel) and serial == _dialog_serial:
 		_dialog_panel.hide()
+
+## Bottom centre above the action bar, sized to its text.
+func _place_dialogue() -> void:
+	if _dialog_panel == null:
+		return
+	var canvas := get_viewport().get_visible_rect().size
+	var w := minf(DIALOG_W, canvas.x - 32.0)
+	_dialog_text.custom_minimum_size.x = w - 52.0
+	_dialog_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_dialog_panel.size = Vector2(w, 0)
+	var h := _dialog_panel.get_combined_minimum_size().y
+	_dialog_panel.position = Vector2(floorf((canvas.x - w) * 0.5), canvas.y - h - 150.0)
+	_dialog_panel.size = Vector2(w, h)
 
 func _refresh_quest() -> void:
 	if _quest_label and has_node("/root/QuestManager"):
@@ -787,8 +828,9 @@ func _arcane_overlay_layout() -> void:
 		_quest_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		_quest_panel.clip_contents = true
 	if tracker != null:
+		# Left edge, vertically centred (clear of the unit frame and the chat).
 		var w := HudTracker.WIDTH
-		UILayout.place(tracker, Vector2(-w - 16, 14 + MAP_PX * scale_factor + 50), Vector2(w, 10))
+		UILayout.place(tracker, Vector2(16, -110), Vector2(w, 10))
 	if _boss_panel != null:
 		_boss_panel.custom_minimum_size = Vector2.ZERO
 		UILayout.place(_boss_panel, Vector2(-120 if compact else -180,102), Vector2(240 if compact else 360,40))

@@ -55,6 +55,7 @@ static func surface() -> StyleBoxFlat:
 	return box
 
 static func install(theme: Theme) -> void:
+	_install_scrollbars(theme)
 	# The dedicated export and minimal-theme fallback may omit presentation art.
 	for kind in ["window","button","slot","minimap"]:
 		if not ResourceLoader.exists("res://assets/ui/arcane/%s.png" % kind): return
@@ -91,3 +92,57 @@ static func decorate(control: Control, kind: String = "window") -> void:
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	control.add_child(frame)
 	control.move_child(frame, 0)
+
+## The opaque card every game window wears (the world and its floating names
+## must not show through a window).
+static func card() -> StyleBoxFlat:
+	var box := surface()
+	box.bg_color = Color("0d1622")
+	return box
+
+## The standard game window: a UIWindow in the arcane frame with the gold
+## title ribbon and its single close button. Inventory, merchant, chest,
+## Ollivander and every HudWindow (V, B, M, Esc, settings) are built here so
+## they cannot drift apart.
+static func window(title: String, size: Vector2, icon := "") -> UIWindow:
+	var w := UIWindow.new(title, size)
+	w.header_icon = icon
+	w.ready.connect(func():
+		w.theme_type_variation = &"ArcaneWindow"
+		w.add_theme_stylebox_override("panel", card())
+		decorate(w)
+		w._ribbon.add_theme_stylebox_override("panel", surface()))
+	return w
+
+## Put a UIWindow at `at` with `size` (offsets, not position - see UIWindow),
+## keeping its ribbon as wide as the window.
+static func place(w: UIWindow, at: Vector2, size: Vector2) -> void:
+	w.custom_minimum_size = size
+	w.offset_left = at.x
+	w.offset_top = at.y
+	w.offset_right = at.x + size.x
+	w.offset_bottom = at.y + size.y
+	if w._ribbon != null:
+		w._ribbon.offset_left = -size.x * 0.5 + UIWindow.RIBBON_INSET
+		w._ribbon.offset_right = size.x * 0.5 - UIWindow.RIBBON_INSET
+
+## Thin gold scrollbars on a dark track - one look for every list.
+static func _install_scrollbars(theme: Theme) -> void:
+	var track := StyleBoxFlat.new()
+	track.bg_color = Color("0a1019")
+	track.set_corner_radius_all(3)
+	track.content_margin_left = 3
+	track.content_margin_right = 3
+	track.content_margin_top = 3
+	track.content_margin_bottom = 3
+	var grab := StyleBoxFlat.new()
+	grab.bg_color = Color("6e5a2c")
+	grab.set_corner_radius_all(3)
+	var grab_hi := grab.duplicate() as StyleBoxFlat
+	grab_hi.bg_color = Color("a8892f")
+	for bar in ["VScrollBar", "HScrollBar"]:
+		theme.set_stylebox("scroll", bar, track)
+		theme.set_stylebox("scroll_focus", bar, track)
+		theme.set_stylebox("grabber", bar, grab)
+		theme.set_stylebox("grabber_highlight", bar, grab_hi)
+		theme.set_stylebox("grabber_pressed", bar, grab_hi)

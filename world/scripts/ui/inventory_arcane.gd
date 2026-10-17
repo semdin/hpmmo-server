@@ -66,20 +66,9 @@ func _ready() -> void:
 	_layout()
 	hide()
 
-## An opaque card: the world (and its floating names) must not show through.
-static func _card_style() -> StyleBoxFlat:
-	var box := ArcaneSkin.surface()
-	box.bg_color = Color("0d1622")
-	return box
-
 func _make_window(title: String, icon: String, size: Vector2) -> UIWindow:
-	var window := UIWindow.new(title, size)
-	window.header_icon = icon
+	var window := ArcaneSkin.window(title, size, icon)
 	_presentation_layer.add_child(window)
-	window.theme_type_variation = &"ArcaneWindow"
-	window.add_theme_stylebox_override("panel", _card_style())
-	ArcaneSkin.decorate(window)
-	window._ribbon.add_theme_stylebox_override("panel", ArcaneSkin.surface())
 	return window
 
 func _build_inventory() -> void:
@@ -323,6 +312,11 @@ func _activate(slot: UISlot) -> void:
 	if slot.equipment_slot != "":
 		_request("unequip", slot.equipment_slot)
 		return
+	# With Ollivander open, right-click puts the item on his anvil.
+	var workshop := _workshop()
+	if workshop != null and workshop.visible and workshop._accepts(slot.entry.merged({"id": slot.item_id})):
+		workshop.set_target(int(slot.entry.get("uid", 0)))
+		return
 	# With the merchant open, right-click prices the item instead of using it.
 	if _merchant.visible:
 		_offer(slot.entry)
@@ -360,9 +354,14 @@ func _drop(destination: UISlot, payload: Dictionary) -> void:
 
 # ------------------------------------------------------------------ merchant
 
+func _workshop() -> Control:
+	return get_parent().get_node_or_null("OllivanderUI") as Control if get_parent() != null else null
+
 func _set_merchant_open(on: bool) -> void:
 	_merchant_button.set_pressed_no_signal(on)
 	if on:
+		var workshop := _workshop()
+		if workshop != null: workshop.hide()
 		_merchant.open()
 		_place_merchant()
 	else:

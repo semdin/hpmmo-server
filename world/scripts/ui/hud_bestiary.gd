@@ -58,7 +58,7 @@ func _ready() -> void:
 	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body.add_child(row)
 	var list_scroll := ScrollContainer.new()
-	list_scroll.custom_minimum_size = Vector2(250, 0)
+	list_scroll.custom_minimum_size = Vector2(260, 0)
 	list_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	row.add_child(list_scroll)
 	_list = VBoxContainer.new()
@@ -172,9 +172,13 @@ func _list_row(entry: Dictionary) -> Button:
 	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	col.alignment = BoxContainer.ALIGNMENT_CENTER
 	col.add_theme_constant_override("separation", 0)
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col.clip_contents = true
 	row.add_child(col)
 	var title := HudKit.label(String(entry["display"]), 15, HudKit.GOLD_LT, HudKit.bold(), 3)
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	title.tooltip_text = String(entry["display"])
 	col.add_child(title)
 	var sub := HudKit.label(_level_text(entry) + ("  ·  dungeon" if entry["regions"].is_empty() else ""), 12, HudKit.TEXT_DIM, HudKit.body(), 2)
 	sub.mouse_filter = Control.MOUSE_FILTER_IGNORE

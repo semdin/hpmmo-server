@@ -32,13 +32,9 @@ func _ready() -> void:
 	_layer = CanvasLayer.new()
 	_layer.layer = 11
 	add_child(_layer)
-	_window = UIWindow.new("CHEST", Vector2(COLUMNS * (SLOT_PX + 5) + 44, 214))
-	_window.header_icon = "ui_inventory"
+	_window = ArcaneSkin.window("CHEST", Vector2(COLUMNS * (SLOT_PX + 5) + 44, 214), "ui_inventory")
 	_window.closed.connect(close)
 	_layer.add_child(_window)
-	_window.theme_type_variation = &"ArcaneWindow"
-	ArcaneSkin.decorate(_window)
-	_window._ribbon.add_theme_stylebox_override("panel", ArcaneSkin.surface())
 	_grid = GridContainer.new()
 	_grid.columns = COLUMNS
 	_grid.add_theme_constant_override("h_separation", 5)

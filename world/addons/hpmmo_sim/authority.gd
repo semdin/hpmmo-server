@@ -3477,7 +3477,7 @@ func request_equipment(peer_id: int, request_id: int, revision: int, operation: 
 		if operation in ["equip", "unequip"]:
 			result = HPEquipment.swap(node.inventory, node.equipment, slot, item_id if operation == "equip" else "", tier, uid if operation == "equip" else 0)
 		elif operation == "refine":
-			result = _refine_equipped(node, slot)
+			result = _refine_equipped(node, slot, uid)
 		elif operation == "enchant":
 			result = HPEquipment.enchant(node.inventory, node.equipment, item_id, uid, rng)
 		elif operation == "consume":
@@ -3546,21 +3546,32 @@ func _consume_item(node: Node, item_id: String, tier: int) -> Dictionary:
 ## Refine whatever is worn in `slot` (+0..+9): one step table (wand_tiers -
 ## chance, galleons, material) for every refinable kind; a failed step from
 ## +fail_downgrade_from or higher loses one level, below it keeps the level.
-func _refine_equipped(node: Node, slot: String = "main_hand") -> Dictionary:
-	if slot == "": slot = "main_hand"
-	var worn: Dictionary = node.equipment.get(slot, {})
-	if worn.is_empty(): return {"ok": false, "reason": "no_wand" if slot == "main_hand" else "nothing_equipped"}
+## `uid` > 0 refines that exact instance wherever it is (bag or worn) - the
+## Ollivander window takes any item dragged into its slot; otherwise the item
+## worn in `slot`.
+func _refine_equipped(node: Node, slot: String = "main_hand", uid: int = 0) -> Dictionary:
+	var bag: Array = node.inventory.duplicate(true)
+	var gear: Dictionary = node.equipment.duplicate(true)
+	var worn: Dictionary = {}
+	if uid > 0:
+		for entry in bag:
+			if int(entry.get("uid", 0)) == uid: worn = entry
+		for key in gear:
+			if int(gear[key].get("uid", 0)) == uid: worn = gear[key]
+		if worn.is_empty(): return {"ok": false, "reason": "item_missing"}
+	else:
+		if slot == "": slot = "main_hand"
+		worn = gear.get(slot, {})
+		if worn.is_empty(): return {"ok": false, "reason": "no_wand" if slot == "main_hand" else "nothing_equipped"}
 	if not HPEquipment.refinable(String(worn.id)): return {"ok": false, "reason": "not_refinable"}
 	var tier := int(worn.get("tier", 0))
 	if tier >= 9: return {"ok": false, "reason": "max_tier"}
 	var spec: Dictionary = HPRules.combat().wand_tiers[tier]
 	if node.galleons < int(spec.cost): return {"ok": false, "reason": "no_gold"}
-	var bag: Array = node.inventory.duplicate(true)
 	if not HPEquipment.take(bag, spec.material_id, 0, int(spec.material_amount)):
 		return {"ok": false, "reason": "no_material"}
-	var gear: Dictionary = node.equipment.duplicate(true)
 	var success := rng.randf() * 100.0 < float(spec.chance)
 	var floor_tier := int(HPRules.combat().get("upgrade_curves", {}).get("fail_downgrade_from", 4))
-	gear[slot].tier = tier + 1 if success else (tier - 1 if tier >= floor_tier else tier)
+	worn["tier"] = tier + 1 if success else (tier - 1 if tier >= floor_tier else tier)
 	node.galleons -= int(spec.cost)
 	return {"ok": true, "reason": "refined" if success else "refinement_failed", "inventory": bag, "equipment": gear}

@@ -1352,14 +1352,9 @@ func input_blocked() -> bool:
 	# the Controls themselves before `_unhandled_input` ever sees them.
 	if UIFocus.is_blocking(get_tree()):
 		return true
-	# The bag is deliberately NOT listed here. It is a non-modal side window:
-	# its root is MOUSE_FILTER_IGNORE, only the card itself consumes clicks, and
-	# a player rummaging while walking is the intended behaviour. The Ollivander
-	# workshop stays blocking because it spends currency and rolls an upgrade.
-	var world := get_parent().get_parent()
-	var workshop := world.get_node_or_null("CanvasLayer/OllivanderUI") as Control
-	if workshop and workshop.visible:
-		return true
+	# Game windows (bag, Ollivander, V, B, M) are deliberately NOT listed: they
+	# are non-modal side windows - only the card itself consumes clicks, and a
+	# player rummaging while walking is the intended behaviour.
 	return false
 
 func _tick_regeneration(delta: float) -> void:

@@ -27,6 +27,9 @@ const STATUS_POLL_SECONDS := 15.0
 const PREFS_PATH := "user://login_prefs.json"
 ## Root-node meta a scene sets before returning here, read once on `_ready`.
 const LOGIN_NOTICE_META := "hpmmo_login_notice"
+## Set by the Esc menu's "Change character": the login session is still valid,
+## so skip the sign-in and rejoin the world straight to the character screen.
+const REJOIN_META := "hpmmo_rejoin_characters"
 const CARD_WIDTH := 430.0
 
 const COLOR_ERROR := Color(0.96, 0.47, 0.42)
@@ -76,6 +79,8 @@ func _ready() -> void:
 	_handle_cmdline_args()
 	_consume_login_notice()
 	_start_status_poll()
+	if _consume_rejoin():
+		return
 	if username_input.text.is_empty():
 		username_input.call_deferred("grab_focus")
 	else:
@@ -683,6 +688,19 @@ func _render_server_state() -> void:
 	server_dot.add_theme_stylebox_override("panel", dot)
 
 ## A scene that sends the player back here can leave a reason on the root.
+func _consume_rejoin() -> bool:
+	var root := get_tree().root
+	if not root.has_meta(REJOIN_META):
+		return false
+	root.remove_meta(REJOIN_META)
+	if DatabaseManager.session_token == "":
+		return false
+	if NetworkManager.last_server.size() == 2:
+		server_ip = String(NetworkManager.last_server[0])
+		server_port = int(NetworkManager.last_server[1])
+	call_deferred("_enter_world_with_session")
+	return true
+
 func _consume_login_notice() -> void:
 	var root := get_tree().root
 	if not root.has_meta(LOGIN_NOTICE_META):

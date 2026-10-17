@@ -75,5 +75,7 @@ func _leave_world(quit: bool) -> void:
 		get_tree().change_scene_to_file("res://scenes/main/character_select.tscn")
 	else:
 		# An online session is bound to one character, so another one needs a
-		# fresh session: back to the front end, which logs in and lists them.
+		# fresh world session - but not a new login: the front end rejoins with
+		# the same account session and opens the character screen.
+		get_tree().root.set_meta("hpmmo_rejoin_characters", true)
 		get_tree().change_scene_to_file("res://scenes/main/main_menu.tscn")

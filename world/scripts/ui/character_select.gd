@@ -68,6 +68,9 @@ func _ready() -> void:
 	_restyle()
 	_select_modal_house("Gryffindor")
 	create_modal.hide()
+	create_modal.visibility_changed.connect(_layout)
+	get_viewport().size_changed.connect(_layout)
+	_layout()
 
 	# Retrieve characters from NetworkManager cache
 	_load_characters()
@@ -481,6 +484,7 @@ func _restyle() -> void:
 	roster_panel.set_anchors_preset(Control.PRESET_CENTER_LEFT)
 	UILayout.place(roster_panel, Vector2(36, -170), Vector2(320, 0))
 	canvas.add_child(roster_panel)
+	_roster_panel = roster_panel
 	_roster = VBoxContainer.new()
 	_roster.add_theme_constant_override("separation", 10)
 	roster_panel.add_child(_roster)
@@ -571,7 +575,62 @@ func _restyle() -> void:
 	HudKit.style_label(modal_house_desc, 15, HudKit.TEXT, HudKit.body(), 2)
 	HudKit.style_button(confirm_create_btn, 16)
 	HudKit.style_button(cancel_create_btn, 16)
-	UILayout.place(create_modal, Vector2(-300, -190), Vector2(600, 380))
+	# The create card is the only thing on screen while it is open: a dim
+	# backdrop behind it, roster and sheet hidden (on a 13-14" laptop the
+	# three side by side overlapped).
+	_modal_shade = ColorRect.new()
+	_modal_shade.name = "ModalShade"
+	_modal_shade.color = Color(0, 0, 0, 0.55)
+	_modal_shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_modal_shade.mouse_filter = Control.MOUSE_FILTER_STOP
+	_modal_shade.hide()
+	canvas.add_child(_modal_shade)
+	canvas.move_child(_modal_shade, create_modal.get_index())
+	var house_row := gryf_btn.get_parent() as HBoxContainer
+	house_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	modal_house_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	modal_house_desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	modal_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+
+var _roster_panel: PanelContainer = null
+var _modal_shade: ColorRect = null
+## Side column width, from the canvas (canvas_items stretch keeps the height
+## at 720, so a 16:10 or narrow window has less width to share).
+var _side_w := 320.0
+
+## Responsive layout: side columns shrink with the canvas, the create card is
+## centred, clamped to the screen and shown alone over a dim backdrop.
+func _layout() -> void:
+	if _roster_panel == null:
+		return
+	var canvas := get_viewport().get_visible_rect().size
+	_side_w = clampf(canvas.x * 0.24, 250.0, 320.0)
+	var top := -minf(170.0, canvas.y * 0.5 - 90.0)
+	UILayout.place(_roster_panel, Vector2(24.0 if canvas.x < 1200 else 36.0, top), Vector2(_side_w, 0))
+	var info := $CanvasLayer/InfoCard as PanelContainer
+	UILayout.place(info, Vector2(-_side_w - (24.0 if canvas.x < 1200 else 36.0), top), Vector2(_side_w, 300))
+	for card in _roster.get_children():
+		if card is Button: (card as Button).custom_minimum_size.x = _side_w - 30.0
+	# The slot arrows sit beside the dais, inside the side columns.
+	var nav := $CanvasLayer/NavButtons as Control
+	var half := clampf(canvas.x * 0.5 - _side_w - 70.0, 170.0, 340.0)
+	nav.offset_left = -half
+	nav.offset_right = half
+	var creating := create_modal.visible
+	nav.visible = not creating
+	_modal_shade.visible = creating
+	_roster_panel.visible = not creating
+	info.visible = not creating
+	if creating:
+		var w := minf(600.0, canvas.x - 48.0)
+		var house_w := clampf((w - 80.0) / 4.0, 84.0, 110.0)
+		for b in [gryf_btn, slyth_btn, raven_btn, huff_btn]:
+			b.custom_minimum_size = Vector2(house_w, 84)
+		modal_house_desc.custom_minimum_size.x = w - 60.0
+		var h := minf(400.0, canvas.y - 32.0)
+		create_modal.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		var at := ((canvas - Vector2(w, h)) * 0.5).floor()
+		UILayout.place(create_modal, at, Vector2(w, h))
 
 ## One card per slot: crest, name, level and house; the empty slot creates.
 func _refresh_roster() -> void:
@@ -584,7 +643,7 @@ func _refresh_roster() -> void:
 	for i in range(2):
 		var card := Button.new()
 		card.focus_mode = Control.FOCUS_NONE
-		card.custom_minimum_size = Vector2(290, 70)
+		card.custom_minimum_size = Vector2(_side_w - 30.0, 70)
 		card.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		card.add_theme_constant_override("h_separation", 12)
 		var selected := i == current_slot

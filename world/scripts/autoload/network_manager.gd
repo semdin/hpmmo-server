@@ -180,10 +180,15 @@ func host_game(port: int = DEFAULT_PORT) -> Error:
 	emit_signal("connection_status_changed", "Server started on port %d" % port)
 	return OK
 
+## The world server of the last join ([address, port]), so "Change character"
+## can rejoin it with the same login session.
+var last_server: Array = []
+
 ## Join an existing game via IP and port. This process becomes a pure client: it
 ## decides nothing and asks the world server for everything.
 func join_game(address: String = "213.250.145.75", port: int = DEFAULT_PORT) -> Error:
 	disconnect_game()
+	last_server = [address, port]
 	SimAuthority.configure(SimAuthority.Role.CLIENT)
 	# The world server resolves this token through the account service; without it
 	# the join is refused.
