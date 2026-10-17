@@ -159,6 +159,12 @@ func _on_connected_to_server() -> void:
 func _dev_pack_spawn(want: int = 0) -> Vector3:
 	var best_pack := 0
 	var best_pos := Vector3.INF
+	# "Beside the first pack" means an ordinary pack: none led by a boss.
+	var boss_packs: Dictionary = {}
+	for uid in SimAuthority.entities.keys():
+		var r: Dictionary = SimAuthority.entities[uid]
+		if int(r.get("kind", 0)) == HPProtocol.Kind.MOB and bool(r.get("is_boss", false)):
+			boss_packs[int(r.get("pack_id", 0))] = true
 	for uid in SimAuthority.entities.keys():
 		var record: Dictionary = SimAuthority.entities[uid]
 		if int(record.get("kind", 0)) != HPProtocol.Kind.MOB or bool(record.get("dead", false)):
@@ -166,6 +172,8 @@ func _dev_pack_spawn(want: int = 0) -> Vector3:
 		var pack_id := int(record.get("pack_id", 0))
 		var node = record.get("node")
 		if pack_id == 0 or node == null or not is_instance_valid(node):
+			continue
+		if want == 0 and boss_packs.has(pack_id):
 			continue
 		if want > 0 and pack_id != want:
 			continue

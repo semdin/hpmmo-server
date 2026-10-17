@@ -264,6 +264,11 @@ func _apply_boss_visual() -> void:
 	elif boss_node == null and normal == null:
 		# Legacy/procedural body (no variant split): keep its own animator.
 		anim_player = visuals.find_child("AnimationPlayer", true, false)
+	# The dedicated server never draws a creature: its skeletons need no posing
+	# (1700 AnimationPlayers ticking cost the headless world most of its frame).
+	if NetworkManager.is_dedicated_server and visuals:
+		for player in visuals.find_children("*", "AnimationPlayer", true, false):
+			(player as AnimationPlayer).active = false
 	if anim_player:
 		# Imported monster animations use different names from the wizard rig.
 		for animation in anim_player.get_animation_list():
@@ -439,12 +444,6 @@ func _physics_process(delta: float) -> void:
 	if state == State.DEAD:
 		_tick_corpse(delta)
 		return
-	# Server-side sleep: an idle creature with no player anywhere near skips its
-	# AI and physics entirely. 160+ mobs each wandering, raycasting and
-	# separating 60 times a second is what dropped the world server to ~5 fps
-	# (players rubber-banded: their server body fell behind the client's).
-	if state in [State.IDLE, State.WANDER] and _asleep(delta):
-		return
 	# Enemies displaced inside a protected volume cancel the fight and
 	# walk home instead of attacking through the boundary.
 	if state != State.RETURN and SafeZone.is_protected_point(global_position) and not SafeZone.is_protected_point(spawn_point):
@@ -479,7 +478,11 @@ func _physics_process(delta: float) -> void:
 		velocity.y -= 24 * delta
 	else:
 		velocity.y = 0
-	move_and_slide()
+	# A creature standing still on the ground has nothing to slide: skipping the
+	# collision pass for idle bodies is most of a dense hunting ground's cost.
+	var standing := state == State.IDLE and attack_phase == AttackPhase.NONE and is_on_floor() 		and velocity.x == 0.0 and velocity.z == 0.0 and knockback_velocity.length_squared() < 0.01
+	if not standing:
+		move_and_slide()
 	if global_position.y < -10.0:
 		global_position = spawn_point
 		velocity = Vector3.ZERO
@@ -723,6 +726,7 @@ func _idle_and_wander(delta: float) -> void:
 func aggro_on(player: Node3D, alert_pack: bool = true) -> void:
 	if state in [State.DEAD, State.RETURN] or not Rules.can_damage(self, player):
 		return
+	wake()
 	var newly_aggroed := state != State.CHASE and state != State.ATTACK
 	target_player = player
 	if state != State.STUNNED:
@@ -895,39 +899,66 @@ func _check_stuck(delta: float) -> void:
 		_stuck_timer = 0.0
 		velocity = velocity.rotated(Vector3.UP, PI * 0.5) * 1.0
 
-## A player within AWAKE_RANGE (any map: the range is small next to the map
-## separation) keeps a creature awake; checked a few times a second, staggered.
-const AWAKE_RANGE := 90.0
-var _sleep_check := 0.0
+## Server-side sleep. An idle creature with no player within `awake_range`
+## has its physics processing switched off entirely - 1700 creatures each
+## running AI and move_and_slide 60 times a second (or even just a per-frame
+## "am I asleep" check) is what dropped the world server to ~5 fps and made
+## players rubber-band (their server body fell behind the client's). One pass
+## twice a second (`wake_pass`, driven by the encounter director) decides for
+## every creature; a hit or an aggro wakes a creature at once.
+static var awake_range := 70.0
 var _sleeping := false
 
-func _asleep(delta: float) -> bool:
-	_sleep_check -= delta
-	if _sleep_check <= 0.0:
-		_sleep_check = randf_range(0.4, 0.6)
+static func wake_pass(tree: SceneTree) -> void:
+	var players: Array = []
+	for player in tree.get_nodes_in_group("players"):
+		players.append((player as Node3D).global_position)
+	var r2 := awake_range * awake_range
+	for mob in tree.get_nodes_in_group("mobs"):
+		if mob.sim_puppet:
+			continue
+		var can_sleep: bool = mob.state == State.IDLE or mob.state == State.WANDER
 		var near := false
-		for player in get_tree().get_nodes_in_group("players"):
-			if (player as Node3D).global_position.distance_squared_to(global_position) < AWAKE_RANGE * AWAKE_RANGE:
-				near = true
-				break
-		_sleeping = not near
-		if _sleeping:
-			velocity = Vector3.ZERO
-	return _sleeping
+		if can_sleep:
+			var at: Vector3 = (mob as Node3D).global_position
+			for p in players:
+				if (p as Vector3).distance_squared_to(at) < r2:
+					near = true
+					break
+		var sleep := can_sleep and not near
+		if sleep != mob._sleeping:
+			mob._sleeping = sleep
+			mob.set_physics_process(not sleep)
+			# A sleeping creature is out of every player's sight: its pose can wait.
+			if is_instance_valid(mob.anim_player) and not NetworkManager.is_dedicated_server:
+				mob.anim_player.active = not sleep
+			if sleep:
+				mob.velocity = Vector3.ZERO
 
-## The live mob list, gathered once per physics frame for every mob's
-## separation (each mob asking the tree for the group was O(n^2) allocations).
-static var _mob_list: Array = []
-static var _mob_list_frame := -1
+func wake() -> void:
+	if _sleeping:
+		_sleeping = false
+		set_physics_process(true)
+		if is_instance_valid(anim_player) and not NetworkManager.is_dedicated_server:
+			anim_player.active = true
+
+## Pack mates by pack id, gathered once per physics frame: a creature only
+## keeps its distance from its own pack (packs stand tens of metres apart), so
+## separation is O(pack) instead of O(every creature in the world).
+static var _packs: Dictionary = {}
+static var _packs_frame := -1
 
 func _separation() -> Vector3:
 	var radius := float(HPRules.pack_tuning("separation_radius", 1.7))
 	var push := Vector3.ZERO
 	var frame := Engine.get_physics_frames()
-	if frame != _mob_list_frame:
-		_mob_list_frame = frame
-		_mob_list = get_tree().get_nodes_in_group("mobs")
-	for mob in _mob_list:
+	if frame != _packs_frame:
+		_packs_frame = frame
+		_packs = {}
+		for mob in get_tree().get_nodes_in_group("mobs"):
+			if not mob._sleeping:
+				(_packs.get_or_add(mob.pack_id, []) as Array).append(mob)
+	for mob in _packs.get(pack_id, []):
 		if not is_instance_valid(mob):
 			continue
 		if mob == self or mob.state == State.DEAD:

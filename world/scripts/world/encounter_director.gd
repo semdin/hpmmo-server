@@ -1,5 +1,7 @@
 extends Node
 
+const MobBase = preload("res://scripts/entities/mobs/mob_base.gd")
+
 ## Encounter director - the ONE place packs are decided.
 ##
 ## This runs inside the authority only (dedicated server, host, or the
@@ -391,11 +393,18 @@ func _on_encounter_reset(pack_id: int, reason: String) -> void:
 		print("[Encounters] %s reset (%s)" % [packs[index].get("encounter_id", "?"), reason])
 		return
 
+var _wake_timer := 0.0
+
 func _process(delta: float) -> void:
 	# Client-only processes never own encounters; the server tells them what
 	# exists. This guard also keeps a stray director from double-spawning.
 	if not SimAuthority.is_authority():
 		return
+	# Creatures far from every player sleep (no physics at all); see mob_base.
+	_wake_timer -= delta
+	if _wake_timer <= 0.0:
+		_wake_timer = 0.5
+		MobBase.wake_pass(get_tree())
 	for index in range(packs.size()):
 		if packs[index].timer >= 0:
 			packs[index].timer -= delta

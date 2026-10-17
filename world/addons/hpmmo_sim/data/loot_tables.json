@@ -344,12 +344,12 @@
     ]
   },
   "respawn_ms": {
-    "mob_normal_min": 25000,
-    "mob_normal_max": 35000,
+    "mob_normal_min": 15000,
+    "mob_normal_max": 25000,
     "mob_boss_min": 90000,
     "mob_boss_max": 120000,
-    "pack_normal_min": 25000,
-    "pack_normal_max": 35000,
+    "pack_normal_min": 15000,
+    "pack_normal_max": 25000,
     "pack_boss_min": 90000,
     "pack_boss_max": 120000
   },

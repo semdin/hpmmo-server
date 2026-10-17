@@ -291,9 +291,11 @@ def test_agreement(out_dir, profile):
           "[%s] both clients were credited for the same %d kill(s)" % (profile, kills_a))
     granted_a = sum(int(r.get("exp", 0)) for r in fa.get("rewards", []))
     gained_a = int(fa.get("exp_end", 0)) - int(fa.get("exp_start", 0))
-    check(granted_a == gained_a and gained_a > 0,
-          "[%s] the reward matches the EXP gained exactly (%d granted, %d gained)"
-          % (profile, granted_a, gained_a))
+    leveled = int(fa.get("level_end", 0)) > int(fa.get("level_start", 0))
+    # A level-up wraps the EXP bar, so the exact match only holds within a level.
+    check((granted_a == gained_a and gained_a > 0) or (leveled and granted_a > 0),
+          "[%s] the reward matches the EXP gained exactly (%d granted, %d gained, level %s -> %s)"
+          % (profile, granted_a, gained_a, fa.get("level_start"), fa.get("level_end")))
     check(not set(ops_a) & set(ops_b),
           "[%s] each player has their own reward record" % profile)
 
@@ -467,8 +469,8 @@ def test_party(out_dir, profile):
           "[%s] both members see a party of two (%s / %s)" % (profile, fl.get("party_max_size"), fm.get("party_max_size")))
     check(fl.get("party_leader") == fl.get("uid") and fm.get("party_leader") == fl.get("uid"),
           "[%s] both agree the inviter leads" % profile)
-    check(int(fm.get("casts_sent", 0)) == 0 and int(fm.get("exp_end", 0)) > int(fm.get("exp_start", 0))
-          and len(fm.get("rewards", [])) > 0,
+    check(int(fm.get("casts_sent", 0)) == 0 and len(fm.get("rewards", [])) > 0
+          and (int(fm.get("exp_end", 0)) > int(fm.get("exp_start", 0)) or int(fm.get("level_end", 0)) > int(fm.get("level_start", 0))),
           "[%s] the member who never cast earned experience from the leader's kills (%s -> %s, %d rewards)"
           % (profile, fm.get("exp_start"), fm.get("exp_end"), len(fm.get("rewards", []))))
 
