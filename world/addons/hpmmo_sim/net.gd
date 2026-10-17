@@ -53,6 +53,7 @@ var _last_chat_ms: Dictionary = {}
 const CHAT_MIN_INTERVAL_MS := 250
 var _snapshot_accumulator: float = 0.0
 var _input_accumulator: float = 0.0
+var _send_clock_usec: int = 0
 var _last_sent_input_seq: int = -1
 var _input_seq: int = 0
 ## Diagnostics for the multiplayer tests.
@@ -87,6 +88,10 @@ func profile_values() -> Dictionary:
 # ------------------------------------------------------------------ hosting
 
 func host(port: int = DEFAULT_PORT) -> Error:
+	# RPC receivers must exist before any peer can send a staircase update,
+	# including a client whose initial map is still loading.
+	HPStaircaseNet.ensure()
+	_reset_send_clock()
 	var peer := ENetMultiplayerPeer.new()
 	var error := peer.create_server(port, MAX_PLAYERS)
 	if error != OK:
@@ -102,6 +107,8 @@ func host(port: int = DEFAULT_PORT) -> Error:
 	return OK
 
 func join(address: String, port: int = DEFAULT_PORT, token: String = "") -> Error:
+	HPStaircaseNet.ensure()
+	_reset_send_clock()
 	var peer := ENetMultiplayerPeer.new()
 	var error := peer.create_client(address, port)
 	if error != OK:
@@ -144,6 +151,8 @@ func leave() -> void:
 	joined_world = false
 	_known_by_peer.clear()
 	_last_chat_ms.clear()
+	_reset_send_clock()
+	_delayed.clear()
 
 func _on_connected_to_server() -> void:
 	local_peer_id = multiplayer.get_unique_id()
@@ -821,19 +830,35 @@ func sim_telegraph_end(uid: int) -> void:
 
 # ------------------------------------------------------------ outbound sends
 
-func _process(delta: float) -> void:
+func _reset_send_clock() -> void:
+	_send_clock_usec = Time.get_ticks_usec()
+	_snapshot_accumulator = 0.0
+	_input_accumulator = 0.0
+
+func _process(_delta: float) -> void:
 	_flush_delayed()
+	var now := Time.get_ticks_usec()
+	if _send_clock_usec == 0:
+		_send_clock_usec = now
+	var elapsed := float(now - _send_clock_usec) / 1000000.0
+	_send_clock_usec = now
+	_advance_send_timers(elapsed)
+
+## Real-time cadence, independent of render FPS and presentation time scaling.
+## After a stall send only the latest state, retaining the fractional remainder
+## instead of flooding stale inputs or losing time on every ordinary frame.
+func _advance_send_timers(elapsed: float) -> void:
 	if SimAuthority.is_authority():
-		_snapshot_accumulator += delta
+		_snapshot_accumulator += elapsed
 		if _snapshot_accumulator >= 1.0 / float(HPProtocol.SNAPSHOT_HZ):
-			_snapshot_accumulator = 0.0
+			_snapshot_accumulator = fmod(_snapshot_accumulator, 1.0 / float(HPProtocol.SNAPSHOT_HZ))
 			_broadcast_snapshots()
 		return
 	if not is_client or not joined_world:
 		return
-	_input_accumulator += delta
+	_input_accumulator += elapsed
 	if _input_accumulator >= HPProtocol.SIM_DT:
-		_input_accumulator = 0.0
+		_input_accumulator = fmod(_input_accumulator, HPProtocol.SIM_DT)
 		_send_local_input()
 
 func _send_local_input() -> void:
@@ -1022,7 +1047,7 @@ func _broadcast_snapshots() -> void:
 		# range. Loot never moves, so it travels as reliable spawn/despawn
 		# events; spawns are re-sent on first sight, which is what lets a late
 		# joiner see ground loot that dropped before it arrived.
-		var current: Dictionary = {}
+		var current: Dictionary = {"__offset": int(known.get("__offset", 0))}
 		for uid in result["uids"]:
 			current[int(uid)] = true
 			# Mobs remember the meta revision this peer last saw, so a respawn

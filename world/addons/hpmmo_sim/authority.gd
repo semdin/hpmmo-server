@@ -1419,7 +1419,9 @@ func _resolve_cone(caster: Dictionary, cast: Dictionary, origin: Vector3, dir: V
 	var range_value := float(data.get("range", 0.0))
 	var half_angle := deg_to_rad(float(data.get("cone_angle", 60.0)) * 0.5)
 	var hits: Array = []
-	for target_uid in _damageable_targets(caster["uid"]):
+	# Reject distant bodies before faction/protection queries. A cone must not
+	# do thousands of safe-zone/map lookups for sleeping creatures across the map.
+	for target_uid in _damageable_targets(caster["uid"], origin - Vector3.UP, range_value):
 		var record: Dictionary = entities[target_uid]
 		var node: Node3D = record["node"]
 		if not HPRules.can_damage(caster["node"], node):
@@ -1587,7 +1589,7 @@ func _projectile_impact(projectile: Dictionary, impact_uid: int, impact_pos: Vec
 		var radius := float(projectile["radius"])
 		var data := HPRules.spell(spell_id)
 		var floor_ratio := float(data.get("falloff_floor", 0.4))
-		for target_uid in _damageable_targets(projectile["caster_uid"]):
+		for target_uid in _damageable_targets(projectile["caster_uid"], impact_pos, radius):
 			var record: Dictionary = entities[target_uid]
 			var node: Node3D = record["node"]
 			if not HPRules.can_damage(caster["node"], node):
@@ -1638,7 +1640,7 @@ func spell_area_impact(caster_node: Node, center: Vector3, radius: float, spell_
 		return hits
 	var caster := record_for(caster_node)
 	var floor_ratio := float(HPRules.spell(spell_id).get("falloff_floor", 0.4))
-	for uid in _damageable_targets(int(caster.get("uid", 0))):
+	for uid in _damageable_targets(int(caster.get("uid", 0)), center, radius):
 		var record: Dictionary = entities[uid]
 		var node = record.get("node")
 		if node == null or not is_instance_valid(node):
@@ -1675,7 +1677,7 @@ func apply_damage(target: Node, raw: int, spell_id: String, attacker: Node) -> i
 ## protection, wards and status effects all go through one implementation.
 
 func mob_melee(attacker_node: Node, target_node: Node, raw: int) -> int:
-	if not is_authority() or target_node == null:
+	if not is_authority() or not is_instance_valid(target_node) or not is_instance_valid(attacker_node):
 		return 0
 	if not HPRules.can_damage(attacker_node, target_node):
 		return 0
@@ -1687,7 +1689,7 @@ func mob_area_attack(attacker_node: Node, center: Vector3, radius: float, raw: i
 		return hits
 	var attacker := record_for(attacker_node)
 	var attacker_map := String(attacker.get("map_id", ""))
-	for uid in entities.keys():
+	for uid in _player_uids():
 		var record: Dictionary = entities[uid]
 		if int(record.get("kind", 0)) != HPProtocol.Kind.PLAYER or bool(record.get("dead", false)):
 			continue
@@ -1727,7 +1729,7 @@ func mob_cone_attack(attacker_node: Node, dir: Vector3, half_angle: float, radiu
 		return hits
 	forward = forward.normalized()
 	var cos_limit := cos(maxf(0.0, half_angle))
-	for uid in entities.keys():
+	for uid in _player_uids():
 		var record: Dictionary = entities[uid]
 		if int(record.get("kind", 0)) != HPProtocol.Kind.PLAYER or bool(record.get("dead", false)):
 			continue
@@ -1783,7 +1785,7 @@ func _projectile_damage(projectile: Dictionary, caster: Dictionary) -> int:
 	return HPRules.spell_damage(String(projectile["spell_id"]), int(caster.get("wand_tier", 0)),
 		String(caster.get("house", "")), float(projectile["combo_mult"]), skill_level(caster, String(projectile["spell_id"])))
 
-func _damageable_targets(caster_uid: int) -> Array:
+func _damageable_targets(caster_uid: int, center: Vector3 = Vector3.INF, radius: float = INF) -> Array:
 	var out: Array = []
 	# A caster with no record (scripted/environmental damage) keeps the legacy
 	# unfiltered behaviour; a real caster can only damage its own map, however
@@ -1801,6 +1803,10 @@ func _damageable_targets(caster_uid: int) -> Array:
 			continue
 		var node = record.get("node")
 		if node == null or not is_instance_valid(node) or not node.has_method("take_damage"):
+			continue
+		# Geometry is cheap; all gameplay gates still run for the nearby candidates.
+		# Do not filter on AI sleep: a ranged attack can legitimately wake a mob.
+		if center.is_finite() and (node as Node3D).global_position.distance_squared_to(center) > radius * radius:
 			continue
 		out.append(uid)
 	return out
@@ -2906,6 +2912,8 @@ func apply_map_state(uid: int, map_id: String, pos: Vector3, spawn_id: String) -
 			if node != null and is_instance_valid(node) and node is Node3D:
 				(node as Node3D).global_position = pos
 				node.set("velocity", Vector3.ZERO)
+				if node.has_method("reset_prediction_history"):
+					node.reset_prediction_history()
 			if changed:
 				emit_signal("map_changed", uid, map_id, pos)
 	emit_signal("map_state", map_id, pos, spawn_id)

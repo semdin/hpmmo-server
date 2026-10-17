@@ -747,7 +747,9 @@ func aggro_on(player: Node3D, alert_pack: bool = true) -> void:
 				mob.aggro_on(player, false)
 
 func _valid_target() -> bool:
-	if not Rules.can_damage(self, target_player):
+	# A despawn can free the last target before this AI frame. Guard before
+	# passing it to a typed Node argument (the callee cannot validate it then).
+	if not is_instance_valid(target_player) or not Rules.can_damage(self, target_player):
 		return false
 	var record := SimAuthority.record_for(target_player) if SimAuthority.is_authority() else {}
 	var own := SimAuthority.record_for(self) if SimAuthority.is_authority() else {}

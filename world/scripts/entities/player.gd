@@ -263,8 +263,7 @@ const STANDING_TOLERANCE := 0.5
 ## treated as the server catching up (two snapshot intervals + a generous RTT).
 const STANDING_SETTLE := 0.9
 ## Rolling history of local positions used for latency-tolerant reconciliation.
-var _pos_history: Array[Vector3] = []
-const MAX_POS_HISTORY := 90
+var _pos_history = preload("res://scripts/entities/prediction_history.gd").new()
 
 var _cast_seq := 0
 var _replicated_cast_id := -1
@@ -901,9 +900,7 @@ func _physics_process(delta: float) -> void:
 		else:
 			_standing_time = 0.0
 	if is_local_player:
-		_pos_history.append(global_position)
-		if _pos_history.size() > MAX_POS_HISTORY:
-			_pos_history.pop_front()
+		_pos_history.record(global_position)
 	_update_animation_state()
 
 const BOOM_PROBE_RADIUS := 0.22
@@ -1914,6 +1911,10 @@ func on_authoritative_damage(spell_type: String, attacker: Node3D, _stun_ms: int
 ## where the client was RTT/2 in the past. We compare against recent trajectory
 ## history so normal movement never rubberbands, while true discrepancies,
 ## teleports, and wall collisions are authoritatively enforced.
+func reset_prediction_history() -> void:
+	_pos_history.clear()
+	_standing_time = 0.0
+
 func apply_authoritative_position(pos: Vector3, rot_y: float) -> void:
 	if not is_local_player:
 		return
@@ -1926,9 +1927,10 @@ func apply_authoritative_position(pos: Vector3, rot_y: float) -> void:
 
 	var direct_dist := global_position.distance_to(pos)
 
-	# Massive displacement (teleport, respawn, map transfer, infinite fall rescue):
-	# Snap immediately and clear trajectory history.
-	if direct_dist > 6.0 or _pos_history.is_empty():
+	# No prediction yet (or an explicit map transfer cleared it): establish the
+	# authoritative starting point. Large offsets are checked against history
+	# below: a 0.5 s server stall already spans 7.5 m on the broom.
+	if _pos_history.is_empty():
 		global_position = pos
 		velocity = Vector3.ZERO
 		_pos_history.clear()
@@ -1939,17 +1941,18 @@ func apply_authoritative_position(pos: Vector3, rot_y: float) -> void:
 	# Find closest point along recent client trajectory to the authoritative position.
 	# Because of network round-trip latency, `pos` naturally corresponds to where the
 	# server simulated us tens to hundreds of milliseconds ago.
-	var min_path_dist := 999999.0
-	var closest_pt := global_position
-	for pt in _pos_history:
-		var d := pt.distance_to(pos)
-		if d < min_path_dist:
-			min_path_dist = d
-			closest_pt = pt
-
-	if direct_dist < min_path_dist:
-		min_path_dist = direct_dist
-		closest_pt = global_position
+	var closest_pt: Vector3 = _pos_history.closest(pos, global_position)
+	var min_path_dist := closest_pt.distance_to(pos)
+	# Teleports and real large disagreements still snap immediately. A snapshot
+	# on the recent path gets at most one second of grace; stale history expires,
+	# so a wall or a stopped server cannot leave prediction running unchecked.
+	if direct_dist > 6.0 and min_path_dist > 0.75:
+		global_position = pos
+		velocity = Vector3.ZERO
+		_pos_history.clear()
+		if visuals:
+			visuals.rotation.y = rot_y
+		return
 
 	var is_standing := Vector2(velocity.x, velocity.z).length_squared() < 0.06 and _intent_move().length_squared() < 0.01
 
@@ -1968,7 +1971,7 @@ func apply_authoritative_position(pos: Vector3, rot_y: float) -> void:
 		# inside the settle window is the past, not a correction. Pulling toward
 		# it dragged the body back and then forward again - the stop "shudder",
 		# worst on the broom where 15 m/s of lag is a couple of metres.
-		if _standing_time < STANDING_SETTLE and min_path_dist < 0.75 and direct_dist < 6.0:
+		if _standing_time < STANDING_SETTLE and min_path_dist < 0.75:
 			return
 		# Horizontally, a snapshot taken while we were still decelerating sits a
 		# fraction of a metre behind us. Pulling 25% of the way toward it every

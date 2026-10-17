@@ -103,23 +103,30 @@ static func encode_for(authority, peer_id: int, center: Vector3, known: Dictiona
 	if own_uid != 0 and uids.has(own_uid):
 		uids.erase(own_uid)
 		uids.insert(0, own_uid)
-	# More entities than fit in one datagram: every entity is still delivered,
-	# just spread over consecutive ticks instead of being dropped. The cursor
-	# lives in the caller's per-peer bookkeeping (`__offset`).
-	var start := int(known.get("__offset", 0)) % maxi(1, uids.size())
-	var ordered: Array = []
-	for i in range(uids.size()):
-		ordered.append(uids[(start + i) % uids.size()])
-	for uid in ordered:
+	# Reserve a slot for the local player on EVERY packet. Rotate only the
+	# remaining interest set; rotating the whole list also rotates the owner out.
+	var others := uids.duplicate()
+	if own_uid != 0 and others.has(own_uid):
+		var own: Dictionary = authority.entities[own_uid]
+		var own_node = own.get("node")
+		if is_instance_valid(own_node):
+			_encode_entity(buffer, own, own_node, authority)
+			sent += 1
+		others.erase(own_uid)
+	var start := int(known.get("__offset", 0)) % maxi(1, others.size())
+	var visited := 0
+	for i in range(others.size()):
 		if sent >= HPProtocol.MAX_ENTITIES_PER_SNAPSHOT:
 			break
+		var uid = others[(start + i) % others.size()]
+		visited += 1
 		var record: Dictionary = authority.entities[uid]
 		var node = record.get("node")
 		if node == null or not is_instance_valid(node):
 			continue
 		_encode_entity(buffer, record, node, authority)
 		sent += 1
-	known["__offset"] = start + sent
+	known["__offset"] = (start + visited) % maxi(1, others.size())
 	buffer.seek(0)
 	return {"bytes": buffer.data_array, "uids": uids}
 

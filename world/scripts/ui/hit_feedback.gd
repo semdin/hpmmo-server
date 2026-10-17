@@ -234,7 +234,7 @@ func _squash(victim: Node3D, strength: float) -> void:
 		body.set_meta("hit_base_scale", body.scale)
 	var base: Vector3 = body.get_meta("hit_base_scale")
 	var amount := 0.07 * strength * (0.35 if victim.get("is_boss") == true else 1.0)
-	var previous = body.get_meta("hit_tween", null)
+	var previous = body.get_meta("hit_tween") if body.has_meta("hit_tween") else null
 	if previous is Tween and (previous as Tween).is_valid():
 		(previous as Tween).kill()
 	var tw := body.create_tween()
@@ -247,6 +247,11 @@ func _squash(victim: Node3D, strength: float) -> void:
 
 ## A very short slow-down of the whole presentation on a heavy hit.
 func _hitstop(seconds: float) -> void:
+	# A remote authority keeps running during a hit. Slowing the whole client
+	# changes prediction and network input cadence, not just the hit animation.
+	# Online hits already have squash, flash, damage-number pop and camera shake.
+	if SimNet.is_client or SimNet.has_peers():
+		return
 	if GameSettings.instance().shake_intensity <= 0.0:
 		return
 	_hitstop_until = maxf(_hitstop_until, _now() + seconds)
