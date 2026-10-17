@@ -928,7 +928,9 @@ static func wake_pass(tree: SceneTree) -> void:
 		var sleep := can_sleep and not near
 		if sleep != mob._sleeping:
 			mob._sleeping = sleep
-			mob.set_physics_process(not sleep)
+			# Disabled, not just paused: a disabled body leaves the physics space,
+			# and 1700 idle bodies sitting in it were most of a quiet server's frame.
+			mob.process_mode = Node.PROCESS_MODE_DISABLED if sleep else Node.PROCESS_MODE_INHERIT
 			# A sleeping creature is out of every player's sight: its pose can wait.
 			if is_instance_valid(mob.anim_player) and not NetworkManager.is_dedicated_server:
 				mob.anim_player.active = not sleep
@@ -938,7 +940,7 @@ static func wake_pass(tree: SceneTree) -> void:
 func wake() -> void:
 	if _sleeping:
 		_sleeping = false
-		set_physics_process(true)
+		process_mode = Node.PROCESS_MODE_INHERIT
 		if is_instance_valid(anim_player) and not NetworkManager.is_dedicated_server:
 			anim_player.active = true
 
