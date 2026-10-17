@@ -147,51 +147,7 @@ static func _apply_sky_and_sun(world: Node3D) -> void:
 ## The courtyard before the castle doors: a fountain, Ollivander's stall, benches
 ## and the four house pillars with banners.
 static func _courtyard(world: Node3D, visuals: bool) -> void:
-	var c := GroundsLayout.landmark("courtyard")
-	if c == Vector3.INF:
-		c = GroundsLayout.ground(0, 65)
-	var kit := ArchKit.new()
-	# fountain
-	kit.cylinder(c + Vector3(0, -0.3, 0), 3.4, 1.1, "stone", 24)
-	kit.cylinder(c + Vector3(0, 0.75, 0), 3.0, 0.08, "water", 24, false)
-	kit.cylinder(c + Vector3(0, 0.6, 0), 0.5, 2.4, "stone", 12, true, 0.32)
-	kit.cylinder(c + Vector3(0, 2.9, 0), 1.2, 0.3, "stone", 16, false, 0.9)
-	# Ollivander's stall (east side): counter, posts, awning
-	var o := GroundsLayout.ground(c.x + 16.0, c.z + 5.0)
-	kit.box(o + Vector3(0, 0.55, 0), Vector3(4.2, 1.1, 1.4), 0.0, "wood")
-	for sx in [-1, 1]:
-		for sz in [-1, 1]:
-			kit.box(o + Vector3(sx * 2.0, 1.4, sz * 0.9 - 0.4), Vector3(0.18, 2.8, 0.18), 0.0, "timber", false)
-	kit.gable(o + Vector3(0, 2.8, -0.4), Vector2(4.8, 2.8), 0.9, 0.0, "cloth_blue", "cloth_blue", 0.2)
-	# benches around the fountain
-	for i in 6:
-		var a := TAU * i / 6.0 + 0.5
-		var p := GroundsLayout.ground(c.x + cos(a) * 9.0, c.z + sin(a) * 9.0)
-		kit.box(p + Vector3(0, 0.42, 0), Vector3(2.4, 0.12, 0.6), -a + PI * 0.5, "wood")
-		kit.box(p + Vector3(0, 0.2, 0), Vector3(2.0, 0.4, 0.3), -a + PI * 0.5, "stone", false)
-	# house pillars at the courtyard's north edge, facing south
-	var houses := ["cloth_red", "cloth_yellow", "cloth_blue", "cloth_green"]
-	for i in 4:
-		var p := GroundsLayout.ground(c.x - 15.0 + i * 10.0, c.z - 26.0)
-		kit.box(p + Vector3(0, 3.0, 0), Vector3(1.4, 6.0, 1.4), 0.0, "stone")
-		kit.box(p + Vector3(0, 4.0, 0.8), Vector3(1.2, 3.2, 0.06), 0.0, houses[i], false)
-	var mats := {}
-	if visuals:
-		mats = GroundsSites.materials().duplicate()
-		var water := StandardMaterial3D.new()
-		water.albedo_color = Color(0.10, 0.22, 0.28)
-		water.roughness = 0.05
-		water.metallic_specular = 0.9
-		mats["water"] = water
-	var root := kit.finish(world, mats, "Courtyard", 1, visuals)
-	root.name = "Courtyard"
-	if visuals:
-		var fl := OmniLight3D.new()
-		fl.light_color = Color(0.45, 0.70, 1.0)
-		fl.light_energy = 1.0
-		fl.omni_range = 9.0
-		fl.position = c + Vector3(0, 2.2, 0)
-		root.add_child(fl)
+	GroundsCourtyard.build(world, visuals)
 
 
 static func _broom_landing(world: Node3D, visuals: bool) -> void:
@@ -288,44 +244,68 @@ static func _boundaries(world: Node3D) -> void:
 		bounds.add_child(sb)
 
 
-## The safe zones' edges: a thin glowing line that follows the ground, so a
-## player can see where enemies will not follow.
+## The safe zones' edges: a band of slowly turning gold runes that follows
+## the ground, with a low veil of light standing on it, so a player can see
+## where enemies will not follow without a hard neon line across the grass.
 static func _ward_lines(world: Node3D) -> void:
 	var root := Node3D.new()
 	root.name = "SafeZoneWards"
 	world.add_child(root)
+	if is_headless():
+		return
 	var zones: Array = []
 	if GameData != null and GameData.get("SAFE_ZONES") is Dictionary:
 		zones = (GameData.SAFE_ZONES as Dictionary).get("zones", [])
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.55, 0.85, 1.0, 0.85)
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var shader := preload("res://assets/shaders/safe_ward.gdshader")
+	var rune: Texture2D = load("res://assets/fx/rune_band.png")
+	var band := ShaderMaterial.new()
+	band.shader = shader
+	band.set_shader_parameter("rune", rune)
+	var veil := ShaderMaterial.new()
+	veil.shader = shader
+	veil.set_shader_parameter("veil", true)
+	const BAND := 1.1          # metres across the rune band
+	const TILE := BAND * 5.14  # the rune strip is 5.14:1
+	const VEIL_H := 2.6
 	for zone in zones:
 		var radius := float(zone.get("radius", 0.0))
 		var c: Array = zone.get("center", [0.0, 0.0, 0.0])
 		var cx := float(c[0])
 		var cz := float(c[2]) if c.size() > 2 else 0.0
-		var st := SurfaceTool.new()
-		st.begin(Mesh.PRIMITIVE_TRIANGLES)
-		var segs := maxi(48, int(TAU * radius / 1.5))
-		var prev_in := Vector3.ZERO
-		var prev_out := Vector3.ZERO
+		var segs := maxi(64, int(TAU * radius / 1.2))
+		# whole tiles round the ring, so the runes meet without a seam
+		var tiles := maxf(1.0, round(TAU * radius / TILE))
+		var ring := SurfaceTool.new()
+		ring.begin(Mesh.PRIMITIVE_TRIANGLES)
+		var wall := SurfaceTool.new()
+		wall.begin(Mesh.PRIMITIVE_TRIANGLES)
+		var prev: Array = []
 		for i in segs + 1:
 			var a := TAU * i / segs
 			var dir := Vector3(cos(a), 0, sin(a))
-			var pin := GroundsLayout.ground(cx + dir.x * (radius - 0.12), cz + dir.z * (radius - 0.12)) + Vector3.UP * 0.07
-			var pout := GroundsLayout.ground(cx + dir.x * (radius + 0.12), cz + dir.z * (radius + 0.12)) + Vector3.UP * 0.07
+			var u := tiles * float(i) / segs
+			var pin := GroundsLayout.ground(cx + dir.x * (radius - BAND), cz + dir.z * (radius - BAND)) + Vector3.UP * 0.06
+			var pout := GroundsLayout.ground(cx + dir.x * radius, cz + dir.z * radius) + Vector3.UP * 0.06
+			var top := pout + Vector3.UP * VEIL_H
 			if i > 0:
-				for v in [prev_in, prev_out, pout, prev_in, pout, pin]:
-					st.set_normal(Vector3.UP)
-					st.add_vertex(v)
-			prev_in = pin
-			prev_out = pout
-		var node := MeshInstance3D.new()
-		node.name = "WardLine_%s" % String(zone.get("id", "zone"))
-		node.mesh = st.commit()
-		node.material_override = mat
-		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		root.add_child(node)
+				var pu: float = prev[3]
+				for v in [[prev[0], pu, 0.0], [prev[1], pu, 1.0], [pout, u, 1.0], [prev[0], pu, 0.0], [pout, u, 1.0], [pin, u, 0.0]]:
+					ring.set_normal(Vector3.UP)
+					ring.set_uv(Vector2(v[1], v[2]))
+					ring.add_vertex(v[0])
+				# veil UV.x: tenths of the arc in metres (the shader's streak columns)
+				var wu := pu * TILE * 0.1
+				var wv := u * TILE * 0.1
+				for v in [[prev[1], wu, 0.0], [prev[2], wu, 1.0], [top, wv, 1.0], [prev[1], wu, 0.0], [top, wv, 1.0], [pout, wv, 0.0]]:
+					wall.set_normal(dir)
+					wall.set_uv(Vector2(v[1], v[2]))
+					wall.add_vertex(v[0])
+			prev = [pin, pout, top, u]
+		var id := String(zone.get("id", "zone"))
+		for spec in [["WardRunes_%s" % id, ring, band], ["WardVeil_%s" % id, wall, veil]]:
+			var node := MeshInstance3D.new()
+			node.name = spec[0]
+			node.mesh = (spec[1] as SurfaceTool).commit()
+			node.material_override = spec[2]
+			node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			root.add_child(node)

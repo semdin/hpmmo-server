@@ -17,14 +17,11 @@ static var _mats: Dictionary = {}
 static func materials() -> Dictionary:
 	if not _mats.is_empty():
 		return _mats
-	var glass := StandardMaterial3D.new()
-	# Leaded glass: dark and glossy by day, with a faint warm glow from inside.
-	glass.albedo_color = Color(0.07, 0.08, 0.10)
-	glass.metallic = 0.3
-	glass.roughness = 0.12
-	glass.emission_enabled = true
-	glass.emission = Color(0.95, 0.64, 0.32)
-	glass.emission_energy_multiplier = 0.35
+	var glass := ShaderMaterial.new()
+	# Leaded glass mirroring the sky, with warm rooms behind some of the panes
+	# (per-window random from ArchKit.window()).
+	glass.shader = preload("res://assets/shaders/castle/window_lit.gdshader")
+	glass.set_shader_parameter("quarry_m", 0.22)
 	var glasshouse := StandardMaterial3D.new()
 	glasshouse.albedo_color = Color(0.70, 0.82, 0.78, 0.28)
 	glasshouse.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA

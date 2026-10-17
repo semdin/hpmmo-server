@@ -83,6 +83,11 @@ static func grid_material(color: Color) -> StandardMaterial3D:
 ## Gothic kit slot -> world-space PBR surface. The dressing has no UVs, so every
 ## slot is triplanar (the kit's UV-mapped trim sheet and wood would smear).
 static func kit_material(slot: String) -> Material:
+	if slot.begins_with("portrait_"):
+		var canvas := StandardMaterial3D.new()
+		canvas.albedo_texture = load("res://assets/castle/textures/%s.jpg" % slot)
+		canvas.roughness = 0.8
+		return canvas
 	match slot:
 		# Grey-gold sandstone ashlar walls, dressed stone for every moulding,
 		# limewashed vault webs, worn flagstones; the dungeons in cold grey.
@@ -107,7 +112,12 @@ static func kit_material(slot: String) -> Material:
 		"wood_dark":
 			return PBR.surface("medieval_wood", Color(0.55, 0.45, 0.4))
 		"glass":
-			return PBR.slot_material("glass")
+			# The moonlit highland vista beyond, behind diamond leaded quarries.
+			var view := ShaderMaterial.new()
+			view.shader = preload("res://assets/shaders/castle/window_view.gdshader")
+			view.set_shader_parameter("vista", load("res://assets/castle/textures/window_vista_night.jpg"))
+			view.set_shader_parameter("energy", 1.25)
+			return view
 		"banner_red", "banner_green", "banner_blue", "banner_yellow":
 			var cloth := StandardMaterial3D.new()
 			cloth.albedo_texture = load("res://assets/castle/textures/%s.png" % slot)
@@ -149,7 +159,7 @@ static func kit_material(slot: String) -> Material:
 			gem.emission_energy_multiplier = 2.2
 			gem.roughness = 0.15
 			return gem
-		"portrait_0", "portrait_1", "portrait_2", "portrait_3", "portrait_4", "portrait_5", "portrait_6", "portrait_7", "compass":
+		"compass":
 			var painted := StandardMaterial3D.new()
 			painted.albedo_texture = load("res://assets/castle/textures/%s.%s" % [slot, "png" if slot == "compass" else "jpg"])
 			if slot == "compass":

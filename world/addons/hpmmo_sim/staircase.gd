@@ -350,6 +350,14 @@ func p2() -> Transform3D:
 ## function of the published (state, transforms, ticks), so two clients that
 ## received the same message compute the same transform on the same tick.
 func platform_transform_at(tick: int) -> Transform3D:
+	var pivot: Variant = spec.get("pivot")
+	if (state == STATE_MOVING or state == STATE_DOCKING) and pivot is Array and (pivot as Array).size() == 2:
+		# A swinging flight: one eased sweep from dock to dock over the whole
+		# move + dock window (gentle start, gentle arrival) instead of a linear
+		# swing that brakes hard at the docking point.
+		var whole := maxi(1, arrive_tick - move_start_tick)
+		var u := clampf(float(tick - move_start_tick) / float(whole), 0.0, 1.0)
+		return _between(p0(), p2(), u * u * u * (u * (u * 6.0 - 15.0) + 10.0))
 	match state:
 		STATE_MOVING:
 			var span := maxi(1, dock_start_tick - move_start_tick)

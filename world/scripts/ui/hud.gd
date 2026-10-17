@@ -321,6 +321,7 @@ func bind_player(p_player: Node3D) -> void:
 		buff_bar.bind(player, binder)
 	if world_map != null:
 		world_map.player = player
+		world_map.guide = _ensure_waypoint_guide(player)
 	if skill_window != null:
 		skill_window.player = player
 	if unit_frame != null:
@@ -345,6 +346,21 @@ func bind_player(p_player: Node3D) -> void:
 	_last_galleons = -1
 	_galleons_from_authority = false
 	player.emit_stats()
+
+## The map waypoint's guide lives in the world (it draws there); one per world.
+func _ensure_waypoint_guide(p_player: Node3D) -> WaypointGuide:
+	var world := _find_world()
+	if world == null:
+		return null
+	var guide := world.get_node_or_null("WaypointGuide") as WaypointGuide
+	if guide == null:
+		guide = WaypointGuide.new()
+		guide.name = "WaypointGuide"
+		world.add_child(guide)
+		guide.arrived.connect(func(): show_notice("You have reached your waypoint.", "good"))
+	guide.world = world
+	guide.player = p_player
+	return guide
 
 func _find_world() -> Node3D:
 	var node: Node = get_parent()

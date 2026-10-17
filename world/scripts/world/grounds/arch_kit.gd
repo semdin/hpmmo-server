@@ -15,6 +15,10 @@ class_name ArchKit
 var _tools := {}           # material key -> SurfaceTool
 var _shapes: Array = []    # [Shape3D, Transform3D]
 var _with_collision := true
+## Optional colour written on every vertex while set (window glass carries a
+## per-window random in it for its shader). A material key must be painted
+## for all of its triangles or for none.
+var vertex_color: Variant = null
 
 
 func _init(with_collision: bool = true) -> void:
@@ -41,6 +45,8 @@ func tri(key: String, a: Vector3, b: Vector3, c: Vector3, inside: Vector3, smoot
 	n = n.normalized()
 	var st := _st(key)
 	for v in [a, b, c]:
+		if vertex_color != null:
+			st.set_color(vertex_color)
 		if smooth_axis != null:
 			var ax: Vector3 = smooth_axis
 			var radial := Vector3(v.x - ax.x, 0, v.z - ax.z).normalized()
@@ -164,14 +170,57 @@ func tower_battlements(center_top: Vector3, radius: float, key: String, count: i
 		box(center_top + Vector3(cos(a) * radius, 0.7, sin(a) * radius), Vector3(1.0, 1.4, 1.2), -a, key, false)
 
 
-## A lit lancet window set into a wall facing `normal`: frame, glass and a
-## pointed head.
+## A box with an arbitrary orientation (no collision): slanted mouldings.
+func obox(center: Vector3, size: Vector3, basis: Basis, key: String) -> void:
+	var h := size * 0.5
+	var p := func(x: float, y: float, z: float) -> Vector3:
+		return center + basis * Vector3(x * h.x, y * h.y, z * h.z)
+	quad(key, p.call(1, -1, 1), p.call(1, -1, -1), p.call(1, 1, -1), p.call(1, 1, 1), center)
+	quad(key, p.call(-1, -1, -1), p.call(-1, -1, 1), p.call(-1, 1, 1), p.call(-1, 1, -1), center)
+	quad(key, p.call(-1, 1, 1), p.call(1, 1, 1), p.call(1, 1, -1), p.call(-1, 1, -1), center)
+	quad(key, p.call(-1, -1, -1), p.call(1, -1, -1), p.call(1, -1, 1), p.call(-1, -1, 1), center)
+	quad(key, p.call(-1, -1, 1), p.call(1, -1, 1), p.call(1, 1, 1), p.call(-1, 1, 1), center)
+	quad(key, p.call(1, -1, -1), p.call(-1, -1, -1), p.call(-1, 1, -1), p.call(1, 1, -1), center)
+
+
+static func _hash01(v: Vector3) -> float:
+	return fposmod(sin(v.dot(Vector3(12.9898, 78.233, 37.719))) * 43758.5453, 1.0)
+
+
+## A Gothic lancet set into a wall facing `normal`: leaded glass recessed
+## behind a stone reveal (jambs, sill, pointed arch), a mullion and a transom.
+## The glass carries a per-window random in its vertex colour (r: lit or dark,
+## g: warmth) for the window shader.
 func window(center: Vector3, normal: Vector3, width: float, height: float, frame_key: String, glass_key: String) -> void:
 	var n := Vector3(normal.x, 0, normal.z).normalized()
 	var rot := atan2(n.x, n.z)
-	box(center + n * 0.08, Vector3(width + 0.45, height + 0.45, 0.3), rot, frame_key, false)
-	box(center + n * 0.24, Vector3(width, height, 0.08), rot, glass_key, false)
-	box(center + n * 0.24 + Vector3.UP * (height * 0.5 + width * 0.22), Vector3(width * 0.6, width * 0.44, 0.08), rot, glass_key, false)
+	var side := Vector3(n.z, 0, -n.x)
+	var depth := 0.34
+	var jamb := clampf(width * 0.17, 0.14, 0.24)
+	var head := width * 0.55
+	vertex_color = Color(_hash01(center), _hash01(center + Vector3(3.1, 1.7, 7.3)), 0.0, 1.0)
+	box(center + n * 0.03, Vector3(width, height, 0.06), rot, glass_key, false)
+	# the pointed head's glass: a stack of narrowing panes under the arch
+	for i in 3:
+		var t := (float(i) + 0.5) / 3.0
+		box(center + n * 0.03 + Vector3.UP * (height * 0.5 + head * t * 0.95 - head * 0.16),
+			Vector3(width * (1.0 - t * 0.78), head / 3.0 + 0.02, 0.06), rot, glass_key, false)
+	vertex_color = null
+	var out := n * (depth * 0.5 + 0.02)
+	for s in [-1.0, 1.0]:
+		box(center + side * s * (width * 0.5 + jamb * 0.5) + out, Vector3(jamb, height + 0.1, depth), rot, frame_key, false)
+	box(center + Vector3.UP * (-height * 0.5 - 0.09) + n * (depth * 0.5 + 0.08), Vector3(width + jamb * 2.0 + 0.3, 0.18, depth + 0.16), rot, frame_key, false)
+	# pointed arch: two slanted voussoir bars meeting at the apex
+	var apex := center + Vector3.UP * (height * 0.5 + head) + out
+	for s in [-1.0, 1.0]:
+		var foot: Vector3 = center + side * s * (width * 0.5 + jamb * 0.5) + Vector3.UP * (height * 0.5) + out
+		var along := apex - foot
+		var y_axis := along.normalized()
+		var basis := Basis(y_axis.cross(n).normalized(), y_axis, n)
+		obox((foot + apex) * 0.5, Vector3(jamb, along.length() + jamb * 0.6, depth), basis, frame_key)
+	# mullion and transom
+	box(center + n * 0.07, Vector3(0.07, height, 0.07), rot, frame_key, false)
+	box(center + n * 0.07 + Vector3.UP * (height * 0.12), Vector3(width, 0.07, 0.07), rot, frame_key, false)
 
 
 ## Windows around a tower at height y above its base.

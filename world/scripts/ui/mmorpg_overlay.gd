@@ -429,6 +429,7 @@ func _follow_minimap() -> void:
 func _draw_hunting_zones() -> void:
 	if not is_instance_valid(_player):
 		return
+	_draw_waypoint()
 	var controller := _map_controller()
 	if controller != null and String(controller.get("current_map")) != HPProtocol.DEFAULT_MAP:
 		return
@@ -450,6 +451,39 @@ func _draw_hunting_zones() -> void:
 		var tint := band_color(player_level, int(region.get("level_min", 1)), int(region.get("level_max", 1)))
 		_zone_layer.draw_circle(at, r, Color(tint, 0.16))
 		_zone_layer.draw_arc(at, r, 0.0, TAU, 40, Color(tint, 0.75), 1.5, true)
+
+## The map waypoint (WaypointGuide): its route as gold dots inside the disc and
+## its pin, held at the disc's rim when it is further away than the map shows.
+func _draw_waypoint() -> void:
+	var guide := WaypointGuide.find(get_tree())
+	if guide == null or not guide.has_target():
+		return
+	var half := MAP_PX * 0.5
+	var centre := Vector2(half, half)
+	var pts := guide.route()
+	var carry := 0.0
+	for i in pts.size() - 1:
+		if absf(pts[i].y - _player.global_position.y) > 8.0 and guide.current_map() != HPProtocol.DEFAULT_MAP:
+			continue
+		var a := _world_to_map(pts[i])
+		var b := _world_to_map(pts[i + 1])
+		var seg := a.distance_to(b)
+		var t := carry
+		while t < seg:
+			var p := a.lerp(b, t / seg)
+			if (p - centre).length() < half - 6.0:
+				_zone_layer.draw_circle(p, 2.2, Color(0.15, 0.08, 0.02, 0.8))
+				_zone_layer.draw_circle(p, 1.5, Color(1.0, 0.84, 0.36))
+			t += 7.0
+		carry = t - seg
+	if guide.target_map == guide.current_map():
+		var pin := _world_to_map(guide.target)
+		var off := pin - centre
+		if off.length() > half - 10.0:
+			pin = centre + off.normalized() * (half - 10.0)
+		_zone_layer.draw_circle(pin, 6.0, Color(0.15, 0.08, 0.02, 0.85))
+		_zone_layer.draw_circle(pin, 4.5, Color(1.0, 0.8, 0.3))
+		_zone_layer.draw_circle(pin, 1.8, Color(1, 1, 1))
 
 ## World position -> pixel inside the map disc.
 ##

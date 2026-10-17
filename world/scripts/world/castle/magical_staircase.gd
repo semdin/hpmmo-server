@@ -16,12 +16,27 @@ extends HPStaircase
 ##   * the same deck clamp the authority applies, so the local prediction does
 ##     not drift away from the deck while it moves (the server still corrects).
 ##
-## Greybox only: untextured boxes, no art pass.
+## The gates are drawn as ward curtains (`_build_wards`), not as the boxes the
+## authority collides with.
 
 var _board: Label3D = null
 var _flash_until := 0.0
 
 const PBR = preload("res://scripts/assets/pbr_kit.gd")
+const WARD_SHADER := preload("res://assets/shaders/stair_ward.gdshader")
+const THRESHOLD_SHADER := preload("res://assets/shaders/stair_threshold.gdshader")
+## Loaded at run time on a screen only: the server's world copy has no fx art.
+const RUNE_TEX := "res://assets/fx/rune_band.png"
+## Ward colours: open (board now), warning (leaving - stay off), sealed.
+const WARD_OPEN := Color(1.0, 0.78, 0.36)
+const WARD_WARN := Color(1.0, 0.42, 0.12)
+const WARD_SEALED := Color(0.55, 0.32, 1.0)
+
+## The gates' visible face: a curtain of light per gate (the authority's wooden
+## boxes keep their collision but are never drawn). [{kind, dock, closed,
+## ward: ShaderMaterial, sill: ShaderMaterial or null}]
+var _wards: Array = []
+var _rune: Texture2D = null
 
 func _ready() -> void:
 	super()
@@ -91,6 +106,8 @@ func _polish_geometry() -> void:
 
 func _build_presentation() -> void:
 	_polish_geometry()
+	if DisplayServer.get_name() != "headless":
+		_build_wards()
 	if bool(spec.get("map_geometry", false)):
 		# The castle's seven flights: no debug board over each one (the HUD
 		# carries the entry-refused notice).
@@ -105,6 +122,94 @@ func _build_presentation() -> void:
 	add_child(_board)
 	SimAuthority.notice.connect(_on_notice)
 	_update_board()
+
+## Replace every gate's box with a ward curtain, and give each landing gate a
+## rune threshold on the floor in front of it, so "can I board?" reads from
+## across the hall: gold and sinking = step on, amber and rising = it is about
+## to leave, violet = the flight is elsewhere.
+func _build_wards() -> void:
+	_rune = load(RUNE_TEX)
+	var width := half_width() * 2.0
+	for gate_name in ["Gate0", "Gate1"]:
+		var box := platform.get_node_or_null(gate_name) as MeshInstance3D
+		if box != null:
+			_wards.append(_ward_for(box, "deck", -1, width, 1.6, 0.0))
+	for entry in _tongue_gates:
+		var mesh: MeshInstance3D = entry["mesh"]
+		if not is_instance_valid(mesh):
+			continue
+		var top := String(mesh.get_parent().name).ends_with("_top")
+		_wards.append(_ward_for(mesh, "tongue", int(entry["dock"]), width, 2.2, 1.0 if top else -1.0))
+
+func _ward_for(box: MeshInstance3D, kind: String, dock: int, width: float, height: float, landing_dir: float) -> Dictionary:
+	box.layers = 0
+	box.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var box_size := (box.mesh as BoxMesh).size if box.mesh is BoxMesh else Vector3(width, height, 0.2)
+	var floor_y := -box_size.y * 0.5
+	var mat := ShaderMaterial.new()
+	mat.shader = WARD_SHADER
+	mat.set_shader_parameter("rune", _rune)
+	mat.set_shader_parameter("width_m", width)
+	mat.set_shader_parameter("height_m", height)
+	var quad := QuadMesh.new()
+	quad.size = Vector2(width, height)
+	quad.material = mat
+	var curtain := MeshInstance3D.new()
+	curtain.name = "Ward"
+	curtain.mesh = quad
+	curtain.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	curtain.transform = box.transform * Transform3D(Basis(), Vector3(0.0, floor_y + height * 0.5, 0.0))
+	box.get_parent().add_child(curtain)
+	var sill: ShaderMaterial = null
+	if landing_dir != 0.0:
+		sill = ShaderMaterial.new()
+		sill.shader = THRESHOLD_SHADER
+		sill.set_shader_parameter("rune", _rune)
+		sill.set_shader_parameter("width_m", width)
+		var plane := PlaneMesh.new()
+		plane.size = Vector2(width, 2.4)
+		plane.material = sill
+		var strip := MeshInstance3D.new()
+		strip.name = "WardThreshold"
+		strip.mesh = plane
+		strip.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		# PlaneMesh v runs toward +z; v = 0 must sit at the gate.
+		var basis := Basis() if landing_dir > 0.0 else Basis(Vector3.UP, PI)
+		strip.transform = box.transform * Transform3D(basis, Vector3(0.0, floor_y + 0.03, landing_dir * 1.35))
+		box.get_parent().add_child(strip)
+	return {"kind": kind, "dock": dock, "closed": 1.0, "ward": mat, "sill": sill}
+
+func _process(delta: float) -> void:
+	if _wards.is_empty():
+		return
+	var warn_s := maxf(0.4, float(timing.get("warning_ms", 2000)) / 1000.0)
+	var now := Time.get_ticks_msec() / 1000.0
+	for w in _wards:
+		var open: bool = state == STATE_DOCKED and (w["kind"] == "deck" or int(w["dock"]) == dock_index)
+		var closed: float = w["closed"]
+		if open:
+			closed = move_toward(closed, 0.0, delta / 0.7)
+		elif state == STATE_BOARDING_WARNING:
+			# rises over the whole warning: the height is the countdown
+			closed = move_toward(closed, 1.0, delta / warn_s)
+		else:
+			closed = move_toward(closed, 1.0, delta / 0.5)
+		w["closed"] = closed
+		var tint := WARD_OPEN
+		var pulse := 0.0
+		if state == STATE_BOARDING_WARNING and (w["kind"] == "deck" or int(w["dock"]) == from_index):
+			tint = WARD_WARN
+			pulse = 0.5 + 0.5 * sin(now * 9.0)
+		elif not open:
+			tint = WARD_SEALED
+		var ward: ShaderMaterial = w["ward"]
+		ward.set_shader_parameter("closed", closed)
+		ward.set_shader_parameter("tint", tint)
+		ward.set_shader_parameter("pulse", pulse)
+		var sill: ShaderMaterial = w["sill"]
+		if sill != null:
+			sill.set_shader_parameter("open", 1.0 - closed)
+			sill.set_shader_parameter("tint", tint if tint != WARD_SEALED else WARD_SEALED * 0.6)
 
 func _on_notice(text: String, _color: Color) -> void:
 	if not text.begins_with(NOTICE_LOCKED):
