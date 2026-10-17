@@ -26,6 +26,10 @@ var admin: Node = null
 var map_host: Node = null
 
 func _ready() -> void:
+	# A headless world with no cap spins its main loop flat out (a whole core
+	# on the 2-core box) doing nothing useful between physics steps. 60 frames
+	# a second = one 60 Hz physics step per frame.
+	Engine.max_fps = 60
 	print("=========================================================")
 	print(">>> [HPMMO WORLD SERVER] booting %s <<<" % HPProtocol.version_string())
 	print("=========================================================")

@@ -46,6 +46,8 @@ func _enter_tree() -> void:
 			canvas.free()
 
 func _ready() -> void:
+	if not NetworkManager.is_dedicated_server:
+		_request_mob_scenes()
 	GroundsBuilder.build(self)
 	SimAuthority.attach_world(self)
 	var authority := SimAuthority.is_authority()
@@ -81,6 +83,7 @@ func _exit_tree() -> void:
 	_views.clear()
 
 func _process(delta: float) -> void:
+	_drain_view_queue()
 	_candle_t += delta
 	# Reduced-quality particle budget: effects spawn during play, so the preset
 	# is re-applied on a slow sweep rather than once at build time.
@@ -408,17 +411,60 @@ func _setup_replication() -> void:
 	if is_instance_valid(local_player):
 		SimAuthority.cast_ack.connect(local_player.on_cast_answer)
 
+## Replicated entities entering range become views a few per frame: a dense
+## hunting ground (or the first snapshot after joining) brings dozens of
+## creatures at once, and instantiating every skinned body in one frame was a
+## visible hitch. Players are never queued. Creature scenes are requested on a
+## background thread at startup so the first of a kind does not load from disk.
+const VIEWS_PER_FRAME := 3
+var _view_queue: Array = []        # uids, oldest first
+var _queued: Dictionary = {}       # uid -> true
+var _mob_scenes_requested := false
+
+func _request_mob_scenes() -> void:
+	if _mob_scenes_requested:
+		return
+	_mob_scenes_requested = true
+	for path in HPProtocol.MOB_SCENES.values():
+		if ResourceLoader.exists(String(path)):
+			ResourceLoader.load_threaded_request(String(path), "PackedScene", true)
+
+func _mob_scene(variant: int) -> PackedScene:
+	var path := HPProtocol.mob_scene(variant)
+	if ResourceLoader.load_threaded_get_status(path) != ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
+		return ResourceLoader.load_threaded_get(path) as PackedScene
+	return load(path) as PackedScene
+
 func _on_entity_replicating(record: Dictionary) -> void:
 	var uid := int(record["uid"])
-	if _views.has(uid) or record.get("node") != null:
-		return   # already on screen (authority roles own their nodes)
+	if _views.has(uid) or record.get("node") != null or _queued.has(uid):
+		return   # already on screen (authority roles own their nodes) or on its way
+	if int(record.get("kind", 0)) == HPProtocol.Kind.PLAYER:
+		_create_view(record)
+		return
+	_queued[uid] = true
+	_view_queue.append(uid)
+
+func _drain_view_queue() -> void:
+	var made := 0
+	while made < VIEWS_PER_FRAME and not _view_queue.is_empty():
+		var uid := int(_view_queue.pop_front())
+		_queued.erase(uid)
+		var record: Dictionary = SimAuthority.entities.get(uid, {})
+		if record.is_empty() or _views.has(uid) or record.get("node") != null:
+			continue   # despawned (or claimed) while it waited
+		_create_view(record)
+		made += 1
+
+func _create_view(record: Dictionary) -> void:
+	var uid := int(record["uid"])
 	var kind := int(record.get("kind", 0))
 	var scene: PackedScene = null
 	match kind:
 		HPProtocol.Kind.PLAYER:
 			scene = PLAYER_SCENE
 		HPProtocol.Kind.MOB:
-			scene = load(HPProtocol.mob_scene(int(record.get("variant", HPProtocol.MOB_VARIANT_INFERI))))
+			scene = _mob_scene(int(record.get("variant", HPProtocol.MOB_VARIANT_INFERI)))
 		HPProtocol.Kind.MONOLITH:
 			scene = MONOLITH_SCENE
 		_:
@@ -467,6 +513,7 @@ func _on_entity_replicating(record: Dictionary) -> void:
 		view.visuals.rotation.y = float(record.get("rot_y", 0.0))
 
 func _on_entity_despawned(uid: int) -> void:
+	_queued.erase(uid)
 	SimAuthority.drop_replica(uid)
 	if not _views.has(uid):
 		return
