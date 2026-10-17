@@ -716,7 +716,8 @@ func show_notice(text: String, kind: String = "warn") -> void:
 ## Server refusals (`sim_notice`, "kind:reason"). A refused pickup used to be
 ## silent: with a full bag the item simply stayed on the ground.
 const PICKUP_REASONS := {
-	"bag_full": "Your bag is full (40/40). Sell or discard something to pick this up.",
+	"bag_full": "Your bag is full (40/40). Sell or discard something to take this.",
+	"item_gone": "Someone already took that.",
 	"out_of_range": "Too far away to pick that up.",
 	"not_yours": "That loot belongs to someone else.",
 	"transfer_pending": "Wait until the map loads.",
@@ -800,7 +801,7 @@ func handle_escape(world: Node = null) -> String:
 		onboarding.toggle_panel()
 		return "guide"
 	if world != null:
-		for key in ["inventory_ui", "ollivander_ui"]:
+		for key in ["loot_window", "inventory_ui", "ollivander_ui"]:
 			var w = world.get(key)
 			if w is CanvasItem and (w as CanvasItem).visible:
 				(w as CanvasItem).hide()

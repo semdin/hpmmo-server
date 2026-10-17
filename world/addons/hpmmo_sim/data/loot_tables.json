@@ -11,25 +11,25 @@
     "rolls": [
       {
         "id": "mat_phoenix_ash",
-        "chance": 0.5,
+        "chance": 0.18,
         "min": 1,
         "max": 3
       },
       {
         "id": "potion_health",
-        "chance": 0.3,
+        "chance": 0.1,
         "min": 1,
         "max": 1
       },
       {
         "id": "scroll_imbue",
-        "chance": 0.04,
+        "chance": 0.012,
         "min": 1,
         "max": 1
       },
       {
         "id": "scroll_reweave",
-        "chance": 0.03,
+        "chance": 0.008,
         "min": 1,
         "max": 1
       }
@@ -68,7 +68,7 @@
       "rolls": [
         {
           "id": "mat_thestral_hair",
-          "chance": 0.08,
+          "chance": 0.032,
           "min": 1,
           "max": 1
         }
@@ -78,13 +78,13 @@
       "rolls": [
         {
           "id": "potion_mana",
-          "chance": 0.2,
+          "chance": 0.08,
           "min": 1,
           "max": 1
         },
         {
           "id": "mat_elder_core",
-          "chance": 0.01,
+          "chance": 0.004,
           "min": 1,
           "max": 1
         }
@@ -101,13 +101,13 @@
       "rolls": [
         {
           "id": "potion_health",
-          "chance": 0.25,
+          "chance": 0.1,
           "min": 1,
           "max": 2
         },
         {
           "id": "mat_elder_core",
-          "chance": 0.03,
+          "chance": 0.012,
           "min": 1,
           "max": 1
         }
@@ -117,19 +117,19 @@
       "rolls": [
         {
           "id": "mat_thestral_hair",
-          "chance": 0.15,
+          "chance": 0.06,
           "min": 1,
           "max": 1
         },
         {
           "id": "potion_mana",
-          "chance": 0.2,
+          "chance": 0.08,
           "min": 1,
           "max": 1
         },
         {
           "id": "scroll_reweave",
-          "chance": 0.03,
+          "chance": 0.012,
           "min": 1,
           "max": 1
         }
@@ -146,7 +146,7 @@
       "rolls": [
         {
           "id": "scroll_imbue",
-          "chance": 0.03,
+          "chance": 0.012,
           "min": 1,
           "max": 1
         }
@@ -163,13 +163,13 @@
       "rolls": [
         {
           "id": "potion_health",
-          "chance": 0.3,
+          "chance": 0.12,
           "min": 1,
           "max": 2
         },
         {
           "id": "scroll_reweave",
-          "chance": 0.04,
+          "chance": 0.016,
           "min": 1,
           "max": 1
         }
@@ -186,7 +186,7 @@
       "rolls": [
         {
           "id": "scroll_imbue",
-          "chance": 0.25,
+          "chance": 0.1,
           "min": 1,
           "max": 1
         }
@@ -203,19 +203,19 @@
       "rolls": [
         {
           "id": "mat_dragon_heartstring",
-          "chance": 0.6,
+          "chance": 0.24,
           "min": 1,
           "max": 2
         },
         {
           "id": "scroll_imbue",
-          "chance": 0.5,
+          "chance": 0.2,
           "min": 1,
           "max": 1
         },
         {
           "id": "scroll_reweave",
-          "chance": 0.4,
+          "chance": 0.16,
           "min": 1,
           "max": 1
         }
@@ -233,22 +233,37 @@
     "rolls": [
       {
         "id": "scroll_imbue",
-        "chance": 0.25,
+        "chance": 0.15,
         "min": 1,
         "max": 1
       },
       {
         "id": "mat_thestral_hair",
-        "chance": 0.35,
+        "chance": 0.21,
         "min": 1,
         "max": 2
       },
       {
         "id": "mat_dragon_heartstring",
-        "chance": 0.15,
+        "chance": 0.09,
         "min": 1,
         "max": 1
       }
+    ]
+  },
+  "gear": {
+    "_comment": "Gear pieces (wand/cloak/broom) dropped by kills, picked from enchantable items whose required_level is in (mob level - level_band, mob level]. enchanted_chance of them come with 1..N efsun bonuses (bonus_count_weights[i] = weight of i+1 bonuses); such a chest is a chest_rare and glows differently. accessory_chance = the plain apprentice accessory roll. Every chance except boss/monolith is scaled by the level-gap drop factor.",
+    "accessory_chance": 0.05,
+    "chance": 0.012,
+    "elite_chance": 0.08,
+    "boss_chance": 0.5,
+    "monolith_chance": 0.3,
+    "level_band": 15,
+    "enchanted_chance": 0.3,
+    "bonus_count_weights": [
+      65,
+      28,
+      7
     ]
   },
   "dungeon_trial": {
@@ -391,5 +406,6 @@
         "max": 2
       }
     ]
-  }
+  },
+  "_drop_note": "2026-10-18: mob item chances lowered (base table, species x0.4, elite x0.6). Every kill now drops ONE chest holding all of its rolls (authority._spawn_chest)."
 }

@@ -59,7 +59,10 @@ class_name HPProtocol
 ##     impulse the authority shoved its body with; loot may carry an owner
 ##     (personal dungeon loot: sent to and taken by that player only); the
 ##     stats payload carries `titles`.
-const PROTOCOL_VERSION := 15
+## v16: loot drops as one chest per kill. `sim_loot_event` carries the chest's
+##     slot list (re-sent when a partial take changes it), and
+##     `sim_pickup_request(uid, slot)` takes one slot (-1 = all that fits).
+const PROTOCOL_VERSION := 16
 
 ## Per-hit presentation bits carried by `sim_damage_event` / `entity_hit`.
 const HIT_CRIT := 1
@@ -125,6 +128,8 @@ const REJECT_LEVEL := "level_too_low"
 const REJECT_DAILY_LIMIT := "daily_limit"
 ## v15: personal loot (dungeons) belongs to one player.
 const REJECT_NOT_OWNER := "not_yours"
+## v16: the chest slot was already emptied (by this player or another).
+const REJECT_ITEM_GONE := "item_gone"
 ## Skill training: no unspent point, the skill is already Master, or the spell
 ## cannot be trained.
 const REJECT_NO_SKILL_POINTS := "no_skill_points"

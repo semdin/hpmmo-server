@@ -279,12 +279,13 @@ func _on_reward_granted(uid: int, _character_id: int, exp: int, galleons: int, i
 		return
 	reward_granted.emit(exp, galleons, items)
 
-func _on_loot_taken(_uid: int, character_id: int, item_id: String, amount: int, _collector_peer_id: int = 0) -> void:
-	# Loot pickups are broadcast for every player on the map; only the local
-	# character's own pickup is UI feedback.
+func _on_loot_taken(_uid: int, character_id: int, items: Array, _collector_peer_id: int = 0, _emptied: bool = false) -> void:
+	# Chest takes are broadcast for every player on the map; only the local
+	# character's own take is UI feedback.
 	if character_id != local_character_id():
 		return
-	loot_taken.emit(item_id, amount)
+	for entry in items:
+		loot_taken.emit(String(entry.get("id", "")), int(entry.get("amount", 0)))
 
 func local_character_id() -> int:
 	var id := int(NetworkManager.local_character_data.get("id", 0))

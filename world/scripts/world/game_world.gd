@@ -10,6 +10,8 @@ extends Node3D
 @onready var hud: Control = get_node_or_null("CanvasLayer/HUD")
 @onready var inventory_ui: Control = get_node_or_null("CanvasLayer/InventoryUI")
 @onready var ollivander_ui: Control = get_node_or_null("CanvasLayer/OllivanderUI")
+## The chest window (built in code; opened by clicking a loot chest).
+var loot_window: Control = null
 
 const PLAYER_SCENE = preload("res://scenes/entities/player/player.tscn")
 const MONOLITH_SCENE = preload("res://scenes/entities/monolith/dark_monolith.tscn")
@@ -59,6 +61,11 @@ func _ready() -> void:
 			hit_feedback.local_player = local_player
 		_connect_ui_signals()
 		_setup_map_controller()
+		var canvas := get_node_or_null("CanvasLayer")
+		if canvas != null:
+			loot_window = LootWindow.new()
+			loot_window.name = "LootWindow"
+			canvas.add_child(loot_window)
 	else:
 		print("[Dedicated Server] Headless world active (no local player/UI).")
 		var cl = get_node_or_null("CanvasLayer")
@@ -663,12 +670,15 @@ func _on_cast_landed(cast_id: int, _caster_uid: int, spell_id: String, hits: Arr
 			continue
 		preload("res://scripts/spells/skill_fx.gd").play_impact(self, (victim as Node3D).global_position + Vector3.UP, spell_id)
 
-func _on_loot_spawned(uid: int, item_id: String, amount: int, pos: Vector3) -> void:
-	# One drop, one marker. A drop that lands while the player is watching
+func _on_loot_spawned(uid: int, item_id: String, amount: int, pos: Vector3, items: Array = []) -> void:
+	# One chest, one marker. A chest that lands while the player is watching
 	# arrives twice - the spawn broadcast and the interest scan's first-sight
-	# send - and a second view would be untracked: the pickup's despawn removes
-	# only the tracked node, so a copy of the item would stay on the ground.
+	# send - and a second view would be untracked: the despawn removes only the
+	# tracked node, so a copy would stay on the ground. A re-announce of a
+	# known chest (a partial take changed it) only updates its view.
 	if is_instance_valid(_views.get(uid)):
+		if _views[uid].has_method("setup"):
+			_views[uid].setup(item_id, amount, items)
 		return
 	# Personal loot (a dungeon drop, v15) is drawn for its owner only.
 	var owner := int(SimAuthority.entities.get(uid, {}).get("owner_uid", 0))
@@ -677,7 +687,7 @@ func _on_loot_spawned(uid: int, item_id: String, amount: int, pos: Vector3) -> v
 	var node = LOOT_SCENE.instantiate()
 	add_child(node)
 	node.global_position = pos
-	node.setup(item_id, amount)
+	node.setup(item_id, amount, items)
 	node.set_meta("sim_uid", uid)
 	SimAuthority.attach_view_node(uid, node)
 	_views[uid] = node

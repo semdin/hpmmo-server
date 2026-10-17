@@ -105,7 +105,7 @@ func _ready() -> void:
 	SimAuthority.reward_granted.connect(_on_reward)
 	# Ground loot travels as spawn/despawn events, not as snapshot replicas:
 	# track it where the events arrive.
-	SimAuthority.loot_spawned.connect(func(uid: int, item_id: String, amount: int, pos: Vector3):
+	SimAuthority.loot_spawned.connect(func(uid: int, item_id: String, amount: int, pos: Vector3, _items: Array):
 		_loot_ground[int(uid)] = {"pos": pos, "item": item_id, "amount": amount})
 	SimAuthority.entity_despawned.connect(func(uid: int): _loot_ground.erase(int(uid)))
 	print("[smoke] api=%s world=%s:%d user=%s mode=%s" % [api_url, world_host, world_port,
@@ -328,7 +328,7 @@ func _on_reward(_uid: int, _character_id: int, exp: int, _galleons: int, _items:
 	if op_id.begins_with("kill:"):
 		_kills += 1
 		_kill_exp += exp
-	elif op_id == "loot":
+	elif op_id.begins_with("loot:"):
 		_loot_taken += 1
 
 func _kind_count(kind: int) -> int:

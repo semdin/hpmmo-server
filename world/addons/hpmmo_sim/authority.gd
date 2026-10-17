@@ -39,7 +39,11 @@ signal entity_damaged(uid: int, amount: int, hp: int, spell_id: String, attacker
 signal entity_hit(uid: int, amount: int, hp: int, spell_id: String, attacker_uid: int, flags: int)
 signal entity_died(uid: int, killer_uid: int)
 signal entity_respawned(uid: int)
-signal loot_spawned(uid: int, item_id: String, amount: int, pos: Vector3)
+## A loot chest appeared - or its contents changed after a partial take (the
+## same uid is re-announced; `items` is the chest's slot list, taken slots
+## have amount 0). `item_id` is "chest", or "chest_rare" when it holds an
+## enchanted piece.
+signal loot_spawned(uid: int, item_id: String, amount: int, pos: Vector3, items: Array)
 ## encounter lifecycle: a boss telegraph opened/closed, and a pack that
 ## leashed home reset its encounter (its pending reward credit was cancelled).
 signal mob_telegraph(uid: int, data: Dictionary)
@@ -65,7 +69,9 @@ signal instance_closed(map_id: String)
 ## players inside that copy.
 signal dungeon_state(map_id: String, state: Dictionary)
 signal encounter_reset(pack_id: int, reason: String)
-signal loot_taken(uid: int, character_id: int, item_id: String, amount: int, collector_peer_id: int)
+## `items` were taken out of chest `uid` ([{id, amount}]); `emptied` when the
+## chest is gone with this take.
+signal loot_taken(uid: int, character_id: int, items: Array, collector_peer_id: int, emptied: bool)
 signal reward_granted(uid: int, character_id: int, exp: int, galleons: int, items: Array, op_id: String)
 signal level_changed(uid: int, level: int)
 ## House standing crossed into a new rank (quest reputation, see grant_house_rep).
@@ -676,8 +682,9 @@ func reset_dummy(node: Node3D) -> void:
 	emit_signal("entity_health", int(record["uid"]), int(record["hp"]), int(record["max_hp"]), flags_for(record))
 
 func register_loot(node: Node3D, item_id: String, amount: int) -> int:
-	var uid := register(HPProtocol.Kind.LOOT, node, {"item_id": item_id, "amount": amount})
-	emit_signal("loot_spawned", uid, item_id, amount, node.global_position)
+	var items := [{"id": item_id, "amount": amount, "tier": 0, "bonuses": []}]
+	var uid := register(HPProtocol.Kind.LOOT, node, {"item_id": "chest", "amount": 1, "items": items})
+	emit_signal("loot_spawned", uid, "chest", 1, node.global_position, items)
 	return uid
 
 func remove_player(peer_id: int) -> void:
@@ -2186,38 +2193,109 @@ func _drop_loot(target: Dictionary, eligible: Array = []) -> void:
 	var node = target.get("node")
 	var origin: Vector3 = node.global_position if node != null and is_instance_valid(node) else Vector3.ZERO
 	var map_id := String(target.get("map_id", HPMaps.map_for_point(origin)))
+	# One kill, one chest (Knight Online style): everything it dropped lies in
+	# a single chest the players open and take from slot by slot.
 	if HPMaps.instance_slot(map_id) > 0 and not eligible.is_empty():
 		for uid in eligible:
-			for drop in _roll_drops(target):
-				_spawn_loot_node(String(drop["id"]), int(drop["amount"]), origin, map_id, int(uid))
+			_spawn_chest(_roll_drops(target), origin, map_id, int(uid))
 		return
-	for drop in _roll_drops(target):
-		_spawn_loot_node(String(drop["id"]), int(drop["amount"]), origin, map_id)
+	_spawn_chest(_roll_drops(target), origin, map_id)
 
 func _roll_drops(target: Dictionary) -> Array:
 	var is_boss := bool(target.get("is_boss", false))
 	var drops: Array = []
+	var drop_factor := 1.0
 	if int(target.get("kind", 0)) == HPProtocol.Kind.MONOLITH:
 		drops = HPRules.monolith_loot(rng)
 	else:
 		var killer: Dictionary = entities.get(killer_uid_of(target), {})
-		var drop_factor := 1.0
 		if not killer.is_empty() and int(killer.get("kind", 0)) == HPProtocol.Kind.PLAYER:
 			drop_factor = HPRules.level_gap_drop(_player_level(killer), int(target.get("level", 1)))
 		drops = HPRules.mob_loot(is_boss, rng, String(target.get("loot_table", "")),
 			bool(target.get("is_elite", false)), drop_factor)
+	var gear_rules: Dictionary = HPRules.loot_tables().get("gear", {})
 	if int(target.get("kind", 0)) == HPProtocol.Kind.MONOLITH:
 		if rng.randf() < 0.25: drops.append({"id": "ring_adept", "amount": 1})
-	elif is_boss or rng.randf() < 0.2:
+	elif is_boss or rng.randf() < float(gear_rules.get("accessory_chance", 0.06)) * drop_factor:
 		drops.append({"id": HPEquipment.BASIC_ACCESSORIES[rng.randi_range(0, 5)], "amount": 1})
+	var piece := _roll_gear(target, gear_rules, drop_factor)
+	if not piece.is_empty():
+		drops.append(piece)
 	return drops
 
-## Spawned by the authority; in the dedicated server the loot node is a plain
-## replicated marker, on the host/offline it is the real pickup scene.
-func _spawn_loot_node(item_id: String, amount: int, origin: Vector3, map_id: String = "", owner_uid: int = 0) -> void:
+## A wand, cloak or broom for the mob's level band, sometimes already carrying
+## enchantments (efsun) - loot_tables.json `gear`. {} when nothing dropped.
+func _roll_gear(target: Dictionary, rules: Dictionary, drop_factor: float) -> Dictionary:
+	if rules.is_empty():
+		return {}
+	var chance := float(rules.get("chance", 0.0)) * drop_factor
+	if int(target.get("kind", 0)) == HPProtocol.Kind.MONOLITH:
+		chance = float(rules.get("monolith_chance", chance))
+	elif bool(target.get("is_boss", false)):
+		chance = float(rules.get("boss_chance", chance))
+	elif bool(target.get("is_elite", false)):
+		chance = float(rules.get("elite_chance", chance)) * drop_factor
+	if rng.randf() >= chance:
+		return {}
+	var level := int(target.get("level", 1))
+	var band := int(rules.get("level_band", 15))
+	var pool: Array = []
+	var lowest := 1 << 30
+	var catalog := HPEquipment.catalog()
+	for id in catalog:
+		var data = catalog[id]
+		if not (data is Dictionary) or not data.has("required_level") or not HPEquipment.enchantable(id):
+			continue
+		lowest = mini(lowest, int(data.required_level))
+		if int(data.required_level) <= level and int(data.required_level) > level - band:
+			pool.append(id)
+	if pool.is_empty():
+		for id in catalog:
+			var data = catalog[id]
+			if data is Dictionary and int(data.get("required_level", -1)) == lowest and HPEquipment.enchantable(id):
+				pool.append(id)
+	if pool.is_empty():
+		return {}
+	var id: String = pool[rng.randi_range(0, pool.size() - 1)]
+	var bonuses: Array = []
+	if rng.randf() < float(rules.get("enchanted_chance", 0.0)):
+		var weights: Array = rules.get("bonus_count_weights", [1])
+		var total := 0
+		for w in weights: total += int(w)
+		var pick := rng.randi_range(1, maxi(1, total))
+		var count := 1
+		for i in weights.size():
+			pick -= int(weights[i])
+			if pick <= 0:
+				count = i + 1
+				break
+		for _i in count:
+			var bonus := HPEquipment.roll_bonus(id, bonuses, rng)
+			if bonus.is_empty():
+				break
+			bonuses.append(bonus)
+	return {"id": id, "amount": 1, "bonuses": bonuses}
+
+## Spawned by the authority; in the dedicated server the chest is a plain
+## replicated record, on the host/offline the world draws the chest scene.
+## `drops` become the chest's slots ({id, amount, tier, bonuses}); a taken
+## slot keeps its place with amount 0 so slot numbers never shift under a
+## player who has the chest open.
+func _spawn_chest(drops: Array, origin: Vector3, map_id: String = "", owner_uid: int = 0) -> void:
+	var items: Array = []
+	var rare := false
+	for drop in drops:
+		if int(drop.get("amount", 0)) <= 0:
+			continue
+		var bonuses: Array = (drop.get("bonuses", []) as Array).duplicate(true)
+		rare = rare or not bonuses.is_empty()
+		items.append({"id": String(drop["id"]), "amount": int(drop["amount"]), "tier": int(drop.get("tier", 0)), "bonuses": bonuses})
+	if items.is_empty():
+		return
 	var uid := _make_uid()
 	if map_id == "":
 		map_id = HPMaps.map_for_point(origin)
+	var kind := "chest_rare" if rare else "chest"
 	entities[uid] = {
 		"uid": uid,
 		"kind": HPProtocol.Kind.LOOT,
@@ -2227,14 +2305,15 @@ func _spawn_loot_node(item_id: String, amount: int, origin: Vector3, map_id: Str
 		"pack_id": 0,
 		"revision": 1,
 		"dead": false,
-		"item_id": item_id,
-		"amount": amount,
+		"item_id": kind,
+		"amount": items.size(),
+		"items": items,
 		"pos": origin + _loot_scatter(),
 		"spawned_tick": sim_tick,
 		"owner_uid": owner_uid,
 	}
 	_ticking[uid] = true
-	emit_signal("loot_spawned", uid, item_id, amount, entities[uid]["pos"])
+	emit_signal("loot_spawned", uid, kind, items.size(), entities[uid]["pos"], items)
 
 func _loot_scatter() -> Vector3:
 	var angle := rng.randf() * TAU
@@ -2245,7 +2324,8 @@ const LOOT_LIFETIME_MS := 90000
 
 ## Pickup request from a player. Range-checked, then granted through the
 ## authority so the item cannot be duplicated by replaying the request.
-func request_pickup(peer_id: int, loot_uid: int) -> Dictionary:
+## `slot` is one chest slot, or -1 to take everything that fits.
+func request_pickup(peer_id: int, loot_uid: int, slot: int = -1) -> Dictionary:
 	if not is_authority():
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
 	if mutations_frozen():
@@ -2267,12 +2347,34 @@ func request_pickup(peer_id: int, loot_uid: int) -> Dictionary:
 		return HPProtocol.reject(HPProtocol.REJECT_RANGE)
 	if not loot_visible_to(loot, player):
 		return HPProtocol.reject(HPProtocol.REJECT_NOT_OWNER)
+	var items: Array = loot.get("items", [])
+	var wanted: Array = []
+	if slot < 0:
+		wanted = range(items.size())
+	elif slot < items.size() and int(items[slot].get("amount", 0)) > 0:
+		wanted = [slot]
+	else:
+		return HPProtocol.reject(HPProtocol.REJECT_ITEM_GONE)
+	# Galleons always fit; an item goes in only while the bag still has room.
 	var bag: Array = node.inventory.duplicate(true)
-	if String(loot.item_id) != "galleons":
-		HPEquipment.add(bag, String(loot.item_id), 0, int(loot.amount))
-		if not HPEquipment.capacity_ok(bag): return HPProtocol.reject("bag_full")
-	_collect_loot(loot, player)
-	return HPProtocol.accept()
+	var taking: Array = []
+	var full := false
+	for index in wanted:
+		var entry: Dictionary = items[index]
+		if int(entry.get("amount", 0)) <= 0:
+			continue
+		if String(entry.id) != "galleons":
+			var trial := bag.duplicate(true)
+			HPEquipment.add(trial, String(entry.id), int(entry.get("tier", 0)), int(entry.amount), entry.get("bonuses", []))
+			if not HPEquipment.capacity_ok(trial):
+				full = true
+				continue
+			bag = trial
+		taking.append(index)
+	if taking.is_empty():
+		return HPProtocol.reject("bag_full" if full else HPProtocol.REJECT_ITEM_GONE)
+	_collect_loot(loot, player, taking)
+	return HPProtocol.reject("bag_full") if full else HPProtocol.accept()
 
 const LOOT_PICKUP_RANGE := 7.0
 
@@ -2304,43 +2406,55 @@ func grant_title(record: Dictionary, title_id: String) -> bool:
 		persistence.save_player(record)
 	return true
 
-func _collect_loot(loot: Dictionary, player: Dictionary) -> void:
+func _collect_loot(loot: Dictionary, player: Dictionary, slots: Array) -> void:
 	var loot_uid := int(loot["uid"])
-	var item_id := String(loot["item_id"])
-	var amount := int(loot["amount"])
 	var character_id := int(player.get("character_id", 0))
-	var op_id := "loot:%d:%d" % [loot_uid, character_id]
-	if _reward_already_granted(op_id):
-		entities.erase(loot_uid)
-		emit_signal("entity_despawned", loot_uid)
-		return
-	var node = loot.get("node")
-	if node != null and is_instance_valid(node):
-		by_node.erase((node as Node).get_instance_id())
-		node.queue_free()
+	var items: Array = loot.get("items", [])
 	var pnode = player.get("node")
-	if pnode != null and is_instance_valid(pnode) and pnode.has_method("add_loot"):
+	var live: bool = pnode != null and is_instance_valid(pnode)
+	var taken: Array = []
+	for index in slots:
+		var entry: Dictionary = items[index]
+		var item_id := String(entry.id)
+		var amount := int(entry.amount)
+		entry["amount"] = 0   # the slot stays, empty: indexes never shift
+		if amount <= 0 or not live:
+			continue
 		if item_id == "galleons":
 			amount = int(round(amount * (1.0 + float(player.get("galleon_bonus", 0.0)) / 100.0)))   # enchantment
-		pnode.call("add_loot", item_id, amount)
+			pnode.call("add_loot", item_id, amount)
+		else:
+			HPEquipment.add(pnode.inventory, item_id, int(entry.get("tier", 0)), amount, entry.get("bonuses", []))
+			pnode.inventory_revision += 1
+			pnode.inventory_changed.emit()
+		taken.append({"id": item_id, "amount": amount})
+	if live and not taken.is_empty():
 		# Keep the record in step: the record is what stats pushes are built from,
 		# so a stale record would take the gold back on the next tick.
 		if "galleons" in pnode:
 			player["galleons"] = int(pnode.get("galleons"))
 		touch(player)
 		_push_stats(player)
+		# The world server is the single writer of a character during its
+		# session (persistence.gd): the loot is in the body and the record, so
+		# this save (and the autosave / disconnect save) persists it. It must
+		# NOT also go through the reward ledger, whose incremental /api/reward
+		# would land on top of the save that already carried the galleons.
 		if persistence != null:
 			persistence.save_player(player)
-	# The world server is the single writer of a character during its session
-	# (persistence.gd): the loot is already in the body and in the record, so
-	# the periodic autosave and the disconnect save persist it. It must NOT also
-	# go through the reward ledger: the ledger's incremental /api/reward lands
-	# on top of the save that already carried the galleons, so the same pickup
-	# was credited twice whenever the ledger request outlived the session's last
-	# save (the character-bind fix measured 500 -> 554 in session, then 608 reloaded for
-	# a single 54-galleon drop). Unbound sessions (character_id <= 0) have no
-	# save path at all, and queue_reward is a no-op for them anyway.
-	emit_signal("loot_taken", loot_uid, character_id, item_id, amount, int(player.get("peer_id", 0)))
+	var remaining := 0
+	for entry in items:
+		if int(entry.get("amount", 0)) > 0:
+			remaining += 1
+	loot["amount"] = remaining
+	emit_signal("loot_taken", loot_uid, character_id, taken, int(player.get("peer_id", 0)), remaining == 0)
+	if remaining > 0:
+		emit_signal("loot_spawned", loot_uid, String(loot.get("item_id", "chest")), remaining, loot["pos"], items)
+		return
+	var node = loot.get("node")
+	if node != null and is_instance_valid(node):
+		by_node.erase((node as Node).get_instance_id())
+		node.queue_free()
 	emit_signal("entity_despawned", loot_uid)
 	entities.erase(loot_uid)
 
@@ -3106,8 +3220,8 @@ func publish_dungeon_state(map_id: String, state: Dictionary) -> void:
 		info["state"] = state
 	emit_signal("dungeon_state", map_id, state)
 
-## A loot table dropped at a point (dungeon chests): every item lands as ground
-## loot on that map.
+## A loot table dropped at a point (dungeon chests): its roll lands as one loot
+## chest on that map.
 func drop_loot_table(table_id: String, pos: Vector3, map_id: String) -> void:
 	var table: Dictionary = HPRules.loot_tables().get(table_id, {})
 	# A dungeon chest rolls once for every player in the copy (personal loot).
@@ -3116,11 +3230,9 @@ func drop_loot_table(table_id: String, pos: Vector3, map_id: String) -> void:
 			var r: Dictionary = entities[uid]
 			if int(r.get("kind", 0)) != HPProtocol.Kind.PLAYER or String(r.get("map_id", "")) != map_id:
 				continue
-			for drop in HPRules.roll_loot(table, rng):
-				_spawn_loot_node(String(drop["id"]), int(drop["amount"]), pos, map_id, int(uid))
+			_spawn_chest(HPRules.roll_loot(table, rng), pos, map_id, int(uid))
 		return
-	for drop in HPRules.roll_loot(table, rng):
-		_spawn_loot_node(String(drop["id"]), int(drop["amount"]), pos, map_id)
+	_spawn_chest(HPRules.roll_loot(table, rng), pos, map_id)
 
 # ------------------------------------------------------------------ parties
 
@@ -3273,7 +3385,7 @@ func attach_view_node(uid: int, node: Node3D) -> void:
 	by_node[node.get_instance_id()] = uid
 	node.set_meta("sim_uid", uid)
 
-func on_loot_event(uid: int, item_id: String, amount: int, pos: Vector3) -> void:
+func on_loot_event(uid: int, item_id: String, amount: int, pos: Vector3, items: Array = []) -> void:
 	entities[uid] = {
 		"uid": uid,
 		"kind": HPProtocol.Kind.LOOT,
@@ -3284,8 +3396,9 @@ func on_loot_event(uid: int, item_id: String, amount: int, pos: Vector3) -> void
 		"amount": amount,
 		"pos": pos,
 		"dead": false,
+		"items": items,
 	}
-	emit_signal("loot_spawned", uid, item_id, amount, pos)
+	emit_signal("loot_spawned", uid, item_id, amount, pos, items)
 
 func on_cast_result(cast_seq: int, cast_id: int, ok: bool, reason: String) -> void:
 	emit_signal("cast_ack", cast_seq, cast_id, ok, reason)
@@ -3391,20 +3504,26 @@ func request_equipment(peer_id: int, request_id: int, revision: int, operation: 
 	record["equipment_reply"] = result.duplicate(true)
 	return result
 
-## Sell one piece from the bag (never a worn item) for its merchant price.
-## Without this a full satchel (40 slots) could never be emptied, and every new
-## gear drop stayed on the ground.
+## Sell from the bag (never a worn item) at the merchant price: one item
+## instance, or a whole stack at once (Metin2 style). Without this a full
+## satchel (40 slots) could never be emptied.
 func _sell_item(node: Node, item_id: String, tier: int, uid: int) -> Dictionary:
 	var bag: Array = node.inventory.duplicate(true)
 	var sold_tier := tier
+	var count := 1
 	if uid > 0:
 		var entry := HPEquipment.take_instance(bag, uid)
 		if entry.is_empty() or String(entry.get("id", "")) != item_id:
 			return {"ok": false, "reason": "item_missing"}
 		sold_tier = int(entry.get("tier", 0))
-	elif not HPEquipment.take(bag, item_id, tier):
-		return {"ok": false, "reason": "item_missing"}
-	var price := HPEquipment.sell_price(item_id, sold_tier)
+	else:
+		count = 0
+		for entry in bag:
+			if String(entry.id) == item_id and int(entry.get("tier", 0)) == tier and int(entry.get("uid", 0)) == 0:
+				count += int(entry.amount)
+		if count <= 0 or not HPEquipment.take(bag, item_id, tier, count):
+			return {"ok": false, "reason": "item_missing"}
+	var price := HPEquipment.sell_price(item_id, sold_tier) * count
 	if price <= 0:
 		return {"ok": false, "reason": "not_sellable"}
 	node.galleons += price
