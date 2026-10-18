@@ -11,7 +11,6 @@ class_name UISlot
 ## the built-in `mouse_entered`, because a caller almost always wants the slot
 ## itself (to read `item_id` and `entry`) and not just the event.
 
-const ENCHANTED_FRAME := Color("a55cd9")
 
 signal slot_entered(slot: UISlot)
 signal slot_exited(slot: UISlot)
@@ -256,10 +255,4 @@ func _update_accent() -> void:
 	border.border_color = Color("6bcde0") if selected else ItemTooltip.RARITY_COLOUR.get(rarity,Color.WHITE) * Color(1,1,1,0.55)
 	border.set_border_width_all(2 if selected else 0)
 	if not selected and item_id != "" and not HPEquipment.item(item_id).is_empty(): border.border_width_bottom = 2
-	# An enchanted (efsun) piece wears a violet frame wherever it is shown.
-	if not selected and item_id != "" and not (entry.get("bonuses", []) as Array).is_empty():
-		border.border_color = ENCHANTED_FRAME
-		border.set_border_width_all(2)
-		border.shadow_color = Color(ENCHANTED_FRAME, 0.45)
-		border.shadow_size = 3
 	_accent.add_theme_stylebox_override("panel", border)

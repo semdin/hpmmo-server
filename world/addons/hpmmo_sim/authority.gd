@@ -1140,6 +1140,7 @@ func _commit_transfer(record: Dictionary, reservation: Dictionary, token: int) -
 		node.set("velocity", Vector3.ZERO)
 	touch(record)
 	_on_instance_arrival(String(reservation["to_map"]))
+	quest_event(record, "enter_map", String(reservation["to_map"]))
 	emit_signal("transfer_committed", int(reservation["peer_id"]), token,
 		String(reservation["to_map"]), spawn_pos, String(reservation["spawn_id"]))
 	print("[Authority] transfer committed: uid=%d -> %s at (%.1f, %.1f, %.1f)" % [
@@ -1867,6 +1868,8 @@ func _apply_damage(target: Dictionary, raw: int, spell_id: String, attacker: Dic
 		if attacker_node2 != null and is_instance_valid(attacker_node2) and not HPRules.faction_ok(attacker_node2, target_node):
 			return 0
 
+	if int(target.get("kind", -1)) == HPProtocol.Kind.DUMMY and int(attacker.get("kind", -1)) == HPProtocol.Kind.PLAYER:
+		quest_event(attacker, "dummy", "")   # tutorial: practise on a training dummy
 	var player_hits_mob := int(attacker.get("kind", -1)) == HPProtocol.Kind.PLAYER and int(target.get("kind", -1)) == HPProtocol.Kind.MOB \
 		and spell_id != "reflect"
 	var mob_hits_player := int(attacker.get("kind", -1)) == HPProtocol.Kind.MOB and int(target.get("kind", -1)) == HPProtocol.Kind.PLAYER
@@ -2276,7 +2279,7 @@ func _grant_kill_rewards(target: Dictionary) -> void:
 		if int(target.get("kind", 0)) == HPProtocol.Kind.MONOLITH:
 			quest_event(player, "monolith", "")
 		elif int(target.get("kind", 0)) == HPProtocol.Kind.MOB:
-			quest_event(player, "kill", _mob_species(target))
+			quest_event(player, "kill", _mob_species(target), 1, {"boss": bool(target.get("is_boss", false))})
 	# Loot is dropped once, server-side: for everyone to race for in the open
 	# world, one roll per eligible player (personal loot) in a dungeon copy.
 	_drop_loot(target, eligible)
@@ -2959,14 +2962,20 @@ func _load_quest_state(record: Dictionary, node: Node) -> void:
 	record["skill_levels"] = HPRules.clean_skill_levels(node.get("skill_levels")) if "skill_levels" in node else {}
 
 ## Something happened to this player that a quest may count. Advances the
-## active quest when type and target match; completes it at its count.
-func quest_event(player: Dictionary, type: String, target: String, amount: int = 1) -> void:
+## active quest when type and target match; completes it at its count. A quest
+## above the player's level waits (nothing counts until the level is reached);
+## a `boss` kill quest only counts boss kills (`extra.boss`).
+func quest_event(player: Dictionary, type: String, target: String, amount: int = 1, extra: Dictionary = {}) -> void:
 	if not is_authority() or player.is_empty() or amount <= 0:
 		return
 	if int(player.get("kind", -1)) != HPProtocol.Kind.PLAYER:
 		return
 	var quest := HPRules.quest_at(int(player.get("quest_active", 0)))
 	if quest.is_empty() or String(quest.get("type", "")) != type:
+		return
+	if _player_level(player) < int(quest.get("level", 1)):
+		return
+	if bool(quest.get("boss", false)) and not bool(extra.get("boss", false)):
 		return
 	if String(quest.get("target", "")) != "" and String(quest.get("target", "")) != target:
 		return
@@ -2997,15 +3006,43 @@ func _complete_quest(player: Dictionary, quest: Dictionary) -> void:
 		player["galleons"] = int(node.galleons)
 	_grant_exp(player, exp)
 	_grant_house_rep(player, int(quest.get("reward_house_rep", 0)))
+	var items := _grant_quest_items(player, quest.get("reward_items", []))
 	touch(player)
 	_push_stats(player)
 	var character_id := int(player.get("character_id", 0))
 	var owner_key := character_id if character_id > 0 else int(player["uid"])
-	emit_signal("reward_granted", int(player["uid"]), character_id, exp, gold, [], "quest:%s:%d" % [quest_id, owner_key])
+	emit_signal("reward_granted", int(player["uid"]), character_id, exp, gold, items, "quest:%s:%d" % [quest_id, owner_key])
 	emit_signal("quest_completed", int(player["uid"]), quest_id)
 	print("[Authority] player %d completed quest '%s'" % [int(player["uid"]), quest_id])
 	if persistence != null:
 		persistence.save_player(player)
+
+## Quest item rewards ([{id, amount, tier?}]) go into the bag; whatever does not
+## fit waits in a personal chest at the player's feet. Returns what was given.
+func _grant_quest_items(player: Dictionary, rewards: Array) -> Array:
+	var node = player.get("node")
+	if rewards.is_empty() or node == null or not is_instance_valid(node):
+		return []
+	var given: Array = []
+	var overflow: Array = []
+	for reward in rewards:
+		var id := String(reward.get("id", ""))
+		var amount := int(reward.get("amount", 1))
+		if HPEquipment.item(id).is_empty() or amount <= 0:
+			continue
+		var trial: Array = node.inventory.duplicate(true)
+		HPEquipment.add(trial, id, int(reward.get("tier", 0)), amount)
+		if HPEquipment.capacity_ok(trial):
+			node.inventory.assign(trial)
+		else:
+			overflow.append({"id": id, "amount": amount, "tier": int(reward.get("tier", 0))})
+		given.append({"id": id, "amount": amount})
+	if given.size() > overflow.size():
+		node.inventory_revision += 1
+		node.inventory_changed.emit()
+	if not overflow.is_empty():
+		_spawn_chest(overflow, (node as Node3D).global_position, String(player.get("map_id", "")), int(player.get("uid", 0)))
+	return given
 
 ## The body is what the save reads, so the record's chain position is written
 ## through to it every time it changes.
@@ -3719,6 +3756,10 @@ func request_equipment(peer_id: int, request_id: int, revision: int, operation: 
 			if persistence != null: persistence.save_player(record)
 			if String(result.get("reason", "")) == "refined":
 				quest_event(record, "refine", "")
+			elif String(result.get("reason", "")) == "enchanted":
+				quest_event(record, "enchant", "")
+			elif operation == "equip":
+				quest_event(record, "equip", slot)
 	result["request_id"] = request_id
 	result["snapshot"] = build_stats(record)
 	record["equipment_seq"] = maxi(request_id, int(record.get("equipment_seq", -1)))

@@ -152,9 +152,9 @@ func _setup_panels() -> void:
 	add_child(maintenance)
 	maintenance.setup(binder)
 
-	onboarding = OnboardingUI.new()
-	onboarding.name = "OnboardingUI"
-	add_child(onboarding)
+	# The old training guide (J) is retired: the first quests of the chain
+	# (quests.json, chapter "First Year") are the onboarding now, and J opens
+	# the quest scroll. `onboarding` stays null; every use is guarded.
 
 	settings = SettingsUI.new()
 	settings.name = "SettingsUI"
@@ -181,6 +181,7 @@ func _setup_panels() -> void:
 	modal.layer = 20
 	add_child(modal)
 	for window in [settings, onboarding]:
+		if window == null: continue
 		remove_child(window)
 		modal.add_child(window)
 	world_map = HudWorldMap.new()
@@ -779,6 +780,9 @@ func show_world_event(kind: String, data: Dictionary) -> String:
 func open_guide() -> void:
 	if onboarding != null:
 		onboarding.toggle_panel()
+	elif quest_scroll != null:
+		if quest_scroll.is_open(): quest_scroll.close()
+		else: quest_scroll.open()
 
 func open_quest_scroll() -> void:
 	if quest_scroll != null:

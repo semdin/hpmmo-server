@@ -588,14 +588,12 @@ func _update_nameplate() -> void:
 
 func _init_starter_inventory() -> void:
 	inventory.clear()
-	inventory.append({"id": "wand_hawthorn", "amount": 1, "tier": wand_tier})
-	inventory.append({"id": "robe_apprentice", "amount": 1, "tier": 0})
-	inventory.append({"id": "broom_nimbus2000", "amount": 1, "tier": 0})
-	inventory.append({"id": "mat_phoenix_ash", "amount": 5, "tier": 0})
-	inventory.append({"id": "mat_dragon_heartstring", "amount": 2, "tier": 0})
+	# A new student starts with the basic wand only; the cloak, accessories and
+	# the broom (level 5) are quest rewards (quests.json).
+	inventory.append({"id": "wand_ashwood", "amount": 1, "tier": wand_tier})
 	inventory.append({"id": "potion_health", "amount": 5, "tier": 0})
 	inventory.append({"id": "potion_mana", "amount": 5, "tier": 0})
-	HPEquipment.normalize(inventory, equipment)   # the wand, robe and broom become instances
+	HPEquipment.normalize(inventory, equipment)   # the wand becomes an instance
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not is_local_player or is_dead or input_blocked():
@@ -1463,6 +1461,19 @@ func restore_quest_state(quests: Variant) -> void:
 	_shown_house_rep = house_rep
 	quest_active = clampi(int(_quest_state.get("active", 0)), 0, HPRules.quest_chain().size())
 	quest_progress = maxi(0, int(_quest_state.get("progress", 0)))
+	# The chain position is the first quest not done yet, so a chain that was
+	# rewritten (new ids, inserted quests) never skips or repeats one. Progress
+	# only carries over while the position did not move.
+	var finished: Array = _quest_state.get("done", []) if _quest_state.get("done") is Array else []
+	var chain := HPRules.quest_chain()
+	var first_open := chain.size()
+	for i in chain.size():
+		if not finished.has(String(chain[i].get("id", ""))):
+			first_open = i
+			break
+	if first_open != quest_active:
+		quest_active = first_open
+		quest_progress = 0
 	skill_levels = HPRules.clean_skill_levels(_quest_state.get("skills", {}))
 	titles = (_quest_state.get("titles", []) as Array).duplicate() if _quest_state.get("titles") is Array else []
 	skill_points = HPRules.skill_points_available(level, skill_levels)

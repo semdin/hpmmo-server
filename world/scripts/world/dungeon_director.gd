@@ -215,6 +215,8 @@ func _act(map_id: String, run: Dictionary, step: Dictionary) -> void:
 	if bool(step.get("complete", false)):
 		run["complete"] = true
 		_grant_title(map_id, run)
+		for record in _players(map_id, false):
+			SimAuthority.quest_event(record, "dungeon", String(run["def"].get("id", "")))
 	run["done"][id] = true
 	# A boss behind shut gates: remembered so a wipe can reopen them.
 	var on := String(step.get("on", ""))

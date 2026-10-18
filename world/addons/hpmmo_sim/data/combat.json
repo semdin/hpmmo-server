@@ -131,7 +131,7 @@
     ]
   },
   "enchant": {
-    "_comment": "Enchantments (efsun), Metin2 style. Imbue adds one bonus with imbue_chance[current count] percent (a failure still uses the scroll); reweave rerolls every bonus keeping the count. A bonus rolls a stat from the pool of the item's slot kind (slot_kinds; never a stat the item already has, never one of the item's own fixed stats) and a grade by grade_weights; value = values[grade]. `disabled` stats stay listed in the pools but are not rolled until their mechanic ships. `legacy` stats are no longer rolled but keep working on items that carry them. `flag` stats are on/off (any value > 0). Units: % is percent, /s points per second, plain numbers are flat. families maps a creature family (mobs.json) to its 'strong against' stat.",
+    "_comment": "Enchantments (efsun), Metin2 style. Imbue adds one bonus with imbue_chance[current count] percent (a failure still uses the scroll); reweave rerolls every bonus keeping the count. A bonus rolls a stat from the pool of the item's slot kind (slot_kinds; never a stat the item already has, never one of the item's own fixed stats) and a grade by grade_weights; value = values[grade]. `disabled` stats stay listed in the pools but are not rolled until their mechanic ships. `legacy` stats are no longer rolled but keep working on items that carry them. `flag` stats are on/off (any value > 0). Units: % is percent, /s points per second, plain numbers are flat. Every stat has a `theme` (attack, mind, hunt, control, guard, vitality, fortune, travel); slot_themes lists the themes a piece may roll, so a pool entry outside them never rolls (boots never roll attack speed or crit, only guard / mind / vitality / fortune). families maps a creature family (mobs.json) to its 'strong against' stat.",
     "max_bonuses": 5,
     "imbue_scroll": "scroll_imbue",
     "reweave_scroll": "scroll_reweave",
@@ -159,7 +159,8 @@
           6,
           8,
           10
-        ]
+        ],
+        "theme": "mind"
       },
       "crit_chance": {
         "label": "Critical Chance",
@@ -170,7 +171,8 @@
           3,
           5,
           8
-        ]
+        ],
+        "theme": "attack"
       },
       "pierce_chance": {
         "label": "Piercing Hit Chance",
@@ -181,7 +183,8 @@
           3,
           5,
           8
-        ]
+        ],
+        "theme": "attack"
       },
       "vs_dark_wizard": {
         "label": "Strong against Dark Wizards",
@@ -192,7 +195,8 @@
           6,
           8,
           10
-        ]
+        ],
+        "theme": "hunt"
       },
       "vs_dark_creature": {
         "label": "Strong against Dark Creatures",
@@ -203,7 +207,8 @@
           12,
           16,
           20
-        ]
+        ],
+        "theme": "hunt"
       },
       "vs_beast": {
         "label": "Strong against Beasts",
@@ -214,7 +219,8 @@
           12,
           16,
           20
-        ]
+        ],
+        "theme": "hunt"
       },
       "vs_construct": {
         "label": "Strong against Enchanted Constructs",
@@ -225,7 +231,8 @@
           12,
           16,
           20
-        ]
+        ],
+        "theme": "hunt"
       },
       "attack_speed": {
         "label": "Attack Speed",
@@ -236,7 +243,8 @@
           3,
           5,
           8
-        ]
+        ],
+        "theme": "attack"
       },
       "cast_speed": {
         "label": "Casting Speed",
@@ -247,7 +255,8 @@
           6,
           10,
           20
-        ]
+        ],
+        "theme": "mind"
       },
       "stun_chance": {
         "label": "Chance to Stun",
@@ -261,7 +270,8 @@
         ],
         "_comment": "A player's hit on a creature: stun for stun_ms (scaled by the mob's stun resist, 1.0 = immune; bosses never). No new stun proc until grace_ms after it ends.",
         "stun_ms": 1000,
-        "grace_ms": 2500
+        "grace_ms": 2500,
+        "theme": "control"
       },
       "slow_chance": {
         "label": "Chance to Slow",
@@ -275,7 +285,8 @@
         ],
         "_comment": "A player's hit on a creature: move and attack speed x factor for slow_ms (half as long on bosses).",
         "slow_ms": 3000,
-        "factor": 0.6
+        "factor": 0.6,
+        "theme": "control"
       },
       "burn_chance": {
         "label": "Chance to Ignite",
@@ -288,7 +299,13 @@
           8
         ],
         "_comment": "A player's hit on a creature: ignite for ticks x interval_ms; each tick deals max(damage, hit_share x the hit). Never weakens a stronger burn already running.",
-        "burn": {"damage": 12, "hit_share": 0.12, "ticks": 3, "interval_ms": 1000}
+        "burn": {
+          "damage": 12,
+          "hit_share": 0.12,
+          "ticks": 3,
+          "interval_ms": 1000
+        },
+        "theme": "control"
       },
       "max_hp": {
         "label": "Max Health",
@@ -299,7 +316,8 @@
           120,
           180,
           250
-        ]
+        ],
+        "theme": "guard"
       },
       "max_mana": {
         "label": "Max Mana",
@@ -310,7 +328,8 @@
           90,
           135,
           190
-        ]
+        ],
+        "theme": "mind"
       },
       "melee_resist": {
         "label": "Melee Resistance",
@@ -321,7 +340,8 @@
           6,
           10,
           15
-        ]
+        ],
+        "theme": "guard"
       },
       "projectile_resist": {
         "label": "Projectile Resistance",
@@ -332,7 +352,8 @@
           6,
           10,
           15
-        ]
+        ],
+        "theme": "guard"
       },
       "spell_resist": {
         "label": "Spell Resistance",
@@ -343,7 +364,8 @@
           6,
           10,
           15
-        ]
+        ],
+        "theme": "guard"
       },
       "block_chance": {
         "label": "Block Chance",
@@ -354,7 +376,8 @@
           3,
           5,
           8
-        ]
+        ],
+        "theme": "guard"
       },
       "projectile_dodge": {
         "label": "Deflect Projectiles",
@@ -365,7 +388,8 @@
           6,
           10,
           15
-        ]
+        ],
+        "theme": "guard"
       },
       "reflect": {
         "label": "Reflect Damage",
@@ -376,7 +400,8 @@
           3,
           4,
           5
-        ]
+        ],
+        "theme": "guard"
       },
       "life_steal": {
         "label": "Life Drain",
@@ -387,7 +412,8 @@
           3,
           4,
           5
-        ]
+        ],
+        "theme": "vitality"
       },
       "mana_steal": {
         "label": "Mana Steal Chance",
@@ -398,7 +424,8 @@
           3,
           5,
           10
-        ]
+        ],
+        "theme": "mind"
       },
       "stun_immunity": {
         "label": "Stun Immunity",
@@ -411,7 +438,8 @@
           1
         ],
         "flag": true,
-        "disabled": true
+        "disabled": true,
+        "theme": "guard"
       },
       "slow_immunity": {
         "label": "Slow Immunity",
@@ -424,7 +452,8 @@
           1
         ],
         "flag": true,
-        "disabled": true
+        "disabled": true,
+        "theme": "guard"
       },
       "hp_regen": {
         "label": "Health Regeneration",
@@ -435,7 +464,8 @@
           3,
           4,
           6
-        ]
+        ],
+        "theme": "vitality"
       },
       "mana_regen": {
         "label": "Mana Regeneration",
@@ -446,7 +476,8 @@
           3,
           4,
           6
-        ]
+        ],
+        "theme": "mind"
       },
       "move_speed": {
         "label": "Movement Speed",
@@ -457,7 +488,8 @@
           3,
           5,
           8
-        ]
+        ],
+        "theme": "travel"
       },
       "exp_bonus": {
         "label": "Experience Gained",
@@ -468,7 +500,8 @@
           6,
           8,
           10
-        ]
+        ],
+        "theme": "fortune"
       },
       "galleon_bonus": {
         "label": "Galleons Found",
@@ -479,7 +512,8 @@
           9,
           12,
           15
-        ]
+        ],
+        "theme": "fortune"
       },
       "drop_chance": {
         "label": "Item Drop Chance",
@@ -490,7 +524,8 @@
           6,
           10,
           20
-        ]
+        ],
+        "theme": "fortune"
       },
       "mount_speed": {
         "label": "Mount Speed",
@@ -560,7 +595,7 @@
         "max_mana",
         "melee_resist",
         "projectile_resist",
-        "cast_speed",
+        "spell_resist",
         "reflect",
         "life_steal",
         "hp_regen"
@@ -570,9 +605,9 @@
         "vs_dark_creature",
         "vs_beast",
         "vs_construct",
+        "spell_power",
+        "cast_speed",
         "spell_resist",
-        "attack_speed",
-        "burn_chance",
         "mana_steal",
         "hp_regen",
         "mana_regen"
@@ -582,10 +617,10 @@
         "vs_dark_creature",
         "vs_beast",
         "vs_construct",
+        "crit_chance",
+        "pierce_chance",
         "melee_resist",
-        "projectile_resist",
         "mana_steal",
-        "move_speed",
         "galleon_bonus",
         "drop_chance"
       ],
@@ -594,12 +629,12 @@
         "max_mana",
         "melee_resist",
         "projectile_resist",
-        "crit_chance",
-        "stun_chance",
-        "slow_chance",
-        "attack_speed",
+        "spell_resist",
         "projectile_dodge",
-        "exp_bonus"
+        "slow_immunity",
+        "hp_regen",
+        "exp_bonus",
+        "galleon_bonus"
       ],
       "focus": [
         "vs_dark_wizard",
@@ -645,6 +680,64 @@
         "exp_bonus",
         "galleon_bonus",
         "drop_chance"
+      ]
+    },
+    "slot_themes": {
+      "wand": [
+        "attack",
+        "mind",
+        "hunt",
+        "control"
+      ],
+      "cloak": [
+        "guard",
+        "mind",
+        "vitality"
+      ],
+      "hat": [
+        "hunt",
+        "mind",
+        "guard",
+        "vitality"
+      ],
+      "gloves": [
+        "attack",
+        "hunt",
+        "guard",
+        "mind",
+        "fortune"
+      ],
+      "boots": [
+        "guard",
+        "mind",
+        "vitality",
+        "fortune"
+      ],
+      "focus": [
+        "hunt",
+        "guard",
+        "fortune"
+      ],
+      "pendant": [
+        "attack",
+        "control",
+        "guard",
+        "mind",
+        "fortune"
+      ],
+      "ring": [
+        "attack",
+        "hunt",
+        "guard",
+        "mind",
+        "vitality",
+        "fortune"
+      ],
+      "broom": [
+        "guard",
+        "mind",
+        "vitality",
+        "fortune"
       ]
     },
     "crit_multiplier": 1.5,

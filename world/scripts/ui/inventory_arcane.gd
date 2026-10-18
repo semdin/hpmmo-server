@@ -249,7 +249,8 @@ func refresh() -> void:
 		var slot := _make_slot(Vector2(_bag_px, _bag_px))
 		slot.set_item(entry.id, entry)
 		slot.selected = _selection_key(slot) == _selected_key
-		slot.disabled = _pending
+		slot.disabled = _pending or _locked(entry)
+		if _locked(entry): slot.modulate = Color(1, 1, 1, 0.35)   # on Ollivander's anvil
 		item_container.add_child(slot)
 		_bag_slots.append(slot)
 	while item_container.get_child_count() < COLUMNS * ROWS:
@@ -315,6 +316,7 @@ func _on_slot_exited(_slot: UISlot) -> void:
 
 func _activate(slot: UISlot) -> void:
 	if _pending or slot.item_id == "": return
+	if _locked(slot.entry): return
 	if slot.equipment_slot != "":
 		_request("unequip", slot.equipment_slot)
 		return
@@ -348,8 +350,13 @@ func _activate(slot: UISlot) -> void:
 		_ring_menu.popup()
 	else: _request("equip", targets[0], slot.entry)
 
+## A bag item on Ollivander's anvil stays put until it leaves the anvil.
+func _locked(entry: Dictionary) -> bool:
+	var workshop := _workshop()
+	return workshop != null and workshop.has_method("holds") and workshop.holds(int(entry.get("uid", 0)))
+
 func _can_drop(destination: UISlot, payload: Dictionary) -> bool:
-	if _pending: return false
+	if _pending or _locked(payload): return false
 	if destination.equipment_slot == "": return payload.get("source_slot", "") != ""
 	return payload.get("source_slot", "") == "" and HPEquipment.fits(payload.id, destination.equipment_slot)
 
@@ -390,7 +397,8 @@ func _price_of(entry: Dictionary) -> int:
 	return each * (1 if int(entry.get("uid", 0)) > 0 else maxi(1, int(entry.get("amount", 1))))
 
 func _merchant_can_drop(_at: Vector2, payload: Variant) -> bool:
-	return not _pending and payload is Dictionary and payload.get("arcane_item", false) and String(payload.get("source_slot", "")) == ""
+	return not _pending and payload is Dictionary and payload.get("arcane_item", false) and String(payload.get("source_slot", "")) == "" \
+		and not _locked(payload)
 
 func _merchant_drop(_at: Vector2, payload: Variant) -> void:
 	if _merchant_can_drop(_at, payload): _offer(payload)

@@ -404,6 +404,9 @@ def test_quests(out_dir, profile="local"):
     the world server checks the range against its own NPC, pays the reward once
     and sends the new chain position back."""
     print("\n--- server-authoritative quests, profile=%s ---" % profile)
+    first = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "world", "addons",
+                                        "hpmmo_sim", "data", "quests.json"), encoding="utf-8"))["chain"][0]
+    rep, gold = int(first.get("reward_house_rep", 0)), int(first.get("reward_gold", 0))
     port = free_port()
     # Beside Professor Fig in the courtyard (the first quest's NPC).
     server = start_server(port, 515151, profile, out_dir, {"HPMMO_DEV_SPAWN": "-10,0,73.5"})
@@ -412,7 +415,7 @@ def test_quests(out_dir, profile="local"):
             check(False, "[%s] world server failed to start for the quest test" % profile)
             return
         records = run_probe("scholar", "quest", port, out_dir, seconds=14, profile=profile)
-        server_log_ok = server.wait_for("completed quest 'welcome'", timeout=5)
+        server_log_ok = server.wait_for("completed quest 'q001'", timeout=5)
     finally:
         server.stop()
     final = final_of(records)
@@ -431,16 +434,16 @@ def test_quests(out_dir, profile="local"):
           "[%s] asking Hagrid from across the map is refused and counts nothing" % profile)
     check(near.get("quest_active") == 1 and server_log_ok,
           "[%s] the world server completed the talk quest (active %s)" % (profile, near.get("quest_active")))
-    check(int(near.get("house_rep", 0)) == 25 and int(near.get("galleons", 0)) == int(start.get("galleons", 0)) + 150,
+    check(int(near.get("house_rep", 0)) == rep and int(near.get("galleons", 0)) == int(start.get("galleons", 0)) + gold,
           "[%s] the reward reached the client (rep %s, galleons %s -> %s)"
           % (profile, near.get("house_rep"), start.get("galleons"), near.get("galleons")))
     quest_ops = [r["op_id"] for r in final.get("rewards", []) if str(r.get("op_id", "")).startswith("quest:")]
-    check(len(quest_ops) == 1 and quest_ops[0].startswith("quest:welcome:"),
+    check(len(quest_ops) == 1 and quest_ops[0].startswith("quest:q001:"),
           "[%s] exactly one quest reward was delivered (%s)" % (profile, quest_ops))
-    check(final.get("quest_active") == 1 and int(final.get("house_rep", 0)) == 25
+    check(final.get("quest_active") == 1 and int(final.get("house_rep", 0)) == rep
           and int(final.get("galleons", 0)) == int(near.get("galleons", -1)),
           "[%s] repeating the conversation paid nothing more" % profile)
-    check(final.get("view_index") == 1 and final.get("completed") == ["welcome"],
+    check(final.get("view_index") == 1 and final.get("completed") == [first["id"]],
           "[%s] the client's quest view mirrors the server (view %s, completed %s)"
           % (profile, final.get("view_index"), final.get("completed")))
 

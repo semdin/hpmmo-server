@@ -670,11 +670,8 @@ void handle_character_create(const httplib::Request& req, httplib::Response& res
         return send_error(res, 400, "Maximum 2 characters per account.");
     }
     if (!lease.begin()) return send_error(res, 503, "Service unavailable: database unreachable.");
-    const char* starter = R"([{"id":"wand_hawthorn","amount":1,"tier":0},)"
-                          R"({"id":"robe_apprentice","amount":1,"tier":0},)"
-                          R"({"id":"broom_nimbus2000","amount":1,"tier":0},)"
-                          R"({"id":"mat_phoenix_ash","amount":5,"tier":0},)"
-                          R"({"id":"mat_dragon_heartstring","amount":2,"tier":0},)"
+    // The basic wand only: cloak, accessories and the broom are quest rewards.
+    const char* starter = R"([{"id":"wand_ashwood","amount":1,"tier":0},)"
                           R"({"id":"potion_health","amount":5,"tier":0},)"
                           R"({"id":"potion_mana","amount":5,"tier":0}])";
     db::Result ins = lease.exec(

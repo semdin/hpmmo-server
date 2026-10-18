@@ -49,6 +49,7 @@ func _ready() -> void:
 	_layer.add_child(_tooltip)
 	visibility_changed.connect(func():
 		_layer.visible = visible
+		_refresh_bag()   # the anvil's lock on a bag slot follows the window
 		if not visible and _tooltip != null: _tooltip.hide_item())
 	hide()
 
@@ -197,18 +198,34 @@ func _place(inventory: Node) -> void:
 		at = Vector2(maxf(8.0, inv.offset_left - WIDTH - 12.0), inv.offset_top + 40.0)
 	ArcaneSkin.place(_window, at, Vector2(WIDTH, minf(HEIGHT, canvas.y - at.y - 12.0)))
 
-## Workable items: refinable or enchantable instances.
+## Workable items: refinable or enchantable instances in the bag. Worn pieces
+## must be taken off first.
 func _accepts(payload: Dictionary) -> bool:
 	var id := String(payload.get("id", ""))
-	return int(payload.get("uid", 0)) > 0 and (HPEquipment.refinable(id) or HPEquipment.enchantable(id))
+	var uid := int(payload.get("uid", 0))
+	if uid <= 0 or String(payload.get("source_slot", "")) != "" or (is_instance_valid(player) and _worn_slot(uid) != ""):
+		return false
+	return HPEquipment.refinable(id) or HPEquipment.enchantable(id)
+
+## True while the instance `uid` sits on the anvil: the bag keeps it in place
+## (no moving, equipping or selling) until it is taken off or the window closes.
+func holds(uid: int) -> bool:
+	return visible and uid > 0 and target_uid == uid
 
 func set_target(uid: int) -> void:
 	target_uid = uid
 	_refresh()
+	_refresh_bag()
 
 func clear_target() -> void:
 	target_uid = 0
 	_refresh()
+	_refresh_bag()
+
+func _refresh_bag() -> void:
+	var inventory := get_parent().get_node_or_null("InventoryUI") if get_parent() != null else null
+	if inventory != null and inventory.visible and inventory.has_method("refresh"):
+		inventory.refresh()
 
 ## The instance `uid` in the bag or worn ({} when gone), plus where it is.
 func _find(uid: int) -> Dictionary:
@@ -232,6 +249,8 @@ func _count(id: String) -> int:
 
 func _refresh() -> void:
 	if not is_instance_valid(player) or _slot == null: return
+	if target_uid > 0 and _worn_slot(target_uid) != "":
+		target_uid = 0   # the anvil only works bag items
 	var item := _find(target_uid)
 	var id := String(item.get("id", ""))
 	_slot.set_item(id, item)

@@ -21,6 +21,7 @@ var player_ref: Node3D = null
 ## Tests switch this off so the pre-authority local quest file is never read.
 var persistence_enabled := true
 var _synced := false
+var _level := 0
 
 func quests() -> Array:
 	return HPRules.quest_chain()
@@ -30,6 +31,20 @@ func current_quest() -> Dictionary:
 
 func is_all_done() -> bool:
 	return active_index >= quests().size()
+
+## The level the current quest waits for, or 0 when it can be worked now.
+func level_needed() -> int:
+	var need := int(current_quest().get("level", 1))
+	var have := int(player_ref.level) if is_instance_valid(player_ref) else 1
+	return need if need > have else 0
+
+## "Max Health Potion x5, Woolen Traveller's Cloak" for a quest's item rewards.
+static func reward_items_text(q: Dictionary) -> String:
+	var parts: Array = []
+	for reward in q.get("reward_items", []):
+		var name := String(HPEquipment.item(String(reward.get("id", ""))).get("name", reward.get("id", "")))
+		parts.append(name if int(reward.get("amount", 1)) <= 1 else "%s x%d" % [name, int(reward.get("amount", 1))])
+	return ", ".join(parts)
 
 func bind_player(p: Node3D) -> void:
 	if is_instance_valid(player_ref) and player_ref.stats_changed.is_connected(_on_player_stats):
@@ -50,8 +65,10 @@ func _sync() -> void:
 		return
 	var index := int(player_ref.quest_active)
 	var count := int(player_ref.quest_progress)
-	if _synced and index == active_index and count == progress:
+	var level := int(player_ref.level)
+	if _synced and index == active_index and count == progress and level == _level:
 		return
+	_level = level   # a level-up can unlock the waiting quest
 	var previous := active_index
 	var announce := _synced and index > previous
 	active_index = index
@@ -68,6 +85,8 @@ func tracker_text() -> String:
 	if is_all_done():
 		return "All quests complete! You are a true graduate."
 	var q: Dictionary = current_quest()
+	if level_needed() > 0:
+		return "[%s]\nReach level %d to begin" % [q["title"], level_needed()]
 	return "[%s]\n%s\n(%d/%d)" % [q["title"], q["name"], mini(progress, int(q["count"])), int(q["count"])]
 
 ## The quest file offline play wrote before quests moved to the authority

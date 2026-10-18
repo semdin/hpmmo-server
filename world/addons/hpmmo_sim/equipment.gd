@@ -298,14 +298,17 @@ static func bonus_text(bonus: Dictionary) -> String:
 	return "%s +%d%s" % [String(spec.get("label", bonus.get("stat", "?"))), int(bonus.get("value", 0)), String(spec.get("unit", ""))]
 
 ## One new bonus for `id`: a stat from its pool the item does not hold yet (nor
-## as a fixed stat), skipping stats whose mechanic is not live (`disabled`), and
-## a weighted grade. {} when the pool is exhausted.
+## as a fixed stat), skipping stats whose mechanic is not live (`disabled`) or
+## whose theme the piece may not carry (enchant.slot_themes), and a weighted
+## grade. {} when the pool is exhausted.
 static func roll_bonus(id: String, held: Array, rng: RandomNumberGenerator) -> Dictionary:
 	var taken := held.map(func(b): return String(b.get("stat", "")))
 	taken.append_array(fixed_stat_keys(id))
 	var specs: Dictionary = enchant_rules().get("stats", {})
+	var themes: Array = (enchant_rules().get("slot_themes", {}) as Dictionary).get(slot_kind(id), [])
 	var free := enchant_pool(id).filter(func(stat): return not stat in taken \
-		and not bool((specs.get(stat, {}) as Dictionary).get("disabled", false)))
+		and not bool((specs.get(stat, {}) as Dictionary).get("disabled", false)) \
+		and String((specs.get(stat, {}) as Dictionary).get("theme", "")) in themes)
 	if free.is_empty():
 		return {}
 	var stat: String = free[rng.randi_range(0, free.size() - 1)]
@@ -431,7 +434,7 @@ static func migrate(bag: Array, legacy_tier: int) -> Dictionary:
 	var next := bag.duplicate(true)
 	var gear := {}
 	for slot in ["main_hand", "chest", "broom"]:
-		var preferred: String = {"main_hand": "wand_hawthorn", "chest": "robe_apprentice", "broom": "broom_nimbus2000"}[slot]
+		var preferred: String = {"main_hand": "wand_ashwood", "chest": "robe_apprentice", "broom": "broom_nimbus2000"}[slot]
 		var candidates := next.filter(func(e): return fits(String(e.get("id", "")), slot) and int(e.get("amount", 0)) > 0)
 		candidates.sort_custom(func(a, b):
 			if (a.id == preferred) != (b.id == preferred): return a.id == preferred

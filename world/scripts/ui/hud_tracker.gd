@@ -101,6 +101,8 @@ func refresh() -> void:
 			var n := mini(int(QuestManager.progress), int(q.get("count", 1)))
 			_set_row(_quest_row, String(q.get("title", "")))
 			_quest_row.tooltip_text = "%s  %d/%d\nClick to read the quest scroll" % [String(q.get("name", "")), n, int(q.get("count", 1))]
+			if QuestManager.level_needed() > 0:
+				_quest_row.tooltip_text = "Reach level %d to begin\nClick to read the quest scroll" % QuestManager.level_needed()
 	else:
 		_quest_row.visible = false
 	if onboarding != null and is_instance_valid(onboarding) and not onboarding.is_complete():

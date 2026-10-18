@@ -144,7 +144,14 @@ func refresh() -> void:
 	_story.text = String(q.get("desc", ""))
 	var n := mini(int(QuestManager.progress), int(q.get("count", 1)))
 	_objective.text = "%s   (%d / %d)" % [q.get("name", ""), n, int(q.get("count", 1))]
+	if QuestManager.level_needed() > 0:
+		_objective.text = "Reach level %d to begin:  %s" % [QuestManager.level_needed(), q.get("name", "")]
+	if String(q.get("chapter", "")) != "":
+		_title.text = "%s  ·  %s" % [String(q.get("chapter", "")), _title.text]
 	_reward.text = "%d experience  ·  %d Galleons" % [int(q.get("reward_exp", 0)), int(q.get("reward_gold", 0))]
+	var items := QuestManager.reward_items_text(q)
+	if items != "":
+		_reward.text += "  ·  %s" % items
 	if int(q.get("reward_house_rep", 0)) > 0:
 		var house := String(QuestManager.player_ref.house) if is_instance_valid(QuestManager.player_ref) else "House"
 		_reward.text += "  ·  %d %s reputation" % [int(q.get("reward_house_rep", 0)), house]

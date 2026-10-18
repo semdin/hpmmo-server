@@ -265,11 +265,7 @@ class DBRequestHandler(BaseHTTPRequestHandler):
             return
 
         starter_inventory = [
-            {"id": "wand_hawthorn", "amount": 1, "tier": 0},
-            {"id": "robe_apprentice", "amount": 1, "tier": 0},
-            {"id": "broom_nimbus2000", "amount": 1, "tier": 0},
-            {"id": "mat_phoenix_ash", "amount": 5, "tier": 0},
-            {"id": "mat_dragon_heartstring", "amount": 2, "tier": 0},
+            {"id": "wand_ashwood", "amount": 1, "tier": 0},
             {"id": "potion_health", "amount": 5, "tier": 0},
             {"id": "potion_mana", "amount": 5, "tier": 0}
         ]
