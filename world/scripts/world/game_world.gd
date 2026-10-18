@@ -154,7 +154,10 @@ func _spawn_local_player() -> void:
 			px = float(saved[0])
 			py = float(saved[1])
 			pz = float(saved[2])
-		local_player.global_position = Vector3(px, py, pz)
+		# A position from the old valley map (or a fresh sheet's database
+		# default) lies inside the current grounds' hill: start at the spawn.
+		var saved_at := Vector3(px, py, pz)
+		local_player.global_position = SimAuthority.start_position(HPMaps.map_for_point(saved_at), saved_at)
 		local_player.visuals.rotation.y = float(c.get("rot_y", PI))
 		local_player.restore_character(c)
 		print("[GameWorld] Restored character '%s' at %s, Level %d, Wand +%d, Galleons %d" % [

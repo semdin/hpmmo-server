@@ -453,11 +453,11 @@ func sim_spawn_player(peer_id: int, identity: Dictionary) -> void:
 			# it - the provider builds an indoor map's collision here (inert on
 			# clients); without it the body free-falls on the fall rescue.
 			SimAuthority.map_provider_ready(saved_map)
-			node.global_position = HPMaps.valid_position(saved_map, node.global_position)
+			node.global_position = SimAuthority.start_position(saved_map, node.global_position)
 		else:
 			var best_map := HPMaps.map_for_point(node.global_position)
 			SimAuthority.map_provider_ready(best_map)
-			node.global_position = HPMaps.valid_position(best_map, node.global_position)
+			node.global_position = SimAuthority.start_position(best_map, node.global_position)
 	elif identity.has("spawn") or bool(identity.get("spawn_near_pack", false)):
 		var at := _dev_pack_spawn(int(identity.get("spawn_pack_id", 0))) if bool(identity.get("spawn_near_pack", false)) else Vector3.INF
 		if at == Vector3.INF and identity.has("spawn"):
@@ -466,6 +466,13 @@ func sim_spawn_player(peer_id: int, identity: Dictionary) -> void:
 		if at != Vector3.INF:
 			SimAuthority.map_provider_ready(HPMaps.map_for_point(at))
 			node.global_position = _dev_on_ground(at)
+		else:
+			node.global_position = HPMaps.default_spawn(HPProtocol.DEFAULT_MAP)
+	else:
+		# A session that has not chosen its character yet (a plain login): the
+		# body waits at the grounds spawn, not at the scene origin inside the
+		# hill, until the bind moves it to the character's own spot.
+		node.global_position = HPMaps.default_spawn(HPProtocol.DEFAULT_MAP)
 	_avoid_spawn_overlap(node)
 	var uid := SimAuthority.register_player(node, int(identity.get("character_id", 0)), peer_id,
 		int(identity.get("account_id", 0)))

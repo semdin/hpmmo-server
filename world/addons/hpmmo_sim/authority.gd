@@ -374,6 +374,21 @@ func register_player(node: Node3D, character_id: int, peer_id: int, account_id: 
 	emit_signal("player_joined", uid, character_id, peer_id)
 	return uid
 
+## Where a body may start on `map_id` given a saved/claimed `pos`: the point
+## itself when it is a real place, otherwise the map's respawn. "Real" is the
+## map's band (HPMaps.valid_position) and, outdoors, not under the terrain:
+## characters saved on the old valley map - and every fresh character, whose
+## database default is the old valley's (0, 0.5, 5) - sit inside the hill below
+## the castle door on the current grounds, fell through it at login and were
+## only rescued by the kill-plane a second later.
+func start_position(map_id: String, pos: Vector3) -> Vector3:
+	var at := HPMaps.valid_position(map_id, pos)
+	if map_id == HPProtocol.DEFAULT_MAP:
+		var ground := GroundsTerrain.height_at(at.x, at.z)
+		if not is_nan(ground) and at.y < ground - 0.5:
+			return HPMaps.respawn_point(map_id)
+	return at
+
 ## Bind a character sheet to a player that joined without one (the character-bind fix).
 ## The network layer has already proven the character belongs to this session's
 ## account through the service, so this only decides whether the body may take
@@ -408,7 +423,7 @@ func apply_character_binding(record: Dictionary, character: Dictionary) -> Strin
 	var saved_map := String(character.get("map_id", ""))
 	var map_id := saved_map if HPMaps.map_exists(saved_map) else HPMaps.map_for_point(pos)
 	map_provider_ready(map_id)
-	pos = HPMaps.valid_position(map_id, pos)
+	pos = start_position(map_id, pos)
 	# The body's identity is the CHARACTER's, not the account username the
 	# unbound body joined under: the nameplate, chat and roster all read these.
 	if character.get("name") is String and String(character["name"]) != "":

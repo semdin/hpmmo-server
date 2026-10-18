@@ -919,9 +919,7 @@ func _on_solo_pressed() -> void:
 			"current_mana": 300,
 			"galleons": 500,
 			"wand_tier": 0,
-			"pos_x": 0.0,
-			"pos_y": 0.5,
-			"pos_z": 5.0,
+			# No position: a new wizard starts at the grounds spawn.
 			"rot_y": PI,
 			"inventory": [
 				{"id": "wand_ashwood", "amount": 1, "tier": 0},
