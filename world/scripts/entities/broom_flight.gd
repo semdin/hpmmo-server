@@ -168,6 +168,11 @@ func set_flying(flying: bool) -> void:
 	_flying = flying
 	if trail != null and is_instance_valid(trail):
 		trail.call("set_flying", flying)
+		# The layered wake replaces the old constant wisp stream entirely; the
+		# rider's mount code switches it on before calling here, so it is turned
+		# back off (left on, it read as one fixed, repeating plume).
+		if particles:
+			particles.emitting = false
 		return
 	if particles:
 		particles.emitting = flying

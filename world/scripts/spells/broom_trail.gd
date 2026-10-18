@@ -10,6 +10,13 @@ extends Node3D
 ## rebuilt along a motion history whose samples are the socket's own positions,
 ## so the trail follows the flight path rather than the broom's current facing.
 ##
+## Nothing about it is steady: a slow noise "gust" breathes the mist density and
+## the ribbon's width/brightness, banking, climbing and acceleration throw extra
+## mist, and the gold motes come in short random flurries over a faint trickle
+## instead of a constant stream. Every puff starts on a random flipbook frame,
+## plays at its own speed and size, and medium/high presets add turbulence, so
+## no two stretches of the wake look alike.
+##
 ## It is presentation only: the ribbon's length and brightness follow speed, and
 ## nothing here touches movement, damage, mana or mount state. Dismount clears
 ## the history and hides every layer, so no trail can outlive the flight.
@@ -38,6 +45,11 @@ var _flying := false
 var _time := 0.0
 var _taper: PackedFloat32Array = PackedFloat32Array()
 var _quality := "high"
+var _noise := FastNoiseLite.new()
+var _prev_dir := Vector3.ZERO
+var _agitation := 0.0        # 0..1: banking / climbing / accelerating right now
+var _flurry_left := 0.0      # seconds of the current mote flurry
+var _flurry_next := 2.0      # seconds until the next one
 
 
 func setup(owner_body: Node3D, model_root: Node = null) -> void:
@@ -45,6 +57,9 @@ func setup(owner_body: Node3D, model_root: Node = null) -> void:
 	var scope: Node = model_root if model_root != null else get_parent()
 	tail_socket = (scope.find_child("TailSocket", true, false) as Node3D) if scope != null else null
 	_quality = QualityPreset.current()
+	_noise.seed = randi()
+	_noise.frequency = 0.35
+	_noise.fractal_octaves = 2
 	_load_authored_taper()
 	_build()
 
@@ -163,11 +178,24 @@ func _make_flipbook(node_name: String, tex: String, amount: int, life: float, co
 	process.angle_max = 180.0
 	process.angular_velocity_min = -25.0
 	process.angular_velocity_max = 25.0
-	process.anim_speed_min = 1.0
-	process.anim_speed_max = 1.0
-	process.anim_offset_max = 0.1
-	process.scale_min = size.x
-	process.scale_max = size.x * 1.25
+	# Variety per particle: a random start frame and playback speed, a wide
+	# size range and a little hue drift, so the stream never repeats itself.
+	process.anim_speed_min = 0.7
+	process.anim_speed_max = 1.3
+	process.anim_offset_min = 0.0
+	process.anim_offset_max = 0.85
+	process.scale_min = size.x * 0.65
+	process.scale_max = size.x * 1.45
+	process.hue_variation_min = -0.03
+	process.hue_variation_max = 0.03
+	process.emission_sphere_radius = 0.22
+	if _quality != "low":
+		process.turbulence_enabled = true
+		process.turbulence_noise_strength = 0.8
+		process.turbulence_noise_scale = 2.2
+		process.turbulence_noise_speed = Vector3(0.2, 0.35, 0.2)
+		process.turbulence_influence_min = 0.05
+		process.turbulence_influence_max = 0.22
 	var grow := Curve.new()
 	grow.add_point(Vector2(0.0, 1.0))
 	grow.add_point(Vector2(1.0, size.y / maxf(0.01, size.x)))
@@ -224,7 +252,8 @@ func tick(delta: float) -> void:
 	_time += delta
 	if not _flying:
 		return
-	_scale_to_speed()
+	_measure_agitation(vel, delta)
+	_scale_to_speed(delta)
 	if tail_socket != null and is_instance_valid(tail_socket):
 		_history.push_back(tail_socket.global_position)
 		while _history.size() > SAMPLES:
@@ -232,25 +261,60 @@ func tick(delta: float) -> void:
 		_rebuild()
 
 
-func _scale_to_speed() -> void:
+## How hard the rider is manoeuvring: turn rate, climb/dive and acceleration,
+## decaying smoothly so a bank leaves a swirl behind it.
+func _measure_agitation(vel: Vector3, delta: float) -> void:
+	var flat := Vector3(vel.x, 0.0, vel.z)
+	var dir := flat.normalized() if flat.length() > 0.5 else Vector3.ZERO
+	var turn := 0.0
+	if dir != Vector3.ZERO and _prev_dir != Vector3.ZERO:
+		turn = _prev_dir.angle_to(dir) / maxf(delta, 0.0001)
+	_prev_dir = dir
+	var push := clampf(turn / 2.5, 0.0, 1.0) * 0.6 + clampf(absf(vel.y) / 8.0, 0.0, 1.0) * 0.4 \
+			+ clampf(absf(_accel) / 20.0, 0.0, 1.0) * 0.4
+	_agitation = maxf(clampf(push, 0.0, 1.0), _agitation - delta * 0.9)
+
+
+## 0..1 slow breathing value; `offset` decorrelates the layers.
+func _gust(offset: float) -> float:
+	return clampf(_noise.get_noise_1d(_time * 10.0 + offset) * 0.5 + 0.5, 0.0, 1.0)
+
+
+func _scale_to_speed(delta: float) -> void:
 	var ratio := clampf(_speed / 15.0, 0.0, 1.4)
 	var moving := clampf(ratio, 0.0, 1.0)
+	var gust := _gust(0.0)
 	# amount_ratio, not amount: reassigning `amount` restarts the system and
 	# the wake flickered every frame.
 	if wisps:
-		wisps.amount_ratio = lerpf(0.25, 1.0, moving)
+		# Hovering sheds almost nothing; cruising breathes with the gust; a bank
+		# or a dive throws a thicker swirl.
+		var base := lerpf(0.08, 0.75, moving) * lerpf(0.45, 1.0, gust)
+		wisps.amount_ratio = clampf(base + _agitation * 0.55 * maxf(0.3, moving), 0.03, 1.0)
+		wisps.speed_scale = lerpf(0.85, 1.15, _gust(37.0))
 		if tail_socket != null and is_instance_valid(tail_socket):
 			wisps.global_position = tail_socket.global_position
 	if sparks:
-		sparks.amount_ratio = lerpf(0.3, 1.0, moving)
+		# Motes: a faint trickle, with a short flurry every few seconds (and one
+		# whenever the rider really pushes).
+		_flurry_next -= delta
+		var pushed := _agitation > 0.75 and _flurry_left <= 0.0 and _flurry_next < 1.5
+		if (_flurry_next <= 0.0 or pushed) and moving > 0.15:
+			_flurry_left = randf_range(0.35, 0.9)
+			_flurry_next = randf_range(2.5, 7.5)
+		_flurry_left = maxf(0.0, _flurry_left - delta)
+		var trickle := lerpf(0.04, 0.22, moving) * _gust(71.0)
+		sparks.amount_ratio = clampf(trickle + (0.85 if _flurry_left > 0.0 else 0.0) * moving, 0.0, 1.0)
 		if tail_socket != null and is_instance_valid(tail_socket):
 			sparks.global_position = tail_socket.global_position
 	if _material != null:
 		var preset := VFX.BROOM_TRAIL
 		var colour: Color = preset["colour"]
 		_material.set_shader_parameter("tint", Color(colour.r, colour.g, colour.b, 1.0))
-		_material.set_shader_parameter("opacity", 0.12 + 0.3 * moving)
-		_material.set_shader_parameter("scroll", _time * (0.4 + ratio))
+		var shimmer := lerpf(0.7, 1.15, _gust(113.0))
+		# Cruising leaves only a faint wisp; banking / climbing brightens it.
+		_material.set_shader_parameter("opacity", (0.05 + 0.16 * moving + 0.2 * _agitation) * shimmer)
+		_material.set_shader_parameter("scroll", _time * (0.4 + ratio) + _gust(151.0) * 0.6)
 
 
 func _rebuild() -> void:
@@ -260,7 +324,7 @@ func _rebuild() -> void:
 		return
 	_mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLE_STRIP)
 	var travelled := 0.0
-	var width := 0.16
+	var width := 0.16 * lerpf(0.75, 1.25, _gust(191.0)) * (1.0 + _agitation * 0.35)
 	for i in range(count):
 		var idx := count - 1 - i
 		var point := _history[idx]
@@ -276,8 +340,18 @@ func _rebuild() -> void:
 		var side := dir.cross(Vector3.UP)
 		if side.length_squared() < 0.0001:
 			side = Vector3.RIGHT
-		side = side.normalized() * width * taper * lerpf(0.4, 1.0, clampf(_speed / 8.0, 0.0, 1.0))
-		var fade := (1.0 - age) * (1.0 - clampf(travelled / MAX_LENGTH, 0.0, 1.0))
+		# a slow ripple along the length so the ribbon edge is never a clean taper
+		var ripple := 1.0 + 0.18 * sin(age * 9.0 - _time * 3.1) * _gust(233.0)
+		side = side.normalized()
+		# The wake drifts as it ages: older samples curl sideways and lift a
+		# little on a slow wave, so a straight flight leaves a wavering wisp of
+		# air rather than a ruler-straight line.
+		var drift := age * age * (0.35 + 0.4 * _gust(271.0))
+		point += side * sin(age * 7.0 - _time * 2.3 + _gust(311.0) * 3.0) * drift 				+ Vector3.UP * sin(age * 5.0 - _time * 1.7) * drift * 0.5
+		side *= width * taper * ripple * lerpf(0.4, 1.0, clampf(_speed / 8.0, 0.0, 1.0)) * (1.0 + age * 1.6)
+		# Brightness breaks up along the length (patchy air, not a solid beam).
+		var patch := lerpf(0.45, 1.0, clampf(0.5 + 0.5 * sin(age * 13.0 - _time * 4.0 + _gust(353.0) * 6.0), 0.0, 1.0))
+		var fade := (1.0 - age) * (1.0 - clampf(travelled / MAX_LENGTH, 0.0, 1.0)) * patch
 		_mesh.surface_set_color(Color(1, 1, 1, fade))
 		_mesh.surface_set_uv(Vector2(age, 0.0))
 		_mesh.surface_add_vertex(point - side)

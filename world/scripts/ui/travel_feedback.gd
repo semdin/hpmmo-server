@@ -385,9 +385,10 @@ func _update_mounted() -> void:
 	if player.has_method("dismount_block_reason"):
 		reason = String(player.call("dismount_block_reason"))
 	var text := mounted_text()
+	# Counted only: the refusal is voiced when the rider actually presses Shift
+	# (player.toggle_broom_mount), not every time the altitude crosses the line.
 	if text.find("Cannot land here") >= 0 and last_mounted_text.find("Cannot land here") < 0:
 		invalid_landing_warnings += 1
-		_play_ui("ui_deny")
 	last_mounted_text = text
 	last_landing_reason = reason
 	# Keep flight instructions and the landing reason in the hover description.

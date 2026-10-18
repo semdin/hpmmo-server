@@ -514,7 +514,9 @@ func _on_cast_rejected(_cast_seq: int, _spell_id: String, _reason: String) -> vo
 	_play_ui("ui_deny")
 
 func _on_death_sound(is_dead: bool) -> void:
-	_play_ui("ui_death" if is_dead else "ui_respawn")
+	# Death is voiced by the AudioManager (defeat stinger + muffled world).
+	if not is_dead:
+		_play_ui("ui_respawn")
 
 func _on_level_sound(_level: int) -> void:
 	_play_ui("ui_levelup")
@@ -828,8 +830,11 @@ func show_world_event(kind: String, data: Dictionary) -> String:
 		return ""
 	_add_system_chat("[World] " + text)
 	show_notice(text, "boss")
-	if AudioManager.has_sound("boss_alert"):
-		AudioManager.play_sound_at("boss_alert", Vector3.ZERO, null, true)
+	# A musical cue, not a creature roar: the boss itself roars where it stands.
+	# A realm event is far away, so only the spawn and the kill get one (the
+	# AudioManager also keeps stingers apart).
+	if kind == "boss_spawned" or kind == "boss_slain":
+		AudioManager.play_stinger("stinger_victory" if kind == "boss_slain" else "stinger_boss")
 	return text
 
 ## J: the quest log (the old training guide is retired; its J opens the log).

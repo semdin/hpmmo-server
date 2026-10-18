@@ -201,8 +201,11 @@ func load_from_disk() -> void:
 	var quality := String(config.get_value(SECTION_GENERAL, "graphics_quality", GRAPHICS_DEFAULT))
 	graphics_quality = quality if GRAPHICS_CHOICES.has(quality) else GRAPHICS_DEFAULT
 	volumes.clear()
+	# Volumes saved against the previous (synthesised) sound set are dropped
+	# once, so the regenerated soundtrack is heard at its intended mix.
+	var audio_current := int(config.get_value(SECTION_AUDIO, "version", 1)) >= AUDIO_SETTINGS_VERSION
 	for bus in BUSES:
-		if config.has_section_key(SECTION_AUDIO, String(bus)):
+		if audio_current and config.has_section_key(SECTION_AUDIO, String(bus)):
 			volumes[String(bus)] = clampf(float(config.get_value(SECTION_AUDIO, String(bus), 1.0)), 0.0, 1.0)
 	for action in BINDABLE_ACTIONS:
 		var stored := int(config.get_value(SECTION_BINDINGS, action, int(BINDABLE_ACTIONS[action])))
@@ -222,6 +225,7 @@ func save_to_disk() -> void:
 		config.set_value(SECTION_BINDINGS, action, int(bindings[action]))
 	for bus in BUSES:
 		config.set_value(SECTION_AUDIO, String(bus), get_volume(String(bus)))
+	config.set_value(SECTION_AUDIO, "version", AUDIO_SETTINGS_VERSION)
 	DirAccess.make_dir_recursive_absolute(settings_path().get_base_dir())
 	var error := config.save(settings_path())
 	if error != OK:
@@ -271,6 +275,9 @@ func apply_volumes() -> void:
 		return
 	for bus in volumes:
 		audio.call("set_volume", String(bus), float(volumes[bus]))
+
+## Matches AudioManager.SETTINGS_VERSION: bumped when the sound set is replaced.
+const AUDIO_SETTINGS_VERSION := 2
 
 ## The volumes this settings file holds (bus -> 0..1); empty until saved once.
 var volumes: Dictionary = {}

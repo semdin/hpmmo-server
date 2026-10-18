@@ -1183,6 +1183,9 @@ func toggle_broom_mount() -> void:
 			if _mount_notice_cd <= 0.0:
 				_mount_notice_cd = 0.8
 				show_notice(dismount_reason)
+				var audio := get_node_or_null("/root/AudioManager")
+				if is_local_player and audio != null and audio.has_method("play_landing_blocked"):
+					audio.call("play_landing_blocked")
 			return
 		_apply_mount_state(false)
 	else:
