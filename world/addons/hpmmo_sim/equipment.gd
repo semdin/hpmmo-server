@@ -3,7 +3,6 @@ class_name HPEquipment
 
 ## Server-owned item rules. Pure transformations also power client comparisons.
 const SLOTS := ["head", "chest", "hands", "feet", "main_hand", "off_hand", "neck", "ring_left", "ring_right", "broom"]
-const BASIC_ACCESSORIES := ["hat_apprentice", "gloves_apprentice", "boots_apprentice", "focus_apprentice", "pendant_apprentice", "ring_apprentice"]
 ## The broom every mount item without its own `model` flies on (the starter
 ## Nimbus and the Firebolt predate per-item broom models).
 const DEFAULT_BROOM_MODEL := "res://assets/models/props/broom_flight.glb"

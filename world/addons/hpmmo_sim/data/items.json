@@ -451,7 +451,8 @@
       "head"
     ],
     "rarity": "common",
-    "stat_tier": 1,
+    "item_tier": 1,
+    "required_level": 1,
     "bonus_mana": 20,
     "armor": 6,
     "desc": "Enchanted apprentice gear. +0 maximum HP, +20 maximum mana."
@@ -464,7 +465,8 @@
       "hands"
     ],
     "rarity": "common",
-    "stat_tier": 1,
+    "item_tier": 1,
+    "required_level": 1,
     "armor": 5,
     "attack_speed": 3,
     "desc": "Enchanted apprentice gear. +0 maximum HP, +15 maximum mana."
@@ -477,7 +479,8 @@
       "feet"
     ],
     "rarity": "common",
-    "stat_tier": 1,
+    "item_tier": 1,
+    "required_level": 1,
     "armor": 5,
     "move_speed": 4,
     "desc": "Enchanted apprentice gear. +25 maximum HP, +0 maximum mana."
@@ -490,7 +493,8 @@
       "off_hand"
     ],
     "rarity": "common",
-    "stat_tier": 1,
+    "item_tier": 1,
+    "required_level": 1,
     "bonus_mana": 25,
     "spell_power": 3,
     "desc": "Enchanted apprentice gear. +0 maximum HP, +25 maximum mana."
@@ -503,7 +507,8 @@
       "neck"
     ],
     "rarity": "common",
-    "stat_tier": 1,
+    "item_tier": 1,
+    "required_level": 1,
     "bonus_hp": 25,
     "hp_regen": 1,
     "desc": "Enchanted apprentice gear. +25 maximum HP, +0 maximum mana."
@@ -517,7 +522,8 @@
       "ring_right"
     ],
     "rarity": "common",
-    "stat_tier": 1,
+    "item_tier": 1,
+    "required_level": 1,
     "bonus_mana": 10,
     "mana_regen": 1,
     "desc": "Enchanted apprentice gear. +0 maximum HP, +10 maximum mana."
@@ -535,5 +541,369 @@
     "bonus_mana": 20,
     "mana_regen": 1,
     "desc": "Enchanted apprentice gear. +0 maximum HP, +20 maximum mana."
+  },
+  "hat_runebound": {
+    "id": "hat_runebound",
+    "name": "Runebound Hat",
+    "type": "accessory",
+    "desc": "Navy felt banded in brass, pale runes stitched round the brim to steady the mind.",
+    "rarity": "uncommon",
+    "bonus_mana": 40,
+    "armor": 11,
+    "item_tier": 2,
+    "required_level": 10,
+    "icon": "hat",
+    "slots": [
+      "head"
+    ]
+  },
+  "hat_silverthorn": {
+    "id": "hat_silverthorn",
+    "name": "Silverthorn Hat",
+    "type": "accessory",
+    "desc": "Black velvet wound with a silver thorn circlet, an emerald at its brow.",
+    "rarity": "rare",
+    "bonus_mana": 65,
+    "armor": 18,
+    "item_tier": 3,
+    "required_level": 20,
+    "icon": "hat",
+    "slots": [
+      "head"
+    ]
+  },
+  "hat_emberwing": {
+    "id": "hat_emberwing",
+    "name": "Emberwing Hat",
+    "type": "accessory",
+    "desc": "Crimson brocade crowned with golden feathers, its tip smouldering like an ember.",
+    "rarity": "epic",
+    "bonus_mana": 95,
+    "armor": 26,
+    "item_tier": 4,
+    "required_level": 35,
+    "icon": "hat",
+    "slots": [
+      "head"
+    ]
+  },
+  "hat_moonveil": {
+    "id": "hat_moonveil",
+    "name": "Moonveil Hat",
+    "type": "accessory",
+    "desc": "Silver-blue silk scattered with stars, a mithril crescent at its peak.",
+    "rarity": "legendary",
+    "bonus_mana": 130,
+    "armor": 35,
+    "item_tier": 5,
+    "required_level": 50,
+    "icon": "hat",
+    "slots": [
+      "head"
+    ]
+  },
+  "gloves_runebound": {
+    "id": "gloves_runebound",
+    "name": "Runebound Gloves",
+    "type": "accessory",
+    "desc": "Walnut-brown leather with brass-capped knuckles; faint runes warm the palms.",
+    "rarity": "uncommon",
+    "armor": 9,
+    "attack_speed": 4,
+    "item_tier": 2,
+    "required_level": 10,
+    "icon": "gloves",
+    "slots": [
+      "hands"
+    ]
+  },
+  "gloves_silverthorn": {
+    "id": "gloves_silverthorn",
+    "name": "Silverthorn Gloves",
+    "type": "accessory",
+    "desc": "Ebony leather gauntlets laced with silver thorn vines and small emeralds.",
+    "rarity": "rare",
+    "armor": 15,
+    "attack_speed": 5,
+    "item_tier": 3,
+    "required_level": 20,
+    "icon": "gloves",
+    "slots": [
+      "hands"
+    ]
+  },
+  "gloves_emberwing": {
+    "id": "gloves_emberwing",
+    "name": "Emberwing Gloves",
+    "type": "accessory",
+    "desc": "Crimson dragonhide edged in gold filigree; the fingertips glow like coals.",
+    "rarity": "epic",
+    "armor": 22,
+    "attack_speed": 6,
+    "item_tier": 4,
+    "required_level": 35,
+    "icon": "gloves",
+    "slots": [
+      "hands"
+    ]
+  },
+  "gloves_moonveil": {
+    "id": "gloves_moonveil",
+    "name": "Moonveil Gloves",
+    "type": "accessory",
+    "desc": "Moonlit silk gloves threaded with starlight and mithril crescents.",
+    "rarity": "legendary",
+    "armor": 30,
+    "attack_speed": 8,
+    "item_tier": 5,
+    "required_level": 50,
+    "icon": "gloves",
+    "slots": [
+      "hands"
+    ]
+  },
+  "boots_runebound": {
+    "id": "boots_runebound",
+    "name": "Runebound Boots",
+    "type": "accessory",
+    "desc": "Oiled walnut leather laced with brass eyelets, runes worked into the soles.",
+    "rarity": "uncommon",
+    "armor": 9,
+    "move_speed": 6,
+    "item_tier": 2,
+    "required_level": 10,
+    "icon": "boots",
+    "slots": [
+      "feet"
+    ]
+  },
+  "boots_silverthorn": {
+    "id": "boots_silverthorn",
+    "name": "Silverthorn Boots",
+    "type": "accessory",
+    "desc": "Tall black boots bound in silver thorns; curses catch on the briars.",
+    "rarity": "rare",
+    "armor": 15,
+    "move_speed": 8,
+    "item_tier": 3,
+    "required_level": 20,
+    "icon": "boots",
+    "slots": [
+      "feet"
+    ]
+  },
+  "boots_emberwing": {
+    "id": "boots_emberwing",
+    "name": "Emberwing Boots",
+    "type": "accessory",
+    "desc": "Lacquered crimson boots with golden phoenix wings at the heel.",
+    "rarity": "epic",
+    "armor": 22,
+    "move_speed": 10,
+    "item_tier": 4,
+    "required_level": 35,
+    "icon": "boots",
+    "slots": [
+      "feet"
+    ]
+  },
+  "boots_moonveil": {
+    "id": "boots_moonveil",
+    "name": "Moonveil Boots",
+    "type": "accessory",
+    "desc": "Silver-blue boots that leave no print; stars drift in their weave.",
+    "rarity": "legendary",
+    "armor": 30,
+    "move_speed": 12,
+    "item_tier": 5,
+    "required_level": 50,
+    "icon": "boots",
+    "slots": [
+      "feet"
+    ]
+  },
+  "focus_runebound": {
+    "id": "focus_runebound",
+    "name": "Runebound Focus",
+    "type": "accessory",
+    "desc": "A brass-caged rune stone that hums softly when a spell is gathered.",
+    "rarity": "uncommon",
+    "bonus_mana": 50,
+    "spell_power": 5,
+    "item_tier": 2,
+    "required_level": 10,
+    "icon": "focus",
+    "slots": [
+      "off_hand"
+    ]
+  },
+  "focus_silverthorn": {
+    "id": "focus_silverthorn",
+    "name": "Silverthorn Focus",
+    "type": "accessory",
+    "desc": "An emerald orb held in a cage of silver thorns, cold to the touch.",
+    "rarity": "rare",
+    "bonus_mana": 80,
+    "spell_power": 7,
+    "item_tier": 3,
+    "required_level": 20,
+    "icon": "focus",
+    "slots": [
+      "off_hand"
+    ]
+  },
+  "focus_emberwing": {
+    "id": "focus_emberwing",
+    "name": "Emberwing Focus",
+    "type": "accessory",
+    "desc": "A glowing amber heart cradled in golden phoenix feathers, warm as a hearth.",
+    "rarity": "epic",
+    "bonus_mana": 115,
+    "spell_power": 9,
+    "item_tier": 4,
+    "required_level": 35,
+    "icon": "focus",
+    "slots": [
+      "off_hand"
+    ]
+  },
+  "focus_moonveil": {
+    "id": "focus_moonveil",
+    "name": "Moonveil Focus",
+    "type": "accessory",
+    "desc": "A star crystal suspended inside a mithril crescent, shining like the night sky.",
+    "rarity": "legendary",
+    "bonus_mana": 155,
+    "spell_power": 12,
+    "item_tier": 5,
+    "required_level": 50,
+    "icon": "focus",
+    "slots": [
+      "off_hand"
+    ]
+  },
+  "pendant_runebound": {
+    "id": "pendant_runebound",
+    "name": "Runebound Pendant",
+    "type": "accessory",
+    "desc": "A brass disc inscribed with a ring of warding runes, worn on a leather cord.",
+    "rarity": "uncommon",
+    "bonus_hp": 50,
+    "hp_regen": 1,
+    "item_tier": 2,
+    "required_level": 10,
+    "icon": "pendant",
+    "slots": [
+      "neck"
+    ]
+  },
+  "pendant_silverthorn": {
+    "id": "pendant_silverthorn",
+    "name": "Silverthorn Pendant",
+    "type": "accessory",
+    "desc": "A silver thorn wreath around a polished emerald, sharp at every edge.",
+    "rarity": "rare",
+    "bonus_hp": 80,
+    "hp_regen": 2,
+    "item_tier": 3,
+    "required_level": 20,
+    "icon": "pendant",
+    "slots": [
+      "neck"
+    ]
+  },
+  "pendant_emberwing": {
+    "id": "pendant_emberwing",
+    "name": "Emberwing Pendant",
+    "type": "accessory",
+    "desc": "A golden phoenix spreading its wings around a burning amber stone.",
+    "rarity": "epic",
+    "bonus_hp": 120,
+    "hp_regen": 2,
+    "item_tier": 4,
+    "required_level": 35,
+    "icon": "pendant",
+    "slots": [
+      "neck"
+    ]
+  },
+  "pendant_moonveil": {
+    "id": "pendant_moonveil",
+    "name": "Moonveil Pendant",
+    "type": "accessory",
+    "desc": "A mithril crescent moon cradling a radiant star crystal.",
+    "rarity": "legendary",
+    "bonus_hp": 165,
+    "hp_regen": 3,
+    "item_tier": 5,
+    "required_level": 50,
+    "icon": "pendant",
+    "slots": [
+      "neck"
+    ]
+  },
+  "ring_runebound": {
+    "id": "ring_runebound",
+    "name": "Runebound Ring",
+    "type": "accessory",
+    "desc": "A brass band etched with pale runes that glow faintly at the wearer's will.",
+    "rarity": "uncommon",
+    "bonus_mana": 20,
+    "mana_regen": 1,
+    "item_tier": 2,
+    "required_level": 10,
+    "icon": "ring",
+    "slots": [
+      "ring_left",
+      "ring_right"
+    ]
+  },
+  "ring_silverthorn": {
+    "id": "ring_silverthorn",
+    "name": "Silverthorn Ring",
+    "type": "accessory",
+    "desc": "Twin silver thorn vines coiled around a deep green emerald.",
+    "rarity": "rare",
+    "bonus_mana": 32,
+    "mana_regen": 2,
+    "item_tier": 3,
+    "required_level": 20,
+    "icon": "ring",
+    "slots": [
+      "ring_left",
+      "ring_right"
+    ]
+  },
+  "ring_emberwing": {
+    "id": "ring_emberwing",
+    "name": "Emberwing Ring",
+    "type": "accessory",
+    "desc": "A gold band shaped like a phoenix, an ember-bright amber in its beak.",
+    "rarity": "epic",
+    "bonus_mana": 46,
+    "mana_regen": 2,
+    "item_tier": 4,
+    "required_level": 35,
+    "icon": "ring",
+    "slots": [
+      "ring_left",
+      "ring_right"
+    ]
+  },
+  "ring_moonveil": {
+    "id": "ring_moonveil",
+    "name": "Moonveil Ring",
+    "type": "accessory",
+    "desc": "A mithril band set with a star crystal that shimmers like moonlight.",
+    "rarity": "legendary",
+    "bonus_mana": 62,
+    "mana_regen": 3,
+    "item_tier": 5,
+    "required_level": 50,
+    "icon": "ring",
+    "slots": [
+      "ring_left",
+      "ring_right"
+    ]
   }
 }

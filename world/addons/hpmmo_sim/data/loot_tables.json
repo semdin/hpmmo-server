@@ -252,7 +252,7 @@
     ]
   },
   "gear": {
-    "_comment": "Gear pieces (wand/cloak/broom) dropped by kills, picked from enchantable items whose required_level is in (mob level - level_band, mob level]. enchanted_chance of them come with 1..N efsun bonuses (bonus_count_weights[i] = weight of i+1 bonuses); such a chest is a chest_rare and glows differently. accessory_chance = the plain apprentice accessory roll. Every chance except boss/monolith is scaled by the level-gap drop factor.",
+    "_comment": "Gear pieces (wand/cloak/broom) dropped by kills, picked from enchantable items whose required_level is in (mob level - level_band, mob level]. enchanted_chance of them come with 1..N efsun bonuses (bonus_count_weights[i] = weight of i+1 bonuses); such a chest is a chest_rare and glows differently. accessory_chance = the accessory roll (hat/gloves/boots/focus/pendant/ring of the tier whose required_level is in the same level band; accessories never come from the gear roll). Every chance except boss/monolith is scaled by the level-gap drop factor.",
     "accessory_chance": 0.05,
     "chance": 0.012,
     "elite_chance": 0.08,

@@ -2344,14 +2344,46 @@ func _roll_drops(target: Dictionary) -> Array:
 		drops = HPRules.mob_loot(is_boss, rng, String(target.get("loot_table", "")),
 			bool(target.get("is_elite", false)), drop_factor)
 	var gear_rules: Dictionary = HPRules.loot_tables().get("gear", {})
+	var band := int(gear_rules.get("level_band", 15))
 	if int(target.get("kind", 0)) == HPProtocol.Kind.MONOLITH:
-		if rng.randf() < 0.25: drops.append({"id": "ring_adept", "amount": 1})
+		if rng.randf() < 0.25: drops.append({"id": _accessory_for(maxi(int(target.get("level", 1)), 10), band, "ring"), "amount": 1})
 	elif is_boss or rng.randf() < float(gear_rules.get("accessory_chance", 0.06)) * drop_factor:
-		drops.append({"id": HPEquipment.BASIC_ACCESSORIES[rng.randi_range(0, 5)], "amount": 1})
+		drops.append({"id": _accessory_for(int(target.get("level", 1)), band), "amount": 1})
 	var piece := _roll_gear(target, gear_rules, drop_factor)
 	if not piece.is_empty():
 		drops.append(piece)
 	return drops
+
+## An accessory (hat, gloves, boots, focus, pendant, ring) of the tier whose
+## required_level falls in the mob's level band (mob level - band, mob level],
+## else the highest tier the level allows; `kind` narrows it to one slot kind
+## (the id prefix, e.g. "ring").
+func _accessory_for(level: int, band: int, kind: String = "") -> String:
+	var pool: Array = []
+	var fallback: Array = []
+	var best := -1
+	var catalog := HPEquipment.catalog()
+	for id in catalog:
+		var data = catalog[id]
+		if not (data is Dictionary) or String(data.get("type", "")) != "accessory" or not data.has("required_level"):
+			continue
+		if kind != "" and not String(id).begins_with(kind + "_"):
+			continue
+		var need := int(data.required_level)
+		if need > level:
+			continue
+		if need > level - band:
+			pool.append(id)
+		if need > best:
+			fallback.clear()
+			best = need
+		if need == best:
+			fallback.append(id)
+	if pool.is_empty():
+		pool = fallback
+	if pool.is_empty():
+		return kind + "_apprentice" if kind != "" else "hat_apprentice"
+	return pool[rng.randi_range(0, pool.size() - 1)]
 
 ## A wand, cloak or broom for the mob's level band, sometimes already carrying
 ## enchantments (efsun) - loot_tables.json `gear`. {} when nothing dropped.
@@ -2374,7 +2406,8 @@ func _roll_gear(target: Dictionary, rules: Dictionary, drop_factor: float) -> Di
 	var catalog := HPEquipment.catalog()
 	for id in catalog:
 		var data = catalog[id]
-		if not (data is Dictionary) or not data.has("required_level") or not HPEquipment.enchantable(id):
+		if not (data is Dictionary) or not data.has("required_level") or not HPEquipment.enchantable(id) \
+				or String(data.get("type", "")) == "accessory":   # accessories roll on their own
 			continue
 		lowest = mini(lowest, int(data.required_level))
 		if int(data.required_level) <= level and int(data.required_level) > level - band:
@@ -2382,7 +2415,8 @@ func _roll_gear(target: Dictionary, rules: Dictionary, drop_factor: float) -> Di
 	if pool.is_empty():
 		for id in catalog:
 			var data = catalog[id]
-			if data is Dictionary and int(data.get("required_level", -1)) == lowest and HPEquipment.enchantable(id):
+			if data is Dictionary and int(data.get("required_level", -1)) == lowest and HPEquipment.enchantable(id) \
+					and String(data.get("type", "")) != "accessory":
 				pool.append(id)
 	if pool.is_empty():
 		return {}
