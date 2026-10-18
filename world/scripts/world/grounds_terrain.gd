@@ -106,29 +106,56 @@ func apply_quality(preset: Dictionary) -> void:
 	var far_scale := float(preset.get("vegetation_far_scale", lod_scale))
 	var shadow_lod := int(preset.get("vegetation_shadow_lod", 1))
 	var small_shadows := bool(preset.get("small_plant_shadows", true))
+	var density := float(preset.get("foliage_density", 1.0))
+	# What each mesh asset should become. Terrain3D crashes the process (a stack
+	# overflow) when a mesh asset's LOD ranges / shadow settings change while
+	# that mesh has live instances, which is what switching the preset in
+	# Settings did. So: work out the change first, clear the instances, change
+	# the assets, then add the vegetation back.
+	var wanted: Array = []
+	var assets_change := false
 	for i in assets.get_mesh_count():
 		var asset := assets.get_mesh_asset(i)
 		if asset == null:
+			wanted.append({})
 			continue
 		if not asset.has_meta("base_ranges"):
 			var base: Array = []
 			for l in asset.get_lod_count():
 				base.append(asset.get_lod_range(l))
 			asset.set_meta("base_ranges", base)
-		var ranges: Array = asset.get_meta("base_ranges")
-		for l in ranges.size():
-			var last := l == asset.last_lod
-			asset.set_lod_range(l, float(ranges[l]) * (far_scale if last else lod_scale))
-		asset.last_shadow_lod = mini(shadow_lod, asset.last_lod)
+		var base_ranges: Array = asset.get_meta("base_ranges")
+		var ranges: Array = []
+		for l in base_ranges.size():
+			ranges.append(float(base_ranges[l]) * (far_scale if l == asset.last_lod else lod_scale))
+		var entry := {"ranges": ranges, "shadow_lod": mini(shadow_lod, asset.last_lod), "cast": -1}
 		if _is_small_plant(asset.name):
-			asset.cast_shadows = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if small_shadows else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var density := float(preset.get("foliage_density", 1.0))
-	if _vegetation_density >= 0.0 and not is_equal_approx(density, _vegetation_density):
+			entry["cast"] = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if small_shadows else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		for l in ranges.size():
+			if not is_equal_approx(asset.get_lod_range(l), float(ranges[l])):
+				assets_change = true
+		if asset.last_shadow_lod != int(entry["shadow_lod"]) 				or (int(entry["cast"]) >= 0 and asset.cast_shadows != int(entry["cast"])):
+			assets_change = true
+		wanted.append(entry)
+	var planted := _vegetation_density >= 0.0
+	var replant := planted and (assets_change or not is_equal_approx(density, _vegetation_density))
+	if replant:
 		for i in assets.get_mesh_count():
 			instancer.clear_by_mesh(i)
+	if assets_change:
+		for i in wanted.size():
+			var entry: Dictionary = wanted[i]
+			if entry.is_empty():
+				continue
+			var asset := assets.get_mesh_asset(i)
+			var ranges: Array = entry["ranges"]
+			for l in ranges.size():
+				asset.set_lod_range(l, float(ranges[l]))
+			asset.last_shadow_lod = int(entry["shadow_lod"])
+			if int(entry["cast"]) >= 0:
+				asset.cast_shadows = int(entry["cast"])
+	if replant:
 		_add_vegetation(density)
-	elif _vegetation_density >= 0.0:
-		instancer.update_mmis(true)
 
 
 static func _is_small_plant(variant: String) -> bool:

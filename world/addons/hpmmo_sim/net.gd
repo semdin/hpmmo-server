@@ -51,6 +51,10 @@ var session_end_reason: String = ""
 var net_profile: int = NetProfile.LOCAL
 var _delayed: Array = []          # [{due_ms, peer_id, method, args}]
 var _known_by_peer: Dictionary = {}   # peer_id -> {uid: true, __offset: cursor}
+## peer_id -> the map its last snapshot was built on. On a map change the
+## client drops every other player it knew (v18), so they are forgotten here
+## too and re-announced (sim_player_info) when they are in sight again.
+var _peer_map: Dictionary = {}
 var _last_chat_ms: Dictionary = {}
 const CHAT_MIN_INTERVAL_MS := 250
 var _snapshot_accumulator: float = 0.0
@@ -299,6 +303,7 @@ func _on_peer_connected(peer_id: int) -> void:
 func _on_peer_disconnected(peer_id: int) -> void:
 	print("[SimNet] peer %d disconnected" % peer_id)
 	_known_by_peer.erase(peer_id)
+	_peer_map.erase(peer_id)
 	_replaced_peers.erase(peer_id)
 	if not is_client:
 		SimAuthority.remove_player(peer_id)
@@ -476,6 +481,11 @@ func sim_spawn_player(peer_id: int, identity: Dictionary) -> void:
 	_avoid_spawn_overlap(node)
 	var uid := SimAuthority.register_player(node, int(identity.get("character_id", 0)), peer_id,
 		int(identity.get("account_id", 0)))
+	if character.is_empty() and SimAuthority.persistence != null:
+		# A plain login waits at the grounds spawn for its character bind; other
+		# players must not see that placeholder body pop up there and then jump
+		# to wherever the character logged out (the interest set skips it).
+		SimAuthority.entities[uid]["awaiting_bind"] = true
 	_known_by_peer[peer_id] = {}
 	sim_join_result.rpc_id(peer_id, true, "", uid, character, SimAuthority.sim_tick, SimAuthority.seed_value)
 	# The client needs its own numbers immediately: without this it would show
@@ -561,10 +571,10 @@ func sim_mount_request(mounted: bool) -> void:
 		sim_notice.rpc_id(multiplayer.get_remote_sender_id(), "cannot_mount", String(result.get("reason", "")))
 
 @rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
-func sim_respawn_request() -> void:
+func sim_respawn_request(mode: int) -> void:
 	if is_client:
 		return
-	SimAuthority.submit_respawn(multiplayer.get_remote_sender_id())
+	SimAuthority.submit_respawn(multiplayer.get_remote_sender_id(), mode)
 
 ## Map transfer, client -> server. The client names the portal
 ## it stands at and the map it believes the door leads to; the authority checks
@@ -909,10 +919,14 @@ func sim_snapshot(tick: int, chunk: int, chunks: int, data: PackedByteArray) -> 
 		return   # a late datagram must not drag the world backwards
 	if tick > SimAuthority.sim_tick:
 		SimAuthority.sim_tick = tick
+	SimAuthority.snapshot_tick = tick
 	HPSnapshots.apply(data, SimAuthority)
 
 @rpc("authority", "call_remote", "reliable", HPProtocol.CH_SNAPSHOT)
-func sim_despawn(uid: int) -> void:
+func sim_despawn(uid: int, tick: int) -> void:
+	# v18: the tick lets the replica table refuse an older snapshot that
+	# arrives after this (reliable) despawn and would resurrect the entity.
+	SimAuthority.note_despawn(uid, tick)
 	SimAuthority.emit_signal("entity_despawned", uid)
 
 ## Boss telegraph. The record keeps the shape and the
@@ -935,6 +949,11 @@ func sim_world_event(kind: String, data: Dictionary) -> void:
 @rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
 func sim_mob_info(uid: int, info: Dictionary) -> void:
 	SimAuthority.on_mob_info(uid, info)
+
+## v18: another player's label data (name, house, level).
+@rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
+func sim_player_info(uid: int, info: Dictionary) -> void:
+	SimAuthority.on_player_info(uid, info)
 
 @rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
 func sim_telegraph_end(uid: int) -> void:
@@ -1019,14 +1038,14 @@ func submit_mount(player_node: Node, mounted: bool) -> Dictionary:
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
 	return SimAuthority.submit_mount(int(record.get("peer_id", 0)), mounted)
 
-func submit_respawn(player_node: Node) -> Dictionary:
+func submit_respawn(player_node: Node, mode: int = HPProtocol.RESPAWN_TOWN) -> Dictionary:
 	if is_client:
-		sim_respawn_request.rpc_id(1)
+		sim_respawn_request.rpc_id(1, mode)
 		return HPProtocol.accept()
 	var record := SimAuthority.record_for(player_node)
 	if record.is_empty():
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
-	return SimAuthority.submit_respawn(int(record.get("peer_id", 0)))
+	return SimAuthority.submit_respawn(int(record.get("peer_id", 0)), mode)
 
 ## `slot` is one chest slot, -1 takes everything that fits.
 func submit_pickup(player_node: Node, loot_uid: int, slot: int = -1) -> Dictionary:
@@ -1176,6 +1195,15 @@ func _broadcast_snapshots() -> void:
 			continue
 		var center: Vector3 = record["node"].global_position
 		var known: Dictionary = _known_by_peer.get(peer_id, {})
+		var map_now := String(record.get("map_id", HPProtocol.DEFAULT_MAP))
+		if String(_peer_map.get(peer_id, map_now)) != map_now:
+			for uid in known.keys():
+				if typeof(uid) == TYPE_STRING:
+					continue
+				var other: Dictionary = SimAuthority.entities.get(int(uid), {})
+				if other.is_empty() or int(other.get("kind", 0)) == HPProtocol.Kind.PLAYER:
+					known.erase(uid)
+		_peer_map[peer_id] = map_now
 		var result: Dictionary = HPSnapshots.encode_for(SimAuthority, peer_id, center, known)
 		var bytes: PackedByteArray = result["bytes"]
 
@@ -1194,6 +1222,13 @@ func _broadcast_snapshots() -> void:
 				current[int(uid)] = rev
 				if known.get(int(uid)) != rev:
 					sim_mob_info.rpc_id(peer_id, int(uid), SimAuthority.mob_info_of(mob))
+			elif int(mob.get("kind", 0)) == HPProtocol.Kind.PLAYER and int(uid) != int(record.get("uid", 0)):
+				# v18: another player's name, house and level, on first sight
+				# and whenever they change (a bind, a level-up).
+				var info := SimAuthority.player_info_of(mob)
+				current[int(uid)] = int(info["rev"])
+				if known.get(int(uid)) != int(info["rev"]):
+					sim_player_info.rpc_id(peer_id, int(uid), info)
 		for uid in SimAuthority.loot_uids():
 			var loot: Dictionary = SimAuthority.entities.get(uid, {})
 			if int(loot.get("kind", 0)) != HPProtocol.Kind.LOOT:
@@ -1212,7 +1247,7 @@ func _broadcast_snapshots() -> void:
 			if typeof(uid) == TYPE_STRING:
 				continue   # rotation cursor, not an entity (int == String is an error)
 			if not current.has(int(uid)):
-				sim_despawn.rpc_id(peer_id, int(uid))
+				sim_despawn.rpc_id(peer_id, int(uid), SimAuthority.sim_tick)
 		_known_by_peer[peer_id] = current
 
 		var chunk_size := 900

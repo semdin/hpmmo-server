@@ -63,6 +63,9 @@ var _toast_panel: Panel = null
 var _death_panel: ColorRect = null
 var _death_label: Label = null
 var _death_icon: TextureRect = null
+var _revive_here: Button = null
+var _revive_town: Button = null
+var _respawn_sent := false
 var _flash_rect: ColorRect = null
 
 ## The effects the local body can carry, in the order the row shows them: the
@@ -240,6 +243,13 @@ func _build() -> void:
 	_death_panel.color = Color(0.12, 0.0, 0.0, 0.55)
 	_death_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_death_panel.hide()
+	var backdrop := ColorRect.new()
+	backdrop.name = "Backdrop"
+	backdrop.color = Color(0.03, 0.01, 0.01, 0.72)
+	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	backdrop.set_anchors_preset(Control.PRESET_CENTER)
+	UILayout.place_centred(backdrop, Vector2(620, 290), Vector2(0, 8))
+	_death_panel.add_child(backdrop)
 	_death_label = _make_label("", UITheme.FS_BANNER, UITheme.c("blood_lt"))
 	_death_label.set_anchors_preset(Control.PRESET_CENTER)
 	UILayout.place_centred(_death_label, Vector2(640, 120))
@@ -252,7 +262,34 @@ func _build() -> void:
 	_death_icon.set_anchors_preset(Control.PRESET_CENTER)
 	UILayout.place_centred(_death_icon, Vector2(72, 72), Vector2(0, -104))
 	_death_panel.add_child(_death_icon)
-	add_child(_death_panel)
+	# The death choice (v18): get up where you fell, or go back to town. The
+	# panel itself ignores the mouse; only the buttons take clicks.
+	var choices := HBoxContainer.new()
+	choices.name = "DeathChoices"
+	choices.alignment = BoxContainer.ALIGNMENT_CENTER
+	choices.add_theme_constant_override("separation", 18)
+	choices.set_anchors_preset(Control.PRESET_CENTER)
+	UILayout.place_centred(choices, Vector2(460, 44), Vector2(0, 96))
+	_death_panel.add_child(choices)
+	_revive_here = HudKit.button("Revive Here", 16)
+	_revive_here.name = "ReviveHere"
+	_revive_here.custom_minimum_size = Vector2(210, 44)
+	_revive_here.tooltip_text = "Get up where you fell with half health"
+	_revive_here.pressed.connect(_request_respawn.bind(HPProtocol.RESPAWN_HERE))
+	choices.add_child(_revive_here)
+	_revive_town = HudKit.button("Return to Town", 16)
+	_revive_town.name = "ReviveTown"
+	_revive_town.custom_minimum_size = Vector2(210, 44)
+	_revive_town.tooltip_text = "Wake at this map's respawn point with full health"
+	_revive_town.pressed.connect(_request_respawn.bind(HPProtocol.RESPAWN_TOWN))
+	choices.add_child(_revive_town)
+	# Its own layer, above every HUD window (a window left open must not hide
+	# the choice) and below the map loading screen (layer 90).
+	var death_layer := CanvasLayer.new()
+	death_layer.name = "DeathLayer"
+	death_layer.layer = 80
+	add_child(death_layer)
+	death_layer.add_child(_death_panel)
 
 func _make_label(text: String, size: int, color: Color) -> Label:
 	var label := Label.new()
@@ -348,21 +385,49 @@ func _on_death_changed(is_dead: bool) -> void:
 	if is_dead:
 		_death_started = _now()
 		_death_seconds = _respawn_seconds()
+		_respawn_sent = false
 		_death_panel.show()
-		_death_label.text = "DEFEATED\nRespawning in %ds..." % int(ceil(_death_seconds))
-		show_feedback("You were defeated. Respawning...", Color(1.0, 0.4, 0.4))
+		_update_death_panel()
+		show_feedback("You were defeated.", Color(1.0, 0.4, 0.4))
 	else:
 		_death_panel.hide()
 		show_feedback("Back on your feet.", Color(0.5, 1.0, 0.6))
 		_toast("Respawned", Color(0.5, 1.0, 0.6), "stat_health")
 
-## Prefer the authority's own schedule; fall back to the authored respawn delay.
+## Seconds until the automatic return to town (the authority's schedule).
 func _respawn_seconds() -> float:
+	return _ticks_until("respawn_tick", float(HPRules.auto_respawn_ms()) / 1000.0)
+
+## Seconds until the death choice opens.
+func _choice_seconds() -> float:
+	return _ticks_until("respawn_ready_tick", 0.0)
+
+func _ticks_until(key: String, fallback: float) -> float:
 	var record := binder.record_for_local() if binder != null else {}
-	var respawn_tick := int(record.get("respawn_tick", 0))
-	if respawn_tick > int(SimAuthority.sim_tick):
-		return float(respawn_tick - int(SimAuthority.sim_tick)) * float(HPProtocol.SIM_DT)
-	return float(HPRules.respawn_ms()) / 1000.0
+	var tick := int(record.get(key, 0))
+	if tick > 0:
+		return maxf(0.0, float(tick - int(SimAuthority.sim_tick)) * float(HPProtocol.SIM_DT))
+	return fallback
+
+func _update_death_panel() -> void:
+	var wait := _choice_seconds()
+	var ready := wait <= 0.0 and not _respawn_sent
+	_revive_here.disabled = not ready
+	_revive_town.disabled = not ready
+	if wait > 0.0:
+		_death_label.text = "DEFEATED\nYou can rise in %ds" % int(ceil(wait))
+	else:
+		var left := int(ceil(_respawn_seconds()))
+		_death_label.text = "DEFEATED\nReturning to town in %d:%02d" % [left / 60, left % 60]
+
+func _request_respawn(mode: int) -> void:
+	if _respawn_sent or not is_instance_valid(player):
+		return
+	_respawn_sent = true
+	SimNet.submit_respawn(player, mode)
+	_update_death_panel()
+	# A refused or lost request must not lock the buttons for good.
+	get_tree().create_timer(2.0).timeout.connect(func(): _respawn_sent = false)
 
 ## ------------------------------------------------------------ loot and xp
 
@@ -551,8 +616,7 @@ func _process(delta: float) -> void:
 		_toast_panel.hide()
 
 	if _death_panel.visible:
-		var remaining_death := maxf(0.0, _death_seconds - (now - _death_started))
-		_death_label.text = "DEFEATED\nRespawning in %ds..." % int(ceil(remaining_death))
+		_update_death_panel()
 
 	_update_flash(delta)
 	_update_shake(delta)

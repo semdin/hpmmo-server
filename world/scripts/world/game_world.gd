@@ -416,6 +416,8 @@ func _map_mobs() -> Node3D:
 
 func _setup_replication() -> void:
 	SimAuthority.entity_replicating.connect(_on_entity_replicating)
+	SimAuthority.player_info.connect(_on_player_info)
+	SimAuthority.map_changed.connect(_on_local_map_changed)
 	SimAuthority.entity_despawned.connect(_on_entity_despawned)
 	SimAuthority.entity_moved.connect(_on_entity_moved)
 	SimAuthority.entity_health.connect(_on_entity_health)
@@ -516,6 +518,7 @@ func _create_view(record: Dictionary) -> void:
 			_map_mobs().add_child(view)
 	elif kind == HPProtocol.Kind.PLAYER:
 		view.is_local_player = false
+		_apply_player_info(view, record)
 		# Another player's body is a VIEW here: it follows the replicated state
 		# and never reads this client's keyboard.
 		view.sim_puppet = true
@@ -532,6 +535,40 @@ func _create_view(record: Dictionary) -> void:
 		view.sim_target_rot = float(record.get("rot_y", 0.0))
 	if "visuals" in view and view.visuals:
 		view.visuals.rotation.y = float(record.get("rot_y", 0.0))
+
+## The local body changed map: every other player's replica belongs to the map
+## it left. They are dropped here (the server forgets them as well and
+## re-announces whoever is on the new map), so nothing stale - a body left over
+## from before the hop, or a late snapshot of it - can stand in for a player who
+## is really here. Snapshots older than the hop are refused for a moment.
+func _on_local_map_changed(uid: int, _map_id: String, _pos: Vector3) -> void:
+	if SimAuthority.is_authority() or uid != SimAuthority.local_uid:
+		return
+	for other in SimAuthority.entities.keys():
+		var record: Dictionary = SimAuthority.entities[other]
+		if int(other) == SimAuthority.local_uid or bool(record.get("local", false)):
+			continue
+		if int(record.get("kind", 0)) != HPProtocol.Kind.PLAYER:
+			continue
+		SimAuthority.note_despawn(int(other), int(SimAuthority.sim_tick) + 10)
+		_on_entity_despawned(int(other))
+
+## v18: another player's name, house and level (sim_player_info). Without it a
+## remote body kept the scene's default name.
+func _on_player_info(uid: int, _info: Dictionary) -> void:
+	var view = _views.get(uid)
+	if is_instance_valid(view):
+		_apply_player_info(view, SimAuthority.entities.get(uid, {}))
+
+func _apply_player_info(view: Node, record: Dictionary) -> void:
+	if String(record.get("name", "")) == "":
+		return
+	view.player_name = String(record["name"])
+	if String(record.get("house", "")) != "":
+		view.house = String(record["house"])
+	view.level = int(record.get("level", view.level))
+	if view.is_inside_tree() and view.has_method("_update_nameplate"):
+		view._update_nameplate()
 
 ## Dummies are authored scenery in every process: a client never builds one
 ## from a record, it binds the replicated record to its own dummy at that spot,

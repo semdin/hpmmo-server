@@ -70,7 +70,17 @@ class_name HPProtocol
 ##     payload's `skill_points` count the starter pick. `sim_attribute_request
 ##     (stat)` spends a status point; the payload carries `attributes` and
 ##     `attribute_points`.
-const PROTOCOL_VERSION := 17
+## v18: death is a choice. `sim_respawn_request(mode)` picks RESPAWN_HERE (where
+##     the body fell, part health) or RESPAWN_TOWN (the map's respawn point);
+##     both unlock `respawn_ready_tick` (in the stats payload) and the body
+##     returns to town on its own at `respawn_tick`. `sim_player_info(uid,
+##     info)` carries another player's name, house and level on first sight
+##     and on every change (players used to show the default name).
+const PROTOCOL_VERSION := 18
+
+## Death choice (v18 `sim_respawn_request`).
+const RESPAWN_TOWN := 0
+const RESPAWN_HERE := 1
 
 ## Per-hit presentation bits carried by `sim_damage_event` / `entity_hit`.
 const HIT_CRIT := 1
@@ -134,6 +144,7 @@ const REJECT_LINE_OF_SIGHT := "no_line_of_sight"
 const REJECT_INPUT_BUFFER := "input_buffer"
 const REJECT_ZONE := "wrong_zone"
 const REJECT_STATE := "invalid_state"
+const REJECT_TOO_EARLY := "too_early"
 ## The spell needs a higher house rank (spells.json `requires_house_rank`).
 const REJECT_HOUSE_RANK := "house_rank"
 ## The spell needs a higher character level (spells.json `requires_level`).

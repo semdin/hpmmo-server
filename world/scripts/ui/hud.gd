@@ -69,6 +69,7 @@ var settings: SettingsUI = null
 ## notices, Metin2-style chat, the Esc menu, the world map and the quest scroll.
 var unit_frame: HudUnitFrame = null
 var party_frames: HudParty = null
+var _invite_button: Button = null
 var buff_bar: HudBuffBar = null
 var action_bar: HudActionBar = null
 var notices: HudNotices = null
@@ -618,6 +619,17 @@ func _update_target_frame() -> void:
 			tint = Color(1.0, 0.86, 0.80)
 		if "is_commander" in current_target and current_target.is_commander and not is_boss_target:
 			rank = "Pack Leader · Enraged" if is_enraged_target else "Pack Leader"
+	elif current_target.is_in_group("players"):
+		# Another wizard (yourself is never a target).
+		title = String(current_target.get("player_name"))
+		lvl = int(current_target.get("level"))
+		var their_house := String(current_target.get("house"))
+		rank = their_house
+		if _in_my_party(current_target):
+			rank = "%s · Party" % their_house
+		tint = Color(0.62, 0.84, 1.0)
+		bar_colour = Color(0.24, 0.62, 0.30)
+		icon = "ui_target"
 	elif current_target.is_in_group("monoliths"):
 		title = "Dark Monolith"
 		rank = "Ancient Monolith"
@@ -633,6 +645,8 @@ func _update_target_frame() -> void:
 	else:
 		target_panel.hide()
 		return
+	if _invite_button != null:
+		_invite_button.visible = current_target.is_in_group("players") and not _in_my_party(current_target)
 	var hp := _target_hp_value()
 	var max_hp := maxi(1, _target_max_hp_value())
 	_target_stat.set_value(hp, max_hp)
@@ -1209,6 +1223,36 @@ func _build_target_card() -> void:
 		_target_status_icon.position = Vector2(-30, 28)
 		_target_status_icon.custom_minimum_size = Vector2(14, 14)
 		_target_status_icon.size = Vector2(14, 14)
+	# Another player targeted: one click sends the party invitation (the same
+	# `/invite Name` the chat accepts).
+	_invite_button = HudKit.button("Invite to Party", 13)
+	_invite_button.name = "InviteToParty"
+	_invite_button.focus_mode = Control.FOCUS_NONE
+	_invite_button.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_invite_button.offset_left = -150
+	_invite_button.offset_right = -8
+	_invite_button.offset_top = 6
+	_invite_button.offset_bottom = 34
+	_invite_button.visible = false
+	_invite_button.pressed.connect(_on_invite_pressed)
+	target_panel.add_child(_invite_button)
+
+func _on_invite_pressed() -> void:
+	if not is_instance_valid(current_target) or not current_target.is_in_group("players"):
+		return
+	var who := String(current_target.get("player_name"))
+	NetworkManager.send_chat("/invite %s" % who)
+	_add_system_chat("Party invitation sent to %s." % who)
+	_invite_button.visible = false
+
+func _in_my_party(target: Node) -> bool:
+	if party_frames == null or not is_instance_valid(target):
+		return false
+	var who := String(target.get("player_name"))
+	for m in party_frames.shown_members():
+		if String(m.get("name", "")) == who:
+			return true
+	return false
 
 
 ## The target card's portrait: a dark disc, the target's icon and a ring in the

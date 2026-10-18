@@ -277,7 +277,7 @@
     "type": "mount",
     "desc": "Sleek mahogany handle with tail twigs of select birch. Fly across Hogwarts Valley with speed.",
     "rarity": "rare",
-    "mount_speed": 16.0,
+    "mount_speed": 13.0,
     "icon": "broom",
     "slots": [
       "broom"
@@ -289,7 +289,7 @@
     "type": "mount",
     "desc": "Ash handle with aerodynamic ash finish and goblin-forged ironwork. Supreme 22.0 speed.",
     "rarity": "legendary",
-    "mount_speed": 22.0,
+    "mount_speed": 18.0,
     "icon": "broom",
     "slots": [
       "broom"
@@ -303,7 +303,7 @@
     "rarity": "common",
     "item_tier": 1,
     "required_level": 1,
-    "mount_speed": 15.0,
+    "mount_speed": 12.0,
     "model": "res://assets/models/props/brooms/broom_ashwood.glb",
     "icon": "broom",
     "slots": [
@@ -318,7 +318,7 @@
     "rarity": "uncommon",
     "item_tier": 2,
     "required_level": 10,
-    "mount_speed": 17.0,
+    "mount_speed": 13.5,
     "model": "res://assets/models/props/brooms/broom_runebound.glb",
     "icon": "broom",
     "slots": [
@@ -333,7 +333,7 @@
     "rarity": "rare",
     "item_tier": 3,
     "required_level": 20,
-    "mount_speed": 19.0,
+    "mount_speed": 15.0,
     "model": "res://assets/models/props/brooms/broom_silverthorn.glb",
     "icon": "broom",
     "slots": [
@@ -348,7 +348,7 @@
     "rarity": "epic",
     "item_tier": 4,
     "required_level": 35,
-    "mount_speed": 21.0,
+    "mount_speed": 17.0,
     "model": "res://assets/models/props/brooms/broom_emberwing.glb",
     "icon": "broom",
     "slots": [
@@ -363,7 +363,7 @@
     "rarity": "legendary",
     "item_tier": 5,
     "required_level": 50,
-    "mount_speed": 23.0,
+    "mount_speed": 18.5,
     "model": "res://assets/models/props/brooms/broom_moonveil.glb",
     "icon": "broom",
     "slots": [

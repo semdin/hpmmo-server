@@ -203,8 +203,8 @@ def test_agreement(out_dir, profile):
         check(True, "[%s] world server is listening" % profile)
         # Both clients run CONCURRENTLY: the point of the test is that two
         # independent clients are in the world at the same time.
-        alpha = start_probe("alpha", "agree", port, out_dir, seconds=22, profile=profile)
-        beta = start_probe("beta", "agree", port, out_dir, seconds=22, profile=profile)
+        alpha = start_probe("alpha", "agree", port, out_dir, seconds=30, profile=profile)
+        beta = start_probe("beta", "agree", port, out_dir, seconds=30, profile=profile)
         alpha = collect_probe(alpha, 22)
         beta = collect_probe(beta, 22)
     finally:
@@ -462,9 +462,9 @@ def test_party(out_dir, profile):
         if not server.wait_for("listening on :%d" % port, timeout=90):
             check(False, "[%s] world server failed to start for the party test" % profile)
             return
-        lead = start_probe("Lead", "party", port, out_dir, seconds=24, profile=profile)
+        lead = start_probe("Lead", "party", port, out_dir, seconds=32, profile=profile)
         time.sleep(1.0)
-        mate = start_probe("Mate", "party", port, out_dir, seconds=24, profile=profile)
+        mate = start_probe("Mate", "party", port, out_dir, seconds=32, profile=profile)
         rl = collect_probe(lead, 24)
         rm = collect_probe(mate, 24)
     finally:

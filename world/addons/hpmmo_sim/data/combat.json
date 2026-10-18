@@ -919,7 +919,11 @@
     ]
   },
   "death": {
-    "respawn_ms": 2500,
+    "_comment": "A dead player chooses: revive_here (where it fell, revive_here_fraction of hp/mana, a short ward) or town (the map's respawn point, full hp/mana). Both unlock respawn_ms after death; with no choice the body returns to town after auto_respawn_ms.",
+    "respawn_ms": 3000,
+    "auto_respawn_ms": 180000,
+    "revive_here_fraction": 0.5,
+    "revive_here_ward_ms": 3000,
     "respawn_position": [
       0.0,
       57.86,

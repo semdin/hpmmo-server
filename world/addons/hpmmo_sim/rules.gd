@@ -361,6 +361,20 @@ static func respawn_ms() -> int:
 	ensure_loaded()
 	return int((_combat.get("death", {}) as Dictionary).get("respawn_ms", 2500))
 
+## With no choice from the player, a dead body returns to town after this.
+static func auto_respawn_ms() -> int:
+	ensure_loaded()
+	return int((_combat.get("death", {}) as Dictionary).get("auto_respawn_ms", 180000))
+
+## Share of max hp/mana a "revive here" comes back with.
+static func revive_here_fraction() -> float:
+	ensure_loaded()
+	return clampf(float((_combat.get("death", {}) as Dictionary).get("revive_here_fraction", 0.5)), 0.05, 1.0)
+
+static func revive_here_ward_ms() -> int:
+	ensure_loaded()
+	return int((_combat.get("death", {}) as Dictionary).get("revive_here_ward_ms", 3000))
+
 static func respawn_position() -> Vector3:
 	ensure_loaded()
 	var raw: Array = (_combat.get("death", {}) as Dictionary).get("respawn_position", [0.0, 0.5, 5.0])
@@ -902,8 +916,8 @@ static func zone_id_for(point: Vector3) -> String:
 # ------------------------------------------------------------- movement
 
 const GRAVITY := 24.0
-const WALK_SPEED := 8.5
-const MOUNTED_SPEED := 15.0
+const WALK_SPEED := 6.5
+const MOUNTED_SPEED := 12.0
 const MOUNTED_ASCEND_SPEED := 7.0
 const MOUNTED_ACCEL := 25.0
 const GROUND_ACCEL := 65.0

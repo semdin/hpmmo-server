@@ -122,8 +122,8 @@ var _character_restored := false
 var _wand_visual_key := ""
 
 # Movement & Speeds
-var walk_speed: float = 8.5
-var mounted_speed: float = 15.0
+var walk_speed: float = 6.5
+var mounted_speed: float = 12.0
 var swim_speed: float = 4.2
 var is_mounted: bool = false
 var gravity: float = 24.0
@@ -2064,8 +2064,9 @@ func on_authoritative_death(_killer: Node3D) -> void:
 	_spawn_floating_text("DEFEATED!", Color(1.0, 0.0, 0.0), 2.0)
 	emit_stats()
 
+## The body is not moved here: the authority places it (town or where it fell,
+## the player's choice) and a client follows the next snapshot.
 func on_authoritative_respawn() -> void:
-	global_position = HPRules.respawn_position()
 	velocity = Vector3.ZERO
 	_committed_until = 0.0
 	_pos_history.clear()
@@ -2206,8 +2207,22 @@ func cycle_nearest_target() -> void:
 	set_target(targets[(index + 1) % targets.size()])
 
 func set_target(node: Node3D) -> void:
+	if node != null and not is_instance_valid(node):
+		node = null
+	if node == self:
+		node = null   # clicking yourself selects nothing
+	if is_instance_valid(current_target) and current_target.tree_exiting.is_connected(_on_target_exiting):
+		current_target.tree_exiting.disconnect(_on_target_exiting)
 	current_target = node
+	# A view freed while targeted (out of range after a respawn or a map hop, a
+	# corpse cleared) must not stay referenced: a release build dereferences the
+	# freed pointer in every reader's `is` check and the client crashes.
+	if node != null and not node.tree_exiting.is_connected(_on_target_exiting):
+		node.tree_exiting.connect(_on_target_exiting)
 	emit_signal("target_changed", current_target)
+
+func _on_target_exiting() -> void:
+	set_target(null)
 
 func _try_click_target() -> bool:
 	var mouse_pos := get_viewport().get_mouse_position()

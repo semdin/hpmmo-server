@@ -59,6 +59,10 @@ static func interest_set(authority, peer_id: int, center: Vector3) -> Array:
 	if not player_record.is_empty():
 		own_uid = int(player_record["uid"])
 		peer_map = String(player_record.get("map_id", HPProtocol.DEFAULT_MAP))
+		if bool(player_record.get("awaiting_bind", false)):
+			# Nothing around the placeholder body is this session's to see: the
+			# bind moves it to the character's own map and spot.
+			return [own_uid]
 	_ensure_index(authority)
 	var r2 := radius * radius
 	var selected: Dictionary = {}
@@ -66,6 +70,8 @@ static func interest_set(authority, peer_id: int, center: Vector3) -> Array:
 		var record: Dictionary = authority.entities.get(uid, {})
 		if record.is_empty() or String(record.get("map_id", HPProtocol.DEFAULT_MAP)) != peer_map:
 			continue
+		if uid != own_uid and bool(record.get("awaiting_bind", false)):
+			continue   # a login not yet placed at its character's own spot
 		var node = record.get("node")
 		if node == null or not is_instance_valid(node):
 			continue

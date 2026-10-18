@@ -49,6 +49,7 @@ signal loot_spawned(uid: int, item_id: String, amount: int, pos: Vector3, items:
 signal mob_telegraph(uid: int, data: Dictionary)
 signal mob_telegraph_end(uid: int)
 signal mob_info(uid: int, info: Dictionary)   # presentation: name/level/elite changed
+signal player_info(uid: int, info: Dictionary)   # presentation: another player's name/house/level
 ## Realm-wide happenings every player hears about (world boss soon / up /
 ## slain). `data` carries ids and names; the client words the message.
 signal world_event(kind: String, data: Dictionary)
@@ -156,6 +157,12 @@ var map_provider: Node = null
 
 ## Map the local body belongs to (role CLIENT / HOST / OFFLINE presentation).
 var local_map: String = HPProtocol.DEFAULT_MAP
+## Client: tick of the snapshot being applied, and the tick each uid was last
+## despawned at (v18 sim_despawn). A snapshot built before a despawn can be
+## delivered after it (unreliable vs reliable); it must not re-create the
+## entity as a ghost the server no longer reports.
+var snapshot_tick: int = 0
+var _despawn_ticks: Dictionary = {}
 ## Set by the network layer when the server assigns a map to this client's
 ## entity, before the world scene exists (menus load it afterwards).
 var pending_map_state: Dictionary = {}
@@ -457,6 +464,7 @@ func apply_character_binding(record: Dictionary, character: Dictionary) -> Strin
 	record["house_rep"] = _node_house_rep(node)
 	_load_quest_state(record, node)
 	players_by_character[character_id] = int(record.get("uid", 0))
+	record.erase("awaiting_bind")
 	touch(record)
 	_push_stats(record)
 	return ""
@@ -959,7 +967,10 @@ func submit_mount(peer_id: int, mounted: bool) -> Dictionary:
 	_push_stats(record)
 	return HPProtocol.accept()
 
-func submit_respawn(peer_id: int) -> Dictionary:
+## The dead player's choice: RESPAWN_TOWN (the map's respawn point, full
+## health) or RESPAWN_HERE (where the body fell, part health and a short ward).
+## Neither is accepted before `respawn_ready_tick`.
+func submit_respawn(peer_id: int, mode: int = HPProtocol.RESPAWN_TOWN) -> Dictionary:
 	if not is_authority():
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
 	if mutations_frozen():
@@ -967,7 +978,9 @@ func submit_respawn(peer_id: int) -> Dictionary:
 	var record := player_record(peer_id)
 	if record.is_empty() or not bool(record.get("dead", false)):
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
-	_respawn_player(record)
+	if sim_tick < int(record.get("respawn_ready_tick", 0)):
+		return HPProtocol.reject(HPProtocol.REJECT_TOO_EARLY)
+	_respawn_player(record, mode == HPProtocol.RESPAWN_HERE)
 	return HPProtocol.accept()
 
 # ------------------------------------------------------------- map transfer
@@ -2697,31 +2710,44 @@ func _collect_loot(loot: Dictionary, player: Dictionary, slots: Array) -> void:
 	entities.erase(loot_uid)
 
 func _schedule_player_respawn(record: Dictionary) -> void:
-	# Death is final until the respawn request (or the automatic timer when the
-	# client is gone). Nothing about the death depends on client timing.
-	record["respawn_tick"] = sim_tick + int(ceil(float(HPRules.respawn_ms()) / TICK_MS))
+	# Death is final until the player's choice (sim_respawn_request), which is
+	# open from `respawn_ready_tick`; with no choice (or no client) the body
+	# returns to town at `respawn_tick`. Nothing depends on client timing.
+	record["respawn_ready_tick"] = sim_tick + int(ceil(float(HPRules.respawn_ms()) / TICK_MS))
+	record["respawn_tick"] = sim_tick + int(ceil(float(HPRules.auto_respawn_ms()) / TICK_MS))
+	_push_stats(record)
 
-func _respawn_player(record: Dictionary) -> void:
+func _respawn_player(record: Dictionary, here: bool = false) -> void:
+	var node = record.get("node")
+	# "Here" needs a body that is still standing on its map; anything else
+	# (fell out, map gone) goes to town.
+	if here and (node == null or not is_instance_valid(node) \
+			or (node as Node3D).global_position.y < HPMaps.y_min(String(record.get("map_id", HPProtocol.DEFAULT_MAP)))):
+		here = false
+	var share := HPRules.revive_here_fraction() if here else 1.0
 	record["dead"] = false
-	record["hp"] = int(record.get("max_hp", 1))
-	record["mana"] = int(record.get("max_mana", 0))
-	record["ward_until_tick"] = 0
+	record["hp"] = maxi(1, int(round(float(record.get("max_hp", 1)) * share)))
+	record["mana"] = int(round(float(record.get("max_mana", 0)) * share))
+	record["ward_until_tick"] = sim_tick + int(ceil(float(HPRules.revive_here_ward_ms()) / TICK_MS)) if here else 0
 	record["stun_until_tick"] = 0
 	record["burn_until_tick"] = 0
 	record["cast_id"] = 0
 	record["respawn_tick"] = 0
-	var node = record.get("node")
+	record["respawn_ready_tick"] = 0
 	if node != null and is_instance_valid(node):
+		var fell_at: Vector3 = (node as Node3D).global_position
 		if node.has_method("on_authoritative_respawn"):
-			# The node's own handler resets to the legacy single-map spawn; the
-			# authority then places the body at the respawn point of ITS map, so
-			# a character that dies inside the castle does not wake up outdoors.
 			node.call("on_authoritative_respawn")
-		var respawn_pos := _respawn_position_for(record)
-		node.global_position = respawn_pos
+		if here:
+			(node as Node3D).global_position = fell_at   # whatever the node's handler did
+		else:
+			# The respawn point of the body's OWN map, so a character that dies
+			# inside the castle does not wake up outdoors.
+			var respawn_pos := _respawn_position_for(record)
+			node.global_position = respawn_pos
+			record["safe_spawn_map"] = String(record.get("map_id", HPProtocol.DEFAULT_MAP))
+			record["safe_spawn"] = respawn_pos
 		node.set("velocity", Vector3.ZERO)
-		record["safe_spawn_map"] = String(record.get("map_id", HPProtocol.DEFAULT_MAP))
-		record["safe_spawn"] = respawn_pos
 	touch(record)
 	_push_stats(record)
 	emit_signal("entity_respawned", int(record["uid"]))
@@ -3241,6 +3267,10 @@ func build_stats(record: Dictionary) -> Dictionary:
 		"mounted": bool(record.get("mounted", false)),
 	}
 	if int(record.get("kind", -1)) == HPProtocol.Kind.PLAYER:
+		if bool(record.get("dead", false)):
+			# v18: when the death choice opens and when town is automatic.
+			result["respawn_ready_tick"] = int(record.get("respawn_ready_tick", 0))
+			result["respawn_tick"] = int(record.get("respawn_tick", 0))
 		var rep := int(record.get("house_rep", 0))
 		var rank := HPRules.house_rank_for(rep)
 		result["house_rep"] = rep
@@ -3412,6 +3442,8 @@ func local_player_node() -> Node3D:
 func upsert_replica(uid: int, kind: int, pos: Vector3, rot_y: float, hp: int, max_hp: int, flags: int, state: int, variant: int = 0, pack_id: int = 0) -> void:
 	var record: Dictionary = entities.get(uid, {})
 	var is_new := record.is_empty()
+	if is_new and int(_despawn_ticks.get(uid, -1)) >= snapshot_tick:
+		return   # a stale snapshot from before this entity left our interest
 	if is_new:
 		record = {
 			"uid": uid,
@@ -3431,6 +3463,9 @@ func upsert_replica(uid: int, kind: int, pos: Vector3, rot_y: float, hp: int, ma
 		if _pending_mob_info.has(uid):
 			_merge_mob_info(record, _pending_mob_info[uid])
 			_pending_mob_info.erase(uid)
+		if _pending_player_info.has(uid):
+			_merge_player_info(record, _pending_player_info[uid])
+			_pending_player_info.erase(uid)
 	var previous_hp := int(record.get("hp", hp))
 	var previous_flags := int(record.get("flags", 0))
 	var previous_record_dead := bool(record.get("dead", false))
@@ -3708,6 +3743,30 @@ static func mob_info_of(record: Dictionary) -> Dictionary:
 		"elite": bool(record.get("is_elite", false)), "rev": int(record.get("meta_rev", 0)),
 		"parts_down": (record.get("parts_down", []) as Array).duplicate()}
 
+## What a client needs to label another player (v18 `sim_player_info`).
+static func player_info_of(record: Dictionary) -> Dictionary:
+	var info := {"name": String(record.get("name", "")), "house": String(record.get("house", "")),
+		"level": int(record.get("level", 1))}
+	info["rev"] = ("%s|%s|%d" % [info["name"], info["house"], info["level"]]).hash()
+	return info
+
+var _pending_player_info: Dictionary = {}
+
+## Client side of `sim_player_info`; like mob info it can arrive before the
+## first snapshot that creates the replica.
+func on_player_info(uid: int, info: Dictionary) -> void:
+	var record: Dictionary = entities.get(uid, {})
+	if record.is_empty():
+		_pending_player_info[uid] = info
+		return
+	_merge_player_info(record, info)
+
+func _merge_player_info(record: Dictionary, info: Dictionary) -> void:
+	record["name"] = String(info.get("name", record.get("name", "")))
+	record["house"] = String(info.get("house", record.get("house", "")))
+	record["level"] = int(info.get("level", record.get("level", 1)))
+	emit_signal("player_info", int(record.get("uid", 0)), info)
+
 ## Client side of `sim_mob_info`. The reliable event can overtake the first
 ## unreliable snapshot, so info for an unknown uid waits in `_pending_mob_info`
 ## and is merged when the replica record is created.
@@ -3728,6 +3787,13 @@ func _merge_mob_info(record: Dictionary, info: Dictionary) -> void:
 	record["parts_down"] = (info.get("parts_down", []) as Array).duplicate()
 	emit_signal("mob_info", int(record.get("uid", 0)), info)
 
+func note_despawn(uid: int, tick: int) -> void:
+	_despawn_ticks[uid] = tick
+	if _despawn_ticks.size() > 1024:
+		for key in _despawn_ticks.keys():
+			if int(_despawn_ticks[key]) < tick - 200:
+				_despawn_ticks.erase(key)
+
 ## A replica the server stopped announcing is gone: forget it, or the client
 ## accumulates records (and node ids) for entities that no longer exist.
 func drop_replica(uid: int) -> void:
@@ -3739,6 +3805,7 @@ func drop_replica(uid: int) -> void:
 		by_node.erase((node as Node).get_instance_id())
 	entities.erase(uid)
 	_pending_mob_info.erase(uid)
+	_pending_player_info.erase(uid)
 
 func attach_view_node(uid: int, node: Node3D) -> void:
 	if node == null:
