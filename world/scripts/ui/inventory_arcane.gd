@@ -297,8 +297,6 @@ func _on_slot_entered(slot: UISlot) -> void:
 	if slot.item_id == "" or _tooltip == null: return
 	_tooltip.show_item(slot.item_id, slot.entry)
 	if slot != _offer_slot and is_instance_valid(player):
-		var delta := _comparison(slot)
-		if delta != "": _tooltip._add_lore(delta)
 		if _merchant.visible and slot.equipment_slot == "":
 			var price := _price_of(slot.entry)
 			if price > 0: _tooltip._add_lore("Sells for %s Galleons" % galleon_text(price))

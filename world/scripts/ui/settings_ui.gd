@@ -26,7 +26,7 @@ const ACTION_NAMES := {
 	"mount_broom": "Mount / dismount broom", "target_cycle": "Next target",
 	"pickup_loot": "Pick up loot", "interact": "Talk / interact",
 	"toggle_inventory": "Bag", "toggle_ollivander": "Ollivander's forge",
-	"toggle_chat": "Chat", "toggle_map": "World map", "toggle_onboarding": "Guide",
+	"toggle_chat": "Chat", "toggle_map": "World map", "toggle_character": "Character", "toggle_onboarding": "Guide",
 	"spell_1": "Spell slot 1", "spell_2": "Spell slot 2", "spell_3": "Spell slot 3",
 	"spell_4": "Spell slot 4", "spell_q": "Spell slot Q", "spell_e": "Spell slot E",
 	"quickslot_1": "Quick slot 1", "quickslot_2": "Quick slot 2",
@@ -240,6 +240,14 @@ func _slider_row(key: String, title: String, minimum: float, maximum: float, ste
 	slider.add_theme_stylebox_override("slider", track)
 	slider.add_theme_stylebox_override("grabber_area", fill)
 	slider.add_theme_stylebox_override("grabber_area_highlight", fill)
+	if key == "ui_scale":
+		# Rescaling the interface while the knob is held moves the slider under
+		# the cursor and the drag fights itself (the windows flickered). While
+		# dragging only the number updates; the scale applies on release.
+		slider.drag_started.connect(func(): _scale_dragging = true)
+		slider.drag_ended.connect(func(_changed: bool):
+			_scale_dragging = false
+			_on_slider_changed(slider.value, key))
 	slider.value_changed.connect(_on_slider_changed.bind(key))
 	r.add_child(slider)
 	var value_label := HudKit.label("", 14, HudKit.GOLD_HI, HudKit.bold(), 0)
@@ -261,8 +269,13 @@ static func _bus_title(bus: String) -> String:
 
 ## ---------------------------------------------------------------- controls
 
+var _scale_dragging := false
+
 func _on_slider_changed(value: float, key: String) -> void:
 	var settings := GameSettings.instance()
+	if key == "ui_scale" and _scale_dragging:
+		(_value_labels[key] as Label).text = "%.2f" % value
+		return
 	match key:
 		"ui_scale":
 			settings.set_ui_scale(value)

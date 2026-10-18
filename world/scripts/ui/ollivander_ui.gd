@@ -14,7 +14,7 @@ signal wand_upgraded(new_tier: int)
 signal item_upgraded(slot: String, new_tier: int)
 
 const WIDTH := 300.0
-const HEIGHT := 470.0
+const HEIGHT := 520.0
 
 var player: Node3D = null
 ## The instance on the anvil (its uid), 0 = empty.
@@ -24,14 +24,12 @@ var _last_op := ""
 var _layer: CanvasLayer
 var _window: UIWindow
 var _slot: UISlot
-var _name: Label
-var _hint: Label
-var _now: Label
-var _next: Label
+var _card_lines: VBoxContainer
+var _materials: VBoxContainer
 var _chance: Label
 var _cost: Label
-var _material: Label
 var _refine_button: Button
+var _clear_button: Button
 var _bonus_label: Label
 var _imbue_button: Button
 var _reweave_button: Button
@@ -54,14 +52,21 @@ func _ready() -> void:
 		if not visible and _tooltip != null: _tooltip.hide_item())
 	hide()
 
+## Metin2's upgrade window: the item card on top (the anvil slot and what the
+## item becomes at the next +N), one row per required material, the chance
+## and the cost, then OK / Cancel. Enchanting sits below it.
 func _build() -> void:
 	var body := _window.body
-	# The anvil: the slot that takes the item.
+	body.add_theme_constant_override("separation", 6)
+	var card := PanelContainer.new()
+	card.add_theme_stylebox_override("panel", _inset())
+	body.add_child(card)
 	var top := HBoxContainer.new()
 	top.add_theme_constant_override("separation", 10)
-	body.add_child(top)
-	_slot = UISlot.new(Vector2(60, 60))
+	card.add_child(top)
+	_slot = UISlot.new(Vector2(56, 56))
 	_slot.equipment_interaction = true
+	_slot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_slot.drop_check = func(_s, payload): return _accepts(payload)
 	_slot.dropped.connect(func(_s, payload): set_target(int(payload.get("uid", 0))))
 	_slot.activated.connect(func(_s): clear_target())
@@ -72,32 +77,35 @@ func _build() -> void:
 	_slot.slot_exited.connect(func(_s): _tooltip.hide_item())
 	_slot.ready.connect(func(): _slot.theme_type_variation = &"ArcaneSlot")
 	top.add_child(_slot)
-	var head := VBoxContainer.new()
-	head.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.alignment = BoxContainer.ALIGNMENT_CENTER
-	top.add_child(head)
-	_name = UITheme.body("", UITheme.FS_LABEL, UITheme.c("gold_hi"))
-	_name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	head.add_child(_name)
-	_hint = UITheme.body("", UITheme.FS_SMALL, UITheme.c("text_dim"))
-	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	head.add_child(_hint)
-	body.add_child(UITheme.divider())
-	body.add_child(_section("REFINE"))
-	_now = _line(UITheme.c("text"))
-	_next = _line(UITheme.c("good"))
-	_chance = _line(UITheme.c("text"))
-	_cost = _line(UITheme.c("gold_hi"))
-	_material = _line(UITheme.c("text"))
-	for label in [_now, _next, _chance, _cost, _material]: body.add_child(label)
+	_card_lines = VBoxContainer.new()
+	_card_lines.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_card_lines.alignment = BoxContainer.ALIGNMENT_CENTER
+	_card_lines.add_theme_constant_override("separation", 1)
+	_card_lines.custom_minimum_size = Vector2(0, 96)
+	top.add_child(_card_lines)
+	_materials = VBoxContainer.new()
+	_materials.add_theme_constant_override("separation", 4)
+	body.add_child(_materials)
+	_chance = _centred(UITheme.c("parchment"))
+	_cost = _centred(UITheme.c("gold_hi"))
+	body.add_child(_chance)
+	body.add_child(_cost)
+	var buttons := HBoxContainer.new()
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	buttons.add_theme_constant_override("separation", 8)
+	body.add_child(buttons)
 	_refine_button = Button.new()
-	_refine_button.text = "Refine"
-	_refine_button.focus_mode = Control.FOCUS_NONE
+	_refine_button.text = "OK"
+	_clear_button = Button.new()
+	_clear_button.text = "Cancel"
+	for b in [_refine_button, _clear_button]:
+		b.focus_mode = Control.FOCUS_NONE
+		b.custom_minimum_size = Vector2(100, 30)
+		buttons.add_child(b)
 	_refine_button.pressed.connect(_on_refine_pressed)
-	body.add_child(_refine_button)
+	_clear_button.pressed.connect(clear_target)
 	body.add_child(UITheme.divider())
-	body.add_child(_section("ENCHANTMENTS"))
-	_bonus_label = _line(UITheme.c("magic"))
+	_bonus_label = _centred(ItemTooltip.ENCHANT_COLOUR)
 	body.add_child(_bonus_label)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 6)
@@ -111,14 +119,64 @@ func _build() -> void:
 	_imbue_button.pressed.connect(_on_enchant_pressed.bind("imbue_scroll"))
 	_reweave_button.pressed.connect(_on_enchant_pressed.bind("reweave_scroll"))
 
-func _section(text: String) -> Label:
-	var label := UITheme.body(text, UITheme.FS_SMALL, UITheme.c("gold_lt"))
-	return label
+static func _inset() -> StyleBoxFlat:
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color("0a111c")
+	box.border_color = Color("5a4a2c")
+	box.set_border_width_all(1)
+	box.set_corner_radius_all(3)
+	box.set_content_margin_all(8)
+	return box
 
-func _line(colour: Color) -> Label:
-	var label := UITheme.body("", UITheme.FS_SMALL, colour)
+func _centred(colour: Color, size: int = UITheme.FS_SMALL) -> Label:
+	var label := UITheme.body("", size, colour)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	return label
+
+func _card_line(text: String, colour: Color, size: int = UITheme.FS_SMALL) -> void:
+	var label := _centred(colour, size)
+	label.text = text
+	_card_lines.add_child(label)
+
+## One material row: its icon, then "Name x 02" on a bar - green when held.
+func _material_row(id: String, need: int) -> void:
+	var have := _count(id)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	var icon := UISlot.new(Vector2(36, 36))
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon.set_item(id, {"amount": 1})
+	icon.ready.connect(func(): icon.theme_type_variation = &"ArcaneSlot")
+	row.add_child(icon)
+	var bar := PanelContainer.new()
+	var box := _inset()
+	box.border_color = Color(0.35, 0.75, 0.35) if have >= need else Color(0.7, 0.3, 0.28)
+	box.content_margin_top = 4
+	box.content_margin_bottom = 4
+	bar.add_theme_stylebox_override("panel", box)
+	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(bar)
+	var text := UITheme.body("%s x %02d" % [String(HPEquipment.item(id).get("name", id)), need], UITheme.FS_SMALL,
+		UITheme.c("parchment") if have >= need else Color(1.0, 0.5, 0.45))
+	text.tooltip_text = "You have %d" % have
+	text.mouse_filter = Control.MOUSE_FILTER_PASS
+	bar.add_child(text)
+	_materials.add_child(row)
+
+## The item's base lines at refine level `tier` (what the card shows).
+static func stat_lines(id: String, tier: int) -> Array:
+	var numbers := HPEquipment.item_stats(id, tier)
+	var data := HPEquipment.item(id)
+	var lines: Array = []
+	if String(data.get("type", "")) == "weapon":
+		lines.append("Spell power +%d%%" % int(round((float(numbers.spell_power) - 1.0) * 100.0)))
+	if int(numbers.bonus_hp) > 0: lines.append("Max Health +%d" % int(numbers.bonus_hp))
+	if int(numbers.bonus_mana) > 0: lines.append("Max Mana +%d" % int(numbers.bonus_mana))
+	if float(numbers.bonus_defense) > 0.0: lines.append("Magic Armour +%d%%" % int(numbers.bonus_defense))
+	if data.has("mount_speed"): lines.append("Mount speed %.1f" % float(numbers.mount_speed))
+	return lines
 
 func open_for_player(p_player: Node3D) -> void:
 	if is_instance_valid(player) and player != p_player:
@@ -127,9 +185,8 @@ func open_for_player(p_player: Node3D) -> void:
 	player = p_player
 	if not player.equipment_answer.is_connected(_equipment_answer): player.equipment_answer.connect(_equipment_answer)
 	if not player.inventory_changed.is_connected(_refresh): player.inventory_changed.connect(_refresh)
-	# Start on the worn wand when nothing is on the anvil yet.
-	if _find(target_uid).is_empty():
-		target_uid = int(player.equipment.get("main_hand", {}).get("uid", 0))
+	# The anvil opens empty: the player drags or right-clicks the item to work.
+	target_uid = 0
 	show()
 	_window.open()
 	# The bag opens alongside: it is where items are dragged from.
@@ -182,60 +239,52 @@ func _count(id: String) -> int:
 		if entry.id == id and int(entry.get("tier", 0)) == 0: have += int(entry.amount)
 	return have
 
-## The bonus line for an item at `tier`, in the words of its kind.
-static func effect_text(id: String, tier: int) -> String:
-	var numbers := HPEquipment.item_stats(id, tier)
-	match String(HPEquipment.item(id).get("type", "")):
-		"weapon":
-			return "+%d%% Spell power" % int(round((float(numbers.spell_power) - 1.0) * 100.0))
-		"armor":
-			return "+%d Max Health · +%d%% Magic Armour" % [int(numbers.bonus_hp), int(numbers.bonus_defense)]
-		"mount":
-			return "%.1f Mount speed" % float(numbers.mount_speed)
-	return ""
-
 func _refresh() -> void:
 	if not is_instance_valid(player) or _slot == null: return
 	var item := _find(target_uid)
 	var id := String(item.get("id", ""))
 	_slot.set_item(id, item)
 	var busy := _pending_id != -1
-	for label in [_now, _next, _chance, _cost, _material, _bonus_label]: label.text = ""
+	for child in _card_lines.get_children() + _materials.get_children():
+		child.get_parent().remove_child(child)
+		child.queue_free()
+	_chance.text = ""
+	_cost.text = ""
+	_refine_button.disabled = true
+	_clear_button.disabled = item.is_empty()
 	if item.is_empty():
 		target_uid = 0
-		_name.text = "Empty anvil"
-		_hint.text = "Drag a wand, cloak or broom here, or right-click it in your bag."
-		_refine_button.disabled = true
+		_card_line("Drag an item here", UITheme.c("text_dim"))
+		_card_line("or right-click it in your bag", UITheme.c("text_dim"))
+		_bonus_label.text = ""
 		_imbue_button.disabled = true
 		_reweave_button.disabled = true
 		_imbue_button.text = "Imbue"
 		_reweave_button.text = "Reweave"
 		return
 	var tier := int(item.get("tier", 0))
-	_name.text = "%s +%d" % [String(HPEquipment.item(id).get("name", id)), tier]
-	var where := _worn_slot(target_uid)
-	_hint.text = "Equipped" if where != "" else "In your bag"
-	# Refinement.
-	_refine_button.disabled = true
+	var tint: Color = ItemTooltip.RARITY_COLOUR.get(ItemTooltip.rarity_of(id), Color.WHITE)
+	var name := String(HPEquipment.item(id).get("name", id))
 	if not HPEquipment.refinable(id):
-		_now.text = "This item cannot be refined."
+		_card_line(name, tint, UITheme.FS_BODY)
+		_card_line("Cannot be refined", UITheme.c("text_dim"))
 	elif tier >= 9:
-		_now.text = "Now: %s" % effect_text(id, tier)
-		_next.text = "Fully refined (+9)."
+		_card_line("%s +9" % name, tint, UITheme.FS_BODY)
+		_card_line("From Level: %d" % HPEquipment.required_level(id), UITheme.c("parchment"))
+		for line in stat_lines(id, 9): _card_line(line, ItemTooltip.STAT_COLOUR)
+		_chance.text = "Fully refined"
 	else:
+		# The card shows the item as it will be after a successful upgrade.
 		var step: Dictionary = HPRules.combat().wand_tiers[tier]
-		var chance := int(step.chance)
+		_card_line("%s +%d" % [name, tier + 1], tint, UITheme.FS_BODY)
+		_card_line("From Level: %d" % HPEquipment.required_level(id), UITheme.c("parchment"))
+		for line in stat_lines(id, tier + 1): _card_line(line, ItemTooltip.STAT_COLOUR)
+		_material_row(String(step.material_id), int(step.material_amount))
 		var floor_tier := int(HPRules.combat().get("upgrade_curves", {}).get("fail_downgrade_from", 4))
-		_now.text = "Now: %s" % effect_text(id, tier)
-		_next.text = "+%d: %s" % [tier + 1, effect_text(id, tier + 1)]
-		_chance.text = "Success %d%%%s" % [chance, "  ·  failure drops to +%d" % (tier - 1) if tier >= floor_tier else ""]
-		_chance.add_theme_color_override("font_color", Color(0.4, 0.9, 0.45) if chance >= 80 else (Color(1.0, 0.85, 0.3) if chance >= 50 else Color(1.0, 0.45, 0.35)))
-		_cost.text = "Cost  %s Galleons" % preload("res://scripts/ui/inventory_arcane.gd").galleon_text(int(step.cost))
-		var have := _count(String(step.material_id))
-		_material.text = "%s  %d / %d" % [String(HPEquipment.item(step.material_id).get("name", "Material")), have, int(step.material_amount)]
-		_material.add_theme_color_override("font_color", UITheme.c("text") if have >= int(step.material_amount) else Color(1.0, 0.45, 0.35))
-		_refine_button.text = "Refine to +%d" % (tier + 1)
-		_refine_button.disabled = busy or player.galleons < int(step.cost) or have < int(step.material_amount)
+		_chance.text = "Chance of upgrade %d%%%s" % [int(step.chance), "  (failure: +%d)" % (tier - 1) if tier >= floor_tier else ""]
+		_cost.text = "Cost of the upgrade: %s Galleons" % preload("res://scripts/ui/inventory_arcane.gd").galleon_text(int(step.cost))
+		_cost.add_theme_color_override("font_color", UITheme.c("gold_hi") if player.galleons >= int(step.cost) else Color(1.0, 0.45, 0.4))
+		_refine_button.disabled = busy or player.galleons < int(step.cost) or _count(String(step.material_id)) < int(step.material_amount)
 	# Enchantments.
 	var rules := HPEquipment.enchant_rules()
 	var imbue_id := String(rules.get("imbue_scroll", ""))
@@ -244,11 +293,11 @@ func _refresh() -> void:
 	var cap := int(rules.get("max_bonuses", 5))
 	var enchantable := HPEquipment.enchantable(id)
 	if not enchantable:
-		_bonus_label.text = "This item cannot be enchanted."
+		_bonus_label.text = "Cannot be enchanted"
 	elif held.is_empty():
-		_bonus_label.text = "No enchantments yet (0/%d)." % cap
+		_bonus_label.text = "No enchantments (0/%d)" % cap
 	else:
-		_bonus_label.text = "\n".join(held.map(func(b): return HPEquipment.bonus_text(b))) + "\n(%d/%d)" % [held.size(), cap]
+		_bonus_label.text = "\n".join(held.map(func(b): return HPEquipment.bonus_text(b)))
 	var chances: Array = rules.get("imbue_chance", [100])
 	var imbue_chance := int(chances[clampi(held.size(), 0, chances.size() - 1)])
 	_imbue_button.text = "Imbue %d%%  ·  %d" % [imbue_chance, _count(imbue_id)]

@@ -778,6 +778,7 @@ func _do_login(user: String, pass_w: String) -> void:
 			return
 
 		_save_prefs(user)
+		GameSettings.use_account(user)   # this account's own settings from now on
 		_show_maintenance_notice(false)
 		DatabaseManager.session_token = str(res.get("token", ""))
 		DatabaseManager.session_account_id = int(res.get("account_id", 0))
@@ -882,6 +883,7 @@ func _await_game_connection(timeout_seconds: float, refusal: Dictionary = {}) ->
 
 func _on_solo_pressed() -> void:
 	NetworkManager.disconnect_game()
+	GameSettings.use_account("offline")
 	NetworkManager.start_offline()
 
 	# Load existing offline saved character or use defaults

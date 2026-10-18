@@ -78,49 +78,72 @@ func show_item(item_id: String, entry: Dictionary = {}) -> void:
 		return
 	_last_id = item_id
 	for child in _column.get_children():
+		_column.remove_child(child)
 		child.queue_free()
 
+	# Metin2 layout: everything centred, one fact per line, no labels.
 	var data: Dictionary = GameData.ITEMS[item_id]
-	var rarity := rarity_of(item_id)
-	var tint: Color = RARITY_COLOUR.get(rarity, RARITY_COLOUR["common"])
-
-	_add_name_row(String(data.get("name", item_id)), tint, rarity_label(item_id), item_id)
-	_add_divider()
-	_add_kind_row(item_id, data)
-	if data.has("item_tier"):
-		_add_kv("Tier", "%d" % int(data["item_tier"]), tint)
+	var tint: Color = RARITY_COLOUR.get(rarity_of(item_id), RARITY_COLOUR["common"])
+	var tier := int(entry.get("tier", 0))
+	var title := String(data.get("name", item_id))
+	if HPEquipment.refinable(item_id):
+		title += " +%d" % tier
+	_add_line(title, tint, UITheme.FS_LABEL, true)
+	var wearable := not (data.get("slots", []) as Array).is_empty()
 	var needed := HPEquipment.required_level(item_id)
-	if needed > 1:
-		# Red when the viewer cannot wear it yet - the server refuses the equip
-		# with "level_too_low" (HPEquipment.level_ok) either way.
-		var level := _local_level()
-		_add_kv("Requires", "Level %d" % needed,
-			UITheme.c("hp") if level > 0 and level < needed else UITheme.c("parchment"))
-
-	var stats := _stat_rows(item_id, data, entry)
-	for line in stats:
-		_add_stat_row(line[0], line[1])
-	if not stats.is_empty():
-		_add_divider()
-
+	var level := _local_level()
+	if wearable:
+		_add_line("Level: %d" % needed, UITheme.c("parchment"))
+	_add_gap()
+	for line in _stat_rows(item_id, data, entry):
+		_add_line(String(line[0]), ENCHANT_COLOUR if int(line[1]) == 2 else STAT_COLOUR, UITheme.FS_SMALL, int(line[1]) == 2)
 	var amount := int(entry.get("amount", 0))
 	if amount > 1:
-		_add_kv("Quantity", "x%d" % amount, UITheme.c("parchment"))
-	var tier := int(entry.get("tier", 0))
-	if HPEquipment.refinable(item_id) and tier > 0:
-		_add_kv("Refined", "+%d" % tier, UITheme.c("gold_lt"))
-
+		_add_line("Quantity: %d" % amount, UITheme.c("parchment"))
+	if wearable:
+		_add_gap()
+		# Red when the viewer cannot wear it yet - the server refuses the equip
+		# with "level_too_low" (HPEquipment.level_ok) either way.
+		if level > 0 and level < needed:
+			_add_line("[ Requires level %d ]" % needed, Color(1.0, 0.36, 0.32))
+		else:
+			_add_line("[ Wearable ]", Color(0.62, 0.86, 1.0))
 	var desc := String(data.get("desc", ""))
-	if desc != "":
-		_add_divider()
+	if desc != "" and not wearable:
+		_add_gap()
 		_add_lore(desc)
-
-	# The card must be sized before it is drawn; a container only recomputes on
-	# the next layout pass, so force one now.
-	set_anchors_preset(Control.PRESET_TOP_LEFT)
-	custom_minimum_size = _column.get_combined_minimum_size() + Vector2(16, 16)
-	reset_size()
+	_refit()
 	show()
+
+const STAT_COLOUR := Color(0.93, 0.91, 0.86)
+## Enchantments read brighter than the base lines (Metin2's bonus lines).
+const ENCHANT_COLOUR := Color(0.78, 0.66, 1.0)
+
+func _add_line(text: String, colour: Color, size: int = UITheme.FS_SMALL, bold: bool = false) -> void:
+	var l := Label.new()
+	l.text = text
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	if bold:
+		l.add_theme_font_override("font", UITheme.font_body_bold())
+	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_color_override("font_color", colour)
+	l.add_theme_color_override("font_outline_color", UITheme.c("shadow"))
+	l.add_theme_constant_override("outline_size", 3)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_column.add_child(l)
+
+func _add_gap() -> void:
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(0, 4)
+	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_column.add_child(gap)
+
+## The card must be sized before it is drawn; a container only recomputes on
+## the next layout pass, so force one now.
+func _refit() -> void:
+	set_anchors_preset(Control.PRESET_TOP_LEFT)
+	custom_minimum_size = Vector2(maxf(220.0, _column.get_combined_minimum_size().x + 24.0), _column.get_combined_minimum_size().y + 16.0)
+	reset_size()
 
 
 func hide_item() -> void:
@@ -157,34 +180,26 @@ func _is_wand(item_id: String) -> bool:
 
 
 func _stat_rows(item_id: String, data: Dictionary, entry: Dictionary) -> Array:
-	"""The item's real numbers, in the reference's green '+' list."""
+	"""The item's real numbers at its own +N, then its enchantments (kind 2)."""
 	var rows := []
-	# Refinable items show their numbers at their own +N (HPEquipment.item_stats,
-	# the function derived stats use); the rest show the catalog values.
 	var tier := int(entry.get("tier", 0))
 	var numbers := HPEquipment.item_stats(item_id, tier)
 	if _is_wand(item_id):
-		rows.append(["+ %d%% Spell power" % int(round((float(numbers.spell_power) - 1.0) * 100.0)), 1])
-	if data.has("bonus_hp"):
-		rows.append(["+ %d Max Health" % int(numbers.bonus_hp), 1])
-	if data.has("bonus_mana"):
-		rows.append(["+ %d Max Mana" % int(numbers.bonus_mana), 1])
-	if data.has("bonus_defense") or float(numbers.bonus_defense) > 0.0:
-		rows.append(["+ %d%% Magic Armour" % int(numbers.bonus_defense), 1])
+		rows.append(["Spell power +%d%%" % int(round((float(numbers.spell_power) - 1.0) * 100.0)), 1])
+	if int(numbers.bonus_hp) > 0:
+		rows.append(["Max Health +%d" % int(numbers.bonus_hp), 1])
+	if int(numbers.bonus_mana) > 0:
+		rows.append(["Max Mana +%d" % int(numbers.bonus_mana), 1])
+	if float(numbers.bonus_defense) > 0.0:
+		rows.append(["Magic Armour +%d%%" % int(numbers.bonus_defense), 1])
 	if data.has("mount_speed"):
-		rows.append(["+ %.1f Mount speed" % float(numbers.mount_speed), 1])
-	if HPEquipment.refinable(item_id) and tier < 9:
-		var chance := int(HPRules.combat().wand_tiers[tier].get("chance", 0))
-		if chance > 0:
-			rows.append(["%d%% chance to refine to +%d" % [chance, tier + 1], 1])
+		rows.append(["Mount speed %.1f" % float(numbers.mount_speed), 1])
+	if data.has("heal_hp"):
+		rows.append(["Restores %d Health" % int(data["heal_hp"]), 1])
+	if data.has("heal_mana"):
+		rows.append(["Restores %d Mana" % int(data["heal_mana"]), 1])
 	for bonus in entry.get("bonuses", []):
 		rows.append([HPEquipment.bonus_text(bonus), 2])
-	if data.has("heal_hp"):
-		rows.append(["+ %d Health restored" % int(data["heal_hp"]), 1])
-	if data.has("heal_mana"):
-		rows.append(["+ %d Mana restored" % int(data["heal_mana"]), 1])
-	if data.has("upgrade_tier"):
-		rows.append(["Refine stage +%d" % int(data["upgrade_tier"]), 1])
 	return rows
 
 
@@ -276,12 +291,14 @@ func _add_stat_row(text: String, kind: int) -> void:
 func _add_lore(text: String) -> void:
 	var l := Label.new()
 	l.text = text
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	l.custom_minimum_size = Vector2(268, 0)
 	l.add_theme_font_size_override("font_size", UITheme.FS_SMALL)
 	l.add_theme_color_override("font_color", UITheme.c("text_dim"))
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_column.add_child(l)
+	_refit()
 
 
 func _add_divider() -> void:

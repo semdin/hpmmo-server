@@ -2182,6 +2182,14 @@ func _inspect_click_target() -> bool:
 	var mouse_pos := get_viewport().get_mouse_position()
 	var from := camera.project_ray_origin(mouse_pos)
 	var to := from + camera.project_ray_normal(mouse_pos) * 80.0
+	# A loot chest under the cursor opens (right click, Knight Online style).
+	var chest_query := PhysicsRayQueryParameters3D.create(from, to, 8)
+	chest_query.collide_with_areas = true
+	chest_query.collide_with_bodies = false
+	var chest := get_world_3d().direct_space_state.intersect_ray(chest_query)
+	if chest and chest.collider is Node3D and (chest.collider as Node3D).has_method("open_window"):
+		(chest.collider as Node3D).call("open_window", self)
+		return true
 	var query := PhysicsRayQueryParameters3D.create(from, to)
 	query.collision_mask = 2
 	var result := get_world_3d().direct_space_state.intersect_ray(query)

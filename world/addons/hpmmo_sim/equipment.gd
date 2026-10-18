@@ -198,7 +198,7 @@ static func normalize(bag: Array, gear: Dictionary) -> bool:
 	return changed
 
 ## Whether an item can be refined (+0..+9): its type is listed in
-## combat.json upgrade_curves.refinable_types (wands, robes, brooms).
+## combat.json upgrade_curves.refinable_types (every wearable kind).
 static func refinable(id: String) -> bool:
 	var curves: Dictionary = HPRules.combat().get("upgrade_curves", {})
 	return String(item(id).get("type", "")) in curves.get("refinable_types", [])
@@ -222,6 +222,9 @@ static func item_stats(id: String, tier: int) -> Dictionary:
 			out.bonus_defense += _curve("armor", "defense_add", tier)
 		"mount":
 			out.mount_speed = float(data.get("mount_speed", 16.0)) * _curve("mount", "speed_mult", tier)
+		"accessory":
+			out.bonus_hp = int(round(out.bonus_hp * _curve("accessory", "stat_mult", tier)))
+			out.bonus_mana = int(round(out.bonus_mana * _curve("accessory", "stat_mult", tier)))
 	return out
 
 # ------------------------------------------------------------------ enchantments

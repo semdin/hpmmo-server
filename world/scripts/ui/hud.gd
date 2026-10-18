@@ -77,6 +77,7 @@ var game_menu: HudGameMenu = null
 var world_map: HudWorldMap = null
 var quest_scroll: HudQuestScroll = null
 var skill_window: HudSkillWindow = null
+var character_window: HudCharacterWindow = null
 var bestiary: HudBestiary = null
 var _exp_ticks: Control = null
 var _level := 1
@@ -192,12 +193,15 @@ func _setup_panels() -> void:
 	skill_window = HudSkillWindow.new()
 	skill_window.hud = self
 	modal.add_child(skill_window)
+	character_window = HudCharacterWindow.new()
+	modal.add_child(character_window)
 	game_menu = HudGameMenu.new()
 	modal.add_child(game_menu)
 	game_menu.settings_requested.connect(func(): settings.open())
 	game_menu.map_requested.connect(func(): world_map.open())
 
 	_add_quick_button("JournalBtn", "menu_journal", "Guide", "[J] Training guide", open_guide)
+	_add_quick_button("CharacterBtn", "stat_level", "Character", "[C] Character - health, mana, attack and skill power", func(): character_window.toggle())
 	_add_quick_button("SkillsBtn", "stupefy", "Skills", "[V] Skill training", func(): skill_window.toggle())
 	_add_quick_button("MapBtn", "menu_map", "Map", "[M] World map", func(): world_map.toggle())
 	_add_quick_button("BestiaryBtn", "menu_map", "Bestiary", "[B] Bestiary - where every creature lives", func(): bestiary.toggle())
@@ -205,6 +209,7 @@ func _setup_panels() -> void:
 	_ensure_ui_action("toggle_onboarding", KEY_J)
 	_ensure_ui_action("toggle_map", KEY_M)
 	_ensure_ui_action("toggle_skills", KEY_V)
+	_ensure_ui_action("toggle_character", KEY_C)
 	_ensure_ui_action("toggle_bestiary", KEY_B)
 
 ## Name, house and purse, on a small brass plate in the top-left corner.
@@ -294,6 +299,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 		world_map.toggle()
 		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("toggle_character"):
+		if settings != null and settings.is_open():
+			return
+		character_window.toggle()
+		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("toggle_skills"):
 		if settings != null and settings.is_open():
 			return
@@ -325,6 +335,8 @@ func bind_player(p_player: Node3D) -> void:
 		world_map.guide = _ensure_waypoint_guide(player)
 	if skill_window != null:
 		skill_window.player = player
+	if character_window != null:
+		character_window.player = player
 	if unit_frame != null:
 		unit_frame.set_identity(String(player.player_name), String(player.house), int(player.level))
 	if feedback != null:
@@ -788,6 +800,9 @@ func handle_escape(world: Node = null) -> String:
 	if world_map != null and world_map.is_open():
 		world_map.close()
 		return "map"
+	if character_window != null and character_window.is_open():
+		character_window.close()
+		return "character"
 	if skill_window != null and skill_window.is_open():
 		skill_window.close()
 		return "skills"

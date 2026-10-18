@@ -83,11 +83,12 @@
     }
   ],
   "upgrade_curves": {
-    "_comment": "Per-+N bonus of a refined item, indexed by tier 0..9. The steps themselves (chance, cost, material, failure) are wand_tiers, shared by every refinable kind. weapon: spell-power multiplier (wand_tiers.multiplier). armor: the item's own bonus_hp scaled by hp_mult (x3.5 at +9, in step with the wand), plus defense_add percentage points. mount: the item's own mount_speed scaled by speed_mult (+20% at +9), so refining a higher-tier broom gains more.",
+    "_comment": "Per-+N bonus of a refined item, indexed by tier 0..9. The steps themselves (chance, cost, material, failure) are wand_tiers, shared by every refinable kind. weapon: spell-power multiplier (wand_tiers.multiplier). armor: the item's own bonus_hp scaled by hp_mult (x3.5 at +9, in step with the wand), plus defense_add percentage points. mount: the item's own mount_speed scaled by speed_mult (+20% at +9), so refining a higher-tier broom gains more. accessory (hats, gloves, boots, focus, pendant, rings): its own bonus_hp / bonus_mana scaled by stat_mult. Every wearable item refines +0..+9.",
     "refinable_types": [
       "weapon",
       "armor",
-      "mount"
+      "mount",
+      "accessory"
     ],
     "fail_downgrade_from": 4,
     "armor": {
@@ -128,6 +129,20 @@
         1.14,
         1.17,
         1.2
+      ]
+    },
+    "accessory": {
+      "stat_mult": [
+        1.0,
+        1.15,
+        1.3,
+        1.5,
+        1.75,
+        2.0,
+        2.3,
+        2.65,
+        3.05,
+        3.5
       ]
     }
   },
@@ -362,9 +377,16 @@
     "_comment": "Metin2-style skill training. Every level above 1 earns one skill point (points = level - 1 - points spent); a point raises one upgradeable skill by one level. Level 10 is Master (shown as M). Damage, cooldown and effect duration scale with the caster's level of that skill; level 1 is the unmodified spells.json value.",
     "max_level": 10,
     "master_level": 10,
-    "upgradeable": ["stupefy", "incendio", "bombarda", "expelliarmus", "protego", "ultimate"],
+    "upgradeable": [
+      "stupefy",
+      "incendio",
+      "bombarda",
+      "expelliarmus",
+      "protego",
+      "ultimate"
+    ],
     "damage_per_level": 0.06,
-    "master_damage_bonus": 0.10,
+    "master_damage_bonus": 0.1,
     "cooldown_per_level": 0.02,
     "effect_per_level": 0.04
   },

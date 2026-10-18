@@ -18,14 +18,21 @@ class_name GameSettings
 ##   * the graphics quality ("auto" or a QualityPreset name), read by
 ##     quality_preset.gd.
 ##
-## Persistence is a ConfigFile under `user://` - user data, never inside the
-## versioned game files (res://). The game reads it back on the next launch.
+## Persistence is a ConfigFile per account: in an exported build it lives in
+## the game's own install folder (`<install>/userdata/accounts/<account>/
+## settings.cfg`, which updates leave alone), in the editor under `user://`. Before
+## anyone signs in the shared `settings.cfg` applies; `use_account()` (called
+## on login) switches to that account's file, seeding it from the current
+## values the first time. Audio volumes are stored with it.
 ##
 ## The class is a lazily-created static singleton so any script (including the
 ## player controller, which only needs `mouse_sensitivity()`) can consult it
 ## without adding an autoload to project.godot.
 
 const SETTINGS_PATH := "user://settings.cfg"
+const SECTION_AUDIO := "audio"
+## The signed-in account whose file is in use ("" = the shared file).
+static var _account := ""
 const SECTION_GENERAL := "general"
 const SECTION_BINDINGS := "bindings"
 
@@ -76,6 +83,7 @@ const BINDABLE_ACTIONS := {
 	"quickslot_3": KEY_F3,
 	"quickslot_4": KEY_F4,
 	"toggle_map": KEY_M,
+	"toggle_character": KEY_C,
 	"toggle_onboarding": KEY_J,
 }
 
@@ -122,10 +130,43 @@ static func flash_value() -> float:
 ## The path settings are persisted to. Always `user://` (user data) - the checks
 ## assert the file is outside the versioned project tree.
 static func settings_path() -> String:
-	return SETTINGS_PATH
+	var root := _data_root()
+	if _account == "":
+		return root + "settings.cfg"
+	return root + "accounts/%s/settings.cfg" % _account
+
+## `<install>/userdata/` for an exported build when that folder is writable,
+## else `user://`. The launcher runs each release from
+## `<install>/versions/<version>/`, so the folder sits at the install root -
+## beside `versions`, where an update never replaces it.
+static func _data_root() -> String:
+	if OS.has_feature("editor") or not OS.has_feature("template"):
+		return "user://"
+	var base := OS.get_executable_path().get_base_dir()
+	if base.get_base_dir().get_file().to_lower() == "versions":
+		base = base.get_base_dir().get_base_dir()
+	var dir := base.path_join("userdata")
+	if DirAccess.make_dir_recursive_absolute(dir) == OK:
+		return dir + "/"
+	return "user://"
+
+## Switch to `account`'s settings (login). A first login keeps the values in
+## use now, so nothing jumps; afterwards every account keeps its own.
+static func use_account(account: String) -> void:
+	var clean := account.strip_edges().to_lower().validate_filename()
+	if clean == _account:
+		return
+	var settings := instance()
+	_account = clean
+	if FileAccess.file_exists(settings_path()):
+		settings.load_from_disk()
+	else:
+		settings.save_to_disk()
+	settings.apply_ui_scale()
+	settings.apply_volumes()
 
 static func settings_global_path() -> String:
-	return ProjectSettings.globalize_path(SETTINGS_PATH)
+	return ProjectSettings.globalize_path(settings_path())
 
 ## ------------------------------------------------------------------- load
 
@@ -140,7 +181,7 @@ func load_from_disk() -> void:
 	for action in BINDABLE_ACTIONS:
 		bindings[action] = int(BINDABLE_ACTIONS[action])
 	var config := ConfigFile.new()
-	var error := config.load(SETTINGS_PATH)
+	var error := config.load(settings_path())
 	if error != OK:
 		# No file yet is the normal first-launch state: keep the defaults.
 		if error != ERR_FILE_NOT_FOUND:
@@ -159,6 +200,10 @@ func load_from_disk() -> void:
 	flash_intensity = clampf(float(config.get_value(SECTION_GENERAL, "flash", FLASH_DEFAULT)), INTENSITY_MIN, INTENSITY_MAX)
 	var quality := String(config.get_value(SECTION_GENERAL, "graphics_quality", GRAPHICS_DEFAULT))
 	graphics_quality = quality if GRAPHICS_CHOICES.has(quality) else GRAPHICS_DEFAULT
+	volumes.clear()
+	for bus in BUSES:
+		if config.has_section_key(SECTION_AUDIO, String(bus)):
+			volumes[String(bus)] = clampf(float(config.get_value(SECTION_AUDIO, String(bus), 1.0)), 0.0, 1.0)
 	for action in BINDABLE_ACTIONS:
 		var stored := int(config.get_value(SECTION_BINDINGS, action, int(BINDABLE_ACTIONS[action])))
 		if stored <= 0:
@@ -175,7 +220,10 @@ func save_to_disk() -> void:
 	config.set_value(SECTION_GENERAL, "graphics_quality", graphics_quality)
 	for action in bindings:
 		config.set_value(SECTION_BINDINGS, action, int(bindings[action]))
-	var error := config.save(SETTINGS_PATH)
+	for bus in BUSES:
+		config.set_value(SECTION_AUDIO, String(bus), get_volume(String(bus)))
+	DirAccess.make_dir_recursive_absolute(settings_path().get_base_dir())
+	var error := config.save(settings_path())
 	if error != OK:
 		load_error = "could not write settings (error %d)" % error
 		push_warning("[GameSettings] %s" % load_error)
@@ -210,9 +258,22 @@ func set_graphics_quality(choice: String) -> void:
 func set_volume(bus_name: String, linear: float) -> void:
 	if not BUSES.has(bus_name):
 		return
+	volumes[bus_name] = clampf(linear, 0.0, 1.0)
 	var audio := _audio_manager()
 	if audio != null:
 		audio.call("set_volume", bus_name, clampf(linear, 0.0, 1.0))
+	save_to_disk()
+
+## Push the stored volumes into the AudioManager (after loading a file).
+func apply_volumes() -> void:
+	var audio := _audio_manager()
+	if audio == null:
+		return
+	for bus in volumes:
+		audio.call("set_volume", String(bus), float(volumes[bus]))
+
+## The volumes this settings file holds (bus -> 0..1); empty until saved once.
+var volumes: Dictionary = {}
 
 func get_volume(bus_name: String) -> float:
 	var audio := _audio_manager()
@@ -292,7 +353,7 @@ func describe() -> Dictionary:
 	for bus_name in BUSES:
 		volumes[bus_name] = get_volume(bus_name)
 	return {
-		"path": SETTINGS_PATH,
+		"path": settings_path(),
 		"global_path": settings_global_path(),
 		"ui_scale": ui_scale,
 		"mouse_sensitivity": mouse_sensitivity,

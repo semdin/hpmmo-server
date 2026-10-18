@@ -131,6 +131,10 @@ func _build_ribbon() -> void:
 	_close_button.custom_minimum_size = Vector2(26, 26)
 	_close_button.focus_mode = Control.FOCUS_NONE
 	UITheme.role(_close_button, UITheme.V_ICON_BTN)
+	# The cross sits dead centre in its round button.
+	_close_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_close_button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
+	_close_button.add_theme_constant_override("h_separation", 0)
 	_close_button.tooltip_text = "Close"
 	_close_button.pressed.connect(close)
 	_close_button.visible = close_button_visible
@@ -141,6 +145,16 @@ func _build_ribbon() -> void:
 	_close_button.offset_top = -13.0
 	_close_button.offset_bottom = 13.0
 	_ribbon.add_child(_close_button)
+	# Symmetric padding, so the icon centres in the round frame.
+	for state in ["normal", "hover", "pressed", "disabled", "focus"]:
+		var box := _close_button.get_theme_stylebox(state)
+		if box != null:
+			box = box.duplicate()
+			box.content_margin_left = 0
+			box.content_margin_right = 0
+			box.content_margin_top = 0
+			box.content_margin_bottom = 0
+			_close_button.add_theme_stylebox_override(state, box)
 
 	if draggable:
 		_ribbon.mouse_default_cursor_shape = Control.CURSOR_MOVE

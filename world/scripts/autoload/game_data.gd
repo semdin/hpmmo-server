@@ -153,6 +153,17 @@ func _ready() -> void:
 		UPGRADE_TABLE[tier]["aura"] = WAND_AURAS[tier]
 	_register_input_actions()
 	_apply_custom_cursor()
+	call_deferred("_apply_saved_settings")
+
+## The saved interface scale and volumes take effect at launch - the scale used
+## to apply only once the slider was touched, so a fresh start showed "1.00"
+## while drawing the interface larger.
+func _apply_saved_settings() -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	var settings := GameSettings.instance()
+	settings.apply_ui_scale()
+	settings.apply_volumes()
 
 func _apply_custom_cursor() -> void:
 	var cursor_path := "res://assets/ui/cursor.png"

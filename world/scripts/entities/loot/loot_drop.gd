@@ -1,8 +1,8 @@
 extends Area3D
 
 ## A loot chest on the ground (v16): every kill drops ONE chest holding all of
-## its rolls. Clicking it opens the chest window (`LootWindow`); Z takes
-## everything that fits. A plain chest glows warm gold, a chest that holds an
+## its item rolls (galleons go straight to the purse). Right-clicking it opens
+## the chest window (`LootWindow`); Z takes everything that fits. A plain chest glows warm gold, a chest that holds an
 ## enchanted (efsun) piece sparkles violet.
 
 const CHEST_MODEL := preload("res://assets/models/environment/chest.glb")
@@ -26,7 +26,7 @@ var _phase := 0.0
 
 func _ready() -> void:
 	_phase = randf() * TAU
-	input_event.connect(_on_input_event)
+	input_ray_pickable = false
 	add_to_group("loot")
 	var model := CHEST_MODEL.instantiate()
 	model_root.add_child(model)
@@ -50,17 +50,15 @@ func _fit_model(model: Node3D, width: float) -> void:
 	model.scale = Vector3.ONE * s
 	model.position = -Vector3(box.get_center().x, box.position.y, box.get_center().z) * s
 
-func _on_input_event(_camera: Camera3D, event: InputEvent, _position: Vector3, _normal: Vector3, _shape_idx: int) -> void:
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-		var local_player = SimAuthority.local_player_node()
-		if local_player == null or is_collected:
-			return
-		if global_position.distance_to(local_player.global_position) > PICK_RANGE:
-			if local_player.has_method("_spawn_floating_text"):
-				local_player.call("_spawn_floating_text", "Too far", Color(1.0, 0.85, 0.5), 1.0)
-			return
-		get_viewport().set_input_as_handled()
-		get_tree().call_group("loot_window", "open_chest", self)
+## Right click on the chest (player._inspect_click_target) opens its window.
+func open_window(local_player: Node3D) -> void:
+	if local_player == null or is_collected:
+		return
+	if global_position.distance_to(local_player.global_position) > PICK_RANGE:
+		if local_player.has_method("_spawn_floating_text"):
+			local_player.call("_spawn_floating_text", "Too far", Color(1.0, 0.85, 0.5), 1.0)
+		return
+	get_tree().call_group("loot_window", "open_chest", self)
 
 ## (Re)describe the chest - called on spawn and whenever a partial take
 ## changes what it holds.

@@ -2193,13 +2193,52 @@ func _drop_loot(target: Dictionary, eligible: Array = []) -> void:
 	var node = target.get("node")
 	var origin: Vector3 = node.global_position if node != null and is_instance_valid(node) else Vector3.ZERO
 	var map_id := String(target.get("map_id", HPMaps.map_for_point(origin)))
-	# One kill, one chest (Knight Online style): everything it dropped lies in
-	# a single chest the players open and take from slot by slot.
+	# One kill, one chest (Knight Online style): the items it dropped lie in a
+	# single chest the players open and take from slot by slot. Galleons never
+	# go in the chest - they are credited straight to the player (the killer
+	# in the open world, each owner of a personal dungeon roll).
 	if HPMaps.instance_slot(map_id) > 0 and not eligible.is_empty():
 		for uid in eligible:
-			_spawn_chest(_roll_drops(target), origin, map_id, int(uid))
+			var own := _roll_drops(target)
+			_grant_galleons(entities.get(int(uid), {}), _take_galleons(own))
+			_spawn_chest(own, origin, map_id, int(uid))
 		return
-	_spawn_chest(_roll_drops(target), origin, map_id)
+	var drops := _roll_drops(target)
+	var galleons := _take_galleons(drops)
+	var killer: Dictionary = entities.get(killer_uid_of(target), {})
+	if killer.is_empty() and not eligible.is_empty():
+		killer = entities.get(int(eligible[0]), {})
+	_grant_galleons(killer, galleons)
+	_spawn_chest(drops, origin, map_id)
+
+## Remove the galleon rows from `drops`; returns their sum.
+static func _take_galleons(drops: Array) -> int:
+	var total := 0
+	for drop in drops.duplicate():
+		if String(drop.get("id", "")) == "galleons":
+			total += int(drop.get("amount", 0))
+			drops.erase(drop)
+	return total
+
+## Galleons from a kill, straight into the player's purse (with their
+## galleon_bonus enchantment); `reward_granted` carries the "+N" feedback.
+func _grant_galleons(player: Dictionary, amount: int) -> void:
+	if amount <= 0 or player.is_empty() or int(player.get("kind", 0)) != HPProtocol.Kind.PLAYER:
+		return
+	var pnode = player.get("node")
+	if pnode == null or not is_instance_valid(pnode) or not ("galleons" in pnode):
+		return
+	amount = int(round(amount * (1.0 + float(player.get("galleon_bonus", 0.0)) / 100.0)))   # enchantment
+	# The purse only: no inventory revision bump (the bag did not change - a
+	# bump per kill made the clients' equipment snapshots go stale mid-fight)
+	# and no immediate save: the autosave and the exit save carry it, like the
+	# experience from the same kill.
+	pnode.set("galleons", int(pnode.get("galleons")) + amount)
+	player["galleons"] = int(pnode.get("galleons"))
+	touch(player)
+	_push_stats(player)
+	var character_id := int(player.get("character_id", 0))
+	emit_signal("reward_granted", int(player.get("uid", 0)), character_id, 0, amount, [], "loot:galleons:%d:%d" % [character_id, sim_tick])
 
 func _roll_drops(target: Dictionary) -> Array:
 	var is_boss := bool(target.get("is_boss", false))
@@ -3230,7 +3269,9 @@ func drop_loot_table(table_id: String, pos: Vector3, map_id: String) -> void:
 			var r: Dictionary = entities[uid]
 			if int(r.get("kind", 0)) != HPProtocol.Kind.PLAYER or String(r.get("map_id", "")) != map_id:
 				continue
-			_spawn_chest(HPRules.roll_loot(table, rng), pos, map_id, int(uid))
+			var own := HPRules.roll_loot(table, rng)
+			_grant_galleons(r, _take_galleons(own))
+			_spawn_chest(own, pos, map_id, int(uid))
 		return
 	_spawn_chest(HPRules.roll_loot(table, rng), pos, map_id)
 
