@@ -488,6 +488,9 @@ func _apply_broom_model() -> void:
 	var model := scene.instantiate()
 	for part in model.get_children():
 		model.remove_child(part)
+		# The parts leave the GLB scene: drop its owner, or add_child warns
+		# that the owner became inconsistent.
+		part.owner = null
 		broom_mesh.add_child(part)
 		_broom_model_parts.append(part)
 	model.free()

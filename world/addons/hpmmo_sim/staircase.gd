@@ -548,10 +548,21 @@ func _near_boarding_edge(world_point: Vector3, tick: int) -> bool:
 
 func _notify_locked(record: Dictionary) -> void:
 	var peer_id := int(record.get("peer_id", 0))
-	if peer_id > 0 and not SimNet.is_client:
-		SimNet.sim_notice.rpc_id(peer_id, NOTICE_LOCKED, state)
+	_send_locked(peer_id)
 
 var _last_notice_tick: Dictionary = {}
+
+## The "entry closed" notice to one player. Offline (no multiplayer peer) and
+## for the host's own body the notice is raised locally: an RPC there fails
+## with "no multiplayer peer is active".
+func _send_locked(peer_id: int) -> void:
+	if peer_id <= 0 or SimNet.is_client:
+		return
+	var mp := SimNet.multiplayer
+	if not mp.has_multiplayer_peer() or peer_id == mp.get_unique_id():
+		SimNet.sim_notice(NOTICE_LOCKED, state)
+	else:
+		SimNet.sim_notice.rpc_id(peer_id, NOTICE_LOCKED, state)
 
 func _refuse_entry(record: Dictionary, body: Node3D, tick: int) -> void:
 	var landing := nearest_landing(body.global_position)
@@ -561,8 +572,7 @@ func _refuse_entry(record: Dictionary, body: Node3D, tick: int) -> void:
 	record["safe_spawn_map"] = String(record.get("map_id", HPProtocol.DEFAULT_MAP))
 	SimAuthority.touch(record)
 	var peer_id := int(record.get("peer_id", 0))
-	if peer_id > 0 and not SimNet.is_client:
-		SimNet.sim_notice.rpc_id(peer_id, NOTICE_LOCKED, state)
+	_send_locked(peer_id)
 	print("[Staircase] entry refused (uid %d, state %s) -> landing (%.2f, %.2f, %.2f)" % [
 		int(record.get("uid", 0)), state, landing.x, landing.y, landing.z])
 
