@@ -388,8 +388,9 @@ func _on_reward_granted(exp: int, galleons: int, items: Array) -> void:
 
 func _on_level_changed(level: int) -> void:
 	_toast("LEVEL %d!" % level, Color(1.0, 0.9, 0.3), "stat_level")
-	show_feedback("Level up - you are now level %d" % level, Color(1.0, 0.9, 0.3))
 	_play_ui("ui_levelup")
+	# the banner, pillar and chime are the level-up moment (scripts/fx/level_up_fx.gd)
+	LevelUpFX.play(player, level, self)
 
 ## A notification line. The icon is the loot itself when there is one (an item
 ## id resolves through the same namespace a bag cell uses), so "+Wiggenweld

@@ -1504,8 +1504,9 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 1.0,
-   "purpose": "UI levelup"
+   "seconds": 1.868,
+   "purpose": "Fantasy game level up: a rising shimmering magical whoosh swelling into a bright triumphant golden chime chord with sparkling twinkles, warm and satisfying, rewarding",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/ui_levelup.wav"
   },
   "ui_loot": {
    "path": "assets/audio/ui/loot.wav",
@@ -1546,14 +1547,15 @@
   "ui_quest": {
    "path": "assets/audio/ui/quest.wav",
    "bus": "ui",
-   "gain_db": -9.0,
+   "gain_db": -8.0,
    "pitch_variation": 0.05,
    "loop": false,
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 0.6,
-   "purpose": "UI quest"
+   "seconds": 1.315,
+   "purpose": "Fantasy RPG new quest notification: a gentle rising magical harp arpeggio with a soft sparkle shimmer and a warm bell",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/ui_quest.wav"
   },
   "ui_respawn": {
    "path": "assets/audio/ui/respawn.wav",
@@ -2096,6 +2098,19 @@
    "seconds": 2.106,
    "purpose": "Fantasy game monster: a huge plant shrivelling and burning, crackling wood, a long dying hiss",
    "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/snare_death.wav"
+  },
+  "ui_quest_complete": {
+   "path": "assets/audio/ui/quest_complete.wav",
+   "bus": "ui",
+   "gain_db": -8.0,
+   "pitch_variation": 0.05,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": false,
+   "sample_rate": 44100,
+   "seconds": 2.2,
+   "purpose": "Fantasy RPG quest complete fanfare: a bright triumphant chord of golden chimes and a short magical brass flourish",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/ui_quest_complete.wav"
   }
  }
 }

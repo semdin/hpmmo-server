@@ -76,6 +76,8 @@ var chat: HudChat = null
 var game_menu: HudGameMenu = null
 var world_map: HudWorldMap = null
 var quest_scroll: HudQuestScroll = null
+var quest_log: HudQuestLog = null
+var skill_pick: HudSkillPick = null
 var skill_window: HudSkillWindow = null
 var character_window: HudCharacterWindow = null
 var bestiary: HudBestiary = null
@@ -188,9 +190,15 @@ func _setup_panels() -> void:
 	modal.add_child(world_map)
 	quest_scroll = HudQuestScroll.new()
 	modal.add_child(quest_scroll)
+	quest_log = HudQuestLog.new()
+	quest_log.open_scroll = open_quest_scroll
+	modal.add_child(quest_log)
 	bestiary = HudBestiary.new()
 	bestiary.world_map = world_map
 	modal.add_child(bestiary)
+	skill_pick = HudSkillPick.new()
+	skill_pick.hud = self
+	modal.add_child(skill_pick)
 	skill_window = HudSkillWindow.new()
 	skill_window.hud = self
 	modal.add_child(skill_window)
@@ -201,11 +209,11 @@ func _setup_panels() -> void:
 	game_menu.settings_requested.connect(func(): settings.open())
 	game_menu.map_requested.connect(func(): world_map.open())
 
-	_add_quick_button("JournalBtn", "menu_journal", "Guide", "[J] Training guide", open_guide)
-	_add_quick_button("CharacterBtn", "stat_level", "Character", "[C] Character - health, mana, attack and skill power", func(): character_window.toggle())
-	_add_quick_button("SkillsBtn", "stupefy", "Skills", "[V] Skill training", func(): skill_window.toggle())
+	_add_quick_button("JournalBtn", _menu_icon("menu_quests", "menu_journal"), "Quests", "[J] Quests - every open quest and reward", open_guide)
+	_add_quick_button("CharacterBtn", _menu_icon("menu_character", "stat_level"), "Character", "[C] Character - stats and status points", func(): character_window.toggle())
+	_add_quick_button("SkillsBtn", _menu_icon("menu_skills", "stupefy"), "Skills", "[V] Skill training", func(): skill_window.toggle())
 	_add_quick_button("MapBtn", "menu_map", "Map", "[M] World map", func(): world_map.toggle())
-	_add_quick_button("BestiaryBtn", "menu_map", "Bestiary", "[B] Bestiary - where every creature lives", func(): bestiary.toggle())
+	_add_quick_button("BestiaryBtn", _menu_icon("menu_bestiary", "menu_map"), "Bestiary", "[B] Bestiary - where every creature lives", func(): bestiary.toggle())
 	_add_quick_button("MenuBtn", "menu_settings", "Menu", "[Esc] Menu - settings, change character, quit", func(): game_menu.toggle())
 	_ensure_ui_action("toggle_onboarding", KEY_J)
 	_ensure_ui_action("toggle_map", KEY_M)
@@ -264,6 +272,36 @@ func _build_chat_badge() -> void:
 
 ## A quick action: the icon carries the meaning, the caption names it and the
 ## tooltip keeps the hotkey, which no longer has to fit inside the button.
+## The menu icon `preferred` when its art exists, else `fallback`.
+static func _menu_icon(preferred: String, fallback: String) -> String:
+	return preferred if UITheme.icon_for(preferred) != null else fallback
+
+## Bottom-right menu buttons that want attention pulse gold: unspent status
+## points (Character), unspent skill points (Skills), a new or finished quest
+## (Quests).
+var _menu_pulse_t := 0.0
+func _pulse_menu_buttons(delta: float) -> void:
+	_menu_pulse_t += delta
+	var quick := get_node_or_null("BottomBar/QuickBar")
+	if quick == null or not is_instance_valid(player):
+		return
+	var wants := {
+		"CharacterBtn": int(player.get("attribute_points")) > 0,
+		"SkillsBtn": int(player.get("skill_points")) > 0,
+		"JournalBtn": has_node("/root/QuestManager") and QuestManager.needs_attention(),
+	}
+	var pulse := 0.5 + 0.5 * sin(_menu_pulse_t * 5.0)
+	for button_name in wants:
+		var button := quick.get_node_or_null(String(button_name)) as Button
+		if button == null:
+			continue
+		var on: bool = wants[button_name]
+		button.self_modulate = Color(1.0, 1.0, 1.0).lerp(Color(1.6, 1.3, 0.55), pulse) if on else Color.WHITE
+		var sb := button.get_theme_stylebox("normal") as StyleBoxFlat
+		if sb != null:
+			sb.border_color = Color(HudKit.GOLD_HI, 0.4 + 0.6 * pulse) if on else HudKit.GOLD.darkened(0.15)
+			sb.set_border_width_all(2 if on else 1)
+
 func _add_quick_button(button_name: String, icon_id: String, text: String, tip: String, action: Callable) -> void:
 	var quick := get_node_or_null("BottomBar/QuickBar")
 	if quick == null:
@@ -336,6 +374,8 @@ func bind_player(p_player: Node3D) -> void:
 		world_map.guide = _ensure_waypoint_guide(player)
 	if skill_window != null:
 		skill_window.player = player
+		if skill_pick != null:
+			skill_pick.player = player
 	if character_window != null:
 		character_window.player = player
 	if unit_frame != null:
@@ -507,6 +547,7 @@ func _on_target_changed(target: Node3D) -> void:
 	_update_target_frame()
 
 func _process(delta: float) -> void:
+	_pulse_menu_buttons(delta)
 	# Update target frame continuous HP
 	if is_instance_valid(current_target) and target_panel.visible:
 		_update_target_frame()
@@ -777,16 +818,14 @@ func show_world_event(kind: String, data: Dictionary) -> String:
 		AudioManager.play_sound_at("boss_alert", Vector3.ZERO, null, true)
 	return text
 
+## J: the quest log (the old training guide is retired; its J opens the log).
 func open_guide() -> void:
-	if onboarding != null:
-		onboarding.toggle_panel()
-	elif quest_scroll != null:
-		if quest_scroll.is_open(): quest_scroll.close()
-		else: quest_scroll.open()
+	if quest_log != null:
+		quest_log.toggle()
 
-func open_quest_scroll() -> void:
+func open_quest_scroll(quest_id: String = "") -> void:
 	if quest_scroll != null:
-		quest_scroll.open()
+		quest_scroll.open(quest_id)
 
 ## Esc closes the top-most thing that is open; with nothing open it opens the
 ## game menu. `world` supplies the game world's own windows (bag, forge,
@@ -816,6 +855,9 @@ func handle_escape(world: Node = null) -> String:
 	if quest_scroll != null and quest_scroll.is_open():
 		quest_scroll.close()
 		return "quest"
+	if quest_log != null and quest_log.is_open():
+		quest_log.close()
+		return "quest_log"
 	if onboarding != null and onboarding.expanded_guide:
 		onboarding.toggle_panel()
 		return "guide"

@@ -372,6 +372,14 @@ func play_sound_at(key: String, position: Vector3, owner_node: Node = null, forc
 	var stream := _stream(resolved_key)
 	if stream == null:
 		return null
+	var flat_cue := not bool(entry.get("loop", false)) and (force_flat or not bool(entry.get("spatial", true)))
+	if flat_cue:
+		# Two listeners of one event (the HUD and the feedback layer both cue
+		# ui_levelup) must not stack the same flat sound on itself.
+		var now := Time.get_ticks_msec()
+		if now - int(_last_played.get(key, -100000)) < 80:
+			return null
+		_last_played[key] = now
 	var bus_name := _bus_for(entry)
 	played_log.append(key)
 	if played_log.size() > 96:

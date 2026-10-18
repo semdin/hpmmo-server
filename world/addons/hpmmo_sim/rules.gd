@@ -486,31 +486,40 @@ static func upgradeable_skills() -> Array:
 static func skill_upgradeable(spell_id: String) -> bool:
 	return upgradeable_skills().has(spell_id)
 
-## The level of one skill in a levels dictionary, clamped to 1..max.
+## The level of one skill in a levels dictionary, 0 (not learned) .. max. A
+## spell that is not upgradeable (the basic attack, Patronum) is always 1.
 static func skill_level_of(levels: Dictionary, spell_id: String) -> int:
 	if not skill_upgradeable(spell_id):
 		return 1
-	return clampi(int(levels.get(spell_id, 1)), 1, skill_max_level())
+	return clampi(int(levels.get(spell_id, 0)), 0, skill_max_level())
 
-## A saved/received levels object reduced to known skills with valid levels.
+## True when the caster may use the spell at all (learned, or not a skill).
+static func skill_learned(levels: Dictionary, spell_id: String) -> bool:
+	return skill_level_of(levels, spell_id) >= 1
+
+## A saved/received levels object reduced to known skills with valid levels
+## (learned skills only; a missing skill is level 0).
 static func clean_skill_levels(raw: Variant) -> Dictionary:
 	var out := {}
 	if raw is Dictionary:
 		for spell_id in upgradeable_skills():
-			var level := clampi(int((raw as Dictionary).get(spell_id, 1)), 1, skill_max_level())
-			if level > 1:
+			var level := clampi(int((raw as Dictionary).get(spell_id, 0)), 0, skill_max_level())
+			if level >= 1:
 				out[spell_id] = level
 	return out
 
+## Every learned level costs one point (learning a skill is its first level).
 static func skill_points_spent(levels: Dictionary) -> int:
 	var spent := 0
 	for spell_id in upgradeable_skills():
-		spent += skill_level_of(levels, spell_id) - 1
+		spent += skill_level_of(levels, spell_id)
 	return spent
 
-## Unspent points for a character level: one per level gained, minus spent.
-static func skill_points_available(character_level: int, levels: Dictionary) -> int:
-	return maxi(0, maxi(0, character_level - 1) - skill_points_spent(levels))
+## Unspent points: one per character level (the level-1 point is the starter
+## skill a new character picks), plus `bonus` (characters from before skills
+## had to be learned keep every spell and every point they had), minus spent.
+static func skill_points_available(character_level: int, levels: Dictionary, bonus: int = 0) -> int:
+	return maxi(0, maxi(1, character_level) + bonus - skill_points_spent(levels))
 
 static func skill_is_master(level: int) -> bool:
 	return level >= skill_master_level()
@@ -536,6 +545,34 @@ static func skill_effect_multiplier(level: int) -> float:
 	var lv := clampi(level, 1, skill_max_level())
 	return 1.0 + float(skill_rules().get("effect_per_level", 0.0)) * float(lv - 1)
 
+# ------------------------------------------------------------ attributes
+
+## combat.json `attributes`: Vitality / Intellect / Strength / Agility points
+## (Metin2 status points), `points_per_level` per level gained.
+static func attribute_rules() -> Dictionary:
+	ensure_loaded()
+	return _combat.get("attributes", {})
+
+static func attribute_ids() -> Array:
+	return (attribute_rules().get("stats", {}) as Dictionary).keys()
+
+## A saved/received attribute object reduced to known stats with valid values.
+static func clean_attributes(raw: Variant) -> Dictionary:
+	var out := {}
+	var cap := int(attribute_rules().get("max", 90))
+	if raw is Dictionary:
+		for id in attribute_ids():
+			var value := clampi(int((raw as Dictionary).get(id, 0)), 0, cap)
+			if value > 0:
+				out[id] = value
+	return out
+
+static func attribute_points_available(character_level: int, attributes: Dictionary) -> int:
+	var spent := 0
+	for id in attributes:
+		spent += int(attributes[id])
+	return maxi(0, (maxi(1, character_level) - 1) * int(attribute_rules().get("points_per_level", 2)) - spent)
+
 # ------------------------------------------------------------ quests
 
 ## The quest chain, in order. The authority walks it; clients only display it.
@@ -547,6 +584,30 @@ static func quest_chain() -> Array:
 static func quest_at(index: int) -> Dictionary:
 	var chain := quest_chain()
 	return chain[index] if index >= 0 and index < chain.size() else {}
+
+static func quest_by_id(quest_id: String) -> Dictionary:
+	for quest in quest_chain():
+		if String(quest.get("id", "")) == quest_id:
+			return quest
+	return {}
+
+## The quests a character can work on now: reached their level, every quest
+## they `require` claimed, and neither claimed (`done`) nor waiting to be
+## claimed (`ready`). Several are open at once; they accumulate.
+static func quests_open(character_level: int, done: Array, ready: Array) -> Array:
+	var out: Array = []
+	for quest in quest_chain():
+		var id := String(quest.get("id", ""))
+		if done.has(id) or ready.has(id) or int(quest.get("level", 1)) > character_level:
+			continue
+		var blocked := false
+		for need in quest.get("requires", []):
+			if not done.has(String(need)):
+				blocked = true
+				break
+		if not blocked:
+			out.append(quest)
+	return out
 
 static func quest_talk_radius() -> float:
 	ensure_loaded()

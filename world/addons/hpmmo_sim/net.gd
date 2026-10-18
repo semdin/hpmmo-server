@@ -615,6 +615,25 @@ func sim_skill_request(spell_id: String) -> void:
 	if not bool(result.get("ok", false)):
 		sim_notice.rpc_id(multiplayer.get_remote_sender_id(), "skill", String(result.get("reason", "")))
 
+## v17 quest log: claim a finished quest's reward. Success arrives as a stats
+## payload (`quests`) and the reward events.
+@rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
+func sim_quest_claim(quest_id: String) -> void:
+	if is_client:
+		return
+	var result := SimAuthority.request_quest_claim(multiplayer.get_remote_sender_id(), quest_id.left(32))
+	if not bool(result.get("ok", false)):
+		sim_notice.rpc_id(multiplayer.get_remote_sender_id(), "quest", String(result.get("reason", "")))
+
+## v17 status points: spend one on Vitality / Intellect / Strength / Agility.
+@rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
+func sim_attribute_request(stat: String) -> void:
+	if is_client:
+		return
+	var result := SimAuthority.request_attribute(multiplayer.get_remote_sender_id(), stat.left(16))
+	if not bool(result.get("ok", false)):
+		sim_notice.rpc_id(multiplayer.get_remote_sender_id(), "attribute", String(result.get("reason", "")))
+
 @rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
 func sim_chat_request(text: String) -> void:
 	if is_client:
@@ -1041,6 +1060,26 @@ func submit_skill_up(player_node: Node, spell_id: String) -> Dictionary:
 	if record.is_empty():
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
 	return SimAuthority.skill_up_for_record(record, spell_id)
+
+## Claim a finished quest (the quest log / tracker). Same shape as submit_skill_up.
+func submit_quest_claim(player_node: Node, quest_id: String) -> Dictionary:
+	if is_client:
+		sim_quest_claim.rpc_id(1, quest_id)
+		return HPProtocol.accept()
+	var record := SimAuthority.record_for(player_node)
+	if record.is_empty():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	return SimAuthority.quest_claim_for_record(record, quest_id)
+
+## Spend a status point (the character window).
+func submit_attribute(player_node: Node, stat: String) -> Dictionary:
+	if is_client:
+		sim_attribute_request.rpc_id(1, stat)
+		return HPProtocol.accept()
+	var record := SimAuthority.record_for(player_node)
+	if record.is_empty():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	return SimAuthority.attribute_up_for_record(record, stat)
 
 ## Map transfer entry points, used by client code in EVERY role (Phase
 ## 8). In role CLIENT the exchange travels to the server; in the authority roles

@@ -117,8 +117,8 @@ func _process(delta: float) -> void:
 		var trained: int = player.skill_level(spell_id)
 		var total := maxf(0.01, HPRules.cooldown_for(spell_id, String(player.house), trained, player.derived_stats))
 		s.set_cooldown(cd, cd / total)
-		s.unusable = dead or int(player.current_mana) < int(spell.get("mana_cost", 0))
-		s.badge_text = HPRules.skill_level_label(trained) if HPRules.skill_upgradeable(spell_id) else ""
+		s.unusable = dead or int(player.current_mana) < int(spell.get("mana_cost", 0)) or trained <= 0
+		s.badge_text = ("" if trained <= 0 else HPRules.skill_level_label(trained)) if HPRules.skill_upgradeable(spell_id) else ""
 		var tip := _spell_tooltip(s.key_text, spell, trained, total)
 		if s.tooltip_text != tip:
 			s.tooltip_text = tip

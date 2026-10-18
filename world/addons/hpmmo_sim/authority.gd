@@ -78,6 +78,8 @@ signal level_changed(uid: int, level: int)
 signal house_rank_changed(uid: int, house: String, rank: int)
 ## A player finished a quest of the chain (rewards already granted).
 signal quest_completed(uid: int, quest_id: String)
+## A quest reached its count and waits for the player to claim the reward.
+signal quest_ready(uid: int, quest_id: String)
 ## A player spent a skill point (see skill_up_for_record).
 signal skill_trained(uid: int, spell_id: String, level: int)
 signal player_joined(uid: int, character_id: int, peer_id: int)
@@ -819,6 +821,8 @@ func cast_for_record(record: Dictionary, spell_id: String, aim: Vector3, cast_se
 		return _reject_cast(record, cast_seq, HPProtocol.REJECT_HOUSE_RANK)
 	if _player_level(record) < HPRules.spell_required_level(spell_id):
 		return _reject_cast(record, cast_seq, HPProtocol.REJECT_LEVEL)
+	if int(record.get("kind", -1)) == HPProtocol.Kind.PLAYER and skill_level(record, spell_id) <= 0:
+		return _reject_cast(record, cast_seq, HPProtocol.REJECT_SKILL_LOCKED)   # learn it first (V)
 	var node: Node3D = record.get("node")
 	if node == null or not is_instance_valid(node):
 		return _reject_cast(record, cast_seq, HPProtocol.REJECT_STATE)
@@ -2922,7 +2926,8 @@ static func _node_house_rep(node: Node) -> int:
 ## they are derived from the character level and the levels already bought, so
 ## a save can never carry more points than the character earned.
 
-## The caster's trained level of a spell (1 for creatures and untrained spells).
+## The caster's trained level of a spell (0 = not learned; 1 for creatures and
+## for spells that are not skills).
 func skill_level(record: Dictionary, spell_id: String) -> int:
 	if record.is_empty() or int(record.get("kind", -1)) != HPProtocol.Kind.PLAYER:
 		return 1
@@ -2945,7 +2950,7 @@ func skill_up_for_record(record: Dictionary, spell_id: String) -> Dictionary:
 	var current := HPRules.skill_level_of(levels, spell_id)
 	if current >= HPRules.skill_max_level():
 		return HPProtocol.reject(HPProtocol.REJECT_SKILL_MAX)
-	if HPRules.skill_points_available(int(record.get("level", 1)), levels) <= 0:
+	if HPRules.skill_points_available(int(record.get("level", 1)), levels, int(record.get("skill_bonus", 0))) <= 0:
 		return HPProtocol.reject(HPProtocol.REJECT_NO_SKILL_POINTS)
 	levels[spell_id] = current + 1
 	record["skill_levels"] = levels
@@ -2959,6 +2964,48 @@ func skill_up_for_record(record: Dictionary, spell_id: String) -> Dictionary:
 		persistence.save_player(record)
 	return HPProtocol.accept()
 
+# ------------------------------------------------------------------ attributes
+## Metin2 status points (C window): `points_per_level` per level gained, spent
+## one at a time on Vitality / Intellect / Strength / Agility. Derived like
+## skill points, so a save can never carry more than the level earned.
+
+func request_attribute(peer_id: int, stat: String) -> Dictionary:
+	if not is_authority() or mutations_frozen():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	var record := player_record(peer_id)
+	if record.is_empty():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	return attribute_up_for_record(record, stat)
+
+func attribute_up_for_record(record: Dictionary, stat: String) -> Dictionary:
+	if not is_authority() or mutations_frozen() or record.is_empty():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	var node = record.get("node")
+	if node == null or not is_instance_valid(node) or not ("attributes" in node):
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	if not HPRules.attribute_ids().has(stat):
+		return HPProtocol.reject(HPProtocol.REJECT_ATTRIBUTE_UNKNOWN)
+	var attributes := HPRules.clean_attributes(node.get("attributes"))
+	if int(attributes.get(stat, 0)) >= int(HPRules.attribute_rules().get("max", 90)):
+		return HPProtocol.reject(HPProtocol.REJECT_ATTRIBUTE_MAX)
+	if HPRules.attribute_points_available(_player_level(record), attributes) <= 0:
+		return HPProtocol.reject(HPProtocol.REJECT_NO_ATTRIBUTE_POINTS)
+	attributes[stat] = int(attributes.get(stat, 0)) + 1
+	node.set("attributes", attributes)
+	var hp_before := int(node.get("max_hp"))
+	var mana_before := int(node.get("max_mana"))
+	refresh_equipment(record)
+	# A point in Vitality / Intellect fills the new room, the way a level does.
+	node.current_hp = mini(int(node.max_hp), int(node.current_hp) + maxi(0, int(node.max_hp) - hp_before))
+	node.current_mana = mini(int(node.max_mana), int(node.current_mana) + maxi(0, int(node.max_mana) - mana_before))
+	record["hp"] = node.current_hp
+	record["mana"] = node.current_mana
+	touch(record)
+	_push_stats(record)
+	if persistence != null:
+		persistence.save_player(record)
+	return HPProtocol.accept()
+
 # ------------------------------------------------------------------ quests
 ##
 ## The quest chain (HPRules.quest_chain) is walked here and nowhere else: the
@@ -2968,46 +3015,84 @@ func skill_up_for_record(record: Dictionary, spell_id: String) -> Dictionary:
 
 const QUEST_VISIT_INTERVAL_TICKS := 10
 
-## Pull the saved chain position off the body (restored from the `quests`
-## object of the character sheet or the offline save).
+## Pull the saved quest state off the body (restored from the `quests` object
+## of the character sheet or the offline save): per-quest progress, quests
+## finished but not yet claimed (`ready`) and claimed ones (`done`).
 func _load_quest_state(record: Dictionary, node: Node) -> void:
-	record["quest_active"] = maxi(0, int(node.get("quest_active"))) if "quest_active" in node else 0
-	record["quest_progress"] = maxi(0, int(node.get("quest_progress"))) if "quest_progress" in node else 0
+	record["quest_progress"] = (node.get("quest_progress") as Dictionary).duplicate() if node.get("quest_progress") is Dictionary else {}
+	record["quest_ready"] = (node.get("quest_ready") as Array).duplicate() if node.get("quest_ready") is Array else []
 	record["quest_done"] = (node.get("quest_done") as Array).duplicate() if "quest_done" in node else []
 	record["skill_levels"] = HPRules.clean_skill_levels(node.get("skill_levels")) if "skill_levels" in node else {}
+	record["skill_bonus"] = int(node.get("skill_bonus")) if "skill_bonus" in node else 0
 
-## Something happened to this player that a quest may count. Advances the
-## active quest when type and target match; completes it at its count. A quest
-## above the player's level waits (nothing counts until the level is reached);
-## a `boss` kill quest only counts boss kills (`extra.boss`).
+## The quests this player can work on now (HPRules.quests_open).
+func open_quests(player: Dictionary) -> Array:
+	return HPRules.quests_open(_player_level(player), player.get("quest_done", []), player.get("quest_ready", []))
+
+## Something happened to this player that quests may count. Every open quest of
+## that type and target advances; one that reaches its count waits in `ready`
+## until the player claims it (request_quest_claim). A quest above the player's
+## level is not open, so nothing counts for it; a `boss` kill quest only counts
+## boss kills (`extra.boss`).
 func quest_event(player: Dictionary, type: String, target: String, amount: int = 1, extra: Dictionary = {}) -> void:
 	if not is_authority() or player.is_empty() or amount <= 0:
 		return
 	if int(player.get("kind", -1)) != HPProtocol.Kind.PLAYER:
 		return
-	var quest := HPRules.quest_at(int(player.get("quest_active", 0)))
-	if quest.is_empty() or String(quest.get("type", "")) != type:
+	var progress: Dictionary = player.get("quest_progress", {})
+	var ready: Array = player.get("quest_ready", [])
+	var changed := false
+	for quest in open_quests(player):
+		if String(quest.get("type", "")) != type:
+			continue
+		if bool(quest.get("boss", false)) and not bool(extra.get("boss", false)):
+			continue
+		if String(quest.get("target", "")) != "" and String(quest.get("target", "")) != target:
+			continue
+		var id := String(quest.get("id", ""))
+		var count := int(progress.get(id, 0)) + amount
+		changed = true
+		if count >= int(quest.get("count", 1)):
+			progress.erase(id)
+			ready.append(id)
+			emit_signal("quest_ready", int(player["uid"]), id)
+			print("[Authority] player %d finished quest '%s' (waiting to be claimed)" % [int(player["uid"]), id])
+		else:
+			progress[id] = count
+	if not changed:
 		return
-	if _player_level(player) < int(quest.get("level", 1)):
-		return
-	if bool(quest.get("boss", false)) and not bool(extra.get("boss", false)):
-		return
-	if String(quest.get("target", "")) != "" and String(quest.get("target", "")) != target:
-		return
-	var progress := int(player.get("quest_progress", 0)) + amount
 	player["quest_progress"] = progress
-	if progress >= int(quest.get("count", 1)):
-		_complete_quest(player, quest)
-	else:
-		_store_quest_state(player)
-		touch(player)
-		_push_stats(player)
+	player["quest_ready"] = ready
+	_store_quest_state(player)
+	touch(player)
+	_push_stats(player)
+	if persistence != null:
+		persistence.save_player(player)
+
+## A player claims a finished quest: the reward is paid now, once.
+func request_quest_claim(peer_id: int, quest_id: String) -> Dictionary:
+	if not is_authority() or mutations_frozen():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	var record := player_record(peer_id)
+	if record.is_empty() or bool(record.get("dead", false)):
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	return quest_claim_for_record(record, quest_id)
+
+func quest_claim_for_record(record: Dictionary, quest_id: String) -> Dictionary:
+	if not is_authority() or mutations_frozen() or record.is_empty():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	var ready: Array = record.get("quest_ready", [])
+	var quest := HPRules.quest_by_id(quest_id)
+	if quest.is_empty() or not ready.has(quest_id):
+		return HPProtocol.reject(HPProtocol.REJECT_QUEST_NOT_READY)
+	ready.erase(quest_id)
+	record["quest_ready"] = ready
+	_complete_quest(record, quest)
+	return HPProtocol.accept()
 
 func _complete_quest(player: Dictionary, quest: Dictionary) -> void:
 	var quest_id := String(quest.get("id", ""))
 	var done: Array = player.get("quest_done", [])
-	player["quest_active"] = int(player.get("quest_active", 0)) + 1
-	player["quest_progress"] = 0
 	if not done.has(quest_id):
 		done.append(quest_id)
 	player["quest_done"] = done
@@ -3063,10 +3148,10 @@ func _grant_quest_items(player: Dictionary, rewards: Array) -> Array:
 ## through to it every time it changes.
 func _store_quest_state(player: Dictionary) -> void:
 	var node = player.get("node")
-	if node == null or not is_instance_valid(node) or not ("quest_active" in node):
+	if node == null or not is_instance_valid(node) or not ("quest_ready" in node):
 		return
-	node.set("quest_active", int(player.get("quest_active", 0)))
-	node.set("quest_progress", int(player.get("quest_progress", 0)))
+	node.set("quest_progress", (player.get("quest_progress", {}) as Dictionary).duplicate())
+	node.set("quest_ready", (player.get("quest_ready", []) as Array).duplicate())
 	node.set("quest_done", (player.get("quest_done", []) as Array).duplicate())
 
 ## A player asks to talk to an NPC. The NPC has to exist on the player's map
@@ -3101,17 +3186,21 @@ func _npc_named(npc_name: String) -> Node3D:
 func _tick_quest_visits() -> void:
 	for uid in players_by_peer.values():
 		var player: Dictionary = entities.get(uid, {})
-		var quest := HPRules.quest_at(int(player.get("quest_active", 0))) if not player.is_empty() else {}
-		if quest.is_empty() or String(quest.get("type", "")) != "visit" or bool(player.get("dead", false)):
-			continue
-		if bool(quest.get("mounted", false)) and not bool(player.get("mounted", false)):
+		if player.is_empty() or bool(player.get("dead", false)):
 			continue
 		var node = player.get("node")
 		if node == null or not is_instance_valid(node):
 			continue
 		var place := HPRules.quest_place_at(String(player.get("map_id", "")), (node as Node3D).global_position)
-		if place != "":
-			quest_event(player, "visit", place)
+		if place == "":
+			continue
+		for quest in open_quests(player):
+			if String(quest.get("type", "")) != "visit" or String(quest.get("target", "")) != place:
+				continue
+			if bool(quest.get("mounted", false)) and not bool(player.get("mounted", false)):
+				continue
+			quest_event(player, "visit", place, 1, {"mounted": bool(player.get("mounted", false))})
+			break
 
 ## The species a kill quest counts: the mob's scene (`mob_<species>.tscn`), so
 ## an elite or a boss of the same creature counts and display names may vary.
@@ -3158,13 +3247,18 @@ func build_stats(record: Dictionary) -> Dictionary:
 		result["house_rank"] = rank
 		result["house_rank_rep"] = HPRules.house_rank_threshold(rank)
 		result["house_next_rep"] = HPRules.house_rank_threshold(rank + 1) if rank < HPRules.max_house_rank() else -1
-		result["quest_active"] = int(record.get("quest_active", 0))
-		result["quest_progress"] = int(record.get("quest_progress", 0))
+		result["quests"] = {"progress": (record.get("quest_progress", {}) as Dictionary).duplicate(),
+			"ready": (record.get("quest_ready", []) as Array).duplicate(),
+			"done": (record.get("quest_done", []) as Array).duplicate()}
 		var skills: Dictionary = record.get("skill_levels", {})
 		result["skills"] = skills.duplicate()
 		result["despair_until_tick"] = int(record.get("despair_until_tick", 0))
-		result["skill_points"] = HPRules.skill_points_available(int(record.get("level", 1)), skills)
+		result["skill_points"] = HPRules.skill_points_available(int(record.get("level", 1)), skills, int(record.get("skill_bonus", 0)))
 		var node = record.get("node")
+		if node != null and is_instance_valid(node) and "attributes" in node:
+			var attributes := HPRules.clean_attributes(node.get("attributes"))
+			result["attributes"] = attributes
+			result["attribute_points"] = HPRules.attribute_points_available(int(record.get("level", 1)), attributes)
 		if node != null and is_instance_valid(node) and "titles" in node:
 			result["titles"] = (node.get("titles") as Array).duplicate()
 

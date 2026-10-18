@@ -1,11 +1,15 @@
 extends Control
 class_name HudQuestScroll
 
-## The quest scroll: the active quest written out on parchment - the story, the
-## objective with its progress and the reward. Opened from the tracker row,
-## closed with the seal button, a click outside it or Esc.
+## The quest scroll: one quest written out on parchment - the story, the
+## objective with its progress and the reward. Opened from a tracker row or a
+## quest-log card, closed with the seal button, a click outside it or Esc.
+## Reading a quest clears its "new" blink; a finished quest shows a Claim
+## button that asks the authority for the reward.
 
+var quest_id := ""
 var _card: PanelContainer
+var _claim_btn: Button
 var _title: Label
 var _story: Label
 var _objective: Label
@@ -86,6 +90,21 @@ func _ready() -> void:
 	close_btn.add_theme_color_override("font_color", Color(1, 0.9, 0.75))
 	close_btn.pressed.connect(close)
 	close_row.add_child(close_btn)
+	_claim_btn = close_btn.duplicate() as Button
+	_claim_btn.text = "Claim reward"
+	var gold := seal.duplicate() as StyleBoxFlat
+	gold.bg_color = Color(0.62, 0.45, 0.1)
+	gold.border_color = Color(0.35, 0.22, 0.03)
+	var gold_hover := gold.duplicate() as StyleBoxFlat
+	gold_hover.bg_color = Color(0.75, 0.56, 0.14)
+	_claim_btn.add_theme_stylebox_override("normal", gold)
+	_claim_btn.add_theme_stylebox_override("hover", gold_hover)
+	_claim_btn.add_theme_stylebox_override("pressed", gold)
+	_claim_btn.pressed.connect(func():
+		QuestManager.claim(quest_id)
+		close())
+	close_row.add_child(_claim_btn)
+	close_row.move_child(_claim_btn, 0)
 	get_viewport().size_changed.connect(_layout)
 
 func _ink_label(size: int, colour: Color) -> Label:
@@ -114,16 +133,18 @@ func _layout() -> void:
 	_card.reset_size()
 	_card.position = ((canvas - _card.size) * 0.5).floor()
 
-func open() -> void:
+## Open one quest (default: the top of the log). Silent: the quest sounds are
+## for news (a new or finished quest), not for reading.
+func open(id: String = "") -> void:
+	quest_id = id if id != "" else String(QuestManager.current_quest().get("id", ""))
 	refresh()
 	show()
 	_layout()
 	UIFocus.block(self)
-	var audio := get_node_or_null("/root/AudioManager")
-	if audio != null and audio.has_method("play_sound_at"):
-		audio.call("play_sound_at", "ui_quest", Vector3.ZERO, null, true)
 
 func close() -> void:
+	if visible and quest_id != "":
+		QuestManager.mark_seen(quest_id)   # read: it stops blinking
 	hide()
 	UIFocus.unblock(self)
 
@@ -133,21 +154,21 @@ func is_open() -> bool:
 func refresh() -> void:
 	if not has_node("/root/QuestManager"):
 		return
-	if QuestManager.is_all_done():
-		_title.text = "Graduate of Hogwarts"
-		_story.text = "Every task the professors set you is done. Explore the valley, hunt the Dark Monoliths and refine your wand."
+	var q := HPRules.quest_by_id(quest_id)
+	_claim_btn.visible = not q.is_empty() and QuestManager.is_ready(quest_id)
+	if q.is_empty():
+		_title.text = "No Open Quests"
+		_story.text = "Every task open to you is done. Level up to unlock more, hunt the Dark Monoliths and refine your gear."
 		_objective.text = "—"
 		_reward.text = "—"
 		return
-	var q: Dictionary = QuestManager.current_quest()
 	_title.text = String(q.get("title", "Quest"))
-	_story.text = String(q.get("desc", ""))
-	var n := mini(int(QuestManager.progress), int(q.get("count", 1)))
-	_objective.text = "%s   (%d / %d)" % [q.get("name", ""), n, int(q.get("count", 1))]
-	if QuestManager.level_needed() > 0:
-		_objective.text = "Reach level %d to begin:  %s" % [QuestManager.level_needed(), q.get("name", "")]
 	if String(q.get("chapter", "")) != "":
 		_title.text = "%s  ·  %s" % [String(q.get("chapter", "")), _title.text]
+	_story.text = String(q.get("desc", ""))
+	if String(q.get("giver", "")) != "":
+		_story.text += "\n\n- %s" % String(q.get("giver", ""))
+	_objective.text = QuestManager.objective_text(q)
 	_reward.text = "%d experience  ·  %d Galleons" % [int(q.get("reward_exp", 0)), int(q.get("reward_gold", 0))]
 	var items := QuestManager.reward_items_text(q)
 	if items != "":

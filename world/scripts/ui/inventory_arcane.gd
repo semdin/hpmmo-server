@@ -494,6 +494,11 @@ func _on_visibility_changed() -> void:
 
 func _process(_delta: float) -> void:
 	if visible and _tooltip.visible: _tooltip.follow_cursor()
+	# Galleons arrive with the stats payload (auto-collected coin, quest pay),
+	# not as a bag change, so the footer follows the live number.
+	if visible and is_instance_valid(player) and galleons_label != null:
+		var text := galleon_text(int(player.galleons))
+		if galleons_label.text != text: galleons_label.text = text
 
 ## Size the cells to the screen (8 rows must fit), then dock the window on the
 ## right edge, vertically centred; the merchant sits to its left.

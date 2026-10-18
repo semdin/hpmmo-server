@@ -131,16 +131,17 @@ func _refresh() -> void:
 		var row: Dictionary = _rows[spell_id]
 		var lv := HPRules.skill_level_of(levels, spell_id)
 		var master := HPRules.skill_is_master(lv)
-		(row.icon as HudSlot).badge_text = HPRules.skill_level_label(lv)
+		(row.icon as HudSlot).badge_text = HPRules.skill_level_label(lv) if lv > 0 else ""
+		(row.icon as HudSlot).modulate = Color(1, 1, 1, 1.0 if lv > 0 else 0.45)
 		var level_label := row.level as Label
-		level_label.text = "MASTER" if master else "Lv. %d" % lv
-		level_label.add_theme_color_override("font_color", HudKit.GOLD_HI if master else HudKit.GOLD_LT)
+		level_label.text = "MASTER" if master else ("Lv. %d" % lv if lv > 0 else "Not learned")
+		level_label.add_theme_color_override("font_color", HudKit.GOLD_HI if master else (HudKit.GOLD_LT if lv > 0 else HudKit.TEXT_DIM))
 		(row.pips as SkillPips).set_level(lv, HPRules.skill_max_level())
 		(row.effect as Label).text = _effect_text(spell_id, lv)
 		var b := row.button as Button
 		b.disabled = master or lv >= HPRules.skill_max_level() or points <= 0
 		b.modulate.a = 0.3 if b.disabled else 1.0
-		b.tooltip_text = "Mastered" if master else ("Spend 1 point: Lv. %d -> %s" % [lv, HPRules.skill_level_label(lv + 1)] if points > 0 else "Gain a level to earn a skill point")
+		b.tooltip_text = "Mastered" if master else (("Spend 1 point: learn this spell" if lv <= 0 else "Spend 1 point: Lv. %d -> %s" % [lv, HPRules.skill_level_label(lv + 1)]) if points > 0 else "Gain a level to earn a skill point")
 
 ## Current numbers, and what the next point changes.
 func _effect_text(spell_id: String, lv: int) -> String:

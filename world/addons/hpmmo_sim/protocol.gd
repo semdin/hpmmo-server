@@ -62,7 +62,15 @@ class_name HPProtocol
 ## v16: loot drops as one chest per kill. `sim_loot_event` carries the chest's
 ##     slot list (re-sent when a partial take changes it), and
 ##     `sim_pickup_request(uid, slot)` takes one slot (-1 = all that fits).
-const PROTOCOL_VERSION := 16
+## v17: quest log, learned skills and status points. Several quests are open
+##     at once; the stats payload carries `quests` ({progress: {id: n}, ready:
+##     [ids], done: [ids]}) instead of `quest_active` / `quest_progress`, and a
+##     finished quest pays only when `sim_quest_claim(quest_id)` claims it. A
+##     skill at level 0 is not learned (casts are refused `skill_locked`); the
+##     payload's `skill_points` count the starter pick. `sim_attribute_request
+##     (stat)` spends a status point; the payload carries `attributes` and
+##     `attribute_points`.
+const PROTOCOL_VERSION := 17
 
 ## Per-hit presentation bits carried by `sim_damage_event` / `entity_hit`.
 const HIT_CRIT := 1
@@ -140,6 +148,13 @@ const REJECT_ITEM_GONE := "item_gone"
 const REJECT_NO_SKILL_POINTS := "no_skill_points"
 const REJECT_SKILL_MAX := "skill_max"
 const REJECT_SKILL_UNKNOWN := "skill_unknown"
+## v17: the spell is a skill this character has not learned yet.
+const REJECT_SKILL_LOCKED := "skill_locked"
+## v17: status points and the quest log.
+const REJECT_NO_ATTRIBUTE_POINTS := "no_attribute_points"
+const REJECT_ATTRIBUTE_MAX := "attribute_max"
+const REJECT_ATTRIBUTE_UNKNOWN := "attribute_unknown"
+const REJECT_QUEST_NOT_READY := "quest_not_ready"
 ## Map transfer.
 const REJECT_TRANSFER_PENDING := "transfer_pending"
 const REJECT_NO_PORTAL := "no_portal"

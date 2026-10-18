@@ -860,6 +860,36 @@
     "cooldown_per_level": 0.02,
     "effect_per_level": 0.04
   },
+  "attributes": {
+    "_comment": "Metin2 status points (C window). points_per_level points per level gained ((level - 1) x points_per_level, derived, never stored), spent one at a time, up to `max` in one stat. Each point adds the listed amounts to the character's derived stats (HPEquipment.stats): max_hp / max_mana flat, attack_value / magic_attack to both ends of the wand range, attack_speed / crit_chance / spell_power in percent.",
+    "points_per_level": 2,
+    "max": 90,
+    "stats": {
+      "vit": {
+        "label": "Vitality",
+        "desc": "+12 Max Health per point",
+        "max_hp": 12
+      },
+      "int": {
+        "label": "Intellect",
+        "desc": "+8 Max Mana and +1 Magic Attack Value per point",
+        "max_mana": 8,
+        "magic_attack": 1
+      },
+      "str": {
+        "label": "Strength",
+        "desc": "+1 Attack Value and +3 Max Health per point",
+        "attack_value": 1,
+        "max_hp": 3
+      },
+      "dex": {
+        "label": "Agility",
+        "desc": "+0.4% Attack Speed and +0.1% Critical Chance per point",
+        "attack_speed": 0.4,
+        "crit_chance": 0.1
+      }
+    }
+  },
   "limits": {
     "max_level": 100,
     "max_exp": 2000000000,

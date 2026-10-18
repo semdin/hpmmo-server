@@ -68,9 +68,9 @@ func _ready() -> void:
 	var attrs := _grid(_content, 2)
 	for pair in ATTRIBUTES:
 		_attribute(attrs, String(pair[0]), String(pair[1]))
-	var points := HudKit.label("Attribute points: 0  ·  two per level (coming soon)", 12, HudKit.TEXT_DIM, HudKit.body(), 0)
-	points.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_content.add_child(points)
+	_attr_points = HudKit.label("", 13, HudKit.TEXT_DIM, HudKit.body(), 0)
+	_attr_points.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_content.add_child(_attr_points)
 	_section("PROPERTIES")
 	var props := _grid(_content, 2)
 	_prop(props, "attack_speed", "Attack speed")
@@ -155,11 +155,17 @@ func _attribute(grid: GridContainer, key: String, caption: String) -> void:
 	_values[key] = value
 	var plus := Button.new()
 	plus.text = "+"
-	plus.disabled = true
 	plus.focus_mode = Control.FOCUS_NONE
 	plus.custom_minimum_size = Vector2(26, 24)
-	plus.tooltip_text = "Attribute points arrive in a later update"
+	plus.tooltip_text = String((HPRules.attribute_rules().get("stats", {}) as Dictionary).get(key, {}).get("desc", ""))
+	plus.pressed.connect(func():
+		if is_instance_valid(player):
+			SimNet.submit_attribute(player, key))
 	row.add_child(plus)
+	_plus[key] = plus
+
+var _attr_points: Label
+var _plus: Dictionary = {}
 
 func open() -> void:
 	super.open()
@@ -215,7 +221,9 @@ func _refresh() -> void:
 		"exp_bonus": "+%d%%" % int(stats.get("exp_bonus", 0.0)),
 		"gold_bonus": "+%d%%" % int(stats.get("galleon_bonus", 0.0)),
 		"galleons": preload("res://scripts/ui/inventory_arcane.gd").galleon_text(int(player.galleons)),
-		"vit": "0", "int": "0", "str": "0", "dex": "0",
+		"vit": str(int(player.attributes.get("vit", 0))), "int": str(int(player.attributes.get("int", 0))),
+		"str": str(int(player.attributes.get("str", 0))), "dex": str(int(player.attributes.get("dex", 0))),
+		"attr_points": str(int(player.attribute_points)),
 	}
 	var key := str(text)
 	if key == _shown:
@@ -224,6 +232,14 @@ func _refresh() -> void:
 	for k in text:
 		if _values.has(k):
 			(_values[k] as Label).text = String(text[k])
+	var free := int(player.attribute_points)
+	if _attr_points != null:
+		_attr_points.text = "Status points: %d  ·  %d per level" % [free, int(HPRules.attribute_rules().get("points_per_level", 2))]
+		_attr_points.add_theme_color_override("font_color", HudKit.GOLD_HI if free > 0 else HudKit.TEXT_DIM)
+	for id in _plus:
+		var plus := _plus[id] as Button
+		plus.disabled = free <= 0 or int(player.attributes.get(id, 0)) >= int(HPRules.attribute_rules().get("max", 90))
+		plus.modulate.a = 0.35 if plus.disabled else 1.0
 	_name.text = String(player.player_name)
 	var rank := HPRules.house_rank_for(int(player.get("house_rep") if player.get("house_rep") != null else 0))
 	_sub.text = "%s  ·  %s" % [String(player.house), HPRules.house_rank_title(rank)]

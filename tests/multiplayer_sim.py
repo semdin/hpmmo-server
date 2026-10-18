@@ -414,7 +414,7 @@ def test_quests(out_dir, profile="local"):
         if not server.wait_for("listening on :%d" % port, timeout=90):
             check(False, "[%s] world server failed to start for the quest test" % profile)
             return
-        records = run_probe("scholar", "quest", port, out_dir, seconds=14, profile=profile)
+        records = run_probe("scholar", "quest", port, out_dir, seconds=18, profile=profile)
         server_log_ok = server.wait_for("completed quest 'q001'", timeout=5)
     finally:
         server.stop()
@@ -425,6 +425,7 @@ def test_quests(out_dir, profile="local"):
     start = final.get("start", {})
     far = (by_event(records, "after_far_talk") or [{}])[0]
     near = (by_event(records, "after_near_talk") or [{}])[0]
+    claimed = (by_event(records, "after_claim") or [{}])[0]
     check(start.get("quest_active") == 0 and start.get("house_rep") == 0,
           "[%s] a fresh character starts at the first quest (active %s, rep %s)"
           % (profile, start.get("quest_active"), start.get("house_rep")))
@@ -432,16 +433,19 @@ def test_quests(out_dir, profile="local"):
           "[%s] the client stands beside Professor Fig (%.1f m)" % (profile, float(final.get("distance_to_fig", -1))))
     check(far.get("quest_active") == 0 and any("out_of_range" in n for n in final.get("notices", [])),
           "[%s] asking Hagrid from across the map is refused and counts nothing" % profile)
-    check(near.get("quest_active") == 1 and server_log_ok,
-          "[%s] the world server completed the talk quest (active %s)" % (profile, near.get("quest_active")))
-    check(int(near.get("house_rep", 0)) == rep and int(near.get("galleons", 0)) == int(start.get("galleons", 0)) + gold,
+    check(first["id"] in near.get("quest_ready", []) and int(near.get("house_rep", 0)) == 0,
+          "[%s] talking finished the quest; it waits to be claimed (ready %s, rep %s)"
+          % (profile, near.get("quest_ready"), near.get("house_rep")))
+    check(claimed.get("quest_active") == 1 and server_log_ok,
+          "[%s] the claim completed the talk quest (claimed %s)" % (profile, claimed.get("quest_active")))
+    check(int(claimed.get("house_rep", 0)) == rep and int(claimed.get("galleons", 0)) == int(start.get("galleons", 0)) + gold,
           "[%s] the reward reached the client (rep %s, galleons %s -> %s)"
-          % (profile, near.get("house_rep"), start.get("galleons"), near.get("galleons")))
+          % (profile, claimed.get("house_rep"), start.get("galleons"), claimed.get("galleons")))
     quest_ops = [r["op_id"] for r in final.get("rewards", []) if str(r.get("op_id", "")).startswith("quest:")]
     check(len(quest_ops) == 1 and quest_ops[0].startswith("quest:q001:"),
           "[%s] exactly one quest reward was delivered (%s)" % (profile, quest_ops))
     check(final.get("quest_active") == 1 and int(final.get("house_rep", 0)) == rep
-          and int(final.get("galleons", 0)) == int(near.get("galleons", -1)),
+          and int(final.get("galleons", 0)) == int(claimed.get("galleons", -1)),
           "[%s] repeating the conversation paid nothing more" % profile)
     check(final.get("view_index") == 1 and final.get("completed") == [first["id"]],
           "[%s] the client's quest view mirrors the server (view %s, completed %s)"

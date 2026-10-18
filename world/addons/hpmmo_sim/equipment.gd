@@ -391,7 +391,7 @@ static func bonus_totals(equipment: Dictionary) -> Dictionary:
 ## max_mana, armor, defense (legacy %), weapon_multiplier (1 + spell power),
 ## wand_tier, attack_value / magic_attack (the wand's +0 ranges; damage applies
 ## the +N multiplier), attack_speed, cast_speed, move_speed, mount_speed.
-static func stats(base_hp: int, base_mana: int, equipment: Dictionary) -> Dictionary:
+static func stats(base_hp: int, base_mana: int, equipment: Dictionary, attributes: Dictionary = {}) -> Dictionary:
 	var result := {}
 	for key in (enchant_rules().get("stats", {}) as Dictionary):
 		result[key] = 0.0
@@ -422,6 +422,23 @@ static func stats(base_hp: int, base_mana: int, equipment: Dictionary) -> Dictio
 			"max_mana": result.max_mana += int(bonus[stat])
 			"mount_speed": result.mount_speed *= 1.0 + float(bonus[stat]) / 100.0   # legacy broom efsun
 			_: result[stat] = float(result.get(stat, 0.0)) + float(bonus[stat])
+	# Status points (combat.json attributes): flat health/mana, both ends of the
+	# wand ranges, percent speed / crit / spell power.
+	var attribute_specs: Dictionary = HPRules.attribute_rules().get("stats", {})
+	for id in attributes:
+		var spec: Dictionary = attribute_specs.get(id, {})
+		var points := int(attributes[id])
+		for key in spec:
+			if key in ["label", "desc"]:
+				continue
+			var add := float(spec[key]) * points
+			match String(key):
+				"max_hp": result.max_hp += int(round(add))
+				"max_mana": result.max_mana += int(round(add))
+				"attack_value", "magic_attack":
+					var span: Array = result[key]
+					result[key] = [int(span[0]) + int(round(add)), int(span[1]) + int(round(add))]
+				_: result[key] = float(result.get(key, 0.0)) + add
 	result.weapon_multiplier = 1.0 + float(result.spell_power) / 100.0
 	var rules := HPRules.item_rules()
 	result.move_speed = clampf(float(result.move_speed), float(rules.get("move_speed_min", -20)), float(rules.get("move_speed_max", 40)))

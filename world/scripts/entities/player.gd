@@ -77,15 +77,23 @@ var galleons: int = 500
 ## Reputation with this character's house (quest rewards only); HPRules turns it
 ## into the 1..7 house rank that gates content.
 var house_rep: int = 0
-## Position in the quest chain (HPRules.quest_chain). Written by the authority
-## only; a client body mirrors it from the stats payload.
-var quest_active: int = 0
-var quest_progress: int = 0
+## The quest log (HPRules.quests_open): progress per open quest {id: count},
+## finished quests waiting to be claimed and claimed ones. Written by the
+## authority only; a client body mirrors it from the stats payload (`quests`).
+var quest_progress: Dictionary = {}
+var quest_ready: Array = []
 var quest_done: Array = []
 ## Trained spell levels {spell_id: level} (Metin2 skill training; a missing
-## spell is level 1, 10 is Master). Written by the authority, saved inside the
-## `quests` object as `skills`; unspent points are derived, never stored.
+## spell is level 0 = not learned, 10 is Master). Written by the authority,
+## saved inside the `quests` object as `skills`; unspent points are derived.
 var skill_levels: Dictionary = {}
+## Extra skill points for characters from before skills had to be learned (they
+## keep every spell and every point they had). Saved as `skill_bonus`.
+var skill_bonus: int = 0
+## Status points spent {vit|int|str|dex: points} (C window, combat.json
+## attributes). Written by the authority, saved as `attributes`.
+var attributes: Dictionary = {}
+var attribute_points: int = 0
 ## Titles earned (dungeons.json first_clear_title ids, `quests.titles`); the
 ## newest is shown above the name.
 var titles: Array = []
@@ -1196,6 +1204,8 @@ func toggle_broom_mount() -> void:
 func mount_block_reason() -> String:
 	if is_dead:
 		return "You are defeated!"
+	if not equipment.has("broom"):
+		return "You have no mount - equip a broom first."
 	if _hit_recovery > 0.0:
 		return "You are stunned!"
 	if _combat_until > 0.0:
@@ -1452,48 +1462,62 @@ func restore_character(data: Dictionary) -> void:
 	emit_stats()
 
 ## The saved `quests` object (character sheet or offline save) -> house
-## standing and the quest chain position.
+## standing, the quest log, learned skills and status points.
 func restore_quest_state(quests: Variant) -> void:
 	_quest_state = (quests as Dictionary).duplicate(true) if quests is Dictionary else {}
 	house_rep = HPRules.clamp_house_rep(int(_quest_state.get("house_rep", 0)))
 	_shown_house_rep = house_rep
-	quest_active = clampi(int(_quest_state.get("active", 0)), 0, HPRules.quest_chain().size())
-	quest_progress = maxi(0, int(_quest_state.get("progress", 0)))
-	# The chain position is the first quest not done yet, so a chain that was
-	# rewritten (new ids, inserted quests) never skips or repeats one. Progress
-	# only carries over while the position did not move.
-	var finished: Array = _quest_state.get("done", []) if _quest_state.get("done") is Array else []
-	var chain := HPRules.quest_chain()
-	var first_open := chain.size()
-	for i in chain.size():
-		if not finished.has(String(chain[i].get("id", ""))):
-			first_open = i
-			break
-	if first_open != quest_active:
-		quest_active = first_open
-		quest_progress = 0
-	skill_levels = HPRules.clean_skill_levels(_quest_state.get("skills", {}))
-	titles = (_quest_state.get("titles", []) as Array).duplicate() if _quest_state.get("titles") is Array else []
-	skill_points = HPRules.skill_points_available(level, skill_levels)
 	quest_done = []
 	if _quest_state.get("done") is Array:
 		for id in _quest_state["done"]:
 			if id is String:
 				quest_done.append(id)
+	quest_ready = []
+	if _quest_state.get("ready") is Array:
+		for id in _quest_state["ready"]:
+			if id is String and not HPRules.quest_by_id(id).is_empty() and not quest_done.has(id):
+				quest_ready.append(id)
+	# Saves from the linear chain kept one integer here; the log keeps a count
+	# per open quest.
+	quest_progress = {}
+	if _quest_state.get("progress") is Dictionary:
+		for id in _quest_state["progress"]:
+			if not HPRules.quest_by_id(String(id)).is_empty():
+				quest_progress[String(id)] = maxi(0, int(_quest_state["progress"][id]))
+	skill_levels = HPRules.clean_skill_levels(_quest_state.get("skills", {}))
+	skill_bonus = maxi(0, int(_quest_state.get("skill_bonus", 0)))
+	if not bool(_quest_state.get("skills_v2", false)):
+		# Before skills had to be learned every spell was level 1 for free. A
+		# character that has played keeps all six and every point it had
+		# (bonus = six free levels minus the one its first level pays); a brand
+		# new one (level 1, nothing done) picks its first spell.
+		if level > 1 or not quest_done.is_empty() or not skill_levels.is_empty():
+			for spell_id in HPRules.upgradeable_skills():
+				skill_levels[spell_id] = maxi(1, int(skill_levels.get(spell_id, 1)))
+			skill_bonus = HPRules.upgradeable_skills().size() - 1
+		_quest_state["skills_v2"] = true
+	attributes = HPRules.clean_attributes(_quest_state.get("attributes", {}))
+	titles = (_quest_state.get("titles", []) as Array).duplicate() if _quest_state.get("titles") is Array else []
+	skill_points = HPRules.skill_points_available(level, skill_levels, skill_bonus)
+	attribute_points = HPRules.attribute_points_available(level, attributes)
 
-## True once the saved object carries a chain position (used to import the
+## True once the saved object carries quest state (used to import the
 ## pre-authority local quest file exactly once).
 func has_quest_progress() -> bool:
-	return _quest_state.has("active")
+	return _quest_state.has("active") or _quest_state.has("done")
 
 ## What the save writes into the character's `quests` column.
 func persisted_quests() -> Dictionary:
 	var out := _quest_state.duplicate(true)
+	out.erase("active")
 	out["house_rep"] = house_rep
-	out["active"] = quest_active
-	out["progress"] = quest_progress
+	out["progress"] = quest_progress.duplicate()
+	out["ready"] = quest_ready.duplicate()
 	out["done"] = quest_done.duplicate()
 	out["skills"] = skill_levels.duplicate()
+	out["skill_bonus"] = skill_bonus
+	out["skills_v2"] = true
+	out["attributes"] = attributes.duplicate()
 	out["titles"] = titles.duplicate()
 	return out
 
@@ -1613,6 +1637,11 @@ func cast_spell(spell_id: String) -> void:
 		if _mount_notice_cd <= 0.0:
 			_mount_notice_cd = 0.8
 			show_notice("%s unlocks at level %d" % [String(s_data.get("name", spell_id)), int(s_data.get("requires_level", 1))])
+		return
+	if skill_level(spell_id) <= 0:
+		if _mount_notice_cd <= 0.0:
+			_mount_notice_cd = 0.8
+			show_notice("Learn %s first - press V and spend a skill point" % String(s_data.get("name", spell_id)))
 		return
 	var remaining := maxf(_cast_lock, float(spell_cooldowns.get(spell_id, 0.0)))
 	if remaining > 0:
@@ -2075,8 +2104,17 @@ func apply_authoritative_stats(stats: Dictionary) -> void:
 	level = int(stats.get("level", level))
 	galleons = int(stats.get("galleons", galleons))
 	house_rep = int(stats.get("house_rep", house_rep))
-	quest_active = int(stats.get("quest_active", quest_active))
-	quest_progress = int(stats.get("quest_progress", quest_progress))
+	if stats.get("quests") is Dictionary:
+		var log: Dictionary = stats["quests"]
+		quest_progress = (log.get("progress", {}) as Dictionary).duplicate() if log.get("progress") is Dictionary else {}
+		quest_ready = (log.get("ready", []) as Array).duplicate() if log.get("ready") is Array else []
+		quest_done = (log.get("done", []) as Array).duplicate() if log.get("done") is Array else quest_done
+	if stats.get("attributes") is Dictionary:
+		var fresh_attributes := HPRules.clean_attributes(stats["attributes"])
+		if fresh_attributes != attributes:
+			attributes = fresh_attributes
+			_recalculate_equipment()
+	attribute_points = int(stats.get("attribute_points", attribute_points))
 	if stats.get("titles") is Array and stats["titles"] != titles:
 		var fresh: Array = (stats["titles"] as Array).filter(func(t): return not titles.has(t))
 		titles = (stats["titles"] as Array).duplicate()
@@ -2095,7 +2133,7 @@ func apply_authoritative_stats(stats: Dictionary) -> void:
 					_spawn_floating_text(text, Color(0.55, 0.85, 1.0), 1.3)
 		skill_levels = trained
 		_skills_seen = true
-	skill_points = int(stats.get("skill_points", HPRules.skill_points_available(level, skill_levels)))
+	skill_points = int(stats.get("skill_points", HPRules.skill_points_available(level, skill_levels, skill_bonus)))
 	if _shown_house_rep >= 0 and house_rep > _shown_house_rep and is_local_player:
 		_spawn_floating_text("+%d %s Reputation" % [house_rep - _shown_house_rep, house], Color(1.0, 0.78, 0.35), 1.1)
 	_shown_house_rep = house_rep
@@ -2254,7 +2292,7 @@ func _initialize_equipment() -> void:
 	_recalculate_equipment()
 
 func _recalculate_equipment() -> void:
-	derived_stats = HPEquipment.stats(base_max_hp, base_max_mana, equipment)
+	derived_stats = HPEquipment.stats(base_max_hp, base_max_mana, equipment, attributes)
 	max_hp = int(derived_stats.max_hp)
 	max_mana = int(derived_stats.max_mana)
 	current_hp = mini(current_hp, max_hp)
