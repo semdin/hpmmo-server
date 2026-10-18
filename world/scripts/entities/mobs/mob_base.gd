@@ -130,6 +130,9 @@ var _corpse_time := 0.0
 var _corpse_lifetime := 2.0
 var _respawn_delay := 25.0
 var _weaken_timer := 0.0
+## Slow efsun proc (authority): move and attack speed x _slow_factor while it runs.
+var _slow_timer := 0.0
+var _slow_factor := 1.0
 var _scan_timer := 0.0
 var _stuck_timer := 0.0
 var _last_pos := Vector3.ZERO
@@ -465,8 +468,9 @@ func _physics_process(delta: float) -> void:
 		_cancel_attack()
 		target_player = null
 		_set_state(State.RETURN)
-	attack_timer = maxf(0, attack_timer - delta)
+	attack_timer = maxf(0, attack_timer - delta * _speed_scale())
 	_weaken_timer = maxf(0, _weaken_timer - delta)
+	_slow_timer = maxf(0, _slow_timer - delta)
 	_publish_state()
 	if state == State.STUNNED:
 		stun_timer -= delta
@@ -880,6 +884,7 @@ func _move_to(point: Vector3, speed: float, delta: float) -> void:
 	if push.length_squared() > 0.0001:
 		direction = (direction + push * float(HPRules.pack_tuning("separation_weight", 1.35))).normalized()
 	direction = _steer(direction)
+	speed *= _speed_scale()
 	velocity.x = direction.x * speed
 	velocity.z = direction.z * speed
 	_face_direction(direction, delta)
@@ -1204,6 +1209,16 @@ func on_authoritative_damage(type: String, attacker: Node3D, stun_ms: int, weake
 		_weaken_timer = float(weaken_ms) / 1000.0
 	_update_label()
 
+## Authority slow (slow efsun proc): `factor` of the move and attack speed for `ms`.
+func apply_slow(ms: int, factor: float) -> void:
+	if state == State.DEAD:
+		return
+	_slow_timer = maxf(_slow_timer, float(ms) / 1000.0)
+	_slow_factor = clampf(factor, 0.1, 1.0)
+
+func _speed_scale() -> float:
+	return _slow_factor if _slow_timer > 0.0 else 1.0
+
 ## Authority death notification: the engine already paid the rewards and dropped
 ## the loot, so this is the body's part only.
 func on_authoritative_death(killer: Node3D) -> void:
@@ -1268,6 +1283,7 @@ func _respawn() -> void:
 	is_enraged = false
 	target_player = null
 	stun_timer = 0
+	_slow_timer = 0.0
 	_weaken_timer = 0
 	knockback_velocity = Vector3.ZERO
 	velocity = Vector3.ZERO

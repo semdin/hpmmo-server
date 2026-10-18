@@ -131,7 +131,7 @@
     ]
   },
   "enchant": {
-    "_comment": "Enchantments (efsun), Metin2 style. Imbue adds one bonus with imbue_chance[current count] percent (a failure still uses the scroll); reweave rerolls every bonus keeping the count. A bonus rolls a stat from the pool of the item's slot kind (slot_kinds; never a stat the item already has, never one of the item's own fixed stats) and a grade by grade_weights; value = values[grade]. `disabled` stats stay listed in the pools but are not rolled until their mechanic ships (wave 2: crowd control). `legacy` stats are no longer rolled but keep working on items that carry them. `flag` stats are on/off (any value > 0). Units: % is percent, /s points per second, plain numbers are flat. families maps a creature family (mobs.json) to its 'strong against' stat.",
+    "_comment": "Enchantments (efsun), Metin2 style. Imbue adds one bonus with imbue_chance[current count] percent (a failure still uses the scroll); reweave rerolls every bonus keeping the count. A bonus rolls a stat from the pool of the item's slot kind (slot_kinds; never a stat the item already has, never one of the item's own fixed stats) and a grade by grade_weights; value = values[grade]. `disabled` stats stay listed in the pools but are not rolled until their mechanic ships. `legacy` stats are no longer rolled but keep working on items that carry them. `flag` stats are on/off (any value > 0). Units: % is percent, /s points per second, plain numbers are flat. families maps a creature family (mobs.json) to its 'strong against' stat.",
     "max_bonuses": 5,
     "imbue_scroll": "scroll_imbue",
     "reweave_scroll": "scroll_reweave",
@@ -259,7 +259,9 @@
           5,
           8
         ],
-        "disabled": true
+        "_comment": "A player's hit on a creature: stun for stun_ms (scaled by the mob's stun resist, 1.0 = immune; bosses never). No new stun proc until grace_ms after it ends.",
+        "stun_ms": 1000,
+        "grace_ms": 2500
       },
       "slow_chance": {
         "label": "Chance to Slow",
@@ -271,7 +273,9 @@
           5,
           8
         ],
-        "disabled": true
+        "_comment": "A player's hit on a creature: move and attack speed x factor for slow_ms (half as long on bosses).",
+        "slow_ms": 3000,
+        "factor": 0.6
       },
       "burn_chance": {
         "label": "Chance to Ignite",
@@ -283,7 +287,8 @@
           5,
           8
         ],
-        "disabled": true
+        "_comment": "A player's hit on a creature: ignite for ticks x interval_ms; each tick deals max(damage, hit_share x the hit). Never weakens a stronger burn already running.",
+        "burn": {"damage": 12, "hit_share": 0.12, "ticks": 3, "interval_ms": 1000}
       },
       "max_hp": {
         "label": "Max Health",

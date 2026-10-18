@@ -501,6 +501,8 @@ func refresh_mob(node: Node3D) -> void:
 	record["burn_until_tick"] = 0
 	record["burn_next_tick"] = 0
 	record["stun_until_tick"] = 0
+	record["proc_stun_ready_tick"] = 0
+	record["slow_until_tick"] = 0
 	record["weak_until_tick"] = 0
 	# A respawned mob must not keep a stale boss telegraph (Creature pass:
 	# pooling/resets clear every trace of the previous life).
@@ -1941,7 +1943,9 @@ func _apply_damage(target: Dictionary, raw: int, spell_id: String, attacker: Dic
 	# it, so a stale value here would spawn the wrong number of waves.
 	_sync_node_health(target)
 	_apply_status_on_hit(target, spell_id, attacker)
-	_notify_damage(target, spell_id, attacker)
+	var procs := _roll_cc_procs(target, attacker, amount) 		if player_hits_mob and amount > 0 and spell_id != "burn" and int(target["hp"]) > 0 else {}
+	hit_flags |= int(procs.get("flags", 0))
+	_notify_damage(target, spell_id, attacker, procs)
 	emit_signal("entity_damaged", int(target["uid"]), amount, int(target["hp"]), spell_id, int(attacker.get("uid", 0)))
 	emit_signal("entity_hit", int(target["uid"]), amount, int(target["hp"]), spell_id, int(attacker.get("uid", 0)), hit_flags)
 	emit_signal("entity_health", int(target["uid"]), int(target["hp"]), int(target.get("max_hp", 0)), flags_for(target))
@@ -2030,11 +2034,13 @@ func _is_projectile_spell(spell_id: String) -> bool:
 
 ## Presentation-only notification. The numbers were applied above; the node is
 ## told what happened rather than asked to apply anything (no re-entry).
-func _notify_damage(target: Dictionary, spell_id: String, attacker: Dictionary) -> void:
+func _notify_damage(target: Dictionary, spell_id: String, attacker: Dictionary, procs: Dictionary = {}) -> void:
 	var node = target.get("node")
 	if node == null or not is_instance_valid(node) or not node.has_method("on_authoritative_damage"):
 		return
-	var stun := HPRules.stun_ms(spell_id, target.get("is_boss") == true)
+	if int(procs.get("slow_ms", 0)) > 0 and node.has_method("apply_slow"):
+		node.call("apply_slow", int(procs.slow_ms), float(procs.get("slow_factor", 1.0)))
+	var stun := maxi(HPRules.stun_ms(spell_id, target.get("is_boss") == true), int(procs.get("stun_ms", 0)))
 	var weaken := HPRules.weaken_ms(spell_id)
 	node.call("on_authoritative_damage", spell_id,
 		attacker.get("node") if not attacker.is_empty() else null, stun, weaken)
@@ -2068,10 +2074,55 @@ func _apply_status_on_hit(target: Dictionary, spell_id: String, attacker: Dictio
 	if weaken > 0:
 		target["weak_until_tick"] = sim_tick + int(ceil(float(weaken) * effect / TICK_MS))
 
+## Crowd-control efsuns on a player's hit against a creature (stun, slow and
+## ignite chance), each rolled on its own; enchant.stats.<stat> carries the
+## effect. Bosses shrug off the stun, a mob's stun resist scales it (1.0 =
+## immune), and no new stun procs until a grace window after the last one, so
+## procs never chain-lock a mob. Returns the HIT_* bits and what the body
+## has to play (stun_ms, slow_ms, slow_factor).
+func _roll_cc_procs(target: Dictionary, attacker: Dictionary, amount: int) -> Dictionary:
+	var specs: Dictionary = HPEquipment.enchant_rules().get("stats", {})
+	var result := {"flags": 0, "stun_ms": 0, "slow_ms": 0}
+	var is_boss := bool(target.get("is_boss", false))
+	var chance := float(attacker.get("stun_chance", 0.0))
+	if chance > 0.0 and not is_boss and sim_tick >= int(target.get("proc_stun_ready_tick", 0)) and rng.randf() * 100.0 < chance:
+		var spec: Dictionary = specs.get("stun_chance", {})
+		var resist := float((target.get("resist", {}) as Dictionary).get("stun", 0.0))
+		var ms := int(round(float(spec.get("stun_ms", 1000)) * clampf(1.0 - resist, 0.0, 2.0)))
+		if ms > 0:
+			var until := sim_tick + int(ceil(float(ms) / TICK_MS))
+			target["stun_until_tick"] = maxi(int(target.get("stun_until_tick", 0)), until)
+			target["proc_stun_ready_tick"] = until + int(ceil(float(spec.get("grace_ms", 2500)) / TICK_MS))
+			interrupt_mob(target)
+			result.stun_ms = ms
+			result.flags |= HPProtocol.HIT_STUN
+	chance = float(attacker.get("slow_chance", 0.0))
+	if chance > 0.0 and rng.randf() * 100.0 < chance:
+		var spec: Dictionary = specs.get("slow_chance", {})
+		var ms := int(float(spec.get("slow_ms", 3000)) * (0.5 if is_boss else 1.0))
+		if ms > 0:
+			target["slow_until_tick"] = sim_tick + int(ceil(float(ms) / TICK_MS))
+			result.slow_ms = ms
+			result.slow_factor = float(spec.get("factor", 0.6))
+			result.flags |= HPProtocol.HIT_SLOW
+	chance = float(attacker.get("burn_chance", 0.0))
+	if chance > 0.0 and rng.randf() * 100.0 < chance:
+		var burn: Dictionary = ((specs.get("burn_chance", {}) as Dictionary).get("burn", {}) as Dictionary).duplicate()
+		burn["damage"] = maxi(int(burn.get("damage", 1)), int(round(amount * float(burn.get("hit_share", 0.0)))))
+		if int(target.get("burn_until_tick", 0)) <= sim_tick or int(burn.damage) >= int(target.get("burn_damage", 0)):
+			_start_burn(target, burn, attacker)
+			result.flags |= HPProtocol.HIT_BURN
+	return result
+
 func _apply_burn(target: Dictionary, spell_id: String, attacker: Dictionary) -> void:
 	var burn: Dictionary = HPRules.burn_spec(spell_id)
 	if burn.is_empty():
 		return
+	_start_burn(target, burn, attacker)
+
+## A burn of `burn` ({damage, ticks, interval_ms}) on `target`, replacing any
+## burn already running.
+func _start_burn(target: Dictionary, burn: Dictionary, attacker: Dictionary) -> void:
 	var interval := int(burn.get("interval_ms", 1000))
 	target["burn_until_tick"] = sim_tick + int(burn.get("ticks", 0)) * int(ceil(float(interval) / TICK_MS))
 	_ticking[int(target.get("uid", 0))] = true

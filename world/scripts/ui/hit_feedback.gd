@@ -32,6 +32,8 @@ const COLOR_CRIT_EDGE := Color(0.75, 0.08, 0.02)
 const COLOR_FINISHER := Color(1.0, 0.6, 0.16)
 const COLOR_TAKEN := Color(1.0, 0.27, 0.22)
 const COLOR_OTHER := Color(0.78, 0.78, 0.78)
+const COLOR_PROC := Color(0.62, 0.86, 1.0)
+const COLOR_BURN := Color(1.0, 0.55, 0.2)
 
 static var _instance: HitFeedback = null
 
@@ -103,6 +105,7 @@ func _on_entity_hit(uid: int, amount: int, _hp: int, _spell_id: String, attacker
 			_spawn_number(anchor, str(amount), COLOR_FINISHER, 44.0, true)
 		else:
 			_spawn_number(anchor, str(amount), COLOR_OUT, 36.0, false)
+		_show_procs(anchor, flags)
 		_flash(victim as Node3D, 1.0 if (crit or finisher) else 0.7)
 		_squash(victim as Node3D, 1.6 if (crit or finisher) else 1.0)
 		if crit or finisher:
@@ -113,6 +116,14 @@ func _on_entity_hit(uid: int, amount: int, _hp: int, _spell_id: String, attacker
 				audio.call("play_sound_at", "ui_hit", (victim as Node3D).global_position, null, true)
 		return
 	_spawn_number(anchor, ("%d!" % amount) if crit else str(amount), COLOR_OTHER, 20.0, false)
+
+## Crowd-control efsun procs the server rolled with the local player's hit.
+func _show_procs(anchor: Vector3, flags: int) -> void:
+	var lift := 0.5
+	for proc in [[HPProtocol.HIT_STUN, "Stunned", COLOR_PROC], [HPProtocol.HIT_SLOW, "Slowed", COLOR_PROC], [HPProtocol.HIT_BURN, "Ignited", COLOR_BURN]]:
+		if flags & int(proc[0]) != 0:
+			_spawn_number(anchor + Vector3.UP * lift, String(proc[1]), proc[2], 26.0, true)
+			lift += 0.4
 
 func _local_uid() -> int:
 	if local_player != null and is_instance_valid(local_player):

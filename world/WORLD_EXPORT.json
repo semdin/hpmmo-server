@@ -1,7 +1,7 @@
 {
  "generated": "2026-10-18",
  "source_repository": "hpmmo-client",
- "source_revision": "cd2b5f737c4219e1c6422c6d3f8dc4e8fab5f354",
+ "source_revision": "c3261c98c86d54eeaf1aae1425a764eaf5c18617",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/audio/sound_library.json": "1beddb2e83b72a255999f1cf1d2833b1dd6576553827f05ecadf5bbb07ca868e",
@@ -475,7 +475,7 @@
   "scripts/entities/loot/loot_drop.gd": "3312c029769be85e841c036461072d54b5807e3a9effe5be30bb583a7c9238be",
   "scripts/entities/mobs/boss_part.gd": "26111236bbe9dfdcaca2646a07b579531596337458688a8a777c40968479eaf6",
   "scripts/entities/mobs/fluffy_boss.gd": "b1174d1a68077ba5a00b3718e2be4cac72cf11707964a834d96e50b85670903c",
-  "scripts/entities/mobs/mob_base.gd": "5bd02bb02fc6fc72569c960d88a16d3c7361d4369a68e6d5c8185930fa787de1",
+  "scripts/entities/mobs/mob_base.gd": "d771083f8027f3b35d639c9e1a883fb209d098c6540ae482babcf0d6119cfbe4",
   "scripts/entities/mobs/multipart_boss.gd": "91edf8ebbf46c0ad66b651e6ca06841c65f811101a2adf0773c8b947deb7c11b",
   "scripts/entities/mobs/part_droop.gd": "17f6a86a00f75a8e945ac4777de86460a383726dd9e58386e333139e83f02410",
   "scripts/entities/mobs/snare_boss.gd": "d7de2fcb78bc3a874d81c66ffc7bd745b83f917639ccbc5a3302ffd06d6a777a",
@@ -506,7 +506,7 @@
   "scripts/ui/floating_text.gd": "d0440ee360ddb0b976f9bedcad428e5c71c11166fcf7ce46839d4c5ac685f115",
   "scripts/ui/game_settings.gd": "398f975ed3f0d19501a63c6c7cea80d25c64d1a0e8a312ffcf1a990a7890ff34",
   "scripts/ui/gauge_flow.gd": "ffabd171576439d7a068a3a7bec69fb34336ebaa15b4c9d59008f2cb9e4b096f",
-  "scripts/ui/hit_feedback.gd": "f280a8d3fa3de9db565bca5c95fb5422911f10f0c0a80fb122ded74094cc0237",
+  "scripts/ui/hit_feedback.gd": "9087f53f586e713bec2c0612162d891644c495fe97c2fcfa5805452df2c086c9",
   "scripts/ui/hud.gd": "d25c0191cbd402d350a22f5180a06513c7919e50ad7d03722a59a4d6469c8fd5",
   "scripts/ui/hud_action_bar.gd": "9c1ce89ee4f904d7c1e67a4daf9d308aca6d5d5baff87bc035429b0b88bc1f6c",
   "scripts/ui/hud_bestiary.gd": "db3ee268dd9e61f1d6bd9efd18957561fed3aedc5049056cf486fe6917eccd9d",

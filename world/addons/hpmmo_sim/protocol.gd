@@ -68,6 +68,10 @@ const PROTOCOL_VERSION := 16
 const HIT_CRIT := 1
 const HIT_FINISHER := 2
 const HIT_PIERCE := 4
+## Crowd-control efsun procs that landed with the hit (stun, slow, ignite).
+const HIT_STUN := 8
+const HIT_SLOW := 16
+const HIT_BURN := 32
 
 ## Simulation / replication rates.
 const SIM_HZ := 20
