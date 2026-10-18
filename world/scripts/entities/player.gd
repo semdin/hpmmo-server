@@ -1411,9 +1411,7 @@ func _update_flight_pose(delta: float) -> void:
 func restore_character(data: Dictionary) -> void:
 	_character_restored = true
 	level = clampi(int(data.get("level", 1)), 1, 100)
-	max_exp = 200
-	for _i in range(level - 1):
-		max_exp = mini(2000000000, int(max_exp * 1.5))
+	max_exp = HPRules.exp_threshold(level)
 	current_exp = clampi(int(data.get("exp", 0)), 0, max_exp - 1)
 	max_hp = maxi(1, int(data.get("max_hp", max_hp)))
 	max_mana = maxi(1, int(data.get("max_mana", max_mana)))

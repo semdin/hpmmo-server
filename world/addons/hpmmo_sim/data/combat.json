@@ -830,6 +830,11 @@
     "level": 1,
     "exp_base": 200,
     "exp_growth": 1.5,
+    "exp_curve": {
+      "_comment": "Experience needed for the next level = the experience one ordinary creature of that level gives (spawn_tables pack_tuning: exp_base + exp_per_level x L + exp_per_level_sq x L^2) x the kills a level should take without quests (kills_base + kills_per_level x (L - 1)), rounded to 10 and capped at limits.max_exp. Quests pay a share of this threshold (server/tools/gen_quests.py). exp_base / exp_growth above are the old exponential curve, used only when this block is missing.",
+      "kills_base": 10,
+      "kills_per_level": 10
+    },
     "level_hp_gain": 45,
     "level_mana_gain": 25
   },

@@ -9,10 +9,13 @@ observe, and optional item rewards. Edit the CHAIN table below and re-run:
     python server/tools/gen_quests.py
 
 Rewards (size -> share of exp_threshold(level), galleons, house reputation):
-    s small   20%   level x 30 + 80     10 rep
-    n normal  30%   level x 45 + 120    20 rep
-    b big     40%   level x 70 + 200    35 rep
-    B boss    50%   level x 110 + 400   60 rep   (bosses, dungeons, chapter ends)
+    s small   15%   level x 30 + 80     10 rep
+    n normal  25%   level x 45 + 120    20 rep
+    b big     35%   level x 70 + 200    35 rep
+    B boss    45%   level x 110 + 400   60 rep   (bosses, dungeons, chapter ends)
+
+The threshold is HPRules.exp_threshold: one ordinary creature's experience at
+the level x the kills a level takes without quests (combat.json exp_curve).
 """
 import json
 import os
@@ -22,10 +25,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, '..', 'world', 'addons', 'hpmmo_sim', 'data')
 
 SIZES = {
-    's': (0.20, 30, 80, 10),
-    'n': (0.30, 45, 120, 20),
-    'b': (0.40, 70, 200, 35),
-    'B': (0.50, 110, 400, 60),
+    's': (0.15, 30, 80, 10),
+    'n': (0.25, 45, 120, 20),
+    'b': (0.35, 70, 200, 35),
+    'B': (0.45, 110, 400, 60),
 }
 
 CHAPTERS = [
@@ -305,8 +308,19 @@ CHAIN = [
 PLACES = OrderedDict([('Quidditch Pitch', {'map': 'grounds', 'center': [330, -330], 'radius': 85})])
 
 
-def exp_threshold(combat, level):
+def _round_half_up(x):
+    return int(x + 0.5)
+
+
+def exp_threshold(combat, level, tuning=None):
+    """Mirror of HPRules.exp_threshold (and pack_exp_reward)."""
     base = combat['base_stats']
+    curve = base.get('exp_curve')
+    if curve and tuning is not None:
+        mob = _round_half_up(float(tuning.get('exp_base', 25)) + level * float(tuning.get('exp_per_level', 6))
+                             + level * level * float(tuning.get('exp_per_level_sq', 0.0)))
+        kills = float(curve.get('kills_base', 10)) + float(curve.get('kills_per_level', 10)) * (level - 1)
+        return min(int(combat['limits'].get('max_exp', 2000000000)), _round_half_up(mob * kills / 10.0) * 10)
     value = float(base.get('exp_base', 200))
     cap = float(combat['limits'].get('max_exp', 2000000000))
     for _ in range(max(0, level - 1)):
@@ -357,7 +371,7 @@ def main():
             q['boss'] = True
         if extra.get('mounted'):
             q['mounted'] = True
-        q['reward_exp'] = int(round(exp_threshold(combat, level) * share))
+        q['reward_exp'] = _round_half_up(exp_threshold(combat, level, spawns.get('pack_tuning', {})) * share)
         q['reward_gold'] = level * gold_per + gold_base
         q['reward_house_rep'] = rep
         rewards = []

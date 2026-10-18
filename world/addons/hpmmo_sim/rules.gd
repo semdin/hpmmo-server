@@ -398,10 +398,17 @@ static func max_exp() -> int:
 	ensure_loaded()
 	return int((_combat.get("base_stats", {}) as Dictionary).get("max_exp", 2000000000))
 
-## EXP required to leave `level` (matches the client's historical growth curve).
+## EXP required to leave `level`: one ordinary creature's experience at that
+## level x the kills a level should take (combat.json base_stats.exp_curve),
+## rounded to 10. Without exp_curve, the old exponential growth curve.
 static func exp_threshold(level: int) -> int:
 	ensure_loaded()
 	var base: Dictionary = _combat.get("base_stats", {})
+	var curve: Dictionary = base.get("exp_curve", {})
+	if not curve.is_empty():
+		var lv := maxi(1, level)
+		var kills := float(curve.get("kills_base", 10)) + float(curve.get("kills_per_level", 10)) * float(lv - 1)
+		return mini(max_exp(), int(round(float(pack_exp_reward(lv)) * kills / 10.0)) * 10)
 	var value := float(base.get("exp_base", 200))
 	var growth := float(base.get("exp_growth", 1.5))
 	var cap := float(max_exp())
@@ -885,7 +892,8 @@ static func pack_strength(level: int) -> float:
 static func pack_exp_reward(level: int) -> int:
 	ensure_loaded()
 	var tuning: Dictionary = _spawns.get("pack_tuning", {})
-	return int(float(tuning.get("exp_base", 25)) + float(level) * float(tuning.get("exp_per_level", 6)))
+	return int(round(float(tuning.get("exp_base", 25)) + float(level) * float(tuning.get("exp_per_level", 6))
+		+ float(level * level) * float(tuning.get("exp_per_level_sq", 0.0))))
 
 # -------------------------------------------------------------- creatures
 

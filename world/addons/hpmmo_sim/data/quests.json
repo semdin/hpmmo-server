@@ -302,7 +302,7 @@
       "type": "talk",
       "target": "Professor Fig",
       "count": 1,
-      "reward_exp": 40,
+      "reward_exp": 44,
       "reward_gold": 110,
       "reward_house_rep": 10,
       "reward_items": [
@@ -323,7 +323,7 @@
       "type": "equip",
       "target": "chest",
       "count": 1,
-      "reward_exp": 40,
+      "reward_exp": 44,
       "reward_gold": 110,
       "reward_house_rep": 10,
       "reward_items": [
@@ -344,7 +344,7 @@
       "type": "dummy",
       "target": "",
       "count": 5,
-      "reward_exp": 40,
+      "reward_exp": 44,
       "reward_gold": 110,
       "reward_house_rep": 10,
       "reward_items": [
@@ -365,7 +365,7 @@
       "type": "kill",
       "target": "acromantula",
       "count": 6,
-      "reward_exp": 90,
+      "reward_exp": 190,
       "reward_gold": 210,
       "reward_house_rep": 20,
       "reward_items": [
@@ -386,7 +386,7 @@
       "type": "kill",
       "target": "inferi",
       "count": 6,
-      "reward_exp": 135,
+      "reward_exp": 368,
       "reward_gold": 255,
       "reward_house_rep": 20,
       "reward_items": [
@@ -407,7 +407,7 @@
       "type": "talk",
       "target": "Hagrid",
       "count": 1,
-      "reward_exp": 90,
+      "reward_exp": 221,
       "reward_gold": 170,
       "reward_house_rep": 10,
       "reward_items": [
@@ -428,7 +428,7 @@
       "type": "kill",
       "target": "acromantula",
       "count": 10,
-      "reward_exp": 202,
+      "reward_exp": 620,
       "reward_gold": 300,
       "reward_house_rep": 20,
       "reward_items": [
@@ -449,7 +449,7 @@
       "type": "enter_map",
       "target": "castle_interior",
       "count": 1,
-      "reward_exp": 135,
+      "reward_exp": 372,
       "reward_gold": 200,
       "reward_house_rep": 10,
       "reward_items": [
@@ -470,7 +470,7 @@
       "type": "talk",
       "target": "Professor Flitwick",
       "count": 1,
-      "reward_exp": 405,
+      "reward_exp": 1313,
       "reward_gold": 550,
       "reward_house_rep": 35,
       "reward_items": [
@@ -492,7 +492,7 @@
       "target": "Quidditch Pitch",
       "count": 1,
       "mounted": true,
-      "reward_exp": 304,
+      "reward_exp": 938,
       "reward_gold": 345,
       "reward_house_rep": 20,
       "reward_items": [
@@ -513,7 +513,7 @@
       "type": "kill",
       "target": "inferi",
       "count": 12,
-      "reward_exp": 455,
+      "reward_exp": 1350,
       "reward_gold": 390,
       "reward_house_rep": 20,
       "reward_items": [
@@ -534,7 +534,7 @@
       "type": "talk",
       "target": "Ollivander",
       "count": 1,
-      "reward_exp": 304,
+      "reward_exp": 810,
       "reward_gold": 260,
       "reward_house_rep": 10
     },
@@ -549,7 +549,7 @@
       "type": "refine",
       "target": "",
       "count": 1,
-      "reward_exp": 683,
+      "reward_exp": 1838,
       "reward_gold": 435,
       "reward_house_rep": 20,
       "reward_items": [
@@ -570,7 +570,7 @@
       "type": "kill",
       "target": "acromantula",
       "count": 12,
-      "reward_exp": 683,
+      "reward_exp": 1838,
       "reward_gold": 435,
       "reward_house_rep": 20
     },
@@ -585,7 +585,7 @@
       "type": "enchant",
       "target": "",
       "count": 1,
-      "reward_exp": 1025,
+      "reward_exp": 2440,
       "reward_gold": 480,
       "reward_house_rep": 20,
       "reward_items": [
@@ -606,7 +606,7 @@
       "type": "kill",
       "target": "inferi",
       "count": 14,
-      "reward_exp": 1025,
+      "reward_exp": 2440,
       "reward_gold": 480,
       "reward_house_rep": 20
     },
@@ -621,7 +621,7 @@
       "type": "kill",
       "target": "acromantula",
       "count": 16,
-      "reward_exp": 2050,
+      "reward_exp": 4442,
       "reward_gold": 830,
       "reward_house_rep": 35,
       "reward_items": [
@@ -642,7 +642,7 @@
       "type": "monolith",
       "target": "",
       "count": 1,
-      "reward_exp": 2050,
+      "reward_exp": 4442,
       "reward_gold": 830,
       "reward_house_rep": 35
     },
@@ -657,7 +657,7 @@
       "type": "dungeon",
       "target": "trial",
       "count": 1,
-      "reward_exp": 3844,
+      "reward_exp": 7200,
       "reward_gold": 1500,
       "reward_house_rep": 60,
       "reward_items": [
@@ -678,7 +678,7 @@
       "type": "equip",
       "target": "main_hand",
       "count": 1,
-      "reward_exp": 1538,
+      "reward_exp": 2400,
       "reward_gold": 380,
       "reward_house_rep": 10,
       "reward_items": [
@@ -699,7 +699,7 @@
       "type": "kill",
       "target": "darksnatcher",
       "count": 10,
-      "reward_exp": 3460,
+      "reward_exp": 4978,
       "reward_gold": 615,
       "reward_house_rep": 20
     },
@@ -714,7 +714,7 @@
       "type": "talk",
       "target": "Madam Rosmerta",
       "count": 1,
-      "reward_exp": 2307,
+      "reward_exp": 2987,
       "reward_gold": 410,
       "reward_house_rep": 10
     },
@@ -729,7 +729,7 @@
       "type": "kill",
       "target": "acromantula",
       "count": 15,
-      "reward_exp": 5190,
+      "reward_exp": 6060,
       "reward_gold": 660,
       "reward_house_rep": 20,
       "reward_items": [
@@ -750,7 +750,7 @@
       "type": "kill",
       "target": "inferi",
       "count": 15,
-      "reward_exp": 5190,
+      "reward_exp": 6060,
       "reward_gold": 660,
       "reward_house_rep": 20
     },
@@ -765,7 +765,7 @@
       "type": "kill",
       "target": "darksnatcher",
       "count": 14,
-      "reward_exp": 7785,
+      "reward_exp": 7313,
       "reward_gold": 705,
       "reward_house_rep": 20,
       "reward_items": [
@@ -786,7 +786,7 @@
       "type": "visit",
       "target": "Lakeside Glade",
       "count": 1,
-      "reward_exp": 5190,
+      "reward_exp": 4388,
       "reward_gold": 470,
       "reward_house_rep": 10
     },
@@ -801,7 +801,7 @@
       "type": "kill",
       "target": "acromantula",
       "count": 18,
-      "reward_exp": 11677,
+      "reward_exp": 8750,
       "reward_gold": 750,
       "reward_house_rep": 20
     },
@@ -816,7 +816,7 @@
       "type": "refine",
       "target": "",
       "count": 2,
-      "reward_exp": 11677,
+      "reward_exp": 8750,
       "reward_gold": 750,
       "reward_house_rep": 20,
       "reward_items": [
@@ -837,7 +837,7 @@
       "type": "kill",
       "target": "darksnatcher",
       "count": 18,
-      "reward_exp": 23354,
+      "reward_exp": 14437,
       "reward_gold": 1250,
       "reward_house_rep": 35,
       "reward_items": [
@@ -858,7 +858,7 @@
       "type": "kill",
       "target": "inferi",
       "count": 18,
-      "reward_exp": 17516,
+      "reward_exp": 10313,
       "reward_gold": 795,
       "reward_house_rep": 20
     },
@@ -873,7 +873,7 @@
       "type": "talk",
       "target": "Madam Pince",
       "count": 1,
-      "reward_exp": 26273,
+      "reward_exp": 12080,
       "reward_gold": 840,
       "reward_house_rep": 20
     },
@@ -888,7 +888,7 @@
       "type": "kill",
       "target": "troll_forest",
       "count": 6,
-      "reward_exp": 26273,
+      "reward_exp": 12080,
       "reward_gold": 840,
       "reward_house_rep": 20
     },
@@ -903,7 +903,7 @@
       "type": "kill",
       "target": "inferi",
       "count": 20,
-      "reward_exp": 39410,
+      "reward_exp": 13983,
       "reward_gold": 885,
       "reward_house_rep": 20,
       "reward_items": [
@@ -924,7 +924,7 @@
       "type": "kill",
       "target": "darksnatcher",
       "count": 16,
-      "reward_exp": 39410,
+      "reward_exp": 13983,
       "reward_gold": 885,
       "reward_house_rep": 20
     },
@@ -939,7 +939,7 @@
       "type": "kill",
       "target": "troll_forest",
       "count": 10,
-      "reward_exp": 78821,
+      "reward_exp": 22554,
       "reward_gold": 1460,
       "reward_house_rep": 35,
       "reward_items": [
@@ -960,7 +960,7 @@
       "type": "kill",
       "target": "acromantula",
       "count": 20,
-      "reward_exp": 59116,
+      "reward_exp": 16110,
       "reward_gold": 930,
       "reward_house_rep": 20
     },
@@ -975,7 +975,7 @@
       "type": "kill",
       "target": "inferi",
       "count": 22,
-      "reward_exp": 88673,
+      "reward_exp": 18478,
       "reward_gold": 975,
       "reward_house_rep": 20
     },
@@ -990,7 +990,7 @@
       "type": "visit",
       "target": "Smugglers' Camp",
       "count": 1,
-      "reward_exp": 59116,
+      "reward_exp": 11087,
       "reward_gold": 650,
       "reward_house_rep": 10
     },
@@ -1006,7 +1006,7 @@
       "target": "darksnatcher",
       "count": 1,
       "boss": true,
-      "reward_exp": 221684,
+      "reward_exp": 37800,
       "reward_gold": 2600,
       "reward_house_rep": 60,
       "reward_items": [
@@ -1027,7 +1027,7 @@
       "type": "kill",
       "target": "troll_forest",
       "count": 10,
-      "reward_exp": 133010,
+      "reward_exp": 21000,
       "reward_gold": 1020,
       "reward_house_rep": 20,
       "reward_items": [
@@ -1048,7 +1048,7 @@
       "type": "kill",
       "target": "darksnatcher",
       "count": 20,
-      "reward_exp": 199515,
+      "reward_exp": 23783,
       "reward_gold": 1065,
       "reward_house_rep": 20
     },
@@ -1063,7 +1063,7 @@
       "type": "kill",
       "target": "inferi",
       "count": 24,
-      "reward_exp": 199515,
+      "reward_exp": 23783,
       "reward_gold": 1065,
       "reward_house_rep": 20
     },
@@ -1078,7 +1078,7 @@
       "type": "kill",
       "target": "acromantula",
       "count": 22,
-      "reward_exp": 299273,
+      "reward_exp": 26730,
       "reward_gold": 1110,
       "reward_house_rep": 20,
       "reward_items": [
@@ -1099,7 +1099,7 @@
       "type": "kill",
       "target": "inferi",
       "count": 24,
-      "reward_exp": 299273,
+      "reward_exp": 26730,
       "reward_gold": 1110,
       "reward_house_rep": 20
     },
@@ -1114,7 +1114,7 @@
       "type": "enchant",
       "target": "",
       "count": 2,
-      "reward_exp": 448910,
+      "reward_exp": 29958,
       "reward_gold": 1155,
       "reward_house_rep": 20,
       "reward_items": [
@@ -1135,7 +1135,7 @@
       "type": "kill",
       "target": "darksnatcher",
       "count": 22,
-      "reward_exp": 448910,
+      "reward_exp": 29958,
       "reward_gold": 1155,
       "reward_house_rep": 20
     },
@@ -1150,7 +1150,7 @@
       "type": "kill",
       "target": "acromantula",
       "count": 26,
-      "reward_exp": 897819,
+      "reward_exp": 46872,
       "reward_gold": 1880,
       "reward_house_rep": 35,
       "reward_items": [
@@ -1171,7 +1171,7 @@
       "type": "visit",
       "target": "Spider Hollow",
       "count": 1,
-      "reward_exp": 448910,
+      "reward_exp": 20088,
       "reward_gold": 800,
       "reward_house_rep": 10
     },
@@ -1187,7 +1187,7 @@
       "target": "acromantula",
       "count": 1,
       "boss": true,
-      "reward_exp": 1683411,
+      "reward_exp": 66938,
       "reward_gold": 3150,
       "reward_house_rep": 60,
       "reward_items": [
@@ -1208,7 +1208,7 @@
       "type": "kill",
       "target": "inferi",
       "count": 26,
-      "reward_exp": 1010047,
+      "reward_exp": 37188,
       "reward_gold": 1245,
       "reward_house_rep": 20
     },
@@ -1223,7 +1223,7 @@
       "type": "refine",
       "target": "",
       "count": 3,
-      "reward_exp": 1515070,
+      "reward_exp": 41210,
       "reward_gold": 1290,
       "reward_house_rep": 20,
       "reward_items": [
@@ -1244,7 +1244,7 @@
       "type": "kill",
       "target": "troll_forest",
       "count": 12,
-      "reward_exp": 2020093,
+      "reward_exp": 57694,
       "reward_gold": 2020,
       "reward_house_rep": 35
     },
@@ -1259,7 +1259,7 @@
       "type": "talk",
       "target": "Professor Flitwick",
       "count": 1,
-      "reward_exp": 2272605,
+      "reward_exp": 45428,
       "reward_gold": 1335,
       "reward_house_rep": 20
     },
@@ -1274,7 +1274,7 @@
       "type": "kill",
       "target": "troll_forest",
       "count": 12,
-      "reward_exp": 2272605,
+      "reward_exp": 45428,
       "reward_gold": 1335,
       "reward_house_rep": 20
     },
@@ -1289,7 +1289,7 @@
       "type": "kill",
       "target": "darksnatcher",
       "count": 22,
-      "reward_exp": 3408908,
+      "reward_exp": 49980,
       "reward_gold": 1380,
       "reward_house_rep": 20
     },
@@ -1304,7 +1304,7 @@
       "type": "kill",
       "target": "darksnatcher",
       "count": 24,
-      "reward_exp": 3408908,
+      "reward_exp": 49980,
       "reward_gold": 1380,
       "reward_house_rep": 20,
       "reward_items": [
@@ -1325,7 +1325,7 @@
       "type": "kill",
       "target": "darksnatcher",
       "count": 26,
-      "reward_exp": 6817815,
+      "reward_exp": 76836,
       "reward_gold": 2230,
       "reward_house_rep": 35
     },
@@ -1340,7 +1340,7 @@
       "type": "visit",
       "target": "Highland Moor",
       "count": 1,
-      "reward_exp": 3408908,
+      "reward_exp": 32930,
       "reward_gold": 950,
       "reward_house_rep": 10
     },
@@ -1355,7 +1355,7 @@
       "type": "kill",
       "target": "troll_mountain",
       "count": 8,
-      "reward_exp": 7670042,
+      "reward_exp": 60000,
       "reward_gold": 1470,
       "reward_house_rep": 20
     },
@@ -1370,7 +1370,7 @@
       "type": "kill",
       "target": "troll_mountain",
       "count": 10,
-      "reward_exp": 10226723,
+      "reward_exp": 84000,
       "reward_gold": 2300,
       "reward_house_rep": 35,
       "reward_items": [
@@ -1391,7 +1391,7 @@
       "type": "talk",
       "target": "Madam Pince",
       "count": 1,
-      "reward_exp": 11505063,
+      "reward_exp": 65488,
       "reward_gold": 1515,
       "reward_house_rep": 20
     },
@@ -1406,7 +1406,7 @@
       "type": "kill",
       "target": "cornish_pixie",
       "count": 12,
-      "reward_exp": 11505063,
+      "reward_exp": 65488,
       "reward_gold": 1515,
       "reward_house_rep": 20
     },
@@ -1421,7 +1421,7 @@
       "type": "kill",
       "target": "armour_guard",
       "count": 8,
-      "reward_exp": 17257595,
+      "reward_exp": 71200,
       "reward_gold": 1560,
       "reward_house_rep": 20
     },
@@ -1437,7 +1437,7 @@
       "target": "armour_commander",
       "count": 1,
       "boss": true,
-      "reward_exp": 28762658,
+      "reward_exp": 128160,
       "reward_gold": 3920,
       "reward_house_rep": 60,
       "reward_items": [
@@ -1459,7 +1459,7 @@
       "target": "devils_snare",
       "count": 1,
       "boss": true,
-      "reward_exp": 43143988,
+      "reward_exp": 139145,
       "reward_gold": 4030,
       "reward_house_rep": 60,
       "reward_items": [
@@ -1480,7 +1480,7 @@
       "type": "kill",
       "target": "cornish_pixie",
       "count": 16,
-      "reward_exp": 25886393,
+      "reward_exp": 77303,
       "reward_gold": 1605,
       "reward_house_rep": 20
     },
@@ -1496,7 +1496,7 @@
       "target": "fluffy",
       "count": 1,
       "boss": true,
-      "reward_exp": 64715982,
+      "reward_exp": 150858,
       "reward_gold": 4140,
       "reward_house_rep": 60,
       "reward_items": [
@@ -1517,7 +1517,7 @@
       "type": "dungeon",
       "target": "forbidden_corridor",
       "count": 1,
-      "reward_exp": 64715982,
+      "reward_exp": 150858,
       "reward_gold": 4140,
       "reward_house_rep": 60,
       "reward_items": [
@@ -1538,7 +1538,7 @@
       "type": "talk",
       "target": "Ollivander",
       "count": 1,
-      "reward_exp": 58244384,
+      "reward_exp": 90563,
       "reward_gold": 1695,
       "reward_house_rep": 20,
       "reward_items": [
@@ -1559,7 +1559,7 @@
       "type": "kill",
       "target": "troll_mountain",
       "count": 12,
-      "reward_exp": 58244384,
+      "reward_exp": 90563,
       "reward_gold": 1695,
       "reward_house_rep": 20
     },
@@ -1574,7 +1574,7 @@
       "type": "kill",
       "target": "darksnatcher",
       "count": 26,
-      "reward_exp": 87366576,
+      "reward_exp": 97740,
       "reward_gold": 1740,
       "reward_house_rep": 20
     },
@@ -1589,7 +1589,7 @@
       "type": "kill",
       "target": "troll_mountain",
       "count": 14,
-      "reward_exp": 87366576,
+      "reward_exp": 97740,
       "reward_gold": 1740,
       "reward_house_rep": 20,
       "reward_items": [
@@ -1610,7 +1610,7 @@
       "type": "kill",
       "target": "darksnatcher",
       "count": 28,
-      "reward_exp": 131049864,
+      "reward_exp": 105173,
       "reward_gold": 1785,
       "reward_house_rep": 20,
       "reward_items": [
@@ -1631,7 +1631,7 @@
       "type": "enchant",
       "target": "",
       "count": 3,
-      "reward_exp": 131049864,
+      "reward_exp": 105173,
       "reward_gold": 1785,
       "reward_house_rep": 20
     },
@@ -1646,7 +1646,7 @@
       "type": "visit",
       "target": "Stone Circle Summit",
       "count": 1,
-      "reward_exp": 131049864,
+      "reward_exp": 67830,
       "reward_gold": 1220,
       "reward_house_rep": 10
     },
@@ -1662,7 +1662,7 @@
       "target": "troll_mountain",
       "count": 1,
       "boss": true,
-      "reward_exp": 327624661,
+      "reward_exp": 203490,
       "reward_gold": 4580,
       "reward_house_rep": 60,
       "reward_items": [
@@ -1683,7 +1683,7 @@
       "type": "kill",
       "target": "troll_mountain",
       "count": 16,
-      "reward_exp": 393149594,
+      "reward_exp": 169943,
       "reward_gold": 2930,
       "reward_house_rep": 35
     },
@@ -1698,7 +1698,7 @@
       "type": "kill",
       "target": "darksnatcher",
       "count": 28,
-      "reward_exp": 294862195,
+      "reward_exp": 121388,
       "reward_gold": 1875,
       "reward_house_rep": 20,
       "reward_items": [
@@ -1719,7 +1719,7 @@
       "type": "monolith",
       "target": "",
       "count": 1,
-      "reward_exp": 442293293,
+      "reward_exp": 130000,
       "reward_gold": 1920,
       "reward_house_rep": 20
     },
@@ -1734,7 +1734,7 @@
       "type": "refine",
       "target": "",
       "count": 3,
-      "reward_exp": 589724390,
+      "reward_exp": 182000,
       "reward_gold": 3000,
       "reward_house_rep": 35,
       "reward_items": [
@@ -1755,7 +1755,7 @@
       "type": "talk",
       "target": "Professor Fig",
       "count": 1,
-      "reward_exp": 600000000,
+      "reward_exp": 139093,
       "reward_gold": 1965,
       "reward_house_rep": 20
     },
@@ -1770,7 +1770,7 @@
       "type": "kill",
       "target": "dementor",
       "count": 10,
-      "reward_exp": 600000000,
+      "reward_exp": 139093,
       "reward_gold": 1965,
       "reward_house_rep": 20
     },
@@ -1785,7 +1785,7 @@
       "type": "kill",
       "target": "dementor",
       "count": 12,
-      "reward_exp": 600000000,
+      "reward_exp": 148470,
       "reward_gold": 2010,
       "reward_house_rep": 20
     },
@@ -1800,7 +1800,7 @@
       "type": "kill",
       "target": "dementor",
       "count": 12,
-      "reward_exp": 600000000,
+      "reward_exp": 148470,
       "reward_gold": 2010,
       "reward_house_rep": 20,
       "reward_items": [
@@ -1821,7 +1821,7 @@
       "type": "kill",
       "target": "dementor",
       "count": 14,
-      "reward_exp": 600000000,
+      "reward_exp": 158348,
       "reward_gold": 2055,
       "reward_house_rep": 20
     },
@@ -1836,7 +1836,7 @@
       "type": "enchant",
       "target": "",
       "count": 3,
-      "reward_exp": 600000000,
+      "reward_exp": 158348,
       "reward_gold": 2055,
       "reward_house_rep": 20,
       "reward_items": [
@@ -1857,7 +1857,7 @@
       "type": "kill",
       "target": "dementor",
       "count": 14,
-      "reward_exp": 600000000,
+      "reward_exp": 168740,
       "reward_gold": 2100,
       "reward_house_rep": 20
     },
@@ -1872,7 +1872,7 @@
       "type": "visit",
       "target": "Fog Barrens",
       "count": 1,
-      "reward_exp": 400000000,
+      "reward_exp": 101244,
       "reward_gold": 1400,
       "reward_house_rep": 10
     },
@@ -1887,7 +1887,7 @@
       "type": "kill",
       "target": "dementor",
       "count": 16,
-      "reward_exp": 800000000,
+      "reward_exp": 251212,
       "reward_gold": 3350,
       "reward_house_rep": 35,
       "reward_items": [
@@ -1908,7 +1908,7 @@
       "type": "kill",
       "target": "dementor",
       "count": 16,
-      "reward_exp": 600000000,
+      "reward_exp": 179438,
       "reward_gold": 2145,
       "reward_house_rep": 20
     },
@@ -1923,7 +1923,7 @@
       "type": "kill",
       "target": "dementor",
       "count": 16,
-      "reward_exp": 600000000,
+      "reward_exp": 190670,
       "reward_gold": 2190,
       "reward_house_rep": 20
     },
@@ -1938,7 +1938,7 @@
       "type": "refine",
       "target": "",
       "count": 3,
-      "reward_exp": 600000000,
+      "reward_exp": 190670,
       "reward_gold": 2190,
       "reward_house_rep": 20
     },
@@ -1953,7 +1953,7 @@
       "type": "kill",
       "target": "dementor",
       "count": 18,
-      "reward_exp": 600000000,
+      "reward_exp": 202218,
       "reward_gold": 2235,
       "reward_house_rep": 20
     },
@@ -1968,7 +1968,7 @@
       "type": "kill",
       "target": "dementor",
       "count": 18,
-      "reward_exp": 600000000,
+      "reward_exp": 202218,
       "reward_gold": 2235,
       "reward_house_rep": 20,
       "reward_items": [
@@ -1989,7 +1989,7 @@
       "type": "kill",
       "target": "dementor",
       "count": 20,
-      "reward_exp": 800000000,
+      "reward_exp": 300048,
       "reward_gold": 3560,
       "reward_house_rep": 35
     },
@@ -2004,7 +2004,7 @@
       "type": "visit",
       "target": "Warden's Barrow",
       "count": 1,
-      "reward_exp": 400000000,
+      "reward_exp": 128592,
       "reward_gold": 1520,
       "reward_house_rep": 10
     },
@@ -2019,7 +2019,7 @@
       "type": "kill",
       "target": "dementor",
       "count": 22,
-      "reward_exp": 800000000,
+      "reward_exp": 317790,
       "reward_gold": 3630,
       "reward_house_rep": 35,
       "reward_items": [
@@ -2040,7 +2040,7 @@
       "type": "talk",
       "target": "Professor Fig",
       "count": 1,
-      "reward_exp": 600000000,
+      "reward_exp": 226993,
       "reward_gold": 2325,
       "reward_house_rep": 20
     },
@@ -2056,7 +2056,7 @@
       "target": "dementor",
       "count": 1,
       "boss": true,
-      "reward_exp": 1000000000,
+      "reward_exp": 432000,
       "reward_gold": 5900,
       "reward_house_rep": 60,
       "reward_items": [
@@ -2077,7 +2077,7 @@
       "type": "talk",
       "target": "Professor Fig",
       "count": 1,
-      "reward_exp": 1000000000,
+      "reward_exp": 432000,
       "reward_gold": 5900,
       "reward_house_rep": 60,
       "reward_items": [
