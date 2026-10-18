@@ -129,7 +129,11 @@ func _on_disconnected(disconnect_reason: String) -> void:
 	# Both SimNet and NetworkManager report the same drop; answer it once.
 	if _return_at_ms != 0:
 		return
-	if active and (TERMINAL_STATES.has(state) or state == "ANNOUNCING" or state == "DRAINING"):
+	if String(SimNet.get("session_end_reason")) == "replaced":
+		_title.text = "Hesabına başka bir yerden giriş yapıldı"
+		_detail.text = "Bu oturum kapatıldı; ilerlemen kaydedildi. Giriş ekranına dönülüyor…"
+		_login_notice = "replaced"
+	elif active and (TERMINAL_STATES.has(state) or state == "ANNOUNCING" or state == "DRAINING"):
 		_title.text = "Bakım nedeniyle oyundan çıkarıldın"
 		_detail.text = "İlerlemen kaydedildi. Giriş ekranına dönülüyor…"
 		_login_notice = "maintenance"

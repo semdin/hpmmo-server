@@ -698,7 +698,7 @@ func _consume_rejoin() -> bool:
 	if NetworkManager.last_server.size() == 2:
 		server_ip = String(NetworkManager.last_server[0])
 		server_port = int(NetworkManager.last_server[1])
-	call_deferred("_enter_world_with_session")
+	call_deferred("_load_characters_and_enter", DatabaseManager.session_account_id)
 	return true
 
 func _consume_login_notice() -> void:
@@ -713,6 +713,8 @@ func _consume_login_notice() -> void:
 		_set_status("Bakım tamamlanınca giriş yapabilirsin.", "warn")
 	elif notice == "disconnected":
 		_set_status("Sunucu bağlantısı koptu. Lütfen tekrar giriş yap.", "warn")
+	elif notice == "replaced":
+		_set_status("Hesabına başka bir yerden giriş yapıldığı için bu oturum kapatıldı.", "warn")
 
 ## ================================================================ auth
 
@@ -784,18 +786,24 @@ func _do_login(user: String, pass_w: String) -> void:
 		DatabaseManager.session_account_id = int(res.get("account_id", 0))
 		DatabaseManager.session_active = true
 
-		_set_status("Karakterlerin yükleniyor…", "progress")
-		DatabaseManager.get_characters(DatabaseManager.session_account_id, func(char_res: Dictionary):
-			if not is_inside_tree():
-				return
-			if not bool(char_res.get("success", false)):
-				_set_busy(false)
-				_set_status(_error_text(char_res, "Karakterler alınamadı."), "error")
-				return
-			characters_cache = char_res.get("characters", [])
-			NetworkManager.local_character_data = {"characters": characters_cache}
-			_enter_world_with_session()
-		)
+		_load_characters_and_enter(DatabaseManager.session_account_id)
+	)
+
+## The roster always comes from the account service, right before the world
+## join: after "Change character" the one cached at login is stale (a wizard
+## created since then was missing until the client restarted).
+func _load_characters_and_enter(account_id: int) -> void:
+	_set_busy(true, "Karakterlerin yükleniyor…")
+	DatabaseManager.get_characters(account_id, func(char_res: Dictionary):
+		if not is_inside_tree():
+			return
+		if not bool(char_res.get("success", false)):
+			_set_busy(false)
+			_set_status(_error_text(char_res, "Karakterler alınamadı."), "error")
+			return
+		characters_cache = char_res.get("characters", [])
+		NetworkManager.local_character_data = {"characters": characters_cache}
+		_enter_world_with_session()
 	)
 
 ## A player-facing sentence for a failed account-service call.
@@ -834,6 +842,10 @@ func _error_text(res: Dictionary, fallback: String) -> String:
 
 func _enter_world_with_session() -> void:
 	_set_busy(true, "Dünyaya bağlanılıyor…")
+	# A join from the menu is a fresh choice: the character of the previous
+	# session must not be re-bound automatically (that bound the new session to
+	# the old wizard, so entering with another one said "already bound").
+	NetworkManager.forget_selected_character()
 	var err := NetworkManager.join_game(server_ip, server_port)
 	if err != OK:
 		_set_busy(false)
@@ -1061,13 +1073,4 @@ func _on_launcher_session_ready(success: bool, _account_id: int) -> void:
 		_set_busy(false)
 		_set_status("Lütfen giriş yap.")
 		return
-	_set_status("Karakterlerin yükleniyor…", "progress")
-	DatabaseManager.get_characters(0, func(res: Dictionary):
-		if not bool(res.get("success", false)):
-			_set_busy(false)
-			_set_status(_error_text(res, "Karakterler alınamadı."), "error")
-			return
-		characters_cache = res.get("characters", [])
-		NetworkManager.local_character_data = {"characters": characters_cache}
-		_enter_world_with_session()
-	)
+	_load_characters_and_enter(0)

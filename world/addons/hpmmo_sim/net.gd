@@ -46,6 +46,8 @@ var local_peer_id: int = 1
 var local_uid: int = 0
 var pending_character: Dictionary = {}
 var protocol_mismatch: String = ""
+## Client: why the server ended this session (HPProtocol.SESSION_*), or "".
+var session_end_reason: String = ""
 var net_profile: int = NetProfile.LOCAL
 var _delayed: Array = []          # [{due_ms, peer_id, method, args}]
 var _known_by_peer: Dictionary = {}   # peer_id -> {uid: true, __offset: cursor}
@@ -142,6 +144,7 @@ func join(address: String, port: int = DEFAULT_PORT, token: String = "") -> Erro
 	multiplayer.multiplayer_peer = peer
 	is_client = true
 	join_token = token
+	session_end_reason = ""
 	return OK
 
 var join_token: String = ""
@@ -279,6 +282,7 @@ func _on_peer_connected(peer_id: int) -> void:
 func _on_peer_disconnected(peer_id: int) -> void:
 	print("[SimNet] peer %d disconnected" % peer_id)
 	_known_by_peer.erase(peer_id)
+	_replaced_peers.erase(peer_id)
 	if not is_client:
 		SimAuthority.remove_player(peer_id)
 		emit_signal("client_spawned", peer_id, 0, "")
@@ -300,6 +304,8 @@ func sim_join(token: String, protocol_version: int, client_version: String) -> v
 	if is_client:
 		return
 	var peer_id := multiplayer.get_remote_sender_id()
+	if _replaced_peers.has(peer_id):
+		return   # superseded by a newer login; its disconnect is on the way
 	if SimAuthority.players_by_peer.has(peer_id):
 		# One join per connection: a repeat would spawn another body, leak the
 		# previous one, and re-run the (synchronous) auth round trip.
@@ -334,6 +340,11 @@ func sim_join(token: String, protocol_version: int, client_version: String) -> v
 					String(checked.get("reason", HPProtocol.BIND_NOT_FOUND)), 0, {}, SimAuthority.sim_tick, 0)
 				return
 			identity["character"] = checked["character"]
+		# One live session per account: the newest login wins. A crashed or
+		# frozen client keeps its peer alive until ENet times it out (up to
+		# PEER_TIMEOUT_MAX_MS), which used to refuse the player's own relog
+		# with "character in session" for most of a minute.
+		_take_over_account(int(identity.get("account_id", 0)), peer_id)
 	elif OS.get_environment("HPMMO_ALLOW_DEV_JOIN") == "1":
 		# Development/testing only: with no auth backend configured the join token
 		# is taken as a display name. Refused outright when the opt-in is absent.
@@ -359,6 +370,34 @@ func sim_join(token: String, protocol_version: int, client_version: String) -> v
 		sim_join_result.rpc_id(peer_id, false, "no_auth_backend", 0, {}, SimAuthority.sim_tick, 0)
 		return
 	sim_spawn_player(peer_id, identity)
+
+## Peers removed by a newer login of the same account, until their transport
+## actually closes. Nothing they send is acted on.
+var _replaced_peers: Dictionary = {}
+
+## Retire every other live session of `account_id`: the old client is told why,
+## its body is saved (synchronously, see save_player_now) and removed, and its
+## connection is closed once the notice has been flushed. Dev joins (account 0)
+## are never matched.
+func _take_over_account(account_id: int, new_peer_id: int) -> void:
+	if account_id <= 0:
+		return
+	for old_peer in SimAuthority.players_by_peer.keys():
+		var old_id := int(old_peer)
+		if old_id == new_peer_id:
+			continue
+		var record := SimAuthority.player_record(old_id)
+		if int(record.get("account_id", 0)) != account_id:
+			continue
+		print("[SimNet] account %d logged in again (peer %d); retiring peer %d" % [account_id, new_peer_id, old_id])
+		_replaced_peers[old_id] = true
+		sim_notice.rpc_id(old_id, HPProtocol.NOTICE_SESSION, HPProtocol.SESSION_REPLACED)
+		SimAuthority.remove_player(old_id)
+		_known_by_peer.erase(old_id)
+		if multiplayer.multiplayer_peer is ENetMultiplayerPeer:
+			var packet_peer := (multiplayer.multiplayer_peer as ENetMultiplayerPeer).get_peer(old_id)
+			if packet_peer != null:
+				packet_peer.peer_disconnect_later()
 
 func sim_spawn_player(peer_id: int, identity: Dictionary) -> void:
 	var world = SimAuthority.world
@@ -775,6 +814,11 @@ func sim_chat_line(channel: String, uid: int, sender: String, house: String, tex
 
 @rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
 func sim_notice(kind: String, detail: String) -> void:
+	if kind == HPProtocol.NOTICE_SESSION:
+		# The server is about to close this connection; keep the reason for the
+		# disconnect screen instead of flashing it as a combat notice.
+		session_end_reason = detail
+		return
 	SimAuthority.emit_signal("notice", kind + ":" + detail, Color(1.0, 0.8, 0.4))
 
 ## Maintenance lifecycle. Signal emission only: the client's

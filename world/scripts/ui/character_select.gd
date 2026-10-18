@@ -64,6 +64,7 @@ func _ready() -> void:
 	# Connect NetworkManager signals
 	NetworkManager.character_create_result.connect(_on_character_create_result)
 	NetworkManager.character_select_result.connect(_on_character_select_result)
+	NetworkManager.server_disconnected_signal.connect(_on_session_lost)
 
 	_restyle()
 	_select_modal_house("Gryffindor")
@@ -80,6 +81,20 @@ func _exit_tree() -> void:
 		NetworkManager.character_create_result.disconnect(_on_character_create_result)
 	if NetworkManager.character_select_result.is_connected(_on_character_select_result):
 		NetworkManager.character_select_result.disconnect(_on_character_select_result)
+	if NetworkManager.server_disconnected_signal.is_connected(_on_session_lost):
+		NetworkManager.server_disconnected_signal.disconnect(_on_session_lost)
+
+## The world session dropped while choosing (a newer login of this account, a
+## server restart): this screen cannot bind anything any more, so go back to
+## the login screen and say why.
+func _on_session_lost() -> void:
+	if not is_inside_tree():
+		return
+	var replaced := String(SimNet.get("session_end_reason")) == "replaced"
+	get_tree().root.set_meta("hpmmo_login_notice", "replaced" if replaced else "disconnected")
+	NetworkManager.disconnect_game()
+	NetworkManager.forget_selected_character()
+	get_tree().change_scene_to_file.call_deferred("res://scenes/main/main_menu.tscn")
 
 ## The front end owns a calm classical bed. Entering the world releases the
 ## pin: the AudioManager hands the soundtrack to the zone and combat logic as
@@ -267,10 +282,12 @@ func _on_enter_world_pressed() -> void:
 	NetworkManager.select_character(c)
 	var result: Dictionary = await NetworkManager.bind_selected_character()
 	var retries := 0
-	while not bool(result.get("ok", false)) and String(result.get("reason", "")) == "save_pending" and retries < 4:
+	while not bool(result.get("ok", false)) and String(result.get("reason", "")) == "save_pending" and retries < 8:
 		retries += 1
-		slot_label.text = "Karakter kaydediliyor, lütfen bekleyin (%d/4)..." % retries
-		await get_tree().create_timer(1.2).timeout
+		slot_label.text = "Karakter kaydediliyor, lütfen bekleyin…"
+		await get_tree().create_timer(0.75).timeout
+		if not is_inside_tree():
+			return
 		result = await NetworkManager.bind_selected_character()
 
 	if not bool(result.get("ok", false)):
@@ -393,6 +410,7 @@ func _on_character_create_result(success: bool, message: String, char_data: Dict
 
 func _on_logout_pressed() -> void:
 	NetworkManager.disconnect_game()
+	NetworkManager.forget_selected_character()
 	get_tree().change_scene_to_file("res://scenes/main/main_menu.tscn")
 
 

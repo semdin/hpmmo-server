@@ -321,6 +321,22 @@ func save_player(record: Dictionary) -> void:
 		return
 	save_character(character_id, character_payload(node, record))
 
+## The last save of a session that is ending (logout, change character, takeover).
+## Written synchronously when nothing else is in flight for this character, so
+## the next session - often the same player one second later - binds against
+## the fresh sheet instead of waiting out "save_pending". If a write is already
+## in flight, the payload stays queued and goes out the moment it answers.
+func save_player_now(record: Dictionary) -> void:
+	var character_id := int(record.get("character_id", 0))
+	var node = record.get("node")
+	if character_id <= 0 or node == null or not is_instance_valid(node):
+		return
+	if _reconciling.has(character_id):
+		return
+	_pending_saves[character_id] = character_payload(node, record).duplicate(true)
+	if not _flush_character_sync(character_id):
+		_flush_character(character_id)
+
 ## Full character state. `pos` and `inventory` are written wholesale, which is
 ## why the world server is the single writer of a character during its session.
 ## `map_id` comes from the authoritative record, never from the client: it is

@@ -83,6 +83,12 @@ func select_character(data: Dictionary) -> void:
 	selected_character_id = int(data.get("id", 0))
 	character_bound = false
 
+## The player left the world on purpose (change character, logout, kicked): the
+## next session starts unbound and waits for a new choice.
+func forget_selected_character() -> void:
+	selected_character_id = 0
+	character_bound = false
+
 ## Ask the world server to bind this session to the selected character (Release gates
 ## character-bind). The server proves the character belongs to this session's account
 ## through the account service before it binds; a foreign character is refused

@@ -155,6 +155,12 @@ const BIND_IN_SESSION := "character_in_session"
 const BIND_NO_BODY := "no_body"
 const BIND_NOT_JOINED := "not_joined"
 
+## Session notices (`sim_notice(NOTICE_SESSION, reason)`), sent just before the
+## server closes a connection so the client can say why it was dropped.
+const NOTICE_SESSION := "session"
+## The same account logged in from another client; this one was retired.
+const SESSION_REPLACED := "replaced"
+
 ## Combat state machine (idle -> windup -> release -> recovery -> idle).
 enum CastState { IDLE = 0, WINDUP = 1, RELEASE = 2, RECOVERY = 3, STUNNED = 4, DEAD = 5 }
 

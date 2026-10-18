@@ -714,7 +714,7 @@ func remove_player(peer_id: int) -> void:
 		_party_changed(party.leave(uid))
 		var node = record.get("node")
 		if persistence != null:
-			persistence.save_player(record)   # last save on the way out
+			persistence.save_player_now(record)   # last save on the way out
 		unregister_node(node if node is Node3D else null)
 		if node != null and is_instance_valid(node):
 			# Free the body: otherwise it stays in the world as a ghost that
