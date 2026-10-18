@@ -9,6 +9,8 @@ class_name HudSkillPick
 ## basic attack needs no pick.
 
 const CARD_W := 170.0
+## The ultimate is not a first spell; it is learned later with a skill point.
+const STARTER_EXCLUDED := ["ultimate"]
 
 var player: Node3D = null
 var hud: Control = null
@@ -32,6 +34,8 @@ func _ready() -> void:
 	grid.add_theme_constant_override("v_separation", 12)
 	body.add_child(grid)
 	for spell_id in HPRules.upgradeable_skills():
+		if String(spell_id) in STARTER_EXCLUDED:
+			continue
 		grid.add_child(_card(String(spell_id)))
 
 func _card(spell_id: String) -> Control:

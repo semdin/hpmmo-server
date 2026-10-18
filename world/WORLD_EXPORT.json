@@ -1,7 +1,7 @@
 {
  "generated": "2026-10-18",
  "source_repository": "hpmmo-client",
- "source_revision": "fff79613677a4119b31f43347ededce315eaf128",
+ "source_revision": "7cf406c1fecb89c887bba243401fdc42e664852b",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/audio/sound_library.json": "4b2613f9d33aa439585591a418983f8a29d0181580af21f3dc01e6b3ce36cf5e",
@@ -529,7 +529,7 @@
   "scripts/ui/hud_party.gd": "35afa9bcbb0f0468f3ae8bbc18f24b708c5ddcbd39d165ccb12c1cf0c89c9623",
   "scripts/ui/hud_quest_log.gd": "d8ae0028761c474f476f3c1b1b50b1efaf14cec5ef385065dab6a79f868f7494",
   "scripts/ui/hud_quest_scroll.gd": "e832d7c729f3e45841d484873aa180b41711b3d47a694317ff6a2785e541d4bd",
-  "scripts/ui/hud_skill_pick.gd": "b2f99064eaddc794626ca7319d5bb290bb4f5b3d2a25bb5bd2252d8ea6d675e6",
+  "scripts/ui/hud_skill_pick.gd": "f2a98d08a5fb9039edf1406b0d114f8dea4631b151ebddd4ddd0feef5a0745b9",
   "scripts/ui/hud_skill_window.gd": "0424473f0e8584fd08c78f8e1662876d1f36f7e0f1f69bd4e79a628f34788edd",
   "scripts/ui/hud_slot.gd": "4f08d5b5607d59d1ec0695ac6a51dd6b733ef48ade48bad05e61307ffdb67d3d",
   "scripts/ui/hud_tracker.gd": "6a60254378112be05ea48ca312b3afb337b4ca9f00b7412cad43e74ec840319e",
