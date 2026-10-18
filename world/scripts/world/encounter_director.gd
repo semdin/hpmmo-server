@@ -293,6 +293,9 @@ func _spawn_pack(index: int) -> void:
 			if not pack.get("boss", false):
 				_configure_member(mob, pack, true)
 			mob._respawn()
+	# A pooled pack respawns at a freshly sampled anchor: the snapshot interest
+	# index (HPSnapshots, by pack anchor) must re-file it.
+	HPSnapshots.reindex_pack(SimAuthority, int(pack.get("pack_id", index + 1)))
 	pack["spawns"] = int(pack.get("spawns", 0)) + 1
 	pack["announced_soon"] = false
 	if _is_world_boss(pack) and SimAuthority.is_authority():
@@ -406,7 +409,10 @@ func _on_encounter_reset(pack_id: int, reason: String) -> void:
 		print("[Encounters] %s reset (%s)" % [packs[index].get("encounter_id", "?"), reason])
 		return
 
-var _wake_timer := 0.0
+## Respawn timers are seconds long; walking every pack (hundreds) on every
+## frame bought nothing but frame time, so they advance ten times a second.
+const PACK_TIMER_STEP := 0.1
+var _pack_timer_acc := 0.0
 
 func _process(delta: float) -> void:
 	# Client-only processes never own encounters; the server tells them what
@@ -414,13 +420,16 @@ func _process(delta: float) -> void:
 	if not SimAuthority.is_authority():
 		return
 	# Creatures far from every player sleep (no physics at all); see mob_base.
-	_wake_timer -= delta
-	if _wake_timer <= 0.0:
-		_wake_timer = 0.5
-		MobBase.wake_pass(get_tree())
+	# The pass is time-sliced inside, so it runs a little every frame.
+	MobBase.wake_pass(get_tree())
+	_pack_timer_acc += delta
+	if _pack_timer_acc < PACK_TIMER_STEP:
+		return
+	var step := _pack_timer_acc
+	_pack_timer_acc = 0.0
 	for index in range(packs.size()):
 		if packs[index].timer >= 0:
-			packs[index].timer -= delta
+			packs[index].timer -= step
 			if _is_world_boss(packs[index]) and packs[index].timer <= 60.0 					and not bool(packs[index].get("announced_soon", false)):
 				packs[index]["announced_soon"] = true
 				var soon := _world_boss_data(packs[index])

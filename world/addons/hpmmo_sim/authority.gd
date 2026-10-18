@@ -124,11 +124,14 @@ var players_by_peer: Dictionary = {} # peer_id -> uid
 var players_by_character: Dictionary = {} # character_id -> uid
 
 var _next_uid: int = 1
+## Bumped whenever a creature, dummy or monolith is registered or removed (not
+## loot, not players). HPSnapshots rebuilds its spatial interest index only
+## when this changes.
+var roster_revision: int = 0
 ## The loot entries of `entities`, rebuilt only when the table changed (an
 ## added entry bumps _next_uid, a removed one shrinks it): per-peer snapshots
 ## look up a handful of drops instead of walking thousands of creatures.
-var _loot_key := Vector2i(-1, -1)
-var _loot_uids: Array = []
+var _loot_set: Dictionary = {}
 var _next_cast_id: int = 1
 var _next_death_seq: int = 1
 var _accumulator: float = 0.0
@@ -271,6 +274,10 @@ func register(kind: int, node: Node3D, extra: Dictionary = {}) -> int:
 	entities[uid] = record
 	by_node[node.get_instance_id()] = uid
 	node.set_meta("sim_uid", uid)
+	if kind == HPProtocol.Kind.LOOT:
+		_loot_set[uid] = true
+	elif kind != HPProtocol.Kind.PLAYER:
+		roster_revision += 1
 	return uid
 
 func unregister_node(node: Node3D) -> void:
@@ -281,6 +288,8 @@ func unregister_node(node: Node3D) -> void:
 		return
 	var uid: int = by_node[iid]
 	by_node.erase(iid)
+	if not (int((entities.get(uid, {}) as Dictionary).get("kind", 0)) in [HPProtocol.Kind.LOOT, HPProtocol.Kind.PLAYER]):
+		roster_revision += 1
 	entities.erase(uid)
 	casts_by_node.erase(iid)
 	emit_signal("entity_despawned", uid)
@@ -722,15 +731,18 @@ func remove_player(peer_id: int) -> void:
 			node.queue_free()
 		emit_signal("player_left", uid, int(record.get("character_id", 0)))
 
+## Live loot uids, kept as a set as drops are created (register / chest
+## spawn / replica event) and pruned lazily here when a drop is gone. A full
+## scan of the entity table on every drop was thousands of creatures walked
+## per kill, inside the snapshot that followed it.
 func loot_uids() -> Array:
-	var key := Vector2i(entities.size(), _next_uid)
-	if key != _loot_key:
-		_loot_key = key
-		_loot_uids.clear()
-		for uid in entities:
-			if int((entities[uid] as Dictionary).get("kind", 0)) == HPProtocol.Kind.LOOT:
-				_loot_uids.append(uid)
-	return _loot_uids
+	var gone: Array = []
+	for uid in _loot_set:
+		if int((entities.get(uid, {}) as Dictionary).get("kind", 0)) != HPProtocol.Kind.LOOT:
+			gone.append(uid)
+	for uid in gone:
+		_loot_set.erase(uid)
+	return _loot_set.keys()
 
 func player_record(peer_id: int) -> Dictionary:
 	if not players_by_peer.has(peer_id):
@@ -960,8 +972,8 @@ func map_id_of_peer(peer_id: int) -> String:
 
 func players_on_map(map_id: String) -> int:
 	var count := 0
-	for uid in entities.keys():
-		var record: Dictionary = entities[uid]
+	for uid in players_by_peer.values():
+		var record: Dictionary = entities.get(uid, {})
 		if int(record.get("kind", 0)) == HPProtocol.Kind.PLAYER \
 				and String(record.get("map_id", "")) == map_id:
 			count += 1
@@ -1561,10 +1573,13 @@ func _projectile_assist(caster_uid: int, caster_node: Node, from: Vector3, to: V
 	var caster_map := String(entities.get(caster_uid, {}).get("map_id", ""))
 	var best := {}
 	var best_t := INF
-	for uid in entities.keys():
+	var candidates: Array = HPSnapshots.nearby(self, caster_map, middle, reach) if caster_map != "" else entities.keys()
+	for uid in candidates:
 		if uid == caster_uid:
 			continue
-		var record: Dictionary = entities[uid]
+		var record: Dictionary = entities.get(uid, {})
+		if record.is_empty():
+			continue
 		var kind := int(record.get("kind", 0))
 		if bool(record.get("dead", false)) or (kind != HPProtocol.Kind.MOB and kind != HPProtocol.Kind.PLAYER \
 				and kind != HPProtocol.Kind.DUMMY and kind != HPProtocol.Kind.MONOLITH):
@@ -1798,9 +1813,12 @@ func _damageable_targets(caster_uid: int, center: Vector3 = Vector3.INF, radius:
 	# unfiltered behaviour; a real caster can only damage its own map, however
 	# close two maps' coordinates happen to be.
 	var caster_map := String(entities.get(caster_uid, {}).get("map_id", ""))
-	for uid in entities.keys():
-		var record: Dictionary = entities[uid]
-		if uid == caster_uid or bool(record.get("dead", false)):
+	# A bounded query on a known map asks the spatial index for candidates;
+	# only an unbounded or map-less one walks every entity.
+	var candidates: Array = HPSnapshots.nearby(self, caster_map, center, radius) 		if caster_map != "" and center.is_finite() and radius < 1.0e6 else entities.keys()
+	for uid in candidates:
+		var record: Dictionary = entities.get(uid, {})
+		if record.is_empty() or uid == caster_uid or bool(record.get("dead", false)):
 			continue
 		if caster_map != "" and String(record.get("map_id", HPProtocol.DEFAULT_MAP)) != caster_map:
 			continue
@@ -2335,6 +2353,7 @@ func _spawn_chest(drops: Array, origin: Vector3, map_id: String = "", owner_uid:
 	if map_id == "":
 		map_id = HPMaps.map_for_point(origin)
 	var kind := "chest_rare" if rare else "chest"
+	_loot_set[uid] = true
 	entities[uid] = {
 		"uid": uid,
 		"kind": HPProtocol.Kind.LOOT,
@@ -2618,8 +2637,8 @@ func _tick_creature_auras() -> void:
 			continue   # only a creature in a fight radiates
 		var radius := float(aura.get("radius", 6.0))
 		var damage := int(round(float(node.get("attack_power")) * float(aura.get("damage_ratio", 0.1))))
-		for pid in entities.keys():
-			var player: Dictionary = entities[pid]
+		for pid in players_by_peer.values():
+			var player: Dictionary = entities.get(pid, {})
 			if int(player.get("kind", 0)) != HPProtocol.Kind.PLAYER or bool(player.get("dead", false)):
 				continue
 			if String(player.get("map_id", HPProtocol.DEFAULT_MAP)) != String(mob.get("map_id", HPProtocol.DEFAULT_MAP)):
@@ -3265,8 +3284,8 @@ func drop_loot_table(table_id: String, pos: Vector3, map_id: String) -> void:
 	var table: Dictionary = HPRules.loot_tables().get(table_id, {})
 	# A dungeon chest rolls once for every player in the copy (personal loot).
 	if HPMaps.instance_slot(map_id) > 0:
-		for uid in entities.keys():
-			var r: Dictionary = entities[uid]
+		for uid in players_by_peer.values():
+			var r: Dictionary = entities.get(uid, {})
 			if int(r.get("kind", 0)) != HPProtocol.Kind.PLAYER or String(r.get("map_id", "")) != map_id:
 				continue
 			var own := HPRules.roll_loot(table, rng)
@@ -3427,6 +3446,7 @@ func attach_view_node(uid: int, node: Node3D) -> void:
 	node.set_meta("sim_uid", uid)
 
 func on_loot_event(uid: int, item_id: String, amount: int, pos: Vector3, items: Array = []) -> void:
+	_loot_set[uid] = true
 	entities[uid] = {
 		"uid": uid,
 		"kind": HPProtocol.Kind.LOOT,

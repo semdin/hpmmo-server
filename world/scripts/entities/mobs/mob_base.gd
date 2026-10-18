@@ -926,13 +926,40 @@ func _check_stuck(delta: float) -> void:
 static var awake_range := 70.0
 var _sleeping := false
 
+## The pass is spread over frames: each call (every frame) visits the share of
+## the creatures that the time since the last call is of WAKE_PERIOD_MS, so
+## every creature is still decided about twice a second but no single frame
+## pays for thousands of them - that burst was a 10+ ms hitch on the world
+## server every half second, and a late frame is late network polling for
+## every player. Sized by time, not frames: the very first pass (every
+## creature awake after boot, frames slow) still covers everyone at once.
+const WAKE_PERIOD_MS := 500.0
+static var _wake_mobs: Array = []
+static var _wake_cursor := 0
+static var _wake_list_ms := -100000
+static var _wake_last_ms := -1
+
 static func wake_pass(tree: SceneTree) -> void:
+	var now := Time.get_ticks_msec()
+	if _wake_cursor >= _wake_mobs.size() and now - _wake_list_ms > 2000:
+		_wake_mobs = tree.get_nodes_in_group("mobs")
+		_wake_list_ms = now
+		_wake_cursor = 0
+	elif _wake_cursor >= _wake_mobs.size():
+		_wake_cursor = 0
+	if _wake_mobs.is_empty():
+		return
+	var share := 1.0 if _wake_last_ms < 0 else clampf(float(now - _wake_last_ms) / WAKE_PERIOD_MS, 0.0, 1.0)
+	_wake_last_ms = now
 	var players: Array = []
 	for player in tree.get_nodes_in_group("players"):
 		players.append((player as Node3D).global_position)
 	var r2 := awake_range * awake_range
-	for mob in tree.get_nodes_in_group("mobs"):
-		if mob.sim_puppet:
+	var stop := mini(_wake_mobs.size(), _wake_cursor + maxi(1, ceili(float(_wake_mobs.size()) * share)))
+	var batch := _wake_mobs.slice(_wake_cursor, stop)
+	_wake_cursor = stop
+	for mob in batch:
+		if not is_instance_valid(mob) or mob.sim_puppet:
 			continue
 		var can_sleep: bool = mob.state == State.IDLE or mob.state == State.WANDER
 		var near := false

@@ -44,6 +44,13 @@ static func _rotation_y(node: Node3D) -> float:
 ## filter: a client standing in the castle is never sent
 ## outdoor entity state, and vice versa, however close the two maps' coordinates
 ## happen to be.
+##
+## The world holds thousands of creatures and this runs per peer, ten times a
+## second, so it never walks the whole entity table: creatures are indexed by
+## pack on a coarse grid of pack anchors (a creature never strays further from
+## its anchor than its leash), and only packs in the cells around the player
+## are measured. Everything else that replicates (players, dummies, monoliths,
+## pack-less creatures) is a short list checked directly.
 static func interest_set(authority, peer_id: int, center: Vector3) -> Array:
 	var radius := HPProtocol.INTEREST_RADIUS
 	var own_uid := 0
@@ -52,41 +59,169 @@ static func interest_set(authority, peer_id: int, center: Vector3) -> Array:
 	if not player_record.is_empty():
 		own_uid = int(player_record["uid"])
 		peer_map = String(player_record.get("map_id", HPProtocol.DEFAULT_MAP))
+	_ensure_index(authority)
+	var r2 := radius * radius
 	var selected: Dictionary = {}
-	var pack_ids: Dictionary = {}
-	for uid in authority.entities.keys():
-		var record: Dictionary = authority.entities[uid]
-		var kind := int(record.get("kind", 0))
-		if kind == HPProtocol.Kind.LOOT or kind == HPProtocol.Kind.NPC:
-			continue
-		if String(record.get("map_id", HPProtocol.DEFAULT_MAP)) != peer_map:
+	for uid in authority.players_by_peer.values():
+		var record: Dictionary = authority.entities.get(uid, {})
+		if record.is_empty() or String(record.get("map_id", HPProtocol.DEFAULT_MAP)) != peer_map:
 			continue
 		var node = record.get("node")
 		if node == null or not is_instance_valid(node):
 			continue
-		if uid == own_uid or (node as Node3D).global_position.distance_to(center) <= radius:
+		if uid == own_uid or (node as Node3D).global_position.distance_squared_to(center) <= r2:
 			selected[uid] = true
-			# Only mobs group by pack: a pack is a single encounter on one map.
-			var pack_id := int(record.get("pack_id", 0))
-			if kind == HPProtocol.Kind.MOB and pack_id > 0:
-				pack_ids[pack_id] = true
-	if not pack_ids.is_empty():
-		for uid in authority.entities.keys():
-			if selected.has(uid):
-				continue
-			var record: Dictionary = authority.entities[uid]
-			if int(record.get("kind", 0)) != HPProtocol.Kind.MOB:
-				continue
-			if String(record.get("map_id", HPProtocol.DEFAULT_MAP)) != peer_map:
-				continue
-			if not pack_ids.has(int(record.get("pack_id", 0))):
-				continue
-			var node = record.get("node")
-			if node != null and is_instance_valid(node):
-				selected[uid] = true
+	for uid in _loose:
+		var record: Dictionary = authority.entities.get(uid, {})
+		if record.is_empty() or String(record.get("map_id", HPProtocol.DEFAULT_MAP)) != peer_map:
+			continue
+		var node = record.get("node")
+		if node == null or not is_instance_valid(node):
+			continue
+		if uid == own_uid or (node as Node3D).global_position.distance_squared_to(center) <= r2:
+			selected[uid] = true
+	var grid: Dictionary = _grid.get(peer_map, {})
+	if not grid.is_empty():
+		var seen: Dictionary = {}
+		var lo := _cell(center - Vector3(radius, 0.0, radius))
+		var hi := _cell(center + Vector3(radius, 0.0, radius))
+		for cx in range(lo.x, hi.x + 1):
+			for cz in range(lo.y, hi.y + 1):
+				for key in grid.get(Vector2i(cx, cz), []):
+					if seen.has(key):
+						continue
+					seen[key] = true
+					var members: Array = _packs[key]
+					var in_range := false
+					for uid in members:
+						var node = (authority.entities.get(uid, {}) as Dictionary).get("node")
+						if node != null and is_instance_valid(node) 								and (node as Node3D).global_position.distance_squared_to(center) <= r2:
+							in_range = true
+							break
+					if not in_range:
+						continue
+					for uid in members:
+						var node = (authority.entities.get(uid, {}) as Dictionary).get("node")
+						if node != null and is_instance_valid(node):
+							selected[uid] = true
 	var out: Array = selected.keys()
 	out.sort()
 	return out
+
+## Candidate uids for "who could be within `radius` of `center` on `map_id`":
+## every player on the map, the short static list, and the members of every
+## pack filed near the point. A superset - callers still measure exactly - but
+## a few dozen bodies instead of the whole entity table. Used by the authority
+## for spell hits, projectile aim assist and creature auras.
+static func nearby(authority, map_id: String, center: Vector3, radius: float) -> Array:
+	_ensure_index(authority)
+	var out: Array = []
+	for uid in authority.players_by_peer.values():
+		out.append(uid)
+	out.append_array(_loose)
+	var grid: Dictionary = _grid.get(map_id, {})
+	if grid.is_empty():
+		return out
+	var seen: Dictionary = {}
+	var lo := _cell(center - Vector3(radius, 0.0, radius))
+	var hi := _cell(center + Vector3(radius, 0.0, radius))
+	for cx in range(lo.x, hi.x + 1):
+		for cz in range(lo.y, hi.y + 1):
+			for key in grid.get(Vector2i(cx, cz), []):
+				if not seen.has(key):
+					seen[key] = true
+					out.append_array(_packs[key])
+	return out
+
+## Grid cell edge for the pack index, in metres.
+const PACK_CELL := 64.0
+## Slack on top of a creature's leash: knockback, separation, the walk home.
+const PACK_MARGIN := 30.0
+## No creature is filed wider than this around its home, whatever its data says.
+const MAX_REACH := 160.0
+static var _index_revision := -1
+static var _index_owner: Object = null
+static var _loose: Array = []         # static replicated uids (dummies, monoliths, pack-less mobs)
+static var _packs: Dictionary = {}    # "map|pack_id" -> Array[uid] (one map's members of a pack)
+static var _pack_keys: Dictionary = {} # pack_id -> Array[key] (a pack id can recur per map/copy)
+static var _pack_cells: Dictionary = {} # key -> Array[Vector2i] it is filed under
+static var _grid: Dictionary = {}     # map_id -> {Vector2i: Array[key]}
+
+static func _cell(at: Vector3) -> Vector2i:
+	return Vector2i(floori(at.x / PACK_CELL), floori(at.z / PACK_CELL))
+
+## Full rebuild: only when creatures or static entities are added or removed
+## (boot, a dungeon copy opening or closing). Players are read live from
+## `players_by_peer` and loot is replicated separately, so neither rebuilds it.
+static func _ensure_index(authority) -> void:
+	var revision := int(authority.roster_revision)
+	if revision == _index_revision and authority == _index_owner:
+		return
+	_index_revision = revision
+	_index_owner = authority
+	_loose = []
+	_packs = {}
+	_pack_keys = {}
+	_pack_cells = {}
+	_grid = {}
+	for uid in authority.entities.keys():
+		var record: Dictionary = authority.entities[uid]
+		var kind := int(record.get("kind", 0))
+		if kind == HPProtocol.Kind.LOOT or kind == HPProtocol.Kind.NPC or kind == HPProtocol.Kind.PLAYER:
+			continue
+		var pack_id := int(record.get("pack_id", 0))
+		if kind != HPProtocol.Kind.MOB or pack_id <= 0:
+			_loose.append(uid)
+			continue
+		var key := "%s|%d" % [String(record.get("map_id", HPProtocol.DEFAULT_MAP)), pack_id]
+		if not _packs.has(key):
+			_packs[key] = []
+			(_pack_keys.get_or_add(pack_id, []) as Array).append(key)
+		(_packs[key] as Array).append(uid)
+	for key in _packs.keys():
+		_file_pack(authority, key)
+
+## A pooled pack respawned somewhere else: re-file just that pack.
+static func reindex_pack(authority, pack_id: int) -> void:
+	if authority != _index_owner:
+		return
+	for key in _pack_keys.get(pack_id, []):
+		_file_pack(authority, key)
+
+## File a pack under every cell within reach of any member's home (its spawn
+## point plus its leash), so a pack is found from wherever one of its members
+## can be - without ever spanning the gap between members far apart.
+static func _file_pack(authority, key: String) -> void:
+	var map_grid: Dictionary = _grid.get_or_add(key.get_slice("|", 0), {})
+	for cell in _pack_cells.get(key, []):
+		var filed: Array = map_grid.get(cell, [])
+		filed.erase(key)
+		if filed.is_empty():
+			map_grid.erase(cell)
+	var cells: Dictionary = {}
+	for uid in _packs[key]:
+		var node = (authority.entities.get(uid, {}) as Dictionary).get("node")
+		if node == null or not is_instance_valid(node):
+			continue
+		var home = node.get("spawn_point")
+		if not (home is Vector3) or home == Vector3.ZERO:
+			home = (node as Node3D).global_position
+		var leash := 26.0
+		var limit = node.get("boss_arena_radius") if bool(node.get("is_boss")) else null
+		if not (limit is float) or float(limit) <= 0.0:
+			limit = node.get("leash_distance")
+		if limit is float:
+			leash = float(limit)
+		var reach := minf(leash + PACK_MARGIN, MAX_REACH)
+		for at in [home, (node as Node3D).global_position]:
+			var lo := _cell(at - Vector3(reach, 0.0, reach))
+			var hi := _cell(at + Vector3(reach, 0.0, reach))
+			for cx in range(lo.x, hi.x + 1):
+				for cz in range(lo.y, hi.y + 1):
+					cells[Vector2i(cx, cz)] = true
+	for cell in cells:
+		(map_grid.get_or_add(cell, []) as Array).append(key)
+	_pack_cells[key] = cells.keys()
 
 
 static func encode_for(authority, peer_id: int, center: Vector3, known: Dictionary) -> Dictionary:

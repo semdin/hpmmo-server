@@ -64,7 +64,24 @@ var inputs_received: int = 0
 var cast_requests_received: int = 0
 
 
+## Godot services the ENet host once per frame, at the start of it. Anything
+## the frame produced (snapshots, cast answers, the acks ENet measures ping
+## with) then waited for the NEXT frame - up to 16.7 ms at 60 fps, on both ends
+## of the connection, which was most of the in-game ping on a 9 ms route. A
+## second service at the very end of every frame sends it right away and picks
+## up whatever arrived meanwhile.
+class _EndOfFramePoll extends Node:
+	func _process(_delta: float) -> void:
+		var api := multiplayer
+		if api != null and api.multiplayer_peer is ENetMultiplayerPeer \
+				and api.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+			api.poll()
+
 func _ready() -> void:
+	var late := _EndOfFramePoll.new()
+	late.name = "EndOfFramePoll"
+	late.process_priority = 1 << 30   # after every other node's _process
+	add_child(late)
 	multiplayer.peer_connected.connect(_on_peer_connected)
 	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
 	multiplayer.connected_to_server.connect(_on_connected_to_server)

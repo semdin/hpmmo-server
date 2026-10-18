@@ -1,7 +1,7 @@
 {
  "generated": "2026-10-18",
  "source_repository": "hpmmo-client",
- "source_revision": "06c80a8d8065aed42cb0af5cc858d65ac850a1e9",
+ "source_revision": "86b209ce3fbf8c7142de004082878e92f7310493",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/audio/sound_library.json": "1beddb2e83b72a255999f1cf1d2833b1dd6576553827f05ecadf5bbb07ca868e",
@@ -475,7 +475,7 @@
   "scripts/entities/loot/loot_drop.gd": "3312c029769be85e841c036461072d54b5807e3a9effe5be30bb583a7c9238be",
   "scripts/entities/mobs/boss_part.gd": "26111236bbe9dfdcaca2646a07b579531596337458688a8a777c40968479eaf6",
   "scripts/entities/mobs/fluffy_boss.gd": "b1174d1a68077ba5a00b3718e2be4cac72cf11707964a834d96e50b85670903c",
-  "scripts/entities/mobs/mob_base.gd": "da5d4715d2035398dd53e43e609ef44de2ffef06354d00cc535f154e29c1cd1d",
+  "scripts/entities/mobs/mob_base.gd": "5bd02bb02fc6fc72569c960d88a16d3c7361d4369a68e6d5c8185930fa787de1",
   "scripts/entities/mobs/multipart_boss.gd": "91edf8ebbf46c0ad66b651e6ca06841c65f811101a2adf0773c8b947deb7c11b",
   "scripts/entities/mobs/part_droop.gd": "17f6a86a00f75a8e945ac4777de86460a383726dd9e58386e333139e83f02410",
   "scripts/entities/mobs/snare_boss.gd": "d7de2fcb78bc3a874d81c66ffc7bd745b83f917639ccbc5a3302ffd06d6a777a",
@@ -555,7 +555,7 @@
   "scripts/world/dungeons/dungeon_forbidden_corridor.gd": "c83967ed8e4aa25f73efef0e8dcd972e6b43ba75da37c43ad2ae217d3e631425",
   "scripts/world/dungeons/dungeon_greybox.gd": "432688c36a1bc8c093c6a797255bdde47c5fd23ae1017ffe6ed8dd4650bc15da",
   "scripts/world/dungeons/dungeon_trial.gd": "074e2cf213d9d3e96672f4250ab5d8dd071bb70b8f94e2cf6dd3a370033a45f2",
-  "scripts/world/encounter_director.gd": "938661265aa522cc69e720c570992ebceba7ae240aff7a8cd6c2ba7c40579f30",
+  "scripts/world/encounter_director.gd": "293bf2526ab81d5979034b1adfda6c07da6eb36f272463de5b42196f30bc490a",
   "scripts/world/game_world.gd": "204668992589cdb513009a375b53006be83402602a65229ad947d04ca3dab1aa",
   "scripts/world/grounds/arch_kit.gd": "34e4aa046d3c8171931789fd564b0ea20ae9111ebe1d1ab8cfc0b4ef3540ec1d",
   "scripts/world/grounds/castle_exterior.gd": "33268c2b2a4c18521480bbda0a0168f36f541ffcd778e1627ae5ed31b2c6eda8",
