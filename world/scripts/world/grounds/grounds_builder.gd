@@ -8,9 +8,12 @@ class_name GroundsBuilder
 ##
 ## The terrain is the world's ground collider and stays loaded for the life of the
 ## world (the server simulates bodies on it whichever map a client shows). The
-## scenery listed in BUILT_NODES is what map transfer frees and rebuilds:
-## `teardown()` before the castle interior loads, `build()` when the player
-## comes back out. On a headless process (dedicated server, tests) visuals are
+## scenery listed in BUILT_NODES is built once; map transfer only parks it:
+## `teardown()` hides it before the castle interior loads, `build()` shows it
+## again when the player comes back out. Rebuilding it on the way out (castle
+## shell, sites, lake, horizon, colliders) blocked the main thread for longer
+## than the server's 15 s transfer window on an integrated GPU: the transfer
+## expired and the session dropped. On a headless process (dedicated server, tests) visuals are
 ## skipped but every collider is built, so client and server collide alike.
 
 const QualityPreset = preload("res://scripts/world/quality_preset.gd")
@@ -35,6 +38,7 @@ static func is_headless() -> bool:
 
 static func build(world: Node3D) -> void:
 	if world.has_node("HogwartsCastle"):
+		_unpark(world)
 		return
 	var visuals := not is_headless()
 	var terrain := ensure_terrain(world)
@@ -74,16 +78,35 @@ static func teardown(world: Node3D) -> void:
 	if world == null or not is_instance_valid(world):
 		return
 	for node_name in BUILT_NODES:
-		var node := world.get_node_or_null(node_name)
-		if node == null:
-			continue
-		world.remove_child(node)
-		node.queue_free()
+		var node := world.get_node_or_null(node_name) as Node3D
+		if node != null:
+			node.visible = false
 	# Inside the castle nothing of the grounds is visible; the ground keeps its
 	# collision (other players are still out there on the server).
 	var t := world.get_node_or_null(TERRAIN_NODE) as Node3D
 	if t:
 		t.visible = false
+	world.set_meta(PARKED_META, true)
+
+const PARKED_META := "grounds_parked"
+
+## True while the scenery exists but is hidden (the player is indoors).
+static func is_parked(world: Node3D) -> bool:
+	return world != null and bool(world.get_meta(PARKED_META, false))
+
+static func _unpark(world: Node3D) -> void:
+	if not is_parked(world):
+		return
+	for node_name in BUILT_NODES:
+		var node := world.get_node_or_null(node_name) as Node3D
+		if node != null:
+			node.visible = true
+	var t := world.get_node_or_null(TERRAIN_NODE) as Node3D
+	if t:
+		t.visible = true
+	# Sky, sun and environment are untouched by parking: the map controller
+	# restores the outdoor environment and the sun on its own.
+	world.remove_meta(PARKED_META)
 
 
 # ------------------------------------------------------------------ sky

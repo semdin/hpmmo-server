@@ -105,6 +105,9 @@ var _label_throttle: float = 0.0
 var _commit_seen: bool = false
 
 var _fade_rect: ColorRect = null
+var _loading_screen: MapLoadingScreen = null
+## An expiry that arrived while a load was still running: {map_id, pos}.
+var _expired_return: Dictionary = {}
 var _loading_label: Label = null
 var _location_label: Label = null
 var _prompt_label: Label = null
@@ -338,10 +341,17 @@ func _on_transfer_expired(peer_id: int, _token: int, map_id: String, pos: Vector
 		return
 	_pending_portal = {}
 	_feedback("The transfer timed out; you are back at your last safe spot.")
-	if not busy:
-		current_map = map_id
-		if is_instance_valid(local_player):
-			local_player.global_position = pos
+	if busy:
+		# The load outlived the server's window: the body is back on `map_id`
+		# server-side. Follow it as soon as this load finishes, instead of
+		# staying on a map the server no longer has this body on.
+		_expired_return = {"map_id": map_id, "pos": pos}
+		return
+	if map_id != current_map or not _map_loaded(map_id):
+		_start_transfer(map_id, "default", 0, pos)
+		return
+	if is_instance_valid(local_player):
+		local_player.global_position = pos
 
 ## The authoritative answer to "which map is this body in": sent at join and on
 ## an interrupted transfer. It always wins.
@@ -367,22 +377,24 @@ func _start_transfer(map_id: String, spawn_id: String, token: int, forced_pos: V
 		_feedback("That map is not available in this build.")
 		return
 	busy = true
+	_expired_return = {}
 	_active_portal = {}
 	_feedback("")
-	_loading_label.text = _loading_text(map_id)
-	_fade_target = 1.0
-	await get_tree().create_timer(FADE_TIME + 0.05).timeout
+	await _loading_screen.open(_loading_title(map_id), _loading_text(map_id))
 
+	_loading_screen.set_progress(10.0, "Leaving %s…" % _place_name(current_map))
 	await _unload_map(current_map)
+	_loading_screen.set_progress(20.0, _loading_text(map_id))
 	var loaded := await _load_map(map_id)
 	if not loaded:
 		_feedback("The map failed to load; staying where you are.")
 		await _load_map(current_map)
-		_fade_target = 0.0
+		await _loading_screen.close()
 		busy = false
 		# No acknowledgement: the server's reservation expires and returns the
 		# body to its last safe spawn instead of stranding it between maps.
 		return
+	_loading_screen.set_progress(85.0, "Waiting for the server…")
 
 	current_map = map_id
 	# Acknowledge first: the authority commits on that ack and places the body at
@@ -397,10 +409,18 @@ func _start_transfer(map_id: String, spawn_id: String, token: int, forced_pos: V
 	if not _commit_seen:
 		var target: Vector3 = forced_pos if forced_pos is Vector3 else _spawn_point(map_id, spawn_id)
 		_place_player(target)
-	_fade_target = 0.0
-	await get_tree().create_timer(FADE_TIME + 0.05).timeout
+	# A few frames rendered behind the screen: the new map's first draw (shader
+	# and pipeline compilation) is the hitch, and it happens here, unseen.
+	_loading_screen.set_progress(95.0, "Almost there…")
+	for _i in range(4):
+		await get_tree().process_frame
+	await _loading_screen.close()
 	busy = false
 	_record_transfer(map_id, spawn_id, token)
+	if not _expired_return.is_empty():
+		var back: Dictionary = _expired_return
+		_expired_return = {}
+		_start_transfer(String(back["map_id"]), "default", 0, back["pos"])
 
 func _await_commit(timeout: float) -> void:
 	var waited := 0.0
@@ -428,7 +448,7 @@ func _map_loaded(map_id: String) -> bool:
 		return _instance_node != null and is_instance_valid(_instance_node) \
 			and String(_instance_node.get_meta("map_id", "")) == map_id
 	if map_id == MAP_GROUNDS:
-		return world != null and world.has_node("HogwartsCastle")
+		return world != null and world.has_node("HogwartsCastle") and not GroundsBuilder.is_parked(world)
 	return _interior != null and is_instance_valid(_interior)
 
 func _unload_map(map_id: String) -> void:
@@ -438,7 +458,7 @@ func _unload_map(map_id: String) -> void:
 	if HPMaps.instance_slot(map_id) > 0:
 		await _free_instance()
 		return
-	# Grounds: free the scenery WorldBuilder created and hide the entity
+	# Grounds: park (hide) the scenery WorldBuilder created and hide the entity
 	# containers. Terrain (the ground collider) and the sim entities stay: they
 	# are the world's collision/state, not its map resources.
 	GroundsBuilder.teardown(world)
@@ -454,8 +474,8 @@ func _unload_map(map_id: String) -> void:
 
 func _load_map(map_id: String) -> bool:
 	if map_id == MAP_GROUNDS:
-		# Rebuild the outdoor scenery. build() is idempotent and cheap (it only
-		# runs when the castle node is absent, which teardown guarantees).
+		# Show the parked outdoor scenery again (build() only builds it the
+		# first time; afterwards it is hidden and shown, never rebuilt).
 		GroundsBuilder.build(world)
 		for node_name in _hidden.keys():
 			var node := world.get_node_or_null(String(node_name))
@@ -475,6 +495,8 @@ func _load_map(map_id: String) -> bool:
 	var packed := await _load_threaded(INTERIOR_PATH)
 	if packed == null:
 		return false
+	_loading_screen.set_progress(78.0, "Lighting the torches…")
+	await get_tree().process_frame
 	_interior = packed.instantiate()
 	_interior.name = "CastleInterior"
 	world.add_child(_interior)
@@ -638,9 +660,12 @@ func _load_threaded(path: String) -> PackedScene:
 	if error != OK:
 		return load(path) as PackedScene
 	while true:
-		var status := ResourceLoader.load_threaded_get_status(path)
+		var progress := []
+		var status := ResourceLoader.load_threaded_get_status(path, progress)
 		match status:
 			ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+				if progress.size() > 0 and _loading_screen != null:
+					_loading_screen.set_progress(20.0 + float(progress[0]) * 55.0)
 				await get_tree().process_frame
 			ResourceLoader.THREAD_LOAD_LOADED:
 				var resource := ResourceLoader.load_threaded_get(path)
@@ -706,6 +731,20 @@ func _loading_text(map_id: String) -> String:
 	if HPMaps.instance_slot(map_id) > 0:
 		return "Entering %s..." % HPMaps.display_name(map_id)
 	return "Returning to the Grounds..."
+
+func _loading_title(map_id: String) -> String:
+	if map_id == MAP_INTERIOR:
+		return "HOGWARTS CASTLE"
+	if HPMaps.instance_slot(map_id) > 0:
+		return HPMaps.display_name(map_id).to_upper()
+	return "HOGWARTS GROUNDS"
+
+func _place_name(map_id: String) -> String:
+	if map_id == MAP_INTERIOR:
+		return "the castle"
+	if HPMaps.instance_slot(map_id) > 0:
+		return HPMaps.display_name(map_id)
+	return "the grounds"
 
 func _spawn_point(map_id: String, spawn_id: String) -> Vector3:
 	var maps := _maps_script()
@@ -791,6 +830,10 @@ func _build_ui() -> void:
 	_notice_label.offset_bottom = -176.0
 	_notice_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	layer.add_child(_notice_label)
+
+	_loading_screen = MapLoadingScreen.new()
+	_loading_screen.name = "MapLoadingScreen"
+	world.add_child(_loading_screen)
 
 func _make_label(title: String, size: int, color: Color) -> Label:
 	var label := Label.new()
