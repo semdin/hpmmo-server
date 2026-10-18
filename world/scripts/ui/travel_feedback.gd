@@ -268,15 +268,14 @@ func _update_portal(delta: float) -> void:
 			portals_seen += 1
 			var target := String(controller.get("current_map"))
 			_portal_label.text = "Travelling..." if target == "" else "Loading %s..." % target
-			_portal_panel.show()
 			_play_ui("map_transition")
 		_portal_progress = minf(0.92, _portal_progress + delta * 0.7)
 	elif _portal_busy_seen:
 		_portal_busy_seen = false
 		_portal_progress = 1.0
-		_portal_bar.value = 100.0
-		_portal_label.text = "Arrived."
-		_portal_hide_at = _now() + 0.4
+		# No "Arrived." flash: the map loading screen already covers the
+		# transfer, so the panel just goes away.
+		_portal_panel.hide()
 	elif _portal_hide_at > 0.0 and _now() >= _portal_hide_at:
 		_portal_hide_at = 0.0
 		_portal_panel.hide()
@@ -351,7 +350,9 @@ func _update_staircase() -> void:
 			_stairs_label.text = "%s  (entry closed - hold position)" % text
 	else:
 		_stairs_label.text = text
-	_stairs_panel.show()
+	# The state line is kept for checks (describe()), but it reads as debug
+	# text to players, so the panel stays hidden.
+	_stairs_panel.hide()
 
 ## ------------------------------------------------------------ mounted controls
 

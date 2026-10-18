@@ -17,7 +17,7 @@ var hud: Control = null
 var _offered := false
 
 func _init() -> void:
-	super._init("Choose Your First Spell", Vector2(3 * (CARD_W + 12) + 48, 470))
+	super._init("Choose Your First Spell", Vector2(3 * (CARD_W + 12) + 60, 600))
 	name = "SkillPick"
 	modal = false
 
@@ -26,13 +26,21 @@ func _ready() -> void:
 	var intro := HudKit.label("Every wizard starts with one spell of their own. Pick it now - every level after this earns a skill point to learn or train more (V).",
 		15, HudKit.PARCHMENT, HudKit.body(), 0)
 	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	intro.custom_minimum_size = Vector2(3 * (CARD_W + 12), 0)
+	intro.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.add_child(intro)
-	var grid := GridContainer.new()
-	grid.columns = 3
+	# The cards flow into as many columns as the window is wide and scroll when
+	# the screen is too short for every row - a fixed 3-column grid overflowed
+	# the card on small windows.
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	body.add_child(scroll)
+	var grid := HFlowContainer.new()
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid.alignment = FlowContainer.ALIGNMENT_CENTER
 	grid.add_theme_constant_override("h_separation", 12)
 	grid.add_theme_constant_override("v_separation", 12)
-	body.add_child(grid)
+	scroll.add_child(grid)
 	for spell_id in HPRules.upgradeable_skills():
 		if String(spell_id) in STARTER_EXCLUDED:
 			continue
@@ -58,6 +66,8 @@ func _card(spell_id: String) -> Control:
 	var desc := HudKit.label(String(spell.get("desc", "")), 12, HudKit.TEXT_DIM, HudKit.body(), 0)
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	desc.custom_minimum_size = Vector2(CARD_W - 16, 0)
+	# Fills the card so every Learn button sits on the same line.
+	desc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	col.add_child(desc)
 	var learn := HudKit.button("Learn", 15)
 	learn.focus_mode = Control.FOCUS_NONE

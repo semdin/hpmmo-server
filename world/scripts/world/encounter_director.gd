@@ -247,8 +247,9 @@ func _spawn_pack(index: int) -> void:
 		# (a synchronised burst every 5 s froze the client for a second).
 		var retry := float(HPRules.pack_tuning("respawn_retry_seconds", 5.0))
 		pack.timer = retry * rng.randf_range(1.0, 2.0)
-		if not bool(pack.get("deferred", false)):
-			# once per deferral, not on every retry (a thousand lines a cycle)
+		if not bool(pack.get("deferred", false)) and OS.is_stdout_verbose():
+			# Once per deferral and only with --verbose: at boot most of the
+			# realm's packs defer, which buried the console in a thousand lines.
 			print("[Encounters] %s deferred (no valid anchor; retrying)" % pack.get("encounter_id", "?"))
 		pack.deferred = true
 		return

@@ -18,7 +18,9 @@ extends Control
 ## (`LOGIN_NOTICE_META`, set by `MaintenanceUI`).
 ##
 ## Command line (tests, tools): --solo/--offline, --user U, --pass P,
-## --autologin, --no-autologin, --ip/--server HOST, --port N, --api-port=N.
+## --autologin, --no-autologin, --ip/--server HOST, --port N, --api-port=N,
+## --test-char=<level|trial|corridor|max> (with --solo: a levelled, geared
+## developer character, see TestCharacter).
 
 const DEFAULT_SERVER_IP := "213.250.145.75"
 const DEFAULT_GAME_PORT := 7777
@@ -898,8 +900,16 @@ func _on_solo_pressed() -> void:
 	GameSettings.use_account("offline")
 	NetworkManager.start_offline()
 
-	# Load existing offline saved character or use defaults
-	var local_char = DatabaseManager.load_offline_character()
+	# `--test-char=<preset>`: a fresh developer character (see TestCharacter).
+	var test_preset := TestCharacter.requested()
+	var local_char: Dictionary = {}
+	if test_preset != "":
+		DatabaseManager.offline_save_path = TestCharacter.SAVE_PATH
+		local_char = TestCharacter.build(test_preset)
+		print("[MainMenu] Test character '%s': level %d, +%d gear" % [test_preset, int(local_char.level), TestCharacter.REFINE_TIER])
+	else:
+		# Load existing offline saved character or use defaults
+		local_char = DatabaseManager.load_offline_character()
 	if not local_char.is_empty():
 		NetworkManager.local_character_data = local_char
 		NetworkManager.local_player_name = local_char.get("name", "Wizard")

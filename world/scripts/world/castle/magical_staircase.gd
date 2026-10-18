@@ -119,6 +119,8 @@ func _build_presentation() -> void:
 	_board.outline_size = 10
 	_board.outline_modulate = Color(0, 0, 0, 1)
 	_board.position = Vector3(0.0, rise() + 3.2, run_length() * 0.5)
+	# Prototype state readout: kept for debugging, never drawn in game.
+	_board.visible = false
 	add_child(_board)
 	SimAuthority.notice.connect(_on_notice)
 	_update_board()

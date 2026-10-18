@@ -314,7 +314,8 @@ func _on_cast_started(p_cast_id: int, spell_id: String, release_tick: int) -> vo
 	_cast_release_tick = release_tick
 	_recovery_spell = ""
 	casts_shown += 1
-	_cast_panel.show()
+	# The windup/recovery bar is not shown to players: the action bar's own
+	# cooldown sweep already says when a skill is ready again.
 	_cast_label.text = "%s - casting... (%s)" % [_spell_name(spell_id), _dummy_countdown(SimAuthority.TICK_MS * maxi(1, _cast_release_tick - _cast_start_tick))]
 
 ## The server decides the windup. The bar fills on the simulation clock; if the
@@ -590,9 +591,6 @@ func _process(delta: float) -> void:
 	elif _recovery_until > now and _recovery_total > 0.0:
 		var remaining := _recovery_until - now
 		var ratio := clampf(remaining / _recovery_total, 0.0, 1.0)
-		if not _cast_panel.visible:
-			_cast_panel.show()
-			_cast_bar.value = 0.0
 		_cast_label.text = "%s - recovering... %.1fs" % [_spell_name(_recovery_spell), remaining]
 		_cast_bar.value = (1.0 - ratio) * 100.0
 	else:

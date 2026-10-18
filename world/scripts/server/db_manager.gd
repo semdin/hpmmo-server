@@ -199,11 +199,14 @@ func _redact(text: String) -> String:
 ## OFFLINE / SINGLEPLAYER PERSISTENCE (SQLite / Local JSON)
 ## ---------------------------------------------------------
 
+## Where offline play saves; `--test-char` points it at its own file so the
+## developer test character never overwrites the real offline character.
+var offline_save_path: String = LOCAL_SAVE_PATH
+
 func save_offline_character(char_data: Dictionary) -> void:
-	var file = FileAccess.open(LOCAL_SAVE_PATH, FileAccess.WRITE)
+	var file = FileAccess.open(offline_save_path, FileAccess.WRITE)
 	if file:
 		file.store_string(JSON.stringify(char_data, "\t"))
-		print("[DBManager] Offline character saved locally to %s" % LOCAL_SAVE_PATH)
 
 func load_offline_character() -> Dictionary:
 	var path_to_load = LOCAL_SAVE_PATH
