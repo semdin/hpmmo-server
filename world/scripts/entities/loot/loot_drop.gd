@@ -4,9 +4,17 @@ extends Area3D
 ## its item rolls (galleons go straight to the purse). Right-clicking it opens
 ## the chest window (`LootWindow`); Z takes everything that fits. A plain chest glows warm gold, a chest that holds an
 ## enchanted (efsun) piece sparkles violet.
+## The glow is layered: a real (shadowless) light, a soft pool on the ground,
+## a faint rising shaft, drifting motes and a fresnel rim on the model.
 
-const CHEST_MODEL := preload("res://assets/models/environment/chest.glb")
-const GLOW := {"chest": Color(1.0, 0.8, 0.32), "chest_rare": Color(0.72, 0.4, 1.0)}
+const CHEST_MODEL := preload("res://assets/models/environment/loot_chest.glb")
+const RIM_SHADER := preload("res://assets/shaders/loot/chest_rim.gdshader")
+const GLOW := {"chest": Color(1.0, 0.78, 0.36), "chest_rare": Color(0.66, 0.42, 1.0)}
+## Per kind: light energy, pool, beam and rim strength, motes, pulse speed.
+const LOOK := {
+	"chest": {"light": 1.4, "pool": 1.1, "beam": 0.9, "rim": 0.25, "motes": 10, "speed": 1.6},
+	"chest_rare": {"light": 1.8, "pool": 1.2, "beam": 1.2, "rim": 0.35, "motes": 18, "speed": 2.6},
+}
 const PICK_RANGE := 7.0
 
 @export var item_id: String = "chest"
@@ -17,12 +25,15 @@ var items: Array = []
 @onready var label: Label3D = $Label3D
 @onready var particles: CPUParticles3D = $CPUParticles3D
 @onready var model_root: Node3D = $Model
-@onready var ring: MeshInstance3D = $GlowRing
+@onready var pool: MeshInstance3D = $GlowPool
+@onready var beam: MeshInstance3D = $Beam
+@onready var light: OmniLight3D = $Light
 
 var is_collected: bool = false
 var remaining_lifetime := 90.0
 var _pickup_retry_at := 0
 var _phase := 0.0
+var _rim_meshes: Array = []
 
 func _ready() -> void:
 	_phase = randf() * TAU
@@ -30,7 +41,12 @@ func _ready() -> void:
 	add_to_group("loot")
 	var model := CHEST_MODEL.instantiate()
 	model_root.add_child(model)
-	_fit_model(model, 0.75)
+	_fit_model(model, 0.9)
+	var rim := ShaderMaterial.new()
+	rim.shader = RIM_SHADER
+	for mesh in model.find_children("*", "MeshInstance3D", true, false):
+		(mesh as MeshInstance3D).material_overlay = rim
+		_rim_meshes.append(mesh)
 	model_root.rotation.y = randf() * TAU
 	_update_display()
 
@@ -75,34 +91,44 @@ func _update_display() -> void:
 	var glow: Color = GLOW[item_id]
 	label.text = item_name
 	label.modulate = glow.lightened(0.35)
-	if ring:
-		var mat := ring.material_override as StandardMaterial3D
-		if mat == null:
-			mat = (ring.mesh.surface_get_material(0) as StandardMaterial3D).duplicate()
-			ring.material_override = mat
-		mat.albedo_color = Color(glow, 0.55)
+	var look: Dictionary = LOOK[item_id]
+	light.light_color = glow
+	for mesh in _rim_meshes:
+		(mesh as GeometryInstance3D).set_instance_shader_parameter("tint", glow)
+	pool.set_instance_shader_parameter("tint", glow)
+	beam.set_instance_shader_parameter("tint", glow)
+	_pulse(0.5)
 	if particles:
-		var pmat := (particles.mesh.surface_get_material(0) as StandardMaterial3D).duplicate()
-		pmat.albedo_color = glow
-		particles.material_override = pmat
 		var rare := item_id == "chest_rare"
-		particles.amount = 22 if rare else 10
-		particles.lifetime = 1.4 if rare else 1.1
-		particles.emission_sphere_radius = 0.55 if rare else 0.4
-		particles.scale_amount_max = 1.6 if rare else 1.0
+		var ramp := Gradient.new()
+		ramp.offsets = PackedFloat32Array([0.0, 0.2, 0.7, 1.0])
+		var hot := glow.lightened(0.3)
+		ramp.colors = PackedColorArray([Color(hot, 0.0), Color(hot, 1.0), Color(glow, 0.7), Color(glow, 0.0)])
+		particles.color_ramp = ramp
+		particles.amount = look["motes"]
+		particles.lifetime = 1.8 if rare else 2.2
+		particles.emission_sphere_radius = 0.5 if rare else 0.38
+		particles.initial_velocity_max = 0.45 if rare else 0.25
+		particles.scale_amount_max = 1.5 if rare else 1.0
+
+## Breathing glow, 0..1: the light, pool, shaft and rim swell together.
+func _pulse(t: float) -> void:
+	var look: Dictionary = LOOK[item_id]
+	light.light_energy = look["light"] * (0.8 + 0.35 * t)
+	pool.set_instance_shader_parameter("strength", look["pool"] * (0.75 + 0.35 * t))
+	beam.set_instance_shader_parameter("strength", look["beam"] * (0.7 + 0.4 * t))
+	for mesh in _rim_meshes:
+		(mesh as GeometryInstance3D).set_instance_shader_parameter("strength", look["rim"] * (0.6 + 0.6 * t))
 
 func _process(delta: float) -> void:
 	remaining_lifetime -= delta
 	if remaining_lifetime <= 0:
 		queue_free()
 		return
-	if is_collected or ring == null:
+	if is_collected or light == null:
 		return
-	# A slow breathing glow under the chest; the enchanted one pulses faster.
-	var speed := 4.0 if item_id == "chest_rare" else 2.0
-	var pulse := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.001 * speed + _phase)
-	ring.scale = Vector3.ONE * (0.9 + 0.2 * pulse)
-	(ring.material_override as StandardMaterial3D).albedo_color.a = 0.35 + 0.35 * pulse
+	# A slow breathing glow; the enchanted one pulses faster.
+	_pulse(0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.001 * float(LOOK[item_id]["speed"]) + _phase))
 
 ## A take is a REQUEST (`slot` = one chest slot, -1 = everything that fits):
 ## the authority checks range and room, credits the character and answers
@@ -137,6 +163,8 @@ func despawn() -> void:
 		label.visible = false
 	if particles:
 		particles.emitting = false
+	if light:
+		light.visible = false
 	var tween := create_tween().set_parallel(true)
 	tween.tween_property(self, "scale", Vector3.ZERO, 0.25).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_BACK)
 	tween.tween_property(self, "position:y", position.y + 0.4, 0.25)
