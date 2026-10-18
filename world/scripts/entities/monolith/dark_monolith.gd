@@ -1,7 +1,5 @@
 extends StaticBody3D
 
-const MaterialKitScript = preload("res://scripts/assets/material_kit.gd")
-
 ## Dark Monolith - Metin2 Stone equivalent in the Harry Potter MMO
 ## A towering cursed obelisk that spawns aggressive waves of dark creatures as its HP is chipped away.
 ## On destruction, it drops massive loot (Galleons, Phoenix Ashes, Dragon Cores, Potions).
@@ -19,7 +17,12 @@ var wave2_triggered: bool = false
 var wave3_triggered: bool = false
 var is_destroyed: bool = false
 
-@onready var mesh: MeshInstance3D = $MeshInstance3D
+## The carved Dark Mark standing stone (art/monolith: gpt-image -> Hunyuan ->
+## prop_prepare). The emerald runes and cracks are painted into its albedo;
+## the breathing glow is the green light, not emission (an emission map lit
+## the whole stone).
+@onready var mesh: MeshInstance3D = $Model.find_children("*", "MeshInstance3D", true, false)[0]
+const GLOW := Color(0.35, 1.0, 0.45)
 @onready var hp_label: Label3D = $HpLabel3D
 @onready var aura_particles: CPUParticles3D = $AuraParticles
 @onready var dark_light: OmniLight3D = $OmniLight3D
@@ -38,6 +41,11 @@ func _ready() -> void:
 	var base_mat := mesh.material_override as StandardMaterial3D
 	if base_mat:
 		_base_albedo = base_mat.albedo_color
+	if aura_particles:
+		# Soft motes, not bare quads.
+		var mote := aura_particles.mesh.surface_get_material(0) as StandardMaterial3D if aura_particles.mesh else null
+		if mote:
+			mote.albedo_texture = load("res://assets/vfx/spark_01.png")
 	_add_sky_beam()
 	_update_label()
 	if SimAuthority.is_authority():
@@ -52,7 +60,7 @@ func _update_label() -> void:
 		var pct := int((float(current_hp) / float(max_hp)) * 100.0)
 		hp_label.text = "Dark Monolith (Lv.35)\n%d / %d (%d%%)" % [current_hp, max_hp, pct]
 		if pct > 50:
-			hp_label.modulate = Color(0.9, 0.4, 1.0)
+			hp_label.modulate = Color(0.45, 1.0, 0.55)
 		elif pct > 25:
 			hp_label.modulate = Color(1.0, 0.5, 0.2)
 		else:
@@ -111,8 +119,7 @@ func _spawn_wave(wave_num: int, target_player: Node3D) -> void:
 	NetworkManager.system_chat("Dark Monolith: a wave of dark creatures emerges from the ground! (Wave %d/3)" % wave_num)
 	
 	# Visual burst
-	if dark_light:
-		dark_light.light_energy = 8.0
+	_burst = 6.0
 	
 	# Wave composition, spawn scatter and mob levels are server-owned data; the
 	# authority's seeded RNG decides them so every client sees the same wave.
@@ -196,39 +203,31 @@ func _respawn() -> void:
 	NetworkManager.system_chat("A new Dark Monolith has manifested in the realm!")
 
 func _add_sky_beam() -> void:
-	# tall purple beacon so players can find world bosses from anywhere
+	# A tall, faint emerald beacon so players can find the stone from afar
+	# (the Dark Mark's colour, not the old placeholder purple).
 	var beam := MeshInstance3D.new()
 	beam.name = "SkyBeam"
 	var cm := CylinderMesh.new()
-	cm.top_radius = 0.08
-	cm.bottom_radius = 0.18
-	cm.height = 32.0
+	cm.top_radius = 0.03
+	cm.bottom_radius = 0.1
+	cm.height = 34.0
 	var bm := StandardMaterial3D.new()
 	bm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	bm.albedo_color = Color(0.55, 0.28, 0.85, 0.14)
+	bm.albedo_color = Color(GLOW.r * 0.5, GLOW.g * 0.5, GLOW.b * 0.5, 0.05)
 	bm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	bm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	bm.cull_mode = BaseMaterial3D.CULL_DISABLED
 	cm.material = bm
 	beam.mesh = cm
-	beam.position = Vector3(0, 16, 0)
+	beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	beam.position = Vector3(0, 7.0 + 17.0, 0)
 	add_child(beam)
-	# floating rune rocks orbiting base
-	for i in range(5):
-		var rock := MeshInstance3D.new()
-		var rm := BoxMesh.new()
-		rm.size = Vector3(0.5, 0.5, 0.5)
-		rm.material = 	MaterialKitScript.obsidian_material()
-		rock.mesh = rm
-		var ang := TAU * float(i) / 5.0
-		rock.position = Vector3(cos(ang) * 2.4, 0.6, sin(ang) * 2.4)
-		rock.set_meta("orbit_ang", ang)
-		rock.set_meta("orbit_speed", randf_range(0.5, 1.0))
-		rock.add_to_group("monolith_orbits")
-		add_child(rock)
+
+var _burst := 0.0
 
 func _process(delta: float) -> void:
-	for child in get_children():
-		if child.is_in_group("monolith_orbits") and child is MeshInstance3D:
-			var ang: float = child.get_meta("orbit_ang") + delta * float(child.get_meta("orbit_speed"))
-			child.set_meta("orbit_ang", ang)
-			child.position = Vector3(cos(ang) * 2.4, 0.6 + sin(Time.get_ticks_msec() * 0.002 + ang) * 0.3, sin(ang) * 2.4)
-			child.rotation.y += delta * 2.0
+	# The runes breathe: a slow pulse on the green light.
+	var pulse := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.0021)
+	_burst = maxf(0.0, _burst - delta * 5.0)
+	if dark_light:
+		dark_light.light_energy = 1.2 + 0.8 * pulse + _burst

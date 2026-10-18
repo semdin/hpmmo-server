@@ -163,17 +163,24 @@ static func show_cloak(root: Node, entry: Dictionary) -> void:
 	mesh.layers |= CHARACTER_LAYER
 	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	mesh.material_override = _cloak_material(texture_path)
+	# The shell would let the arms and the broom shaft through: the deformer
+	# feeds their capsules to the cloak shader every frame.
+	var deformer := CloakDeformerScript.new()
+	deformer.name = "CloakDeformer"
+	mesh.add_child(deformer)
 
-static func _cloak_material(texture_path: String) -> StandardMaterial3D:
+const CloakDeformerScript = preload("res://scripts/entities/cloak_deformer.gd")
+const CLOAK_SHADER := preload("res://assets/shaders/cloak.gdshader")
+
+static func _cloak_material(texture_path: String) -> ShaderMaterial:
 	if _cloak_materials.has(texture_path):
 		return _cloak_materials[texture_path]
-	var mat := StandardMaterial3D.new()
-	mat.albedo_texture = load(texture_path)
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED   # one sheet of cloth: both faces show
-	mat.roughness = 0.85
-	mat.rim_enabled = true
-	mat.rim = CLOTH_RIM
-	mat.rim_tint = CLOTH_RIM_TINT
+	var mat := ShaderMaterial.new()   # cull_disabled: one sheet of cloth, both faces show
+	mat.shader = CLOAK_SHADER
+	mat.set_shader_parameter("albedo_tex", load(texture_path))
+	mat.set_shader_parameter("roughness", 0.85)
+	mat.set_shader_parameter("rim", CLOTH_RIM)
+	mat.set_shader_parameter("rim_tint", CLOTH_RIM_TINT)
 	_cloak_materials[texture_path] = mat
 	return mat
 

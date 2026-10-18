@@ -1822,8 +1822,13 @@ func mob_projectile(attacker_node: Node, spell_id: String, dir: Vector3, raw: in
 		return
 	var origin: Vector3 = (attacker_node as Node3D).global_position + Vector3.UP * 1.2
 	var data := HPRules.spell(spell_id)
+	# A real cast id, announced like a player's release: clients draw the bolt
+	# in flight (before, only its impact showed) and end it on the landing.
+	var cast_id := _next_cast_id
+	_next_cast_id += 1
+	emit_signal("cast_released", cast_id, int(attacker["uid"]), spell_id, origin, dir.normalized())
 	projectiles.append({
-		"cast_id": 0,
+		"cast_id": cast_id,
 		"caster_uid": int(attacker["uid"]),
 		"spell_id": spell_id,
 		"pos": origin,
@@ -3327,9 +3332,15 @@ func apply_stats_payload(uid: int, stats: Dictionary) -> void:
 		# Ignore stale ownership as a unit, while HP, mana and EXP keep flowing.
 		for key in ["equipment", "inventory", "inventory_revision", "equipment_version", "base_max_hp", "base_max_mana", "galleons"]:
 			stats_copy.erase(key)
+	var level_before := int(record.get("level", 0))
 	for key in stats_copy.keys():
 		record[key] = stats_copy[key]
 	_sync_node_health(record)
+	# A connected client never runs the authority's level-up loop, so it learns
+	# of a level-up from the stats payload (the level-up effect hangs off this).
+	var level_after := int(stats_copy.get("level", level_before))
+	if not is_authority() and level_before > 0 and level_after > level_before:
+		emit_signal("level_changed", uid, level_after)
 	# Replica state must come directly from the received snapshot. Rebuilding
 	# through build_stats() here would merge the client's old bag back over it.
 	if is_instance_valid(node) and node.has_method("apply_authoritative_stats"):

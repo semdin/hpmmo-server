@@ -70,6 +70,10 @@ signal died(mob: Node3D)
 @export var voice_set := ""
 ## Ground speed the walk cycle was authored for (0 = unknown, no scaling).
 @export var walk_speed := 0.0
+## Ground speed the run cycle was authored for (0 = scale it like the walk).
+## A troll's charge cycle covers ~10 m/s; scaled by the walk speed it played
+## three times too fast and the body seemed to run on the spot.
+@export var run_speed := 0.0
 ## Creature catalog identity (mobs.json): species id, the elite roll, the
 ## resistance map and loot table the authority uses. The encounter director
 ## sets them; a mob spawned another way (monolith wave) fills them from the
@@ -165,6 +169,12 @@ const ANIM_SETS := {
 	# Meshy-rigged trolls (art/pipeline/scripts/meshy_merge_clips.py).
 	"troll": {"idle": "Idle", "walk": "Walk", "run": "Run", "turn": "Walk",
 		"anticipation": "Swing_Anticipation", "attack": "Swing_Attack", "hit": "Hit",
+		"stun": "Hit", "death": "Death"},
+	# Meshy-rigged wand casters (Dark Snatcher, art/creatures/snatcher): a short
+	# charged wand thrust is the ordinary attack; Cast (quick draw) and Charge
+	# stay in the GLB for patterns.
+	"caster": {"idle": "Idle", "walk": "Walk", "run": "Run", "turn": "Walk",
+		"anticipation": "Charge2_Anticipation", "attack": "Charge2_Attack", "hit": "Hit",
 		"stun": "Hit", "death": "Death"},
 	# Floating wraiths (art/pipeline/scripts/wraith_rig.py).
 	"wraith": {"idle": "Idle", "walk": "Float", "run": "Float", "turn": "Float",
@@ -316,13 +326,21 @@ func _set_collision_enabled(enabled: bool) -> void:
 ## Authored creature cycles have a real ground speed; without this an authored
 ## body skates when it moves at the gameplay speed. Only the creature sets that
 ## publish `walk_speed` are scaled this way.
-func _update_anim_speed() -> void:
+func _update_anim_speed(slot: String = "walk") -> void:
 	if not is_instance_valid(anim_player):
+		return
+	# The body's real ground speed (a wander strolls at 30% of move_speed); a
+	# replica has no velocity of its own and moves at the chase speed.
+	var speed := Vector2(velocity.x, velocity.z).length()
+	if sim_puppet or speed < 0.1:
+		speed = move_speed
+	if slot == "run" and run_speed > 0.0:
+		anim_player.speed_scale = clampf(speed / run_speed, 0.4, 3.0)
 		return
 	if walk_speed <= 0.0:
 		anim_player.speed_scale = 1.0
 		return
-	anim_player.speed_scale = clampf(move_speed / walk_speed, 0.55, 3.0)
+	anim_player.speed_scale = clampf(speed / walk_speed, 0.55, 3.0)
 
 func _apply_lod() -> void:
 	var lod1 := visuals.find_child("LOD1", true, false)
@@ -349,7 +367,7 @@ func _play_slot(slot: String, blend: float = 0.18) -> void:
 	if not is_instance_valid(anim_player):
 		return
 	if slot in ["walk", "run"]:
-		_update_anim_speed()
+		_update_anim_speed(slot)
 	else:
 		# The walk-cycle scale must not leak into attacks and reactions.
 		anim_player.speed_scale = 1.0
@@ -377,7 +395,16 @@ func _play_attack_clip(plan: Dictionary, phase: String, blend: float = 0.08) -> 
 	var clip := "%s_%s" % [base, suffix]
 	if is_instance_valid(anim_player) and anim_player.has_animation(clip):
 		if anim_player.current_animation != clip or not anim_player.is_playing():
-			anim_player.play(clip, blend)
+			# The run cycle's scale must not leak in (a boulder throw played at
+			# 0.43x looked like slow motion); stretch the clip over its phase.
+			anim_player.speed_scale = 1.0
+			var span := float(plan.get("anticipation" if phase == "anticipation" else "recovery", 0.0))
+			var speed := 1.0
+			if span > 0.0:
+				speed = clampf(anim_player.get_animation(clip).length / span, 0.5, 3.0)
+				if phase != "anticipation":
+					speed = maxf(1.0, speed)   # a follow-through only ever speeds up
+			anim_player.play(clip, blend, speed)
 	else:
 		_play_slot(phase, blend)
 
@@ -559,6 +586,7 @@ func _tick_attack(delta: float) -> void:
 		# attack began - the release uses this direction, not a live target read.
 		velocity.x = 0
 		velocity.z = 0
+		_press_heavy_swing(delta)
 		_windup -= delta
 		if _windup <= 0.0:
 			_release_attack()
@@ -577,6 +605,27 @@ func _tick_attack(delta: float) -> void:
 				# standing in the field with a stale target (the authority cancels
 				# the pack's pending reward credit).
 				_break_fight("no_target")
+
+## A heavy brute (authored windup, e.g. a troll) keeps stepping after a target
+## that backs off during its swing instead of whiffing in place: stepping out of
+## reach is still the dodge, but a slow walk-back is not.
+func _press_heavy_swing(delta: float) -> void:
+	if _attack_kind != "melee" or attack_anticipation <= 0.0 or not _valid_target():
+		return
+	var to: Vector3 = (target_player as Node3D).global_position - global_position
+	to.y = 0.0
+	if to.length() <= attack_range * 0.7:
+		return
+	var dir := to.normalized()
+	var speed := move_speed * 0.6 * _speed_scale()
+	velocity.x = dir.x * speed
+	velocity.z = dir.z * speed
+	_face_direction(dir, delta)
+
+## Melee reach checked on release. A heavy swing sweeps past its trigger
+## range (the club travels well beyond the body), so brutes get the extra arc.
+func _melee_reach() -> float:
+	return attack_range + 0.4 + (attack_range * 0.35 if attack_anticipation > 0.0 else 0.0)
 
 ## Begin an attack. Bosses walk a deterministic pattern list (directional ->
 ## area -> ...); ordinary mobs use the melee/ranged plan. The telegraph for a
@@ -1147,7 +1196,7 @@ func _resolve_attack(plan: Dictionary) -> void:
 			FX.play_cast(get_parent(), self, "stupefy", global_position + Vector3.UP * 1.2, dir)
 			SimAuthority.mob_projectile(self, "stupefy", dir, power)
 	elif _valid_target() and Rules.has_line_of_sight(self, target_player):
-		if global_position.distance_to(target_player.global_position) <= attack_range + 0.4:
+		if global_position.distance_to(target_player.global_position) <= _melee_reach():
 			_play_voice(_voice_key("attack"))
 			SimAuthority.mob_melee(self, target_player, power)
 
@@ -1451,26 +1500,55 @@ func _throw_boulder(target: Vector3, release_tick: int) -> void:
 	var parent := get_parent()
 	if parent == null:
 		return
-	var rock := MeshInstance3D.new()
-	var mesh := SphereMesh.new()
-	mesh.radius = 0.75
-	mesh.height = 1.3
-	rock.mesh = mesh
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.42, 0.4, 0.37)
-	mat.roughness = 0.95
-	rock.material_override = mat
+	var rock := _boulder_body()
 	parent.add_child(rock)
 	var start := global_position + Vector3.UP * 4.6
 	rock.global_position = start
 	var total := maxf(0.2, float(release_tick - SimAuthority.sim_tick) * HPProtocol.SIM_DT)
-	var flight := minf(0.75, total)
+	var flight := minf(0.55, total)
 	var tween := rock.create_tween()
 	tween.tween_interval(total - flight)
 	tween.tween_method(_fly_boulder.bind(rock, start, target), 0.0, 1.0, flight)
 	tween.tween_callback(rock.queue_free)
 
+const BOULDER_MODEL := "res://assets/models/vegetation/rock_boulder.glb"
+const BOULDER_SIZE := 1.5
+
+## The thrown rock: the grounds' boulder model sized to BOULDER_SIZE (a grey
+## sphere when the model is missing).
+func _boulder_body() -> Node3D:
+	var scene := load(BOULDER_MODEL) as PackedScene
+	if scene == null:
+		var fallback := MeshInstance3D.new()
+		var mesh := SphereMesh.new()
+		mesh.radius = 0.75
+		mesh.height = 1.3
+		fallback.mesh = mesh
+		return fallback
+	var holder := Node3D.new()
+	var model := scene.instantiate() as Node3D
+	holder.add_child(model)
+	var box := AABB()
+	var first := true
+	for child in model.find_children("*", "MeshInstance3D", true, false):
+		var mi := child as MeshInstance3D
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		var xf := Transform3D.IDENTITY
+		var node: Node = mi
+		while node != null and node != model:
+			if node is Node3D:
+				xf = (node as Node3D).transform * xf
+			node = node.get_parent()
+		var local: AABB = xf * mi.get_aabb()
+		box = local if first else box.merge(local)
+		first = false
+	var extent := maxf(0.01, maxf(box.size.x, maxf(box.size.y, box.size.z)))
+	model.scale = Vector3.ONE * (BOULDER_SIZE / extent)
+	model.position = -box.get_center() * model.scale
+	return holder
+
 func _fly_boulder(t: float, rock: Node3D, start: Vector3, target: Vector3) -> void:
 	if is_instance_valid(rock):
 		rock.global_position = start.lerp(target, t) + Vector3.UP * sin(t * PI) * 5.0
-		rock.rotation.x = t * 9.0
+		rock.rotation.x = t * 7.0
+		rock.rotation.z = t * 3.0

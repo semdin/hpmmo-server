@@ -20,15 +20,16 @@ mob_name = "Mountain Troll"
 level = 33
 max_hp = 1300
 attack_power = 95
-move_speed = 3.0
+move_speed = 5.2
 aggro_radius = 12.0
 attack_range = 4.2
 attack_cooldown = 2.8
 anim_set = "troll"
 voice_set = "troll"
 walk_speed = 1.123
-attack_anticipation = 1.2
-attack_recovery = 0.9
+run_speed = 12.0
+attack_anticipation = 0.85
+attack_recovery = 0.75
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.1, 0)

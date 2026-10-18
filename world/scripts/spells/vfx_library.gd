@@ -39,6 +39,8 @@ const ASSETS := {
 	"vfx_fire_burst": {"path": ATLAS_DIR + "fire_burst_8x8_2k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 22, "loop": false, "colour": true},
 	"vfx_flame_loop": {"path": ATLAS_DIR + "flame_loop_8x8_1k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 22, "loop": true, "colour": true},
 	"vfx_smoke_puff": {"path": ATLAS_DIR + "smoke_puff_8x8_1k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 22, "loop": false, "colour": true},
+	"vfx_broom_mist": {"path": ATLAS_DIR + "broom_mist_8x8_1k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 22, "loop": false, "colour": true},
+	"vfx_broom_motes": {"path": ATLAS_DIR + "broom_motes_8x8_1k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 22, "loop": false, "colour": true},
 	"vfx_explosion": {"path": ATLAS_DIR + "explosion_8x8_2k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 22, "loop": false, "colour": true},
 	"vfx_burst_gold": {"path": ATLAS_DIR + "burst_gold_8x8_1k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 22, "loop": false, "colour": true},
 	"vfx_burst_red": {"path": ATLAS_DIR + "burst_red_8x8_1k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 24, "loop": false, "colour": true},
@@ -364,15 +366,14 @@ const SPELLS := {
 
 ## Broom trail and boss warning are effects too (12.3 last rows).
 const BROOM_TRAIL := {
-	"colour": Color(1.0, 0.72, 0.35),
+	"colour": Color(0.82, 0.88, 1.0),
 	"layers": [
 		{"kind": "ribbon", "tex": "vfx_energy_streak", "blend": "add", "core": true,
-			"width": 0.22, "length": 7.0, "mesh": "vfx_trail_mesh"},
-		{"kind": "particles", "tex": "vfx_flame_static", "blend": "add", "core": false,
-			"amount": 28, "life": 0.55, "speed": 2.2, "spread": 22.0, "gravity": 0.6, "size": 0.42},
-		{"kind": "particles", "tex": "vfx_spark_static", "blend": "add", "core": false, "optional": true,
-			"amount": 18, "life": 0.7, "speed": 3.0, "spread": 30.0, "gravity": -1.5, "size": 0.08},
-		{"kind": "light", "core": false, "colour": true, "energy": 1.4, "range": 5.0},
+			"width": 0.16, "length": 7.0, "mesh": "vfx_trail_mesh"},
+		{"kind": "particles", "tex": "vfx_broom_mist", "blend": "alpha", "core": true,
+			"amount": 14, "life": 1.5, "size": 0.55},
+		{"kind": "particles", "tex": "vfx_broom_motes", "blend": "add", "core": false,
+			"amount": 7, "life": 1.3, "size": 0.5},
 	],
 }
 

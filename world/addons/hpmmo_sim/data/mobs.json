@@ -66,7 +66,7 @@
       "base": {
         "max_hp": 900,
         "attack_power": 70,
-        "move_speed": 3.2,
+        "move_speed": 5.6,
         "attack_range": 3.8,
         "attack_cooldown": 2.6
       },
@@ -99,7 +99,7 @@
       "base": {
         "max_hp": 1300,
         "attack_power": 95,
-        "move_speed": 3.0,
+        "move_speed": 5.2,
         "attack_range": 4.2,
         "attack_cooldown": 2.8
       },
@@ -128,8 +128,8 @@
           "kind": "area",
           "at_target": true,
           "clip": "Swing",
-          "anticipation": 1.6,
-          "recovery": 1.0,
+          "anticipation": 1.0,
+          "recovery": 0.6,
           "radius": 3.5,
           "damage_multiplier": 1.4,
           "min_range": 7.0,

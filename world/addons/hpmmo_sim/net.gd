@@ -1288,7 +1288,12 @@ func broadcast_cast_started(uid: int, cast_id: int, spell_id: String, aim: Vecto
 func broadcast_cast_released(cast_id: int, caster_uid: int, spell_id: String, origin: Vector3, dir: Vector3) -> void:
 	if not has_peers():
 		return
+	# A creature's bolt only matters to the players who can see the creature
+	# (thousands of casters on the grounds); a player's cast stays global.
+	var creature := int(SimAuthority.entities.get(caster_uid, {}).get("kind", -1)) == HPProtocol.Kind.MOB
 	for peer_id in multiplayer.get_peers():
+		if creature and not _peer_can_see(peer_id, caster_uid):
+			continue
 		sim_cast_released.rpc_id(peer_id, cast_id, caster_uid, spell_id, origin, dir)
 
 func broadcast_cast_landed(cast_id: int, caster_uid: int, spell_id: String, hits: Array) -> void:
