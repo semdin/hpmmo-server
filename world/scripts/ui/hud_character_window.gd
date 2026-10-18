@@ -58,10 +58,12 @@ func _ready() -> void:
 	var status := _grid(_content, 2)
 	_cell(status, "hp", "Health")
 	_cell(status, "mana", "Mana")
-	_cell(status, "attack", "Attack power")
-	_cell(status, "skill", "Skill power")
-	_cell(status, "armour", "Magic armour")
+	_cell(status, "attack", "Attack value")
+	_cell(status, "magic", "Magic attack value")
+	_cell(status, "armour", "Armour")
 	_cell(status, "crit", "Critical chance")
+	_cell(status, "spell_power", "Spell power")
+	_cell(status, "skill", "Skill power")
 	_section("ATTRIBUTES")
 	var attrs := _grid(_content, 2)
 	for pair in ATTRIBUTES:
@@ -71,8 +73,16 @@ func _ready() -> void:
 	_content.add_child(points)
 	_section("PROPERTIES")
 	var props := _grid(_content, 2)
-	_prop(props, "creature_dmg", "Vs creatures")
-	_prop(props, "creature_res", "Creature resist")
+	_prop(props, "attack_speed", "Attack speed")
+	_prop(props, "cast_speed", "Casting speed")
+	_prop(props, "move_speed", "Movement speed")
+	_prop(props, "pierce", "Piercing hit")
+	_prop(props, "melee_res", "Melee resist")
+	_prop(props, "projectile_res", "Projectile resist")
+	_prop(props, "spell_res", "Spell resist")
+	_prop(props, "block", "Block")
+	_prop(props, "life_steal", "Life drain")
+	_prop(props, "reflect", "Reflect")
 	_prop(props, "hp_regen", "Health regen")
 	_prop(props, "mana_regen", "Mana regen")
 	_prop(props, "broom", "Broom speed")
@@ -160,6 +170,12 @@ func _process(_delta: float) -> void:
 	if visible:
 		_refresh()
 
+## "273 - 321": a worn wand range at its +N.
+static func _range_text(stats: Dictionary, key: String) -> String:
+	var span: Array = stats.get(key, [0, 0])
+	var mult := HPRules.wand_multiplier(int(stats.get("wand_tier", 0)))
+	return "%d - %d" % [int(round(float(span[0]) * mult)), int(round(float(span[1]) * mult))]
+
 func _refresh() -> void:
 	if player == null or not is_instance_valid(player) or _name == null:
 		return
@@ -177,12 +193,22 @@ func _refresh() -> void:
 		"exp_next": str(player.max_exp),
 		"hp": "%d / %d" % [player.current_hp, player.max_hp],
 		"mana": "%d / %d" % [player.current_mana, player.max_mana],
-		"attack": "x%.2f" % (float(stats.get("weapon_multiplier", 1.0)) * HPRules.wand_multiplier(int(stats.get("wand_tier", 0)))),
+		"attack": _range_text(stats, "attack_value"),
+		"magic": _range_text(stats, "magic_attack"),
+		"spell_power": "+%d%%" % int(stats.get("spell_power", 0.0)),
 		"skill": "x%.2f" % (skill_sum / maxf(1.0, float(skills.size()))),
-		"armour": "%d%%" % int(stats.get("defense", 0.0)),
-		"crit": "%d%%" % int(stats.get("crit_chance", 0.0)),
-		"creature_dmg": "+%d%%" % int(stats.get("monster_damage", 0.0)),
-		"creature_res": "%d%%" % int(stats.get("creature_resist", 0.0)),
+		"armour": str(int(stats.get("armor", 0))),
+		"crit": "%d%%" % int(HPRules.crit_chance(float(stats.get("crit_chance", 0.0)), false)),
+		"attack_speed": "%+d%%" % int(stats.get("attack_speed", 0.0)),
+		"cast_speed": "%+d%%" % int(stats.get("cast_speed", 0.0)),
+		"move_speed": "%+d%%" % int(stats.get("move_speed", 0.0)),
+		"pierce": "%d%%" % int(stats.get("pierce_chance", 0.0)),
+		"melee_res": "%d%%" % int(stats.get("melee_resist", 0.0)),
+		"projectile_res": "%d%%" % int(stats.get("projectile_resist", 0.0)),
+		"spell_res": "%d%%" % int(stats.get("spell_resist", 0.0)),
+		"block": "%d%%" % int(stats.get("block_chance", 0.0)),
+		"life_steal": "%d%%" % int(stats.get("life_steal", 0.0)),
+		"reflect": "%d%%" % int(stats.get("reflect", 0.0)),
 		"hp_regen": "+%d /s" % int(stats.get("hp_regen", 0.0)),
 		"mana_regen": "+%d /s" % int(stats.get("mana_regen", 0.0)),
 		"broom": "%.1f" % float(stats.get("mount_speed", 0.0)),

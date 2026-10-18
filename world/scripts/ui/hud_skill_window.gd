@@ -155,7 +155,7 @@ func _effect_parts(spell_id: String, lv: int) -> Array:
 	var parts: Array = []
 	if int(spell.get("damage", 0)) > 0:
 		parts.append("Damage x%.2f" % HPRules.skill_damage_multiplier(lv))
-	parts.append("Cooldown %.1fs" % HPRules.cooldown_for(spell_id, String(player.house), lv))
+	parts.append("Cooldown %.1fs" % HPRules.cooldown_for(spell_id, String(player.house), lv, player.derived_stats))
 	if spell.has("duration_ms") or spell.has("stun_ms") or spell.has("weaken_ms"):
 		parts.append("Effect x%.2f" % HPRules.skill_effect_multiplier(lv))
 	return parts

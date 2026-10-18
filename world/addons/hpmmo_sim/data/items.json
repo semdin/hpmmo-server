@@ -5,8 +5,17 @@
     "type": "weapon",
     "desc": "10-inch Hawthorn wood with unicorn hair core. Highly suited for healing and curses.",
     "rarity": "uncommon",
+    "stat_tier": 2,
+    "attack_value": [
+      26,
+      36
+    ],
+    "magic_attack": [
+      52,
+      70
+    ],
+    "attack_speed": 6,
     "upgrade_tier": 0,
-    "base_multiplier": 1.0,
     "icon": "wand",
     "slots": [
       "main_hand"
@@ -18,8 +27,17 @@
     "type": "weapon",
     "desc": "15-inch Elder wood with thestral tail hair core. Unlocks immense raw destructive power.",
     "rarity": "legendary",
+    "stat_tier": 5,
+    "attack_value": [
+      88,
+      112
+    ],
+    "magic_attack": [
+      170,
+      225
+    ],
+    "attack_speed": 12,
     "upgrade_tier": 0,
-    "base_multiplier": 1.35,
     "icon": "wand",
     "slots": [
       "main_hand"
@@ -31,10 +49,18 @@
     "type": "weapon",
     "desc": "Knotted pale ash, its handle bound in hemp twine. Every spell starts with a first wand.",
     "rarity": "common",
+    "attack_value": [
+      14,
+      20
+    ],
+    "magic_attack": [
+      30,
+      42
+    ],
+    "attack_speed": 5,
     "item_tier": 1,
     "required_level": 1,
     "upgrade_tier": 0,
-    "base_multiplier": 1.0,
     "model": "res://assets/models/props/wands/wand_ashwood.glb",
     "icon": "wand",
     "slots": [
@@ -47,10 +73,18 @@
     "type": "weapon",
     "desc": "Polished walnut banded in brass; its pale runes steady the aim.",
     "rarity": "uncommon",
+    "attack_value": [
+      26,
+      36
+    ],
+    "magic_attack": [
+      52,
+      70
+    ],
+    "attack_speed": 6,
     "item_tier": 2,
     "required_level": 10,
     "upgrade_tier": 0,
-    "base_multiplier": 1.1,
     "model": "res://assets/models/props/wands/wand_runebound.glb",
     "icon": "wand",
     "slots": [
@@ -63,10 +97,18 @@
     "type": "weapon",
     "desc": "Black ebony gripped by a silver thorn vine, an emerald set in its pommel.",
     "rarity": "rare",
+    "attack_value": [
+      42,
+      56
+    ],
+    "magic_attack": [
+      80,
+      104
+    ],
+    "attack_speed": 8,
     "item_tier": 3,
     "required_level": 20,
     "upgrade_tier": 0,
-    "base_multiplier": 1.2,
     "model": "res://assets/models/props/wands/wand_silverthorn.glb",
     "icon": "wand",
     "slots": [
@@ -79,10 +121,18 @@
     "type": "weapon",
     "desc": "Crimson lacquer and gold feathers around a glowing amber heart; its tip holds a live ember.",
     "rarity": "epic",
+    "attack_value": [
+      62,
+      80
+    ],
+    "magic_attack": [
+      121,
+      167
+    ],
+    "attack_speed": 10,
     "item_tier": 4,
     "required_level": 35,
     "upgrade_tier": 0,
-    "base_multiplier": 1.32,
     "model": "res://assets/models/props/wands/wand_emberwing.glb",
     "icon": "wand",
     "slots": [
@@ -95,10 +145,18 @@
     "type": "weapon",
     "desc": "Moonwood threaded with starlight behind a mithril crescent, crowned with a star crystal.",
     "rarity": "legendary",
+    "attack_value": [
+      88,
+      112
+    ],
+    "magic_attack": [
+      170,
+      225
+    ],
+    "attack_speed": 12,
     "item_tier": 5,
     "required_level": 50,
     "upgrade_tier": 0,
-    "base_multiplier": 1.45,
     "model": "res://assets/models/props/wands/wand_moonveil.glb",
     "icon": "wand",
     "slots": [
@@ -111,7 +169,9 @@
     "type": "armor",
     "desc": "Sturdy woolen school robes tailored with silk house linings. +50 Max HP.",
     "rarity": "common",
-    "bonus_hp": 50,
+    "stat_tier": 1,
+    "armor": 18,
+    "move_speed": -5,
     "icon": "robe",
     "slots": [
       "chest"
@@ -123,8 +183,9 @@
     "type": "armor",
     "desc": "Enchanted heavy dragonhide battle cloak. +150 Max HP and 15% Magic Armor.",
     "rarity": "epic",
-    "bonus_hp": 150,
-    "bonus_defense": 15,
+    "stat_tier": 4,
+    "armor": 78,
+    "move_speed": -5,
     "icon": "robe",
     "slots": [
       "chest"
@@ -136,9 +197,10 @@
     "type": "armor",
     "desc": "Undyed homespun wool with a stitched hem and a crude wand patch. Warm, plain and honest.",
     "rarity": "common",
+    "armor": 18,
+    "move_speed": -5,
     "item_tier": 1,
     "required_level": 1,
-    "bonus_hp": 40,
     "cloak_texture": "res://assets/models/cloaks/cloak_wool.png",
     "icon": "robe",
     "slots": [
@@ -151,10 +213,10 @@
     "type": "armor",
     "desc": "Navy wool bordered in brass thread, its pale runes humming with a steadying ward.",
     "rarity": "uncommon",
+    "armor": 34,
+    "move_speed": -5,
     "item_tier": 2,
     "required_level": 10,
-    "bonus_hp": 90,
-    "bonus_defense": 3,
     "cloak_texture": "res://assets/models/cloaks/cloak_runed.png",
     "icon": "robe",
     "slots": [
@@ -167,10 +229,10 @@
     "type": "armor",
     "desc": "Black velvet wound with silver thorns and emeralds; curses catch on its vines.",
     "rarity": "rare",
+    "armor": 54,
+    "move_speed": -5,
     "item_tier": 3,
     "required_level": 20,
-    "bonus_hp": 150,
-    "bonus_defense": 6,
     "cloak_texture": "res://assets/models/cloaks/cloak_thornveil.png",
     "icon": "robe",
     "slots": [
@@ -183,10 +245,10 @@
     "type": "armor",
     "desc": "Crimson brocade alive with woven flame, a golden phoenix spread across the shoulders.",
     "rarity": "epic",
+    "armor": 78,
+    "move_speed": -5,
     "item_tier": 4,
     "required_level": 35,
-    "bonus_hp": 230,
-    "bonus_defense": 10,
     "cloak_texture": "res://assets/models/cloaks/cloak_phoenix.png",
     "icon": "robe",
     "slots": [
@@ -199,11 +261,10 @@
     "type": "armor",
     "desc": "Silver-blue silk scattered with stars and crescent moons; it shimmers like a night sky.",
     "rarity": "legendary",
+    "armor": 106,
+    "move_speed": -5,
     "item_tier": 5,
     "required_level": 50,
-    "bonus_hp": 320,
-    "bonus_defense": 14,
-    "bonus_mana": 40,
     "cloak_texture": "res://assets/models/cloaks/cloak_moonveil.png",
     "icon": "robe",
     "slots": [
@@ -389,9 +450,10 @@
     "slots": [
       "head"
     ],
-    "bonus_hp": 0,
-    "bonus_mana": 20,
     "rarity": "common",
+    "stat_tier": 1,
+    "bonus_mana": 20,
+    "armor": 6,
     "desc": "Enchanted apprentice gear. +0 maximum HP, +20 maximum mana."
   },
   "gloves_apprentice": {
@@ -401,9 +463,10 @@
     "slots": [
       "hands"
     ],
-    "bonus_hp": 0,
-    "bonus_mana": 15,
     "rarity": "common",
+    "stat_tier": 1,
+    "armor": 5,
+    "attack_speed": 3,
     "desc": "Enchanted apprentice gear. +0 maximum HP, +15 maximum mana."
   },
   "boots_apprentice": {
@@ -413,9 +476,10 @@
     "slots": [
       "feet"
     ],
-    "bonus_hp": 25,
-    "bonus_mana": 0,
     "rarity": "common",
+    "stat_tier": 1,
+    "armor": 5,
+    "move_speed": 4,
     "desc": "Enchanted apprentice gear. +25 maximum HP, +0 maximum mana."
   },
   "focus_apprentice": {
@@ -425,9 +489,10 @@
     "slots": [
       "off_hand"
     ],
-    "bonus_hp": 0,
-    "bonus_mana": 25,
     "rarity": "common",
+    "stat_tier": 1,
+    "bonus_mana": 25,
+    "spell_power": 3,
     "desc": "Enchanted apprentice gear. +0 maximum HP, +25 maximum mana."
   },
   "pendant_apprentice": {
@@ -437,9 +502,10 @@
     "slots": [
       "neck"
     ],
-    "bonus_hp": 25,
-    "bonus_mana": 0,
     "rarity": "common",
+    "stat_tier": 1,
+    "bonus_hp": 25,
+    "hp_regen": 1,
     "desc": "Enchanted apprentice gear. +25 maximum HP, +0 maximum mana."
   },
   "ring_apprentice": {
@@ -450,9 +516,10 @@
       "ring_left",
       "ring_right"
     ],
-    "bonus_hp": 0,
-    "bonus_mana": 10,
     "rarity": "common",
+    "stat_tier": 1,
+    "bonus_mana": 10,
+    "mana_regen": 1,
     "desc": "Enchanted apprentice gear. +0 maximum HP, +10 maximum mana."
   },
   "ring_adept": {
@@ -463,9 +530,10 @@
       "ring_left",
       "ring_right"
     ],
-    "bonus_hp": 0,
-    "bonus_mana": 20,
     "rarity": "uncommon",
+    "stat_tier": 2,
+    "bonus_mana": 20,
+    "mana_regen": 1,
     "desc": "Enchanted apprentice gear. +0 maximum HP, +20 maximum mana."
   }
 }

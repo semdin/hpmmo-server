@@ -96,7 +96,8 @@ func show_item(item_id: String, entry: Dictionary = {}) -> void:
 		_add_line("Level: %d" % needed, UITheme.c("parchment"))
 	_add_gap()
 	for line in _stat_rows(item_id, data, entry):
-		_add_line(String(line[0]), ENCHANT_COLOUR if int(line[1]) == 2 else STAT_COLOUR, UITheme.FS_SMALL, int(line[1]) == 2)
+		var colour: Color = ENCHANT_COLOUR if int(line[1]) == 2 else (Color(1.0, 0.45, 0.4) if int(line[1]) == 3 else STAT_COLOUR)
+		_add_line(String(line[0]), colour, UITheme.FS_SMALL, int(line[1]) == 2)
 	var amount := int(entry.get("amount", 0))
 	if amount > 1:
 		_add_line("Quantity: %d" % amount, UITheme.c("parchment"))
@@ -180,20 +181,11 @@ func _is_wand(item_id: String) -> bool:
 
 
 func _stat_rows(item_id: String, data: Dictionary, entry: Dictionary) -> Array:
-	"""The item's real numbers at its own +N, then its enchantments (kind 2)."""
+	"""The item's fixed stats at its own +N (kind 1, a penalty kind 3), then its enchantments (kind 2)."""
 	var rows := []
 	var tier := int(entry.get("tier", 0))
-	var numbers := HPEquipment.item_stats(item_id, tier)
-	if _is_wand(item_id):
-		rows.append(["Spell power +%d%%" % int(round((float(numbers.spell_power) - 1.0) * 100.0)), 1])
-	if int(numbers.bonus_hp) > 0:
-		rows.append(["Max Health +%d" % int(numbers.bonus_hp), 1])
-	if int(numbers.bonus_mana) > 0:
-		rows.append(["Max Mana +%d" % int(numbers.bonus_mana), 1])
-	if float(numbers.bonus_defense) > 0.0:
-		rows.append(["Magic Armour +%d%%" % int(numbers.bonus_defense), 1])
-	if data.has("mount_speed"):
-		rows.append(["Mount speed %.1f" % float(numbers.mount_speed), 1])
+	for line in HPEquipment.fixed_lines(item_id, tier):
+		rows.append([String(line.text), 3 if bool(line.negative) else 1])
 	if data.has("heal_hp"):
 		rows.append(["Restores %d Health" % int(data["heal_hp"]), 1])
 	if data.has("heal_mana"):

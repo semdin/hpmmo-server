@@ -284,14 +284,22 @@ func _comparison(slot: UISlot, destination_override := "") -> String:
 	var before := HPEquipment.stats(player.base_max_hp, player.base_max_mana, player.equipment)
 	var after := HPEquipment.stats(player.base_max_hp, player.base_max_mana, gear)
 	var parts: Array = []
-	var power: float = after.weapon_multiplier * HPRules.wand_multiplier(after.wand_tier) - before.weapon_multiplier * HPRules.wand_multiplier(before.wand_tier)
-	if absf(power) >= 0.005: parts.append("Power %+.2f" % power)
+	var magic := _mid_attack(after, "magic_attack") - _mid_attack(before, "magic_attack")
+	if absf(magic) >= 0.5: parts.append("Magic Attack %+.0f" % magic)
+	var spell := float(after.spell_power) - float(before.spell_power)
+	if absf(spell) >= 0.5: parts.append("Spell Power %+.0f%%" % spell)
 	if after.max_hp != before.max_hp: parts.append("Health %+d" % (after.max_hp - before.max_hp))
 	if after.max_mana != before.max_mana: parts.append("Mana %+d" % (after.max_mana - before.max_mana))
-	if not is_equal_approx(after.defense, before.defense): parts.append("Armour %+.0f%%" % (after.defense - before.defense))
+	if int(after.armor) != int(before.armor): parts.append("Armour %+d" % (int(after.armor) - int(before.armor)))
+	if not is_equal_approx(after.move_speed, before.move_speed): parts.append("Move %+.0f%%" % (after.move_speed - before.move_speed))
 	if not is_equal_approx(after.mount_speed, before.mount_speed): parts.append("Speed %+.0f" % (after.mount_speed - before.mount_speed))
 	if parts.is_empty(): return ""
 	return "%s: %s" % [SLOT_LABELS[destination], " · ".join(parts)]
+
+## The middle of a wand range at its worn +N (derived stats keep the +0 range).
+static func _mid_attack(stats: Dictionary, key: String) -> float:
+	var span: Array = stats.get(key, [0, 0])
+	return (float(span[0]) + float(span[1])) * 0.5 * HPRules.wand_multiplier(int(stats.get("wand_tier", 0)))
 
 func _on_slot_entered(slot: UISlot) -> void:
 	if slot.item_id == "" or _tooltip == null: return

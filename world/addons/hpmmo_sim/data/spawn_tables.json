@@ -21661,6 +21661,7 @@
     }
   ],
   "pack_tuning": {
+    "hp_multiplier": 1.4,
     "hp_strength_base": 0.45,
     "hp_strength_per_level": 0.075,
     "hp_strength_floor": 0.35,

@@ -115,7 +115,7 @@ func _process(delta: float) -> void:
 		var spell: Dictionary = GameData.SPELLS.get(spell_id, {})
 		var cd: float = hud.cooldown_remaining(spell_id) if hud != null and hud.has_method("cooldown_remaining") else 0.0
 		var trained: int = player.skill_level(spell_id)
-		var total := maxf(0.01, HPRules.cooldown_for(spell_id, String(player.house), trained))
+		var total := maxf(0.01, HPRules.cooldown_for(spell_id, String(player.house), trained, player.derived_stats))
 		s.set_cooldown(cd, cd / total)
 		s.unusable = dead or int(player.current_mana) < int(spell.get("mana_cost", 0))
 		s.badge_text = HPRules.skill_level_label(trained) if HPRules.skill_upgradeable(spell_id) else ""

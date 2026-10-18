@@ -322,7 +322,7 @@ func _configure_member(mob: Node3D, pack: Dictionary, can_be_elite: bool) -> voi
 	var level := int(pack.get("level", 1))
 	var strength := HPRules.pack_strength(level)
 	var tuning: Dictionary = HPRules.spawn_tables().get("pack_tuning", {})
-	var hp := float(base.get("max_hp", scene_stats["max_hp"])) * strength
+	var hp := float(base.get("max_hp", scene_stats["max_hp"])) * strength * float(tuning.get("hp_multiplier", 1.0))
 	var attack := float(base.get("attack_power", scene_stats["attack_power"])) * strength * float(tuning.get("attack_multiplier", 0.75))
 	var exp := float(HPRules.pack_exp_reward(level)) * float(def.get("exp_mult", 1.0))
 	var display := String(def.get("display", scene_stats["mob_name"]))
@@ -358,7 +358,8 @@ func _apply_boss(mob: Node3D, pack: Dictionary) -> void:
 	var data: Dictionary = overrides.get(key, {})
 	mob.is_boss = true
 	mob.is_commander = pack.get("commander", false)
-	mob.max_hp = int(data.get("hp", mob.max_hp))
+	# Authored boss health follows the same pack_tuning.hp_multiplier as packs.
+	mob.max_hp = int(float(data.get("hp", mob.max_hp)) * (HPRules.pack_tuning("hp_multiplier", 1.0) if data.has("hp") else 1.0))
 	mob.attack_power = int(data.get("attack_power", mob.attack_power))
 	mob.attack_range = float(data.get("attack_range", 4.5))
 	mob.exp_reward = int(data.get("exp_reward", mob.exp_reward))

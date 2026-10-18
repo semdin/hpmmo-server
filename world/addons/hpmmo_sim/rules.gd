@@ -368,11 +368,19 @@ static func respawn_position() -> Vector3:
 		return Vector3(0.0, 0.5, 5.0)
 	return Vector3(float(raw[0]), float(raw[1]), float(raw[2]))
 
-static func cooldown_for(spell_id: String, house: String, skill_level: int = 1) -> float:
+## `stats` carries the caster's attack_speed / cast_speed (derived stats or the
+## authority record): attack speed shortens the basic attack, casting speed
+## every other spell.
+static func cooldown_for(spell_id: String, house: String, skill_level: int = 1, stats: Dictionary = {}) -> float:
 	var data := spell(spell_id)
 	if data.is_empty():
 		return 0.0
-	return float(data.get("cooldown", 0.0)) * house_modifier(house, "cooldown_multiplier") * skill_cooldown_multiplier(skill_level)
+	var cd := float(data.get("cooldown", 0.0)) * house_modifier(house, "cooldown_multiplier") * skill_cooldown_multiplier(skill_level)
+	if spell_id == "basic_cast":
+		cd /= 1.0 + maxf(0.0, float(stats.get("attack_speed", 0.0))) / 100.0
+	else:
+		cd *= 1.0 - clampf(float(stats.get("cast_speed", 0.0)), 0.0, 90.0) / 100.0
+	return cd
 
 static func max_level() -> int:
 	ensure_loaded()
@@ -561,11 +569,36 @@ static func quest_place_at(map_id: String, pos: Vector3) -> String:
 static func damage_multiplier(spell_id: String, wand_tier: int, house: String, combo_multiplier: float = 1.0, skill_level: int = 1) -> float:
 	return wand_multiplier(wand_tier) * combo_multiplier * house_spell_damage(house, spell_id) * skill_damage_multiplier(skill_level)
 
-static func spell_damage(spell_id: String, wand_tier: int, house: String, combo_multiplier: float = 1.0, skill_level: int = 1) -> int:
+## `weapon_roll` is one roll of the wand range the spell draws on (weapon_range_key)
+## at +0; it joins the spell's base damage x magic_attack_coef before every
+## multiplier, so +N scales both together.
+static func spell_damage(spell_id: String, wand_tier: int, house: String, combo_multiplier: float = 1.0, skill_level: int = 1, weapon_roll: float = 0.0) -> int:
 	var data := spell(spell_id)
 	if data.is_empty():
 		return 0
-	return int(float(data.get("damage", 0)) * damage_multiplier(spell_id, wand_tier, house, combo_multiplier, skill_level))
+	var base := float(data.get("damage", 0)) + weapon_roll * float(data.get("magic_attack_coef", 1.0))
+	return int(base * damage_multiplier(spell_id, wand_tier, house, combo_multiplier, skill_level))
+
+## Which wand range a spell rolls: the basic attack uses the Attack Value, every
+## other spell the Magic Attack Value.
+static func weapon_range_key(spell_id: String) -> String:
+	return "attack_value" if spell_id == "basic_cast" else "magic_attack"
+
+## combat.json item_stats: armour, resistance and speed rules for item stats.
+static func item_rules() -> Dictionary:
+	return combat().get("item_stats", {})
+
+## Damage fraction armour removes from a hit by a level `attacker_level` creature.
+static func armor_reduction(armor: float, attacker_level: int) -> float:
+	var rules := item_rules()
+	if armor <= 0.0:
+		return 0.0
+	var k := float(rules.get("armor_base", 100)) + float(rules.get("armor_per_level", 8)) * float(maxi(1, attacker_level))
+	return minf(armor / (armor + k), float(rules.get("armor_max_reduction", 75)) / 100.0)
+
+## "melee", "projectile" or "spell" for a creature attack id.
+static func mob_attack_kind(spell_id: String) -> String:
+	return String((item_rules().get("mob_attack_kinds", {}) as Dictionary).get(spell_id, "spell"))
 
 ## Damage after per-victim modifiers. `resist` is the victim's mobs.json
 ## resistance map (element -> reduction fraction, -1.0 = double damage); the

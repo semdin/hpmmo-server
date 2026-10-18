@@ -879,7 +879,8 @@ func _begin_cast(record: Dictionary, spell_id: String, aim: Vector3, combo_mult:
 	dir = dir.normalized()
 	var trained := skill_level(record, spell_id)
 	var cast := {
-		"damage": int(HPRules.spell_damage(spell_id, int(record.get("wand_tier", 0)), String(record.get("house", "")), combo_mult, trained) * float(record.get("weapon_multiplier", 1.0))),
+		"damage": int(HPRules.spell_damage(spell_id, int(record.get("wand_tier", 0)), String(record.get("house", "")), combo_mult, trained,
+			_weapon_roll(record, spell_id)) * float(record.get("weapon_multiplier", 1.0))),
 		"cast_id": cast_id,
 		"caster_uid": record["uid"],
 		"spell_id": spell_id,
@@ -896,7 +897,7 @@ func _begin_cast(record: Dictionary, spell_id: String, aim: Vector3, combo_mult:
 	casts[cast_id] = cast
 	record["cast_id"] = cast_id
 	record["cast_lock_until_tick"] = cast["end_tick"]
-	record["cooldowns"][spell_id] = sim_tick + int(ceil(HPRules.cooldown_for(spell_id, String(record.get("house", "")), trained) * HPProtocol.SIM_HZ))
+	record["cooldowns"][spell_id] = sim_tick + int(ceil(HPRules.cooldown_for(spell_id, String(record.get("house", "")), trained, record) * HPProtocol.SIM_HZ))
 	casts_by_node[node.get_instance_id()] = cast_id
 	# Face the cast direction immediately, matching the client's aim behaviour.
 	emit_signal("cast_started", int(record["uid"]), cast_id, spell_id, aim, int(cast["release_tick"]))
@@ -1646,7 +1647,7 @@ func apply_spell_hit(target: Node, spell_id: String, caster: Node) -> int:
 		return 0
 	var caster_record := record_for(caster)
 	var raw := HPRules.spell_damage(spell_id, int(caster_record.get("wand_tier", 0)),
-		String(caster_record.get("house", "")), 1.0, skill_level(caster_record, spell_id))
+		String(caster_record.get("house", "")), 1.0, skill_level(caster_record, spell_id), _weapon_roll(caster_record, spell_id))
 	raw = int(raw * float(caster_record.get("weapon_multiplier", 1.0)))
 	var applied := _apply_damage(target_record, raw, spell_id, caster_record)
 	if applied > 0:
@@ -1864,8 +1865,30 @@ func _apply_damage(target: Dictionary, raw: int, spell_id: String, attacker: Dic
 		if attacker_node2 != null and is_instance_valid(attacker_node2) and not HPRules.faction_ok(attacker_node2, target_node):
 			return 0
 
+	var player_hits_mob := int(attacker.get("kind", -1)) == HPProtocol.Kind.PLAYER and int(target.get("kind", -1)) == HPProtocol.Kind.MOB \
+		and spell_id != "reflect"
+	var mob_hits_player := int(attacker.get("kind", -1)) == HPProtocol.Kind.MOB and int(target.get("kind", -1)) == HPProtocol.Kind.PLAYER
+	# Block / deflect (players' item stats): a creature's melee or projectile hit
+	# that is turned aside does nothing at all.
+	if mob_hits_player:
+		var attack_kind := HPRules.mob_attack_kind(spell_id)
+		var rules := HPRules.item_rules()
+		var avoid := 0.0
+		if attack_kind == "melee":
+			avoid = minf(float(target.get("block_chance", 0.0)), float(rules.get("block_cap", 50)))
+		elif attack_kind == "projectile":
+			avoid = minf(float(target.get("projectile_dodge", 0.0)), float(rules.get("dodge_cap", 50)))
+		if avoid > 0.0 and rng.randf() * 100.0 < avoid:
+			return 0
+	# Piercing hit: ignores the creature's resistances and front guard (a
+	# weakness still counts).
+	var pierce := player_hits_mob and float(attacker.get("pierce_chance", 0.0)) > 0.0 \
+		and rng.randf() * 100.0 < float(attacker.get("pierce_chance", 0.0))
 	var amount := HPRules.damage_after_resistances(raw, spell_id, bool(target.get("weak_to_fire", false)), target.get("resist", {}))
-	amount = _creature_damage_mods(target, attacker, amount)
+	if pierce:
+		amount = maxi(amount, raw)
+		hit_flags |= HPProtocol.HIT_PIERCE
+	amount = _creature_damage_mods(target, attacker, amount, pierce)
 	if amount <= 0 and bool(target.get("immune", false)):
 		return 0
 	# Protego: projectiles are reflected (handled by the caller), everything else
@@ -1874,19 +1897,30 @@ func _apply_damage(target: Dictionary, raw: int, spell_id: String, attacker: Dic
 		amount = int(float(amount) * HPRules.ward_other_multiplier("protego"))
 
 	if not attacker.is_empty():
-		# Enchanted "damage against creatures" (players only, against mobs).
-		if int(target.get("kind", -1)) == HPProtocol.Kind.MOB and float(attacker.get("monster_damage", 0.0)) > 0.0:
-			amount = int(round(amount * (1.0 + float(attacker.monster_damage) / 100.0)))
+		# "Strong against <family>" plus the legacy "damage against creatures".
+		if player_hits_mob:
+			var family := String(HPRules.mob_def(String(target.get("species", ""))).get("family", ""))
+			var family_stat := String((HPEquipment.enchant_rules().get("families", {}) as Dictionary).get(family, ""))
+			var bonus := float(attacker.get("monster_damage", 0.0)) + (float(attacker.get(family_stat, 0.0)) if family_stat != "" else 0.0)
+			if bonus > 0.0:
+				amount = int(round(amount * (1.0 + bonus / 100.0)))
 		# Critical hits: players only (base chance + enchanted crit_chance, more on
 		# a combo finisher). The roll is the server's; clients only draw it.
-		if int(attacker.get("kind", -1)) == HPProtocol.Kind.PLAYER and amount > 0:
+		if int(attacker.get("kind", -1)) == HPProtocol.Kind.PLAYER and amount > 0 and spell_id != "reflect":
 			var chance := HPRules.crit_chance(float(attacker.get("crit_chance", 0.0)), hit_flags & HPProtocol.HIT_FINISHER != 0)
 			if chance > 0.0 and rng.randf() * 100.0 < chance:
 				amount = int(round(amount * HPRules.crit_multiplier()))
 				hit_flags |= HPProtocol.HIT_CRIT
-		# Enchanted "resist creatures" on a player hit by a creature.
-		if int(attacker.get("kind", -1)) == HPProtocol.Kind.MOB and float(target.get("creature_resist", 0.0)) > 0.0:
-			amount = int(round(amount * (1.0 - clampf(float(target.creature_resist), 0.0, 50.0) / 100.0)))
+		# A player hit by a creature: armour (against the attacker's level), the
+		# matching melee / projectile / spell resistance, then the legacy
+		# percentage efsuns (resist creatures, magic armour).
+		if mob_hits_player:
+			amount = int(round(amount * (1.0 - HPRules.armor_reduction(float(target.get("armor", 0)), int(attacker.get("level", 1))))))
+			var resist := float(target.get(HPRules.mob_attack_kind(spell_id) + "_resist", 0.0))
+			resist = clampf(resist, 0.0, float(HPRules.item_rules().get("resist_cap", 50)))
+			amount = int(round(amount * (1.0 - resist / 100.0)))
+			if float(target.get("creature_resist", 0.0)) > 0.0:
+				amount = int(round(amount * (1.0 - clampf(float(target.creature_resist), 0.0, 50.0) / 100.0)))
 		amount = maxi(0, int(amount * (1.0 - clampf(float(target.get("defense", 0)), 0, 50) / 100.0)))
 		if amount > 0:
 			attacker["last_combat_tick"] = sim_tick
@@ -1913,6 +1947,13 @@ func _apply_damage(target: Dictionary, raw: int, spell_id: String, attacker: Dic
 	emit_signal("entity_health", int(target["uid"]), int(target["hp"]), int(target.get("max_hp", 0)), flags_for(target))
 	if int(target["hp"]) <= 0:
 		_kill(target, attacker)
+	if amount > 0 and player_hits_mob:
+		_attacker_drain(attacker, amount)
+	elif amount > 0 and mob_hits_player and float(target.get("reflect", 0.0)) > 0.0 and not bool(attacker.get("dead", false)):
+		var share := minf(float(target.reflect), float(HPRules.item_rules().get("reflect_cap", 30))) / 100.0
+		var reflected := int(round(amount * share))
+		if reflected > 0:
+			_apply_damage(attacker, reflected, "reflect", target)
 	# Knockback is a spell-data rule applied here (once) rather than by whichever
 	# visual happened to hit.
 	if not attacker.is_empty():
@@ -1931,11 +1972,11 @@ func _apply_damage(target: Dictionary, raw: int, spell_id: String, attacker: Dic
 ## D1 creature rules on a hit: an immune body takes nothing, a shield-bearer
 ## (front_guard) shrugs off most of a blow from in front, and a body put to
 ## sleep by the harp takes extra.
-func _creature_damage_mods(target: Dictionary, attacker: Dictionary, amount: int) -> int:
+func _creature_damage_mods(target: Dictionary, attacker: Dictionary, amount: int, pierce := false) -> int:
 	if bool(target.get("immune", false)):
 		return 0
 	var guard := float(target.get("front_guard", 0.0))
-	if guard > 0.0 and not attacker.is_empty():
+	if guard > 0.0 and not attacker.is_empty() and not pierce:
 		var t = target.get("node")
 		var a = attacker.get("node")
 		if t is Node3D and a is Node3D and is_instance_valid(t) and is_instance_valid(a):
@@ -1951,6 +1992,37 @@ func _creature_damage_mods(target: Dictionary, attacker: Dictionary, amount: int
 	if int(target.get("vulnerable_until_tick", 0)) > sim_tick:
 		amount = int(round(amount * float(target.get("vulnerable_mult", 1.0))))
 	return amount
+
+## Life drain and mana steal (players' item stats) after a hit on a creature:
+## drain heals a share of the damage dealt, a mana-steal proc restores a tenth.
+func _attacker_drain(attacker: Dictionary, amount: int) -> void:
+	if bool(attacker.get("dead", false)):
+		return
+	var heal := int(round(amount * minf(float(attacker.get("life_steal", 0.0)), float(HPRules.item_rules().get("life_steal_cap", 20))) / 100.0))
+	var mana := 0
+	if float(attacker.get("mana_steal", 0.0)) > 0.0 and rng.randf() * 100.0 < float(attacker.get("mana_steal", 0.0)):
+		mana = maxi(1, int(round(amount * 0.1)))
+	heal = mini(heal, int(attacker.get("max_hp", 0)) - int(attacker.get("hp", 0)))
+	mana = mini(mana, int(attacker.get("max_mana", 0)) - int(attacker.get("mana", 0)))
+	if heal <= 0 and mana <= 0:
+		return
+	attacker["hp"] = int(attacker.get("hp", 0)) + maxi(0, heal)
+	attacker["mana"] = int(attacker.get("mana", 0)) + maxi(0, mana)
+	var node = attacker.get("node")
+	if node != null and is_instance_valid(node) and "current_mana" in node:
+		node.current_mana = int(attacker["mana"])
+	_sync_node_health(attacker)
+	touch(attacker)
+	_push_stats(attacker)
+	emit_signal("entity_health", int(attacker["uid"]), int(attacker["hp"]), int(attacker.get("max_hp", 0)), flags_for(attacker))
+
+## One roll of the caster's wand range for `spell_id` (Attack Value for the
+## basic attack, Magic Attack Value otherwise), at +0.
+func _weapon_roll(record: Dictionary, spell_id: String) -> float:
+	var span: Variant = record.get(HPRules.weapon_range_key(spell_id), [])
+	if not (span is Array) or (span as Array).size() < 2:
+		return 0.0
+	return float(rng.randi_range(int(span[0]), maxi(int(span[0]), int(span[1]))))
 
 func _is_projectile_spell(spell_id: String) -> bool:
 	var delivery := HPRules.delivery(spell_id)
@@ -2268,6 +2340,7 @@ func _roll_drops(target: Dictionary) -> Array:
 		var killer: Dictionary = entities.get(killer_uid_of(target), {})
 		if not killer.is_empty() and int(killer.get("kind", 0)) == HPProtocol.Kind.PLAYER:
 			drop_factor = HPRules.level_gap_drop(_player_level(killer), int(target.get("level", 1)))
+			drop_factor *= 1.0 + float(killer.get("drop_chance", 0.0)) / 100.0   # item stat
 		drops = HPRules.mob_loot(is_boss, rng, String(target.get("loot_table", "")),
 			bool(target.get("is_elite", false)), drop_factor)
 	var gear_rules: Dictionary = HPRules.loot_tables().get("gear", {})
@@ -3509,11 +3582,13 @@ func refresh_equipment(record: Dictionary) -> void:
 		record[key] = node.get(key)
 	record["hp"] = node.current_hp
 	record["mana"] = node.current_mana
-	record["defense"] = node.derived_stats.defense
-	record["weapon_multiplier"] = node.derived_stats.weapon_multiplier
-	# Enchantment effects the authority applies itself (damage, regen, rewards).
-	for key in ["monster_damage", "crit_chance", "creature_resist", "hp_regen", "mana_regen", "exp_bonus", "galleon_bonus"]:
-		record[key] = float(node.derived_stats.get(key, 0.0))
+	# Item stats the authority applies itself (damage, armour, speeds, procs,
+	# regen, rewards): every derived number except the ones mirrored above.
+	for key in node.derived_stats:
+		if key in ["max_hp", "max_mana", "wand_tier"]:
+			continue
+		var value: Variant = node.derived_stats[key]
+		record[key] = (value as Array).duplicate() if value is Array else value
 
 func request_equipment(peer_id: int, request_id: int, revision: int, operation: String, slot: String, item_id: String, tier: int, uid: int = 0) -> Dictionary:
 	var record := player_record(peer_id)

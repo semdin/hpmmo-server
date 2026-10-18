@@ -203,38 +203,90 @@ static func refinable(id: String) -> bool:
 	var curves: Dictionary = HPRules.combat().get("upgrade_curves", {})
 	return String(item(id).get("type", "")) in curves.get("refinable_types", [])
 
+## An upgrade curve value at `tier`: upgrade_curves[kind][key], or the flat
+## list upgrade_curves[kind] when `key` is empty.
 static func _curve(kind: String, key: String, tier: int) -> float:
-	var values: Array = (HPRules.combat().get("upgrade_curves", {}).get(kind, {}) as Dictionary).get(key, [])
+	var entry: Variant = HPRules.combat().get("upgrade_curves", {}).get(kind, [])
+	var values: Array = entry if entry is Array else (entry as Dictionary).get(key, [])
 	return float(values[clampi(tier, 0, values.size() - 1)]) if not values.is_empty() else 0.0
 
-## One item's effective numbers at refine level `tier` - the single place the
+## One item's effective fixed stats at refine level `tier` - the single place the
 ## upgrade curves apply, shared by derived stats, the tooltip and the upgrade
-## window so they can never disagree.
+## window so they can never disagree. Wand ranges come back scaled for display
+## (`attack_value` / `magic_attack`); damage scales the whole spell instead.
 static func item_stats(id: String, tier: int) -> Dictionary:
 	var data := item(id)
-	var out := {"bonus_hp": int(data.get("bonus_hp", 0)), "bonus_mana": int(data.get("bonus_mana", 0)),
-		"bonus_defense": float(data.get("bonus_defense", 0)), "spell_power": 1.0, "mount_speed": 0.0}
-	match String(data.get("type", "")):
-		"weapon":
-			out.spell_power = float(data.get("base_multiplier", 1.0)) * HPRules.wand_multiplier(tier)
-		"armor":
-			out.bonus_hp = int(round(out.bonus_hp * _curve("armor", "hp_mult", tier)))
-			out.bonus_defense += _curve("armor", "defense_add", tier)
-		"mount":
-			out.mount_speed = float(data.get("mount_speed", 16.0)) * _curve("mount", "speed_mult", tier)
-		"accessory":
-			out.bonus_hp = int(round(out.bonus_hp * _curve("accessory", "stat_mult", tier)))
-			out.bonus_mana = int(round(out.bonus_mana * _curve("accessory", "stat_mult", tier)))
+	var stat_mult := _curve("stat_mult", "", tier) if String(data.get("type", "")) != "mount" else 1.0
+	var out := {"bonus_hp": int(round(int(data.get("bonus_hp", 0)) * stat_mult)),
+		"bonus_mana": int(round(int(data.get("bonus_mana", 0)) * stat_mult)),
+		"armor": int(round(float(data.get("armor", 0)) * _curve("armor_mult", "", tier))),
+		"attack_value": _range(data.get("attack_value", []), HPRules.wand_multiplier(tier)),
+		"magic_attack": _range(data.get("magic_attack", []), HPRules.wand_multiplier(tier)),
+		"mount_speed": 0.0}
+	for key in FIXED_PERCENT:
+		out[key] = float(data.get(key, 0.0))
+	if String(data.get("type", "")) == "mount":
+		out.mount_speed = float(data.get("mount_speed", 16.0)) * _curve("mount", "speed_mult", tier)
 	return out
+
+## Fixed stats that are percentages or per-second rates: they never grow with +N.
+const FIXED_PERCENT := ["attack_speed", "move_speed", "spell_power", "hp_regen", "mana_regen"]
+
+static func _range(raw: Variant, mult: float) -> Array:
+	if not (raw is Array) or (raw as Array).size() < 2:
+		return []
+	return [int(round(float(raw[0]) * mult)), int(round(float(raw[1]) * mult))]
+
+## Tooltip / workshop lines for an item's fixed stats at refine level `tier`:
+## [{text, negative}], in display order. One wording for every UI.
+static func fixed_lines(id: String, tier: int) -> Array:
+	var data := item(id)
+	var n := item_stats(id, tier)
+	var lines: Array = []
+	if not (n.attack_value as Array).is_empty():
+		lines.append({"text": "Attack Value %d - %d" % [n.attack_value[0], n.attack_value[1]], "negative": false})
+	if not (n.magic_attack as Array).is_empty():
+		lines.append({"text": "Magic Attack Value %d - %d" % [n.magic_attack[0], n.magic_attack[1]], "negative": false})
+	if int(n.armor) > 0:
+		lines.append({"text": "Armour %d" % int(n.armor), "negative": false})
+	if int(n.bonus_hp) > 0:
+		lines.append({"text": "Max Health +%d" % int(n.bonus_hp), "negative": false})
+	if int(n.bonus_mana) > 0:
+		lines.append({"text": "Max Mana +%d" % int(n.bonus_mana), "negative": false})
+	var labels := {"attack_speed": "Attack Speed %+d%%", "move_speed": "Movement Speed %+d%%", "spell_power": "Spell Power %+d%%",
+		"hp_regen": "Health Regeneration %+d/s", "mana_regen": "Mana Regeneration %+d/s"}
+	for key in FIXED_PERCENT:
+		if not is_zero_approx(float(n[key])):
+			lines.append({"text": labels[key] % int(n[key]), "negative": float(n[key]) < 0.0})
+	if data.has("mount_speed"):
+		lines.append({"text": "Mount Speed %.1f" % float(n.mount_speed), "negative": false})
+	return lines
+
+## The stat names an item already carries as fixed stats (never rolled as efsun).
+static func fixed_stat_keys(id: String) -> Array:
+	var data := item(id)
+	var keys: Array = []
+	for key in FIXED_PERCENT:
+		if not is_zero_approx(float(data.get(key, 0.0))):
+			keys.append(key)
+	if int(data.get("bonus_hp", 0)) > 0: keys.append("max_hp")
+	if int(data.get("bonus_mana", 0)) > 0: keys.append("max_mana")
+	return keys
 
 # ------------------------------------------------------------------ enchantments
 
 static func enchant_rules() -> Dictionary:
 	return HPRules.combat().get("enchant", {})
 
+## What kind of piece an item is for enchanting ("wand", "cloak", "hat", ...):
+## enchant.slot_kinds by the first slot it fits.
+static func slot_kind(id: String) -> String:
+	var slots: Array = item(id).get("slots", [])
+	return String((enchant_rules().get("slot_kinds", {}) as Dictionary).get(String(slots[0]), "")) if not slots.is_empty() else ""
+
 ## The bonus pool for an item (empty when it cannot be enchanted).
 static func enchant_pool(id: String) -> Array:
-	return (enchant_rules().get("pools", {}) as Dictionary).get(String(item(id).get("type", "")), [])
+	return (enchant_rules().get("pools", {}) as Dictionary).get(slot_kind(id), [])
 
 static func enchantable(id: String) -> bool:
 	return not enchant_pool(id).is_empty()
@@ -242,13 +294,19 @@ static func enchantable(id: String) -> bool:
 ## "Spell power +6%" - the one wording for a bonus line, shared by every UI.
 static func bonus_text(bonus: Dictionary) -> String:
 	var spec: Dictionary = (enchant_rules().get("stats", {}) as Dictionary).get(String(bonus.get("stat", "")), {})
+	if bool(spec.get("flag", false)):
+		return String(spec.get("label", bonus.get("stat", "?")))
 	return "%s +%d%s" % [String(spec.get("label", bonus.get("stat", "?"))), int(bonus.get("value", 0)), String(spec.get("unit", ""))]
 
-## One new bonus for `id`: a stat from its pool the item does not hold yet, and a
-## weighted grade. {} when the pool is exhausted.
+## One new bonus for `id`: a stat from its pool the item does not hold yet (nor
+## as a fixed stat), skipping stats whose mechanic is not live (`disabled`), and
+## a weighted grade. {} when the pool is exhausted.
 static func roll_bonus(id: String, held: Array, rng: RandomNumberGenerator) -> Dictionary:
 	var taken := held.map(func(b): return String(b.get("stat", "")))
-	var free := enchant_pool(id).filter(func(stat): return not stat in taken)
+	taken.append_array(fixed_stat_keys(id))
+	var specs: Dictionary = enchant_rules().get("stats", {})
+	var free := enchant_pool(id).filter(func(stat): return not stat in taken \
+		and not bool((specs.get(stat, {}) as Dictionary).get("disabled", false)))
 	if free.is_empty():
 		return {}
 	var stat: String = free[rng.randi_range(0, free.size() - 1)]
@@ -326,36 +384,48 @@ static func bonus_totals(equipment: Dictionary) -> Dictionary:
 			totals[stat] = float(totals.get(stat, 0.0)) + float(bonus.get("value", 0))
 	return totals
 
+## Everything worn, summed: fixed item stats plus enchantments. Keys are the
+## stat names of combat.json enchant.stats (each 0 unless worn) plus max_hp,
+## max_mana, armor, defense (legacy %), weapon_multiplier (1 + spell power),
+## wand_tier, attack_value / magic_attack (the wand's +0 ranges; damage applies
+## the +N multiplier), attack_speed, cast_speed, move_speed, mount_speed.
 static func stats(base_hp: int, base_mana: int, equipment: Dictionary) -> Dictionary:
-	var result := {"max_hp": base_hp, "max_mana": base_mana, "defense": 0.0, "weapon_multiplier": 1.0, "wand_tier": 0, "mount_speed": 0.0, "monster_damage": 0.0,
-		"crit_chance": 0.0, "creature_resist": 0.0, "hp_regen": 0.0, "mana_regen": 0.0, "exp_bonus": 0.0, "galleon_bonus": 0.0}
+	var result := {}
+	for key in (enchant_rules().get("stats", {}) as Dictionary):
+		result[key] = 0.0
+	result.merge({"max_hp": base_hp, "max_mana": base_mana, "armor": 0, "defense": 0.0, "weapon_multiplier": 1.0,
+		"wand_tier": 0, "attack_value": [0, 0], "magic_attack": [0, 0], "mount_speed": 0.0}, true)
 	for slot in equipment:
 		var entry: Dictionary = equipment[slot]
 		if not fits(String(entry.get("id", "")), slot):
 			continue
 		var tier := int(entry.get("tier", 0))
+		var data := item(String(entry.id))
 		var numbers := item_stats(String(entry.id), tier)
 		result.max_hp += int(numbers.bonus_hp)
 		result.max_mana += int(numbers.bonus_mana)
-		result.defense += float(numbers.bonus_defense)
+		result.armor += int(numbers.armor)
+		for key in FIXED_PERCENT:
+			result[key] = float(result.get(key, 0.0)) + float(numbers[key])
 		if slot == "main_hand":
-			# Spell damage applies wand_multiplier(wand_tier) itself (HPRules.spell_
-			# multiplier), so the weapon multiplier stays the item's base here.
-			result.weapon_multiplier = float(item(entry.id).get("base_multiplier", 1.0))
 			result.wand_tier = tier
+			if data.has("attack_value"): result.attack_value = _range(data.attack_value, 1.0)
+			if data.has("magic_attack"): result.magic_attack = _range(data.magic_attack, 1.0)
 		if slot == "broom":
 			result.mount_speed = float(numbers.mount_speed)
-	# Enchantments: flat health/mana/armour, percentages on spell power, mount
-	# speed and damage against creatures (applied by the authority's damage).
 	var bonus := bonus_totals(equipment)
-	result.max_hp += int(bonus.get("max_hp", 0))
-	result.max_mana += int(bonus.get("max_mana", 0))
-	result.defense += float(bonus.get("defense", 0))
-	result.weapon_multiplier *= 1.0 + float(bonus.get("spell_power", 0)) / 100.0
-	result.mount_speed *= 1.0 + float(bonus.get("mount_speed", 0)) / 100.0
-	for key in ["monster_damage", "crit_chance", "creature_resist", "hp_regen", "mana_regen", "exp_bonus", "galleon_bonus"]:
-		result[key] = float(bonus.get(key, 0))
-	result.defense = clampf(result.defense, 0.0, 50.0)
+	for stat in bonus:
+		match String(stat):
+			"max_hp": result.max_hp += int(bonus[stat])
+			"max_mana": result.max_mana += int(bonus[stat])
+			"mount_speed": result.mount_speed *= 1.0 + float(bonus[stat]) / 100.0   # legacy broom efsun
+			_: result[stat] = float(result.get(stat, 0.0)) + float(bonus[stat])
+	result.weapon_multiplier = 1.0 + float(result.spell_power) / 100.0
+	var rules := HPRules.item_rules()
+	result.move_speed = clampf(float(result.move_speed), float(rules.get("move_speed_min", -20)), float(rules.get("move_speed_max", 40)))
+	result.attack_speed = clampf(float(result.attack_speed), 0.0, float(rules.get("attack_speed_cap", 100)))
+	result.cast_speed = clampf(float(result.cast_speed), 0.0, float(rules.get("cast_speed_cap", 40)))
+	result.defense = clampf(float(result.defense), 0.0, 50.0)
 	return result
 
 static func migrate(bag: Array, legacy_tier: int) -> Dictionary:

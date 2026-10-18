@@ -167,16 +167,7 @@ func _material_row(id: String, need: int) -> void:
 
 ## The item's base lines at refine level `tier` (what the card shows).
 static func stat_lines(id: String, tier: int) -> Array:
-	var numbers := HPEquipment.item_stats(id, tier)
-	var data := HPEquipment.item(id)
-	var lines: Array = []
-	if String(data.get("type", "")) == "weapon":
-		lines.append("Spell power +%d%%" % int(round((float(numbers.spell_power) - 1.0) * 100.0)))
-	if int(numbers.bonus_hp) > 0: lines.append("Max Health +%d" % int(numbers.bonus_hp))
-	if int(numbers.bonus_mana) > 0: lines.append("Max Mana +%d" % int(numbers.bonus_mana))
-	if float(numbers.bonus_defense) > 0.0: lines.append("Magic Armour +%d%%" % int(numbers.bonus_defense))
-	if data.has("mount_speed"): lines.append("Mount speed %.1f" % float(numbers.mount_speed))
-	return lines
+	return HPEquipment.fixed_lines(id, tier).map(func(line): return String(line.text))
 
 func open_for_player(p_player: Node3D) -> void:
 	if is_instance_valid(player) and player != p_player:

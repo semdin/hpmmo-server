@@ -67,6 +67,7 @@ const PROTOCOL_VERSION := 16
 ## Per-hit presentation bits carried by `sim_damage_event` / `entity_hit`.
 const HIT_CRIT := 1
 const HIT_FINISHER := 2
+const HIT_PIERCE := 4
 
 ## Simulation / replication rates.
 const SIM_HZ := 20

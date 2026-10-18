@@ -840,7 +840,9 @@ func _physics_process(delta: float) -> void:
 	# Input direction relative to camera yaw
 	var input_dir := _intent_move()
 
-	var active_speed := mounted_speed if is_mounted else (swim_speed if is_swimming else walk_speed)
+	# Item Movement Speed (boots, cloak penalty, efsun) applies on foot only.
+	var walk := walk_speed * (1.0 + float(derived_stats.get("move_speed", 0.0)) / 100.0)
+	var active_speed := mounted_speed if is_mounted else (swim_speed if is_swimming else walk)
 	var is_moving := input_dir.length_squared() > 0.01
 
 	if is_moving:
@@ -1434,6 +1436,9 @@ func restore_character(data: Dictionary) -> void:
 					kept["bonuses"] = (entry.get("bonuses", []) as Array).duplicate(true)
 				inventory.append(kept)
 	base_max_hp = int(data.get("base_max_hp", max_hp))
+	# Characters levelled before level_hp_gain rose (40 -> 45) catch up once.
+	if data.has("level"):
+		base_max_hp = maxi(base_max_hp, HPRules.base_max_hp(house) + (maxi(1, int(data.level)) - 1) * int(HPRules.combat().get("base_stats", {}).get("level_hp_gain", 40)))
 	base_max_mana = int(data.get("base_max_mana", max_mana))
 	equipment_version = int(data.get("equipment_version", 0))
 	equipment = (data.get("equipment", {}) as Dictionary).duplicate(true)
@@ -1668,7 +1673,7 @@ func on_cast_answer(cast_seq: int, _cast_id: int, ok: bool, reason: String) -> v
 	_predicted_casts.erase(cast_seq)
 	var spell_id := String(prediction.get("spell_id", ""))
 	if ok:
-		var cd := HPRules.cooldown_for(spell_id, house, skill_level(spell_id))
+		var cd := HPRules.cooldown_for(spell_id, house, skill_level(spell_id), derived_stats)
 		if cd > 0.0:
 			spell_cooldowns[spell_id] = cd
 		emit_signal("spell_cast_signal", spell_id, cd)
