@@ -2,7 +2,7 @@ extends CanvasLayer
 class_name WorldLoader
 
 ## The loading screen between the character screen and the world. It loads the
-## world scene on a background thread with a real progress bar, switches to it,
+## world scene once the screen is on show, switches to it,
 ## and stays on top until the world has actually built its ground and the
 ## player's body exists - so there is no grey frame and no half-built map, just
 ## the key art, the bar and a tip, fading out onto the game.
@@ -112,26 +112,32 @@ func _ready() -> void:
 	_rune.offset_right = -36
 	_rune.offset_bottom = -36
 	_root.add_child(_rune)
-	if ResourceLoader.load_threaded_request(_path) != OK:
-		_phase = "fallback"
+
+## The world scene loads on the main thread, once this screen has been drawn.
+## It used to load on a background thread: online, the snapshots and stats that
+## arrive meanwhile make the main thread load resources too, and a client could
+## sit on "Opening the gates" for good (seen live: a body in the world for 35
+## minutes, its client never past this screen). A frozen bar for a couple of
+## seconds is the price of a load that always finishes.
+const LOAD_AFTER := 0.25
 
 func _process(delta: float) -> void:
 	_t += delta
 	_shown += delta
 	match _phase:
 		"load":
-			var progress := []
-			var status := ResourceLoader.load_threaded_get_status(_path, progress)
-			if progress.size() > 0:
-				_progress = maxf(_progress, float(progress[0]) * 70.0)
-			if status == ResourceLoader.THREAD_LOAD_LOADED and _shown >= MIN_SHOW * 0.5:
+			_progress = minf(30.0, _progress + delta * 60.0)
+			if _shown >= LOAD_AFTER:
 				_status.text = "Raising the castle…"
-				_bar.value = 72.0
+				_bar.value = 35.0
 				_phase = "switch"
-			elif status == ResourceLoader.THREAD_LOAD_FAILED or status == ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
-				_phase = "fallback"
 		"switch":
-			var packed := ResourceLoader.load_threaded_get(_path) as PackedScene
+			var packed := load(_path) as PackedScene
+			if packed == null:
+				_phase = "fallback"
+				return
+			_progress = 72.0
+			_bar.value = 72.0
 			_phase = "settle"
 			_settle = 0.0
 			# Building the grounds happens in the world's _ready, on this thread:

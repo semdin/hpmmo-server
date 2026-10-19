@@ -26,10 +26,13 @@ var admin: Node = null
 var map_host: Node = null
 
 func _ready() -> void:
-	# A headless world with no cap spins its main loop flat out (a whole core
-	# on the 2-core box) doing nothing useful between physics steps. 60 frames
-	# a second = one 60 Hz physics step per frame.
-	Engine.max_fps = 60
+	# A headless world with no cap spins its main loop flat out (a whole core)
+	# doing nothing useful between physics steps. Physics stays 60 Hz; the frame
+	# rate is how often ENet is serviced, and every packet (and every ack that
+	# makes up the client's ping) waits for the next frame - half a frame on
+	# average each way. 120 frames halve that wait for a few % of one core on
+	# the 4-core box. HPMMO_SERVER_FPS overrides it.
+	Engine.max_fps = clampi(int(_env("HPMMO_SERVER_FPS", "120")), 30, 240)
 	print("=========================================================")
 	print(">>> [HPMMO WORLD SERVER] booting %s <<<" % HPProtocol.version_string())
 	print("=========================================================")

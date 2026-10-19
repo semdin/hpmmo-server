@@ -121,7 +121,10 @@ func _placement_refusal(anchor: Vector3, pack: Dictionary) -> String:
 			return "water"
 		if HPRules.is_spawn_blocked(point):
 			return "safe_zone"
-		var excluded := HPRules.exclusion_at(point)
+		# The exclusion volumes are drawn on the grounds (most are flat
+		# cylinders): the caverns above sit over the castle's, which refused
+		# every one of their placements, forever, at ~30 ms a retry.
+		var excluded := HPRules.exclusion_at(point) if point.y < GROUNDS_TOP else ""
 		if excluded != "":
 			return "exclusion:%s" % excluded
 		if not _ground_ok(point):

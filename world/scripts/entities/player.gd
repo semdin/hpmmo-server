@@ -831,6 +831,10 @@ func _physics_process(delta: float) -> void:
 		velocity.y = clampf(velocity.y, -3.0, 3.0)
 	elif not is_on_floor() and not is_mounted:
 		velocity.y -= gravity * delta
+		# Coyote time / press buffer (see _jump_ready): airborne frames must see
+		# the press too.
+		if not input_blocked() and _jump_ready(delta):
+			velocity.y = 8.0
 	elif is_mounted:
 		var vertical := 0.0
 		if not input_blocked():
@@ -845,7 +849,7 @@ func _physics_process(delta: float) -> void:
 		if global_position.y > _flight_ceiling():
 			vertical = minf(vertical, -0.5)
 		velocity.y = move_toward(velocity.y, vertical * 7.0, delta * 18.0)
-	elif not input_blocked() and _intent_jump_edge() and not is_swimming and is_on_floor():
+	elif not input_blocked() and _jump_ready(delta) and not is_swimming:
 		velocity.y = 8.0
 
 	# Input direction relative to camera yaw
@@ -1144,6 +1148,15 @@ func _intent_descend() -> bool:
 	return not input_blocked() and Input.is_action_pressed("flight_descend")
 
 var _prev_jump := false
+## Seconds a jump press stays wanted (JUMP_BUFFER) - see _jump_ready.
+var _jump_buffer := 0.0
+## Input sends the jump bit still rides on after a press (see sim_input_intent).
+var _jump_sends_left := 0
+## A press is remembered this long, so a press a moment before touching down
+## still jumps.
+const JUMP_BUFFER := 0.2
+## Just off the ground (a bump on a slope, a step down) still counts as ground.
+const JUMP_COYOTE := 0.15
 
 func _intent_jump_edge() -> bool:
 	var jump := _intent_jump()
@@ -1151,14 +1164,46 @@ func _intent_jump_edge() -> bool:
 	_prev_jump = jump
 	return edge
 
+## Jump with a press buffer and coyote time. The client and the server run this
+## same body, but the server sees the press up to an input tick later and its
+## body bounces down a slope on its own frames: an edge that had to meet
+## is_on_floor() in the very same frame jumped on one side and not the other,
+## and the correction then dragged the player back down the slope.
+func _jump_ready(delta: float) -> bool:
+	if _intent_jump_edge():
+		_jump_buffer = JUMP_BUFFER
+		if is_local_player and not sim_server_controlled:
+			_jump_sends_left = 2
+	else:
+		_jump_buffer = maxf(0.0, _jump_buffer - delta)
+	if _jump_buffer <= 0.0 or velocity.y > 1.0:
+		return false
+	if not is_on_floor() and _air_time > JUMP_COYOTE:
+		return false
+	_jump_buffer = 0.0
+	return true
+
 ## The intent this client is sending upstream (SimNet calls this each input tick).
 func sim_input_intent() -> Dictionary:
 	return {
 		"move": _intent_move(),
 		"yaw": camera_rot_y,
-		"jump": Input.is_action_pressed("jump") and not input_blocked(),
+		"jump": _jump_bit(),
 		"descend": Input.is_action_pressed("flight_descend") and not input_blocked(),
 	}
+
+## The jump bit of the next input send. Inputs travel unreliably at 20 Hz, so a
+## tap between two sends, or one lost packet, used to lose the jump on the
+## server while this client had already jumped. A press now rides on the next
+## two sends (the server reacts to its rising edge only once).
+func _jump_bit() -> bool:
+	if input_blocked():
+		return false
+	var held := Input.is_action_pressed("jump")
+	if _jump_sends_left > 0:
+		_jump_sends_left -= 1
+		return true
+	return held
 
 func _handle_hotkeys() -> void:
 	if Input.is_action_just_pressed("spell_1"):

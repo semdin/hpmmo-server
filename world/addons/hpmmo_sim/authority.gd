@@ -177,6 +177,14 @@ const AUTOSAVE_INTERVAL_MS := 30000
 const REGEN_INTERVAL_MS := 200
 ## How far beside a body a projectile may pass and still hit it (aim forgiveness).
 const PROJECTILE_ASSIST_RADIUS := 0.55
+## A cast aimed within this of a hostile body (horizontally) is aimed AT it: the
+## bolt is re-aimed from the release point and steers onto that body's chest.
+const AIM_TARGET_RADIUS := 1.6
+## Chest height the client aims at (player.gd TARGET_AIM_HEIGHT).
+const AIM_CHEST_HEIGHT := 1.15
+## A homing bolt passes over ground whose surface is flatter than this (normal.y)
+## - a hump between caster and target on a slope - but walls still stop it.
+const HOMING_GROUND_NORMAL_Y := 0.55
 const PERSISTENCE_PENDING := "pending"
 
 ## Optional persistence bridge (server/host roles only). Assigned by the server
@@ -467,6 +475,10 @@ func apply_character_binding(record: Dictionary, character: Dictionary) -> Strin
 	_load_quest_state(record, node)
 	players_by_character[character_id] = int(record.get("uid", 0))
 	record.erase("awaiting_bind")
+	# Bound, but its client is still on the loading screen: other players see
+	# the body only once that client drives it (its first input, sent once the
+	# world and the local body exist) - not standing at the spawn meanwhile.
+	record["awaiting_world"] = true
 	touch(record)
 	_push_stats(record)
 	return ""
@@ -788,7 +800,10 @@ func submit_input(peer_id: int, seq: int, move: Vector2, yaw: float, jump: bool,
 	if mutations_frozen():
 		return   # the save barrier owns the world from here on
 	var record := player_record(peer_id)
-	if record.is_empty() or bool(record.get("dead", false)):
+	if record.is_empty():
+		return
+	record.erase("awaiting_world")   # its client is in the world (apply_character_binding)
+	if bool(record.get("dead", false)):
 		return
 	if int(record.get("pending_transfer", 0)) != 0:
 		return   # the body is owned by the transfer until it completes or expires
@@ -922,6 +937,7 @@ func _begin_cast(record: Dictionary, spell_id: String, aim: Vector3, combo_mult:
 		"origin": origin,
 		"dir": dir,
 		"aim": aim,
+		"target_uid": _aim_target_uid(record, aim),
 		"combo_mult": combo_mult,
 		"hit_flags": HPProtocol.HIT_FINISHER if finisher else 0,
 	}
@@ -933,6 +949,54 @@ func _begin_cast(record: Dictionary, spell_id: String, aim: Vector3, combo_mult:
 	# Face the cast direction immediately, matching the client's aim behaviour.
 	emit_signal("cast_started", int(record["uid"]), cast_id, spell_id, aim, int(cast["release_tick"]))
 	return cast_id
+
+## The damageable body the client aimed at (its chest or feet within
+## AIM_TARGET_RADIUS of `aim`), or 0 for a cast aimed at the ground / the air.
+func _aim_target_uid(record: Dictionary, aim: Vector3) -> int:
+	var caster_node = record.get("node")
+	var caster_uid := int(record.get("uid", 0))
+	var map_id := String(record.get("map_id", ""))
+	var candidates: Array = HPSnapshots.nearby(self, map_id, aim, AIM_TARGET_RADIUS + 2.0) if map_id != "" else entities.keys()
+	var best := 0
+	var best_d := INF
+	for uid in candidates:
+		if uid == caster_uid:
+			continue
+		var target: Dictionary = entities.get(uid, {})
+		if target.is_empty() or bool(target.get("dead", false)):
+			continue
+		var kind := int(target.get("kind", 0))
+		if kind != HPProtocol.Kind.MOB and kind != HPProtocol.Kind.PLAYER 				and kind != HPProtocol.Kind.DUMMY and kind != HPProtocol.Kind.MONOLITH:
+			continue
+		if map_id != "" and String(target.get("map_id", HPProtocol.DEFAULT_MAP)) != map_id:
+			continue
+		var node = target.get("node")
+		if node == null or not is_instance_valid(node) or not (node is Node3D):
+			continue
+		var at: Vector3 = (node as Node3D).global_position
+		var d := Vector2(aim.x - at.x, aim.z - at.z).length()
+		if d > AIM_TARGET_RADIUS or aim.y < at.y - 0.6 or aim.y > at.y + 3.0 or d >= best_d:
+			continue
+		if not HPRules.can_damage(caster_node, node):
+			continue
+		best_d = d
+		best = int(uid)
+	return best
+
+## Chest of a live aimed-at body, or Vector3.INF when it is gone, dead or left
+## the caster's map.
+func _aim_target_chest(target_uid: int, caster: Dictionary) -> Vector3:
+	if target_uid == 0:
+		return Vector3.INF
+	var target: Dictionary = entities.get(target_uid, {})
+	if target.is_empty() or bool(target.get("dead", false)):
+		return Vector3.INF
+	if String(target.get("map_id", HPProtocol.DEFAULT_MAP)) != String(caster.get("map_id", HPProtocol.DEFAULT_MAP)):
+		return Vector3.INF
+	var node = target.get("node")
+	if node == null or not is_instance_valid(node) or not (node is Node3D):
+		return Vector3.INF
+	return (node as Node3D).global_position + Vector3.UP * AIM_CHEST_HEIGHT
 
 func submit_mount(peer_id: int, mounted: bool) -> Dictionary:
 	if not is_authority():
@@ -1728,6 +1792,14 @@ func _resolve_cast(cast: Dictionary) -> void:
 	var delivery := HPRules.delivery(spell_id)
 	var origin: Vector3 = caster["node"].global_position + Vector3(0, 1.2, 0)
 	var dir: Vector3 = cast["dir"]
+	# Re-aim from where the caster stands NOW: the body moved during the windup
+	# (and the server's copy trails the client's), so the direction taken at the
+	# cast's start would pass beside the point - or into a slope.
+	var aim_at := _aim_target_chest(int(cast.get("target_uid", 0)), caster)
+	if not aim_at.is_finite():
+		aim_at = cast.get("aim", Vector3.INF)
+	if aim_at.is_finite() and (aim_at - origin).length_squared() > 0.01:
+		dir = (aim_at - origin).normalized()
 	# A cone aimed down at the ground in front of the caster still sweeps the
 	# ground level ahead: only its heading counts (and the flames are drawn so).
 	if delivery == "cone" and dir.y < 0.0 and Vector2(dir.x, dir.z).length_squared() > 0.0001:
@@ -1801,6 +1873,7 @@ func _spawn_projectile(caster: Dictionary, cast: Dictionary, origin: Vector3, di
 		"flat_damage": int(cast["damage"]),
 		"hit_flags": int(cast.get("hit_flags", 0)),
 		"hit_uid": 0,
+		"target_uid": int(cast.get("target_uid", 0)),
 	})
 
 func _advance_projectiles() -> void:
@@ -1815,12 +1888,18 @@ func _advance_projectiles() -> void:
 		if step > float(projectile["remaining"]):
 			step = float(projectile["remaining"])
 		var from: Vector3 = projectile["pos"]
-		var to: Vector3 = from + (projectile["dir"] as Vector3) * step
-		projectile["remaining"] = float(projectile["remaining"]) - step
-		projectile["pos"] = to
 		var caster: Dictionary = entities.get(projectile["caster_uid"], {})
 		if caster.is_empty() or bool(caster.get("dead", false)):
 			continue
+		# A bolt aimed at a body steers onto it (a target that moved, or one up
+		# a slope, is still met); with the target gone it flies straight on.
+		var chest := _aim_target_chest(int(projectile.get("target_uid", 0)), caster)
+		var homing := chest.is_finite()
+		if homing and (chest - from).length_squared() > 0.0001:
+			projectile["dir"] = (chest - from).normalized()
+		var to: Vector3 = from + (projectile["dir"] as Vector3) * step
+		projectile["remaining"] = float(projectile["remaining"]) - step
+		projectile["pos"] = to
 		var caster_node = caster.get("node")
 		if caster_node == null or not is_instance_valid(caster_node):
 			continue
@@ -1846,6 +1925,10 @@ func _advance_projectiles() -> void:
 						continue
 					impact_uid = uid
 					impact_pos = hit.position
+				elif homing and (hit.normal as Vector3).y >= HOMING_GROUND_NORMAL_Y:
+					# Ground between the caster and its target (a hump on a slope):
+					# the bolt skims over it rather than dying in the grass.
+					pass
 				else:
 					impact_uid = 0
 					impact_pos = hit.position
@@ -1874,6 +1957,7 @@ func _advance_projectiles() -> void:
 				projectile["dir"] = -(projectile["dir"] as Vector3)
 				projectile["pos"] = impact_pos + (projectile["dir"] as Vector3) * 0.4
 				projectile["caster_uid"] = impact_uid
+				projectile["target_uid"] = 0   # flies straight back, no homing
 				projectile["speed"] = float(projectile["speed"]) * 1.1
 				projectile["remaining"] = maxf(float(projectile["remaining"]), 8.0)
 				remaining.append(projectile)
@@ -4127,6 +4211,27 @@ func note_despawn(uid: int, tick: int) -> void:
 		for key in _despawn_ticks.keys():
 			if int(_despawn_ticks[key]) < tick - 200:
 				_despawn_ticks.erase(key)
+
+## Client: a new world session starts from nothing. The replicas of the last
+## session (leave -> character screen -> enter again, in one process) would
+## otherwise still be in the table: a player who never left keeps their uid, so
+## the new session's first snapshot of them is "not new", no view is ever asked
+## for, and they stay invisible until they leave and re-enter interest range.
+func forget_replicas() -> void:
+	if is_authority():
+		return
+	entities.clear()
+	by_node.clear()
+	players_by_peer.clear()
+	players_by_character.clear()
+	_loot_set.clear()
+	_despawn_ticks.clear()
+	_pending_player_info.clear()
+	_pending_mob_info.clear()
+	casts.clear()
+	casts_by_node.clear()
+	portkeys.clear()
+	local_uid = 0
 
 ## A replica the server stopped announcing is gone: forget it, or the client
 ## accumulates records (and node ids) for entities that no longer exist.

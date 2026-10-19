@@ -45,6 +45,9 @@ OOMScoreAdjust=-800
 CPUWeight=400
 Nice=-5
 LimitNOFILE=65536
+# The VM's memory balloon can squeeze the guest; the world must not be the
+# process that gets swapped (a swapped-out page is a frame hitch for everyone).
+MemorySwapMax=0
 EOF
 systemctl daemon-reload
 

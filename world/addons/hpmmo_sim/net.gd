@@ -828,6 +828,10 @@ func sim_join_result(ok: bool, reason: String, uid: int, character: Dictionary, 
 	joined_world = ok
 	protocol_mismatch = reason if reason.begins_with("protocol_mismatch") else ""
 	if ok:
+		# A join from the menus (no live world scene): the last session's
+		# replicas must not survive into this one (SimAuthority.forget_replicas).
+		if not is_instance_valid(SimAuthority.world):
+			SimAuthority.forget_replicas()
 		SimAuthority.sim_tick = tick
 		SimAuthority.seed_value = world_seed
 		local_uid = uid

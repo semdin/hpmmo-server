@@ -298,6 +298,10 @@ func _load_library() -> void:
 	if not FileAccess.file_exists(LIBRARY_PATH):
 		# A dedicated server legitimately ships no audio: say so on stdout.
 		print("AudioManager: running without a sound library (headless server)")
+		# Nothing to mix: the per-frame zone, flight and tension work would only
+		# track some player body on the server.
+		if DisplayServer.get_name() == "headless":
+			set_process(false)
 		return
 	var parsed = JSON.parse_string(FileAccess.get_file_as_string(LIBRARY_PATH))
 	if typeof(parsed) != TYPE_DICTIONARY:
@@ -710,7 +714,7 @@ func _process_scatter(delta: float) -> void:
 	if not audio_available() or _scatter_next.is_empty():
 		return
 	var listener := Vector3.ZERO
-	if _local_player is Node3D and is_instance_valid(_local_player):
+	if is_instance_valid(_local_player) and _local_player is Node3D:
 		listener = (_local_player as Node3D).global_position
 	if _local_player != null and bool(_local_player.get("is_dead")):
 		return
@@ -828,7 +832,7 @@ func _connect_once(node: Node, signal_name: String, method: String) -> void:
 
 func _on_animation_event(event_name: String) -> void:
 	var text := String(event_name)
-	var at: Vector3 = (_local_player as Node3D).global_position if _local_player is Node3D else Vector3.ZERO
+	var at: Vector3 = (_local_player as Node3D).global_position if is_instance_valid(_local_player) and _local_player is Node3D else Vector3.ZERO
 	if text.begins_with("footstep:"):
 		var surface := text.trim_prefix("footstep:")
 		if not has_sound("step_%s_1" % surface):
@@ -855,7 +859,7 @@ func _play_varied(key: String, at: Vector3, gain_scale: float) -> Node:
 
 
 func _on_player_mounted(mounted: bool) -> void:
-	var at: Vector3 = (_local_player as Node3D).global_position if _local_player is Node3D else Vector3.ZERO
+	var at: Vector3 = (_local_player as Node3D).global_position if is_instance_valid(_local_player) and _local_player is Node3D else Vector3.ZERO
 	play_mount(mounted, at, _local_player)
 
 
@@ -874,6 +878,10 @@ func play_landing_blocked() -> void:
 
 
 func _process(delta: float) -> void:
+	# A player freed by a map transfer, a character change or (on the server) a
+	# logout: drop it before anything type-checks it.
+	if _local_player != null and not is_instance_valid(_local_player):
+		_local_player = null
 	_process_scatter(delta)
 	_process_flight(delta)
 	_process_tension(delta)
@@ -902,7 +910,7 @@ func _process(delta: float) -> void:
 ## Height above the ground under the listener (0 indoors / unknown).
 func _measure_altitude() -> void:
 	_altitude = 0.0
-	if not (_local_player is Node3D) or not is_instance_valid(_local_player) or not _is_outdoors():
+	if not is_instance_valid(_local_player) or not (_local_player is Node3D) or not _is_outdoors():
 		return
 	var body := _local_player as Node3D
 	if not body.is_inside_tree():
@@ -921,7 +929,7 @@ func _process_flight(delta: float) -> void:
 	_swoosh_cd = maxf(0.0, _swoosh_cd - delta)
 	var high := clampf((_altitude - HIGH_WIND_FROM) / (HIGH_WIND_FULL - HIGH_WIND_FROM), 0.0, 1.0) if _is_outdoors() else 0.0
 	_set_layer("amb_high_wind", high)
-	if not _mounted or not (_local_player is CharacterBody3D) or not is_instance_valid(_local_player):
+	if not _mounted or not is_instance_valid(_local_player) or not (_local_player is CharacterBody3D):
 		_flight_time = 0.0
 		return
 	var vel := (_local_player as CharacterBody3D).velocity

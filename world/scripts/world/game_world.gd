@@ -447,6 +447,21 @@ func _setup_replication() -> void:
 	SimAuthority.chat_line.connect(_on_chat_line)
 	if is_instance_valid(local_player):
 		SimAuthority.cast_ack.connect(local_player.on_cast_answer)
+	# Catch up: snapshots keep arriving while the loading screen is up, and the
+	# first sight of an entity (entity_replicating) fired with no world here to
+	# hear it. Without this, a player who was already in range when we loaded
+	# in had no body on screen until they left range and came back.
+	if not SimAuthority.is_authority():
+		for uid in SimAuthority.entities.keys():
+			var record: Dictionary = SimAuthority.entities[uid]
+			if bool(record.get("replica", false)) and not bool(record.get("local", false)) \
+					and int(uid) != SimAuthority.local_uid and int(uid) != SimNet.local_uid \
+					and record.get("node") == null:
+				if int(record.get("kind", 0)) == HPProtocol.Kind.LOOT:
+					_on_loot_spawned(int(uid), String(record.get("item_id", "")), int(record.get("amount", 1)),
+						record.get("pos", Vector3.ZERO), record.get("items", []))
+				else:
+					_on_entity_replicating(record)
 
 ## Replicated entities entering range become views a few per frame: a dense
 ## hunting ground (or the first snapshot after joining) brings dozens of
@@ -464,7 +479,9 @@ func _request_mob_scenes() -> void:
 	_mob_scenes_requested = true
 	for path in HPProtocol.MOB_SCENES.values():
 		if ResourceLoader.exists(String(path)):
-			ResourceLoader.load_threaded_request(String(path), "PackedScene", true)
+			# No sub-threads: that mode can deadlock against a main-thread load of a
+			# shared dependency (the creature view below waits on these).
+			ResourceLoader.load_threaded_request(String(path), "PackedScene", false)
 
 func _mob_scene(variant: int) -> PackedScene:
 	var path := HPProtocol.mob_scene(variant)
