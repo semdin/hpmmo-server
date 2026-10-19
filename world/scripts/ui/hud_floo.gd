@@ -9,6 +9,8 @@ class_name HudFloo
 ## window only asks and shows.
 
 const POWDER := "floo_powder"
+const BOOT := "portkey_boot"
+var _bought := POWDER
 
 var player: Node = null
 var node_id := ""
@@ -43,6 +45,24 @@ func _ready() -> void:
 		buy.focus_mode = Control.FOCUS_NONE
 		buy.pressed.connect(_buy.bind(amount))
 		top.add_child(buy)
+	# The fireplace keeper also sells old boots made into Portkeys.
+	var boot_row := HBoxContainer.new()
+	boot_row.add_theme_constant_override("separation", 10)
+	body.add_child(boot_row)
+	var boot_icon := TextureRect.new()
+	boot_icon.texture = UITheme.item_icon(BOOT)
+	boot_icon.custom_minimum_size = Vector2(36, 36)
+	boot_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	boot_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	boot_row.add_child(boot_icon)
+	var boot_label := HudKit.label("Old Boot (Portkey) - %s Galleons" % _galleons(int(HPEquipment.item(BOOT).get("buy_price", 0))), 14, HudKit.PARCHMENT)
+	boot_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	boot_row.add_child(boot_label)
+	var buy_boot := Button.new()
+	buy_boot.text = "Buy"
+	buy_boot.focus_mode = Control.FOCUS_NONE
+	buy_boot.pressed.connect(_buy_item.bind(BOOT, 1))
+	boot_row.add_child(buy_boot)
 	var hint := HudKit.label("Step into the flames and speak your destination clearly.", 13, HudKit.PARCHMENT.darkened(0.25))
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_child(hint)
@@ -140,9 +160,13 @@ func _travel(dest_id: String) -> void:
 		SimNet.request_travel(player, node_id, dest_id)
 
 func _buy(amount: int) -> void:
+	_buy_item(POWDER, amount)
+
+func _buy_item(item_id: String, amount: int) -> void:
 	if not is_instance_valid(player):
 		return
-	_buy_id = SimNet.submit_equipment(player, "buy", "", POWDER, amount, 0)
+	_bought = item_id
+	_buy_id = SimNet.submit_equipment(player, "buy", "", item_id, amount, 0)
 
 func _answer(answer: Dictionary) -> void:
 	if not visible or int(answer.get("request_id", -2)) != _buy_id:
@@ -151,7 +175,7 @@ func _answer(answer: Dictionary) -> void:
 	var hud: Node = get_parent().get_parent() if get_parent() != null else null
 	var reason := String(answer.get("reason", ""))
 	var fails := {"no_gold": "Not enough Galleons.", "bag_full": "Your bag is full."}
-	var text := "Floo Powder bought."
+	var text := "%s bought." % String(HPEquipment.item(_bought).get("name", _bought))
 	if not bool(answer.get("ok", false)):
 		text = String(fails.get(reason, "The fireplace keeper shakes his head."))
 	if hud != null and hud.has_method("show_notice"):

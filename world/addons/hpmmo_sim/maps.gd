@@ -334,3 +334,6 @@ static func floo_rules() -> Dictionary:
 static func travel_facing(node: Dictionary) -> Vector3:
 	var yaw := deg_to_rad(float(node.get("yaw", 0.0)))
 	return Vector3(sin(yaw), 0.0, cos(yaw))
+
+static func portkey_rules() -> Dictionary:
+	return travel().get("portkey", {})

@@ -85,7 +85,13 @@ class_name HPProtocol
 ##     spends Floo Powder and runs the ordinary transfer (grant -> ready ->
 ##     commit, spawn id `floo:<dest>`, same map allowed). The stats payload
 ##     carries `floo_known` (the fireplaces this character can travel to).
-const PROTOCOL_VERSION := 20
+## v21: Portkeys. `sim_portkey_place(dest_id)` sets the owner's boot down
+##     (travel.json `portkey`), `sim_portkey_grab(id, hold)` holds on / lets go,
+##     and `sim_portkey_state(state)` tells the owner and the owner's party what
+##     the boot is doing (phase placed / fired / gone, holders, fire tick).
+##     A fired Portkey grants each holder an ordinary transfer (spawn id
+##     `portkey:<dest>`).
+const PROTOCOL_VERSION := 21
 
 ## Death choice (v18 `sim_respawn_request`).
 const RESPAWN_TOWN := 0
@@ -188,6 +194,12 @@ const REJECT_ABORTED := "aborted"
 const REJECT_NO_FLOO_POWDER := "no_floo_powder"
 const REJECT_FLOO_UNKNOWN := "floo_unknown"
 const REJECT_IN_COMBAT := "in_combat"
+# v21 Portkeys.
+const REJECT_NO_PORTKEY := "no_portkey"
+const REJECT_PORTKEY_ACTIVE := "portkey_active"
+const REJECT_PORTKEY_GONE := "portkey_gone"
+const REJECT_NOT_IN_PARTY := "not_in_party"
+const REJECT_IN_DUNGEON := "in_dungeon"
 
 ## Character binding outcomes (the character-bind fix). `BIND_NOT_FOUND` is also the
 ## answer for a character that exists but belongs to another account: the same

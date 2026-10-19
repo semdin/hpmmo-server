@@ -6,13 +6,80 @@
     "radius": 3.2,
     "arrive": 1.8,
     "combat_lock_s": 5.0,
-    "known_by_default": ["floo_courtyard"]
+    "known_by_default": [
+      "floo_courtyard"
+    ]
   },
   "nodes": {
-    "floo_courtyard": {"kind": "floo", "map": "grounds", "label": "Castle Courtyard", "pos": [-24.0, 0.0, 58.0], "yaw": 90.0},
-    "floo_hogsmeade": {"kind": "floo", "map": "grounds", "label": "Hogsmeade Square", "pos": [694.0, 0.0, -150.0], "yaw": -54.0},
-    "floo_hagrid": {"kind": "floo", "map": "grounds", "label": "Hagrid's Hut", "pos": [-266.0, 0.0, -6.0], "yaw": -135.0},
-    "floo_great_hall": {"kind": "floo", "map": "castle_interior", "label": "The Great Hall", "pos": [-40.0, 200.0, 69.3], "yaw": 180.0},
-    "floo_caverns_camp": {"kind": "floo", "map": "spider_caverns", "label": "Blackweb Camp", "pos": [-166.0, 1550.0, -196.5], "yaw": -10.5, "level_min": 24}
+    "floo_courtyard": {
+      "kind": "floo",
+      "map": "grounds",
+      "label": "Castle Courtyard",
+      "pos": [
+        -24.0,
+        0.0,
+        58.0
+      ],
+      "yaw": 90.0
+    },
+    "floo_hogsmeade": {
+      "kind": "floo",
+      "map": "grounds",
+      "label": "Hogsmeade Square",
+      "pos": [
+        694.0,
+        0.0,
+        -150.0
+      ],
+      "yaw": -54.0
+    },
+    "floo_hagrid": {
+      "kind": "floo",
+      "map": "grounds",
+      "label": "Hagrid's Hut",
+      "pos": [
+        -266.0,
+        0.0,
+        -6.0
+      ],
+      "yaw": -135.0
+    },
+    "floo_great_hall": {
+      "kind": "floo",
+      "map": "castle_interior",
+      "label": "The Great Hall",
+      "pos": [
+        -40.0,
+        200.0,
+        69.3
+      ],
+      "yaw": 180.0
+    },
+    "floo_caverns_camp": {
+      "kind": "floo",
+      "map": "spider_caverns",
+      "label": "Blackweb Camp",
+      "pos": [
+        -166.0,
+        1550.0,
+        -196.5
+      ],
+      "yaw": -10.5,
+      "level_min": 24
+    }
+  },
+  "portkey": {
+    "_comment": "An old boot that is a Portkey (protocol v21). The owner places it (consumed) and picks a destination; for countdown_s the owner's party members within grab_radius may hold on (interact). When it fires, everyone still holding and still within reach is carried together to the destination (a travel node), set down in a ring `arrive` metres in front of it. Refunded if it cannot fire (nobody left holding, owner gone). Not inside dungeon copies, not mounted, not within combat_lock_s of combat.",
+    "item": "portkey_boot",
+    "countdown_s": 10.0,
+    "grab_radius": 3.0,
+    "combat_lock_s": 5.0,
+    "arrive": 3.5,
+    "destinations": [
+      "floo_caverns_camp",
+      "floo_courtyard",
+      "floo_hogsmeade",
+      "floo_hagrid"
+    ]
   }
 }

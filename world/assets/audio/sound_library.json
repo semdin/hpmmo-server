@@ -2832,6 +2832,19 @@
    "seconds": 2.56,
    "purpose": "Floo Network travel: powder ignites into roaring emerald flames sucked up the chimney",
    "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (Blackweb Caverns S4, art/spider_caverns/audio)"
+  },
+  "portkey_whoosh": {
+   "path": "assets/audio/transitions/portkey_whoosh.wav",
+   "bus": "sfx",
+   "gain_db": -6.0,
+   "pitch_variation": 0.03,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 2.76,
+   "purpose": "A Portkey activating: rising blue chime, a yank into a spinning whirlwind",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (Blackweb Caverns S5, art/spider_caverns/audio)"
   }
  }
 }

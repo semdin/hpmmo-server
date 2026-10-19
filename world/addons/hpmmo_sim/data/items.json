@@ -942,5 +942,15 @@
     "icon": "floo_powder",
     "slots": [],
     "buy_price": 2500
+  },
+  "portkey_boot": {
+    "id": "portkey_boot",
+    "name": "Old Boot (Portkey)",
+    "type": "material",
+    "desc": "A battered boot enchanted as a Portkey. Right-click to set it down and choose where it goes: for ten seconds your party may grab hold, then everyone holding on is carried there together.",
+    "rarity": "rare",
+    "icon": "portkey_boot",
+    "slots": [],
+    "buy_price": 10000
   }
 }

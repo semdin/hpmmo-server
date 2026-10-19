@@ -84,6 +84,8 @@ var character_window: HudCharacterWindow = null
 var bestiary: HudBestiary = null
 ## The Floo Network window (map controller opens it at a fireplace).
 var floo: HudFloo = null
+## Where a Portkey goes (right-click an Old Boot in the bag).
+var portkey: HudPortkey = null
 var _exp_ticks: Control = null
 var _level := 1
 ## Last house rank shown; 0 until the first payload so a load is not a "rank up".
@@ -201,6 +203,8 @@ func _setup_panels() -> void:
 	modal.add_child(bestiary)
 	floo = HudFloo.new()
 	modal.add_child(floo)
+	portkey = HudPortkey.new()
+	modal.add_child(portkey)
 	skill_pick = HudSkillPick.new()
 	skill_pick.hud = self
 	modal.add_child(skill_pick)
@@ -878,6 +882,9 @@ func handle_escape(world: Node = null) -> String:
 	if floo != null and floo.is_open():
 		floo.close()
 		return "floo"
+	if portkey != null and portkey.is_open():
+		portkey.close()
+		return "portkey"
 	if quest_scroll != null and quest_scroll.is_open():
 		quest_scroll.close()
 		return "quest"

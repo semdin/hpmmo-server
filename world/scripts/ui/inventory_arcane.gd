@@ -330,6 +330,12 @@ func _activate(slot: UISlot) -> void:
 		_offer(slot.entry)
 		return
 	var item_data := HPEquipment.item(slot.item_id)
+	# An Old Boot is a Portkey: choose where it goes, the authority sets it down.
+	if slot.item_id == String(HPMaps.portkey_rules().get("item", "portkey_boot")):
+		var hud = get_parent().get_node_or_null("HUD") if get_parent() != null else null
+		if hud != null and hud.get("portkey") != null:
+			hud.portkey.open_for(player)
+		return
 	if item_data.get("type") == "consumable" or slot.item_id in ["potion_health", "potion_mana"]:
 		_on_item_clicked(slot.entry)
 		return

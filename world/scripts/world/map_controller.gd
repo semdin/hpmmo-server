@@ -150,6 +150,9 @@ func _ready() -> void:
 ## body stands at.
 var _travel: TravelNodes = null
 var _active_travel := ""
+## Portkeys set down by this player or its party (protocol v21).
+var _portkeys: PortkeyViews = null
+var _active_portkey: Dictionary = {}
 
 func _add_travel_nodes() -> void:
 	if world == null or _travel != null:
@@ -157,6 +160,8 @@ func _add_travel_nodes() -> void:
 	_travel = TravelNodes.new()
 	world.add_child(_travel)
 	_travel.show_map(current_map)
+	_portkeys = PortkeyViews.new()
+	world.add_child(_portkeys)
 
 ## Interact at a fireplace: the authority learns it (an empty destination) and
 ## the Floo window opens.
@@ -298,9 +303,15 @@ func _process(delta: float) -> void:
 	_active_portal = found
 	# Not at a door: maybe at a Floo fireplace (data/travel.json).
 	_active_travel = ""
-	if found.is_empty() and _travel != null:
+	_active_portkey = {}
+	if found.is_empty() and _portkeys != null:
+		_active_portkey = _portkeys.grab_candidate(local_player.global_position, current_map)
+	if found.is_empty() and _active_portkey.is_empty() and _travel != null:
 		_active_travel = _travel.node_at(local_player.global_position, current_map)
-	if found.is_empty():
+	if found.is_empty() and not _active_portkey.is_empty():
+		_active_label = "Press %s - %s the Portkey (to %s)" % [PROMPT_KEY,
+			"Let go of" if bool(_active_portkey.get("holding", false)) else "Grab hold of", _active_portkey.get("label", "")]
+	elif found.is_empty():
 		_active_label = "" if _active_travel == "" else "Press %s - Floo Network (%s)" % [
 			PROMPT_KEY, String(HPMaps.travel_node(_active_travel).get("label", ""))]
 	elif _mounted():
@@ -311,13 +322,16 @@ func _process(delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if busy or not is_instance_valid(local_player):
 		return
-	if _active_portal.is_empty() and _active_travel == "":
+	if _active_portal.is_empty() and _active_travel == "" and _active_portkey.is_empty():
 		return
 	if not event.is_action_pressed("interact"):
 		return
 	if player_input_blocked():
 		return
 	get_viewport().set_input_as_handled()
+	if _active_portal.is_empty() and not _active_portkey.is_empty():
+		SimNet.portkey_grab(local_player, int(_active_portkey.get("id", 0)), not bool(_active_portkey.get("holding", false)))
+		return
 	if _active_portal.is_empty():
 		open_floo(_active_travel)
 		return
@@ -481,6 +495,8 @@ func _start_transfer(map_id: String, spawn_id: String, token: int, forced_pos: V
 	_record_transfer(map_id, spawn_id, token)
 	if spawn_id.begins_with("floo:") and is_instance_valid(local_player):
 		TravelNodes.burst(world, local_player.global_position, 1.6)
+	elif spawn_id.begins_with("portkey:") and is_instance_valid(local_player):
+		PortkeyViews.swirl(world, local_player.global_position, 1.2)
 	if not _expired_return.is_empty():
 		var back: Dictionary = _expired_return
 		_expired_return = {}
@@ -986,6 +1002,16 @@ func _reason_text(reason: String) -> String:
 			return "You are not experienced enough to enter."
 		"daily_limit":
 			return "You have entered this place enough times today - come back tomorrow."
+		"no_portkey":
+			return "You have no Portkey boot."
+		"portkey_active":
+			return "Your Portkey is already waiting - grab hold of it."
+		"portkey_gone":
+			return "That Portkey has already gone."
+		"not_in_party":
+			return "That Portkey is not yours - only its owner's party may hold on."
+		"in_dungeon":
+			return "A Portkey will not work in here."
 		"no_floo_powder":
 			return "You have no Floo Powder - buy a pinch at the fireplace."
 		"floo_unknown":

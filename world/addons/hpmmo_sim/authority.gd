@@ -56,6 +56,8 @@ signal world_event(kind: String, data: Dictionary)
 ## A player's party view changed (members, leader, live health). `state` is
 ## {"party_id": 0} when the player is in no party.
 signal party_state(uid: int, state: Dictionary)
+## v21: what a Portkey is doing, for one viewer (its owner or a party member).
+signal portkey_state(uid: int, state: Dictionary)
 ## `uid` was invited by `from_name` (answer with /accept or /decline).
 signal party_invited(uid: int, from_name: String)
 ## v15: the authority shoved a player (knockback, a pixie's lift, Fluffy's
@@ -1204,6 +1206,191 @@ func request_travel(peer_id: int, node_id: String, dest_id: String = "") -> Dict
 	print("[Authority] floo: peer %d %s -> %s" % [peer_id, node_id, dest_id])
 	return _grant_transfer(record, peer_id, from_map, destination, "floo:" + dest_id, arrival + Vector3.UP * 0.3)
 
+# ------------------------------------------------------------------ portkeys
+
+## Live Portkeys (travel.json `portkey`): id -> {id, owner, party, map, pos,
+## dest, ends_tick, holders: [uid]}. One per owner.
+var portkeys: Dictionary = {}
+var _next_portkey := 1
+
+## The owner sets the boot down (it is spent) and names the destination; the
+## owner holds on from the start. Its party has `countdown_s` to grab it.
+func request_portkey_place(peer_id: int, dest_id: String) -> Dictionary:
+	if not is_authority() or mutations_frozen():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	var record := player_record(peer_id)
+	if record.is_empty():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	var body: Node3D = record.get("node")
+	if body == null or not is_instance_valid(body):
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_STATE)
+	var rules := HPMaps.portkey_rules()
+	var uid := int(record.get("uid", 0))
+	var map_id := String(record.get("map_id", HPProtocol.DEFAULT_MAP))
+	var reason := ""
+	if bool(record.get("dead", false)):
+		reason = HPProtocol.REJECT_DEAD
+	elif int(record.get("pending_transfer", 0)) != 0:
+		reason = HPProtocol.REJECT_TRANSFER_PENDING
+	elif bool(record.get("mounted", false)):
+		reason = HPProtocol.REJECT_MOUNTED
+	elif HPMaps.instance_slot(map_id) > 0:
+		reason = HPProtocol.REJECT_IN_DUNGEON
+	elif sim_tick - int(record.get("last_combat_tick", -100000)) < int(float(rules.get("combat_lock_s", 5.0)) * HPProtocol.SIM_HZ):
+		reason = HPProtocol.REJECT_IN_COMBAT
+	elif not (rules.get("destinations", []) as Array).has(dest_id) or HPMaps.travel_node(dest_id).is_empty():
+		reason = HPProtocol.REJECT_NO_PORTAL
+	elif _player_level(record) < int(HPMaps.travel_node(dest_id).get("level_min", 1)):
+		reason = HPProtocol.REJECT_LEVEL
+	else:
+		for pk in portkeys.values():
+			if int(pk.owner) == uid:
+				reason = HPProtocol.REJECT_PORTKEY_ACTIVE
+	if reason != "":
+		return _refuse_transfer(peer_id, reason)
+	var item := String(rules.get("item", "portkey_boot"))
+	var bag: Array = body.inventory.duplicate(true)
+	if not HPEquipment.take(bag, item, 0, 1):
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_NO_PORTKEY)
+	_set_bag(record, bag)
+	var at := body.global_position
+	var query := PhysicsRayQueryParameters3D.create(at + Vector3.UP, at - Vector3.UP * 4.0, 1)
+	var hit := body.get_world_3d().direct_space_state.intersect_ray(query)
+	if not hit.is_empty():
+		at = hit["position"]
+	var pk := {"id": _next_portkey, "owner": uid, "party": int(party.by_uid.get(uid, 0)), "map": map_id,
+		"pos": at, "dest": dest_id, "item": item,
+		"ends_tick": sim_tick + int(float(rules.get("countdown_s", 10.0)) * HPProtocol.SIM_HZ), "holders": [uid]}
+	_next_portkey += 1
+	portkeys[int(pk.id)] = pk
+	print("[Authority] portkey %d placed by uid %d -> %s" % [int(pk.id), uid, dest_id])
+	_broadcast_portkey(pk, "placed")
+	return {"ok": true, "reason": "placed", "id": int(pk.id)}
+
+## Hold on to (or let go of) a Portkey: the owner and the owner's party only,
+## within grab_radius, on the same map.
+func request_portkey_grab(peer_id: int, portkey_id: int, hold: bool) -> Dictionary:
+	if not is_authority():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	var record := player_record(peer_id)
+	if record.is_empty():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	var pk: Dictionary = portkeys.get(portkey_id, {})
+	if pk.is_empty():
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_PORTKEY_GONE)
+	var uid := int(record.get("uid", 0))
+	var holders: Array = pk.holders
+	if not hold:
+		holders.erase(uid)
+		_broadcast_portkey(pk, "placed")
+		return {"ok": true, "reason": "released"}
+	if uid != int(pk.owner) and (int(pk.party) == 0 or int(party.by_uid.get(uid, 0)) != int(pk.party)):
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_NOT_IN_PARTY)
+	if not _portkey_reach(record, pk, 0.0):
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_RANGE)
+	if bool(record.get("mounted", false)):
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_MOUNTED)
+	if not holders.has(uid):
+		holders.append(uid)
+	_broadcast_portkey(pk, "placed")
+	return {"ok": true, "reason": "holding"}
+
+## Is this body (alive, free, on the boot's map) within reach of the boot?
+func _portkey_reach(record: Dictionary, pk: Dictionary, slack: float) -> bool:
+	if record.is_empty() or bool(record.get("dead", false)) or int(record.get("pending_transfer", 0)) != 0:
+		return false
+	if String(record.get("map_id", "")) != String(pk.map):
+		return false
+	var body: Node3D = record.get("node")
+	if body == null or not is_instance_valid(body):
+		return false
+	var d: Vector3 = body.global_position - (pk.pos as Vector3)
+	return Vector2(d.x, d.z).length() <= float(HPMaps.portkey_rules().get("grab_radius", 3.0)) + slack and absf(d.y) < 3.0
+
+func _advance_portkeys() -> void:
+	if portkeys.is_empty():
+		return
+	for id in portkeys.keys():
+		var pk: Dictionary = portkeys[id]
+		var owner := record_by_uid(int(pk.owner))
+		if owner.is_empty():
+			portkeys.erase(id)   # the owner left the world: nobody to refund
+			continue
+		if sim_tick >= int(pk.ends_tick):
+			_fire_portkey(pk)
+			portkeys.erase(id)
+
+## Carry everyone still holding on (and still within reach) to the destination,
+## set down in a ring in front of it. Nobody left: the boot comes back.
+func _fire_portkey(pk: Dictionary) -> void:
+	var rules := HPMaps.portkey_rules()
+	var dest := HPMaps.travel_node(String(pk.dest))
+	var riders: Array = []
+	for uid in pk.holders:
+		var r := record_by_uid(int(uid))
+		if _portkey_reach(r, pk, 1.0) and not bool(r.get("mounted", false)):
+			riders.append(r)
+	var destination := String(dest.get("map", HPProtocol.DEFAULT_MAP))
+	if riders.is_empty() or not map_provider_ready(destination):
+		var owner := record_by_uid(int(pk.owner))
+		var body = owner.get("node")
+		if body != null and is_instance_valid(body):
+			var bag: Array = body.inventory.duplicate(true)
+			HPEquipment.add(bag, String(pk.item), 0, 1)
+			_set_bag(owner, bag)
+		_broadcast_portkey(pk, "gone")
+		print("[Authority] portkey %d fizzled (nobody holding); boot returned" % int(pk.id))
+		return
+	var center := travel_point(dest) + HPMaps.travel_facing(dest) * float(rules.get("arrive", 3.5))
+	var carried: Array = []
+	for i in riders.size():
+		var r: Dictionary = riders[i]
+		var ring := Vector3.ZERO
+		if riders.size() > 1:
+			var a := TAU * float(i) / float(riders.size())
+			ring = Vector3(cos(a), 0.0, sin(a)) * 1.6
+		var granted := _grant_transfer(r, int(r.get("peer_id", 0)), String(r.get("map_id", "")), destination,
+			"portkey:" + String(pk.dest), center + ring + Vector3.UP * 0.3)
+		if bool(granted.get("ok", false)):
+			carried.append(int(r.get("uid", 0)))
+	pk["holders"] = carried
+	print("[Authority] portkey %d fired: %d carried to %s" % [int(pk.id), carried.size(), String(pk.dest)])
+	_broadcast_portkey(pk, "fired")
+
+## A bag change made by the authority (Floo/Portkey items): the same upkeep as
+## an equipment operation.
+func _set_bag(record: Dictionary, bag: Array) -> void:
+	var body = record.get("node")
+	if body == null or not is_instance_valid(body):
+		return
+	body.inventory.assign(bag)
+	body.inventory_revision += 1
+	body.inventory_changed.emit()
+	touch(record)
+	_push_stats(record)
+	if persistence != null:
+		persistence.save_player(record)
+
+## The owner and the owner's party hear what the boot does.
+func _broadcast_portkey(pk: Dictionary, phase: String) -> void:
+	var owner := record_by_uid(int(pk.owner))
+	var owner_node = owner.get("node")
+	var owner_name := ""
+	if owner_node != null and is_instance_valid(owner_node):
+		owner_name = String(owner_node.get("player_name"))
+	var state := {"id": int(pk.id), "phase": phase, "map": String(pk.map), "pos": pk.pos,
+		"dest": String(pk.dest), "label": String(HPMaps.travel_node(String(pk.dest)).get("label", "")),
+		"owner": int(pk.owner), "owner_name": owner_name,
+		"ends_tick": int(pk.ends_tick), "holders": (pk.holders as Array).duplicate(),
+		"radius": float(HPMaps.portkey_rules().get("grab_radius", 3.0))}
+	var viewers: Array = [int(pk.owner)]
+	if int(pk.party) != 0:
+		for uid in (party.parties.get(int(pk.party), {}) as Dictionary).get("members", []):
+			if not viewers.has(int(uid)):
+				viewers.append(int(uid))
+	for uid in viewers:
+		emit_signal("portkey_state", int(uid), state)
+
 ## Where a travel node stands: the grounds' authored points are x/z on the
 ## terrain (y 0); every other map gives its floor height.
 func travel_point(node: Dictionary) -> Vector3:
@@ -1398,6 +1585,7 @@ func _step() -> void:
 	_advance_casts()
 	_advance_projectiles()
 	_advance_effects()
+	_advance_portkeys()
 	_check_respawns()
 	_check_fall_protection()
 	_check_transfers()

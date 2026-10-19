@@ -479,6 +479,12 @@ func sim_spawn_player(peer_id: int, identity: Dictionary) -> void:
 		# hill, until the bind moves it to the character's own spot.
 		node.global_position = HPMaps.default_spawn(HPProtocol.DEFAULT_MAP)
 	_avoid_spawn_overlap(node)
+	# Dev joins only (HPMMO_ALLOW_DEV_JOIN): HPMMO_DEV_ITEMS="id:n,id:n" puts
+	# items in a probe's bag (e.g. a Portkey boot for a group-travel check).
+	if character.is_empty() and OS.get_environment("HPMMO_ALLOW_DEV_JOIN") == "1":
+		for spec in OS.get_environment("HPMMO_DEV_ITEMS").split(",", false):
+			var parts := spec.split(":")
+			HPEquipment.add(node.inventory, parts[0], 0, int(parts[1]) if parts.size() > 1 else 1)
 	var uid := SimAuthority.register_player(node, int(identity.get("character_id", 0)), peer_id,
 		int(identity.get("account_id", 0)))
 	if character.is_empty() and SimAuthority.persistence != null:
@@ -586,6 +592,30 @@ func sim_transfer_request(portal_id: String, to_map: String) -> void:
 		return
 	SimAuthority.request_transfer(multiplayer.get_remote_sender_id(),
 		portal_id.strip_edges().substr(0, 64), to_map.strip_edges().substr(0, 64))
+
+## v21 Portkeys: set the owner's boot down for `dest_id`; hold on / let go.
+@rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
+func sim_portkey_place(dest_id: String) -> void:
+	if is_client:
+		return
+	SimAuthority.request_portkey_place(multiplayer.get_remote_sender_id(), dest_id.strip_edges().substr(0, 48))
+
+@rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
+func sim_portkey_grab(portkey_id: int, hold: bool) -> void:
+	if is_client:
+		return
+	SimAuthority.request_portkey_grab(multiplayer.get_remote_sender_id(), portkey_id, hold)
+
+## v21: what a Portkey is doing (sent to its owner and the owner's party).
+@rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
+func sim_portkey_state(state: Dictionary) -> void:
+	SimAuthority.emit_signal("portkey_state", SimAuthority.local_uid, state)
+
+func _send_portkey_state(uid: int, state: Dictionary) -> void:
+	var peer := int(SimAuthority.record_by_uid(uid).get("peer_id", 0))
+	if peer == 0 or peer == local_peer_id or not has_peers():
+		return   # the authority's own player hears the signal directly
+	sim_portkey_state.rpc_id(peer, state)
 
 ## v20 Floo Network: learn the fireplace `node_id` (empty dest) or travel.
 ## Refusals come back through the transfer refusal path.
@@ -1123,6 +1153,24 @@ func request_transfer(player_node: Node, portal_id: String, to_map: String = "")
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
 	return SimAuthority.request_transfer(int(record.get("peer_id", 0)), portal_id, to_map)
 
+func portkey_place(player_node: Node, dest_id: String) -> Dictionary:
+	if is_client:
+		sim_portkey_place.rpc_id(1, dest_id)
+		return {"ok": true, "reason": "sent"}
+	var record := SimAuthority.record_for(player_node)
+	if record.is_empty():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	return SimAuthority.request_portkey_place(int(record.get("peer_id", 0)), dest_id)
+
+func portkey_grab(player_node: Node, portkey_id: int, hold: bool) -> Dictionary:
+	if is_client:
+		sim_portkey_grab.rpc_id(1, portkey_id, hold)
+		return {"ok": true, "reason": "sent"}
+	var record := SimAuthority.record_for(player_node)
+	if record.is_empty():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	return SimAuthority.request_portkey_grab(int(record.get("peer_id", 0)), portkey_id, hold)
+
 func request_travel(player_node: Node, node_id: String, dest_id: String = "") -> Dictionary:
 	if is_client:
 		sim_travel_request.rpc_id(1, node_id, dest_id)
@@ -1193,6 +1241,7 @@ func bridge_authority() -> void:
 	SimAuthority.world_event.connect(broadcast_world_event)
 	SimAuthority.party_state.connect(_send_party_state)
 	SimAuthority.party_invited.connect(_send_party_invite)
+	SimAuthority.portkey_state.connect(_send_portkey_state)
 	SimAuthority.player_pushed.connect(_send_push)
 	SimAuthority.dungeon_state.connect(_send_dungeon_state)
 	SimAuthority.maintenance_event.connect(broadcast_maintenance)
