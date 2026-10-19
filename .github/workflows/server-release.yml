@@ -67,12 +67,20 @@ jobs:
     outputs:
       release_id: ${{ steps.id.outputs.release_id }}
     steps:
-      # The world tree keeps its models in Git LFS. Without `lfs: true` the
-      # artifact ships pointer files and the live world cannot parse its model
-      # preloads. The workspace persists, so only new objects are fetched.
       - uses: actions/checkout@v4
-        with:
-          lfs: true
+
+      # The world tree keeps its models in Git LFS, served by our own LFS
+      # server (lfs.agsilvery.com -> Cloudflare R2, see .lfsconfig; the runner
+      # user holds its credentials). Pulled after checkout so .lfsconfig is in
+      # the tree; the workspace persists, so only new objects are fetched.
+      # Without it the artifact ships pointer files and the live world cannot
+      # parse its model preloads.
+      - name: Pull the LFS objects
+        run: |
+          git lfs pull
+          if git lfs ls-files | grep -q ' - '; then
+            echo "::error::some LFS objects were not downloaded"; git lfs ls-files | grep ' - ' | head; exit 1
+          fi
 
       - name: Pin the artifact identifier
         id: id
