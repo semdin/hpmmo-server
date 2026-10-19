@@ -11,10 +11,11 @@ A persistent workspace fetches only changed objects.
 | runner user | `ghrunner` (no login password) |
 | runners | `/opt/actions-runner-server`, `/opt/actions-runner-client` (systemd `actions.runner.*`) |
 | resource cap | `hpmmo-ci.slice`: CPUQuota=200%, MemoryMax=5G, low CPU/IO weight; runner units `Nice=10` |
-| deploy rights | `/etc/sudoers.d/90-hpmmo-ci`: NOPASSWD for `/opt/hpmmo/bin/hpmmo_deploy.sh` only |
+| root rights | `/etc/sudoers.d/90-hpmmo-ci`: NOPASSWD for `/opt/hpmmo/bin/hpmmo_deploy.sh` and `/opt/hpmmo-ci/build_linux_launcher.sh` only |
+| Linux launcher build | `/opt/hpmmo-ci/build_linux_launcher.sh` (root-owned copy of `client/launcher_cpp/packaging/linux/ci_build_launcher.sh`): Docker image `hpmmo-launcher-build:22.04` from the checked-out Dockerfile, AppImage built in a throwaway container. Reinstall the copy when that script changes: `install -o root -g root -m 0755 <checkout>/launcher_cpp/packaging/linux/ci_build_launcher.sh /opt/hpmmo-ci/build_linux_launcher.sh` |
 | Godot | `/opt/hpmmo-ci/godot/godot` (4.7.2), export templates in `~ghrunner/.local/share/godot/export_templates/` |
 | server artifacts | `/var/lib/hpmmo-ci/artifacts` (newest 3) |
-| toolchain | apt: git-lfs, cmake, ninja, clang, libpq-dev, mingw-w64, gh, jq, xxd, python3-cryptography, python3-numpy |
+| toolchain | apt: git-lfs, cmake, ninja, clang, libpq-dev, mingw-w64, gh, jq, xxd, python3-cryptography, python3-numpy, docker.io, libcurl4-openssl-dev, SDL3 build deps (X11/Wayland dev headers) |
 
 ## Registering / re-registering a runner
 1. GitHub → repo → Settings → Actions → Runners → **New self-hosted runner** → copy the token
