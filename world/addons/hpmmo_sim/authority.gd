@@ -1254,19 +1254,35 @@ func request_portkey_place(peer_id: int, dest_id: String) -> Dictionary:
 	if not HPEquipment.take(bag, item, 0, 1):
 		return _refuse_transfer(peer_id, HPProtocol.REJECT_NO_PORTKEY)
 	_set_bag(record, bag)
+	# Set down an arm's length in front of the owner (the way the body faces).
 	var at := body.global_position
+	var visuals = body.get("visuals")
+	if visuals is Node3D and is_instance_valid(visuals):
+		var ahead: Vector3 = (visuals as Node3D).global_basis.z
+		ahead.y = 0.0
+		if ahead.length_squared() > 0.01:
+			at += ahead.normalized() * float(rules.get("place_ahead", 1.0))
 	var query := PhysicsRayQueryParameters3D.create(at + Vector3.UP, at - Vector3.UP * 4.0, 1)
 	var hit := body.get_world_3d().direct_space_state.intersect_ray(query)
 	if not hit.is_empty():
 		at = hit["position"]
 	var pk := {"id": _next_portkey, "owner": uid, "party": int(party.by_uid.get(uid, 0)), "map": map_id,
 		"pos": at, "dest": dest_id, "item": item,
-		"ends_tick": sim_tick + int(float(rules.get("countdown_s", 10.0)) * HPProtocol.SIM_HZ), "holders": [uid]}
+		"ends_tick": sim_tick + int(_portkey_countdown(uid, rules) * HPProtocol.SIM_HZ), "holders": [uid]}
 	_next_portkey += 1
 	portkeys[int(pk.id)] = pk
 	print("[Authority] portkey %d placed by uid %d -> %s" % [int(pk.id), uid, dest_id])
 	_broadcast_portkey(pk, "placed")
 	return {"ok": true, "reason": "placed", "id": int(pk.id)}
+
+## A party gets the full countdown to gather round; an owner alone only waits
+## for the reach-down and the boot to wake.
+func _portkey_countdown(uid: int, rules: Dictionary) -> float:
+	var pid := int(party.by_uid.get(uid, 0))
+	var members: Array = (party.parties.get(pid, {}) as Dictionary).get("members", []) if pid != 0 else []
+	if members.size() > 1:
+		return float(rules.get("countdown_s", 10.0))
+	return float(rules.get("solo_countdown_s", 4.0))
 
 ## Hold on to (or let go of) a Portkey: the owner and the owner's party only,
 ## within grab_radius, on the same map.

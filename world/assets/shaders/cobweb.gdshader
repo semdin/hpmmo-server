@@ -1,49 +1,31 @@
 shader_type spatial;
-render_mode cull_disabled, diffuse_lambert, specular_disabled;
+render_mode blend_mix, cull_disabled, depth_draw_never, unshaded, shadows_disabled;
 
-// Procedural orb web on a quad (Blackweb Caverns dressing): radial spokes +
-// a wobbly spiral, torn by noise, thinner and fainter toward the rim.
-// `seed` varies the spoke count/tear pattern per instance (INSTANCE_CUSTOM.x
-// for MultiMesh, or the uniform for single meshes). Opaque + discard (no
-// transparent pass: cheap on the iGPU).
+// Orb web on a quad (Blackweb Caverns dressing): a dew-beaded web photo
+// (assets/vfx/tex/cobweb_1024.png, white silk on black, rim already faded) used
+// as alpha. INSTANCE_CUSTOM.x (MultiMesh) varies the brightness and a slow
+// sway; the silk catches a little of the cave's coloured light through `tint`.
 
-uniform vec3 silk : source_color = vec3(0.82, 0.84, 0.86);
-uniform float seed = 0.0;
-uniform float spokes = 13.0;
-uniform float rings = 11.0;
-uniform float alpha_mul = 0.85;
+uniform sampler2D web : filter_linear_mipmap_anisotropic, repeat_disable;
+uniform vec3 silk : source_color = vec3(0.86, 0.9, 0.95);
+uniform vec3 tint : source_color = vec3(0.55, 0.85, 0.75);
+uniform float opacity = 0.75;
+uniform float glint = 0.35;
 
 varying float inst_seed;
 
 void vertex() {
 	inst_seed = INSTANCE_CUSTOM.x;
-}
-
-float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-float noise(vec2 p) {
-	vec2 i = floor(p), f = fract(p);
-	vec2 u = f * f * (3.0 - 2.0 * f);
-	return mix(mix(hash(i), hash(i + vec2(1, 0)), u.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), u.x), u.y);
+	// A slow breathing sway, more toward the free middle.
+	float r = length(UV - 0.5);
+	VERTEX.z += sin(TIME * 0.9 + inst_seed * 40.0) * 0.04 * (1.0 - r * 2.0);
 }
 
 void fragment() {
-	float sd = seed + inst_seed * 17.0;
-	vec2 p = (UV - 0.5) * 2.0;
-	float r = length(p);
-	float a = atan(p.y, p.x) / TAU + 0.5;
-	float n_sp = floor(spokes + fract(sd * 3.1) * 6.0);
-	float sp_a = fract(a * n_sp + noise(vec2(r * 3.0, sd)) * 0.15);
-	float spoke = smoothstep(0.035 / max(r, 0.08), 0.0, min(sp_a, 1.0 - sp_a));
-	float spiral = fract(r * rings - a * 1.0 + noise(vec2(a * 9.0, sd)) * 0.25);
-	float ring = smoothstep(0.08, 0.0, min(spiral, 1.0 - spiral)) * step(0.06, r);
-	float web = max(spoke, ring * 0.85);
-	float tear = smoothstep(0.35, 0.55, noise(p * 3.5 + sd * 5.0));
-	float rim = 1.0 - smoothstep(0.75, 1.0, r);
-	float alpha = web * tear * rim * alpha_mul;
-	if (alpha < 0.3) {
-		discard;
-	}
-	ALBEDO = silk;
-	BACKLIGHT = vec3(0.4);
-	ROUGHNESS = 0.6;
+	float a = texture(web, UV).r;
+	// Dew beads twinkle a little.
+	float tw = 0.75 + 0.25 * sin(TIME * 2.3 + (UV.x * 37.0 + UV.y * 23.0) + inst_seed * 20.0);
+	vec3 col = mix(silk, tint, 0.35) * (0.55 + inst_seed * 0.3);
+	ALBEDO = col + vec3(glint) * smoothstep(0.7, 1.0, a) * tw;
+	ALPHA = clamp(a * 1.4, 0.0, 1.0) * opacity;
 }

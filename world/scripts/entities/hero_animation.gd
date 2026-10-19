@@ -380,6 +380,17 @@ func play_oneshot(clip_name: String, speed := 1.0) -> void:
 
 func cancel_oneshot() -> void:
 	oneshot_left = 0.0
+	if tree:
+		tree.set("parameters/oneshot_speed/scale", 1.0)
+
+## Freeze the playing one-shot on its current frame until `cancel_oneshot`
+## (a held pose: the Portkey kneel is the Place clip stopped with the hand on
+## the boot).
+func hold_oneshot() -> void:
+	if not enabled or oneshot_left <= 0.0:
+		return
+	tree.set("parameters/oneshot_speed/scale", 0.0)
+	oneshot_left = 1.0e9
 
 ## ---------------------------------------------------------------- cast layer
 

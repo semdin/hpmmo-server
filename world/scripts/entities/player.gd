@@ -802,7 +802,7 @@ func _physics_process(delta: float) -> void:
 			elif hero_anim:
 				if is_dead:
 					hero_anim.set_locomotion("dead", "Death_A")
-				else:
+				elif pose_override == "":
 					var motion := (global_position - prev_pos) / maxf(delta, 0.001)
 					_update_ground_animation(motion, visuals.rotation.y)
 			return
@@ -999,6 +999,8 @@ func _update_animation_state() -> void:
 	if is_dead:
 		hero_anim.set_locomotion("dead", "Death_A")
 		return
+	if pose_override != "":
+		return   # the reach-down / held one-shot owns the body
 	if _hit_recovery > 0.0:
 		hero_anim.set_locomotion("stun", "Stun_Loop")
 		return
@@ -1569,6 +1571,46 @@ func learn_floo(node_id: String) -> bool:
 	mine.append(node_id)
 	_quest_state["floo_known"] = mine
 	return true
+
+## ------------------------------------------------------------- Portkey pose
+
+## A whole-body pose that replaces locomotion while set (the Portkey kneel).
+## Set on every client that sees the Portkey (its owner and party), so the
+## holders kneel on each of their screens.
+var pose_override := ""
+var _pose_generation := 0
+
+## Kneel at a Portkey at `boot_pos`: face it, reach down (the Place clip) and
+## hold on - the clip frozen where the hand rests on the boot - until
+## `portkey_release`.
+const PORTKEY_HOLD_AT := 1.45
+
+func portkey_kneel(boot_pos: Vector3) -> void:
+	if hero_anim == null or pose_override != "":
+		return
+	_pose_generation += 1
+	var generation := _pose_generation
+	if visuals:
+		var to := boot_pos - global_position
+		to.y = 0.0
+		if to.length_squared() > 0.01:
+			visuals.rotation.y = atan2(to.x, to.z)
+	hero_anim.play_oneshot("Portkey_Place")
+	pose_override = "Portkey_Kneeling"
+	await get_tree().create_timer(PORTKEY_HOLD_AT).timeout
+	if generation != _pose_generation or not is_instance_valid(self):
+		return
+	hero_anim.hold_oneshot()
+	pose_override = "Portkey_Hold"
+
+## The body lets go (moved away, the Portkey fired or fizzled).
+func portkey_release() -> void:
+	if pose_override == "":
+		return
+	_pose_generation += 1
+	pose_override = ""
+	if hero_anim:
+		hero_anim.cancel_oneshot()
 
 ## A title; true when it is new.
 func grant_title(title_id: String) -> bool:

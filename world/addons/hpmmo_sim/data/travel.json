@@ -3,8 +3,8 @@
   "floo": {
     "item": "floo_powder",
     "cost": 1,
-    "radius": 3.2,
-    "arrive": 1.8,
+    "radius": 3.8,
+    "arrive": 2.8,
     "combat_lock_s": 5.0,
     "known_by_default": [
       "floo_courtyard"
@@ -51,7 +51,7 @@
       "pos": [
         -40.0,
         200.0,
-        69.3
+        68.7
       ],
       "yaw": 180.0
     },
@@ -74,7 +74,7 @@
       "pos": [
         78.0,
         270.0,
-        -40.6
+        -40.9
       ],
       "yaw": 0.0,
       "pair": "cabinet_caverns",
@@ -124,7 +124,7 @@
     }
   },
   "portkey": {
-    "_comment": "An old boot that is a Portkey (protocol v21). The owner places it (consumed) and picks a destination; for countdown_s the owner's party members within grab_radius may hold on (interact). When it fires, everyone still holding and still within reach is carried together to the destination (a travel node), set down in a ring `arrive` metres in front of it. Refunded if it cannot fire (nobody left holding, owner gone). Not inside dungeon copies, not mounted, not within combat_lock_s of combat.",
+    "_comment": "An old boot that is a Portkey (protocol v21). The owner places it (consumed) and picks a destination; for countdown_s the owner's party members within grab_radius may hold on (interact). When it fires, everyone still holding and still within reach is carried together to the destination (a travel node), set down in a ring `arrive` metres in front of it. Refunded if it cannot fire (nobody left holding, owner gone). Not inside dungeon copies, not mounted, not within combat_lock_s of combat. Alone (no party), the countdown is solo_countdown_s; the boot is set place_ahead metres in front of the owner.",
     "item": "portkey_boot",
     "countdown_s": 10.0,
     "grab_radius": 3.0,
@@ -135,12 +135,14 @@
       "floo_courtyard",
       "floo_hogsmeade",
       "floo_hagrid"
-    ]
+    ],
+    "solo_countdown_s": 4.0,
+    "place_ahead": 0.6
   },
   "cabinet": {
     "_comment": "Vanishing Cabinets: twin cabinets, free, one person; stepping into one sets you down in front of its `pair`.",
-    "radius": 2.2,
-    "arrive": 1.7,
+    "radius": 2.9,
+    "arrive": 2.4,
     "combat_lock_s": 5.0
   },
   "passage": {

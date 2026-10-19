@@ -163,6 +163,13 @@ func _add_travel_nodes() -> void:
 	_portkeys = PortkeyViews.new()
 	world.add_child(_portkeys)
 
+## Where a traveller steps in: the hearth's mouth / the cabinet's doors, just
+## in front of the object.
+func _travel_mouth(node_id: String) -> Vector3:
+	var node := HPMaps.travel_node(node_id)
+	var depth := 0.7 if TravelNodes.kind_of(node_id) == "floo" else 0.5
+	return TravelNodes.point(node) + HPMaps.travel_facing(node) * depth
+
 ## The prompt over a travel object: the Floo Network, or a twin link's own
 ## words and where it leads.
 func _travel_prompt(node_id: String) -> String:
@@ -177,7 +184,7 @@ func _passage_depart(node_id: String) -> void:
 	if busy or not is_instance_valid(local_player):
 		return
 	var kind := TravelNodes.kind_of(node_id)
-	TravelNodes.burst(world, local_player.global_position, 1.6, kind)
+	TravelNodes.burst(world, _travel_mouth(node_id), 1.6, kind)
 	await get_tree().create_timer(0.8).timeout
 	if is_instance_valid(local_player):
 		SimNet.request_travel(local_player, node_id, String(HPMaps.travel_node(node_id).get("pair", "")))
@@ -200,7 +207,7 @@ func open_floo(node_id: String) -> void:
 func _floo_depart(node_id: String, dest_id: String) -> void:
 	if busy or not is_instance_valid(local_player):
 		return
-	TravelNodes.burst(world, local_player.global_position)
+	TravelNodes.burst(world, _travel_mouth(node_id))
 	await get_tree().create_timer(0.9).timeout
 	if is_instance_valid(local_player):
 		SimNet.request_travel(local_player, node_id, dest_id)

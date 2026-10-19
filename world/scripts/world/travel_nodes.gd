@@ -26,8 +26,10 @@ const KIND_FX := {
 const FLAME_SHADER := preload("res://assets/shaders/castle/candle_flame.gdshader")
 const QualityPreset = preload("res://scripts/world/quality_preset.gd")
 const FLOO_GREEN := Color(0.35, 1.0, 0.45)
-## The baked model is 2.7 m tall; a walk-in hearth reads better a bit larger.
-const HEARTH_SCALE := 1.25
+## The baked model is 2.7 m tall; a walk-in hearth a wizard steps into is ~4.6 m.
+const HEARTH_SCALE := 1.7
+## The cabinet must read as a walk-in wardrobe beside a 1.8 m wizard.
+const CABINET_SCALE := 1.4
 
 var _hearths: Dictionary = {}   # node id -> Node3D
 var _map := ""
@@ -53,6 +55,8 @@ func _ready() -> void:
 				var body: Node3D = (load(path) as PackedScene).instantiate()
 				if kind == "floo":
 					body.scale = Vector3.ONE * HEARTH_SCALE
+				elif kind == "cabinet":
+					body.scale = Vector3.ONE * CABINET_SCALE
 				elif look == "witch":
 					body.scale = Vector3.ONE * 1.2   # a statue on its plinth stands over the passer-by
 				root.add_child(body)
@@ -184,78 +188,32 @@ static func _flame(parent: Node3D, pos: Vector3, size: Vector2, tint: Color, int
 	parent.add_child(mi)
 	return mi
 
-## The Floo flames: a column of green fire roaring up around `at` (a body
-## stepping into or out of a hearth), with sparks and a green flash. Frees
-## itself after `seconds`.
-static func burst(parent: Node, at: Vector3, seconds: float = 2.2, kind: String = "floo") -> void:
+
+## The effect a traveller steps into and out of, by kind (flipbooks from
+## fal Wan clips, tools/vfx/build_spell_vfx.py): the Floo Network's pinch of
+## powder and roaring emerald column, the Vanishing Cabinet's violet smoke,
+## the witch's passage's dust. `seconds` is kept for callers; the clips set
+## their own length.
+static func burst(parent: Node, at: Vector3, _seconds: float = 2.2, kind: String = "floo") -> void:
 	var fx: Array = KIND_FX.get(kind, KIND_FX["floo"])
 	var tint: Color = fx[0]
-	if parent == null:
-		return
-	var root := Node3D.new()
-	root.name = "FlooFlames"
-	parent.add_child(root)
-	root.global_position = at
-	var cards: Array = []
-	for k in 6:
-		var a := TAU * float(k) / 6.0
-		var card := _flame(root, Vector3(cos(a) * 0.45, 1.1, sin(a) * 0.45), Vector2(1.3, 2.6), tint, 6.0)
-		card.rotation.y = -a
-		card.scale = Vector3(0.1, 0.1, 0.1)
-		cards.append(card)
-	var core := _flame(root, Vector3(0, 1.0, 0), Vector2(1.6, 2.4), Color(0.75, 1.0, 0.7), 7.0)
-	core.scale = Vector3(0.1, 0.1, 0.1)
-	cards.append(core)
-	var sparks := CPUParticles3D.new()
-	sparks.amount = 60
-	sparks.lifetime = 1.1
-	sparks.one_shot = true
-	sparks.explosiveness = 0.6
-	sparks.emission_shape = CPUParticles3D.EMISSION_SHAPE_RING
-	sparks.emission_ring_radius = 0.6
-	sparks.emission_ring_inner_radius = 0.2
-	sparks.emission_ring_height = 0.2
-	sparks.emission_ring_axis = Vector3.UP
-	sparks.direction = Vector3.UP
-	sparks.spread = 25.0
-	sparks.initial_velocity_min = 2.5
-	sparks.initial_velocity_max = 5.5
-	sparks.gravity = Vector3(0, -1.5, 0)
-	sparks.scale_amount_min = 0.04
-	sparks.scale_amount_max = 0.09
-	var mote := SphereMesh.new()
-	mote.radius = 0.5
-	mote.height = 1.0
-	mote.radial_segments = 6
-	mote.rings = 3
-	var mm := StandardMaterial3D.new()
-	mm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mm.albedo_color = Color(0.6, 1.0, 0.55)
-	mm.emission_enabled = true
-	mm.emission = tint
-	mm.emission_energy_multiplier = 3.0
-	mote.material = mm
-	sparks.mesh = mote
-	sparks.position = Vector3(0, 0.2, 0)
-	root.add_child(sparks)
-	sparks.emitting = true
-	var light := OmniLight3D.new()
-	light.light_color = tint
-	light.light_energy = 0.0
-	light.omni_range = 9.0
-	light.position = Vector3(0, 1.4, 0)
-	root.add_child(light)
-	var tw := root.create_tween()
-	tw.set_parallel(true)
-	for card in cards:
-		tw.tween_property(card, "scale", Vector3.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tw.tween_property(light, "light_energy", 5.0, 0.25)
-	tw.chain().tween_interval(maxf(0.2, seconds - 0.9))
-	tw.chain().set_parallel(true)
-	for card in cards:
-		tw.tween_property(card, "scale", Vector3(0.05, 1.4, 0.05), 0.55).set_ease(Tween.EASE_IN)
-	tw.tween_property(light, "light_energy", 0.0, 0.55)
-	tw.chain().tween_callback(root.queue_free)
-	var audio := parent.get_node_or_null("/root/AudioManager")
-	if audio != null and audio.has_method("play_sound_at"):
-		audio.call("play_sound_at", String(fx[1]), at, null, false)
+	match kind:
+		"floo":
+			FlipbookFX.play(parent, at, [
+				{"atlas": "floo_powder_8x8_1k", "size": 2.4, "height": 1.0, "fps": 33.0},
+				{"atlas": "floo_column_8x8_2k", "size": Vector2(2.6, 4.8), "height": 2.3, "fps": 24.0, "delay": 0.12},
+				{"atlas": "floo_column_8x8_2k", "size": Vector2(1.9, 3.6), "height": 1.7, "fps": 20.0, "delay": 0.3,
+					"opacity": 0.65},
+			], {"life": 3.4, "light": tint, "light_energy": 6.0, "light_range": 10.0, "sound": String(fx[1])})
+		"cabinet":
+			FlipbookFX.play(parent, at, [
+				{"atlas": "cabinet_smoke_8x8_1k", "size": 3.4, "height": 1.5, "fps": 22.0},
+				{"atlas": "cabinet_smoke_8x8_1k", "size": 2.4, "height": 1.0, "fps": 18.0, "delay": 0.25, "roll": 1.2, "opacity": 0.8},
+			], {"life": 3.2, "light": tint, "light_energy": 3.0, "sound": String(fx[1])})
+		_:
+			FlipbookFX.play(parent, at, [
+				{"atlas": "cabinet_smoke_8x8_1k", "size": 3.0, "height": 1.2, "fps": 20.0,
+					"tint": Color(0.9, 0.82, 0.65), "opacity": 0.45},
+				{"atlas": "smoke_puff_8x8_1k", "size": 2.6, "height": 0.6, "fps": 20.0, "delay": 0.15,
+					"tint": Color(0.75, 0.68, 0.55), "opacity": 0.5},
+			], {"life": 3.0, "light": tint, "light_energy": 1.2, "sound": String(fx[1])})

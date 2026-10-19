@@ -9,14 +9,21 @@ extends Node3D
 ## The collider is NOT built here: every process keeps it resident from world
 ## start (CavernColliders, game_world.gd), because the packs living down here
 ## are placed and simulated whether or not anyone has the map loaded. This
-## node is presentation only: the shaded ground, webs, crags, egg sacs, glowing
-## fungi, the camp and the crypt stair. A dedicated server never loads it.
+## node is presentation only: the shaded ground (Poly Haven CC0 cave sets), the
+## baked props (stalagmites, egg clutches, cocoons, bone heaps, glowing
+## mushrooms, the camp, the crypt gate), dew webs, venom pools and drifting
+## spores/mist. A dedicated server never loads it.
 
 const LAYOUT_PATH := "res://assets/maps/spider_caverns/cavern_layout.json"
 const TERRAIN_PATH := "res://assets/maps/spider_caverns/cavern_terrain.glb"
 const HEIGHT_PATH := "res://assets/maps/spider_caverns/cavern_height.res"
 const GROUND_SHADER := preload("res://assets/shaders/cavern_ground.gdshader")
 const WEB_SHADER := preload("res://assets/shaders/cobweb.gdshader")
+const SLIME_SHADER := preload("res://assets/shaders/slime_pool.gdshader")
+const WEB_TEX := "res://assets/vfx/tex/cobweb_1024.png"
+## Baked cavern props (art/spider_caverns/concepts -> Hunyuan/Meshy -> prop_bake.py).
+const PROP := "res://assets/models/caverns/cavern_%s.glb"
+const MOTE_TEX := "res://assets/vfx/tex/soft_glow_512.png"
 const TEX := "res://assets/terrain/textures/%s.png"
 
 var map_id := ""
@@ -29,6 +36,7 @@ var _n := 0
 var _rng := RandomNumberGenerator.new()
 var _rock: StandardMaterial3D
 var _lights := 0
+var _meshes: Dictionary = {}   # prop|glow -> Mesh
 
 func setup(p_map_id: String, p_collision_only: bool = false) -> void:
 	map_id = p_map_id
@@ -47,11 +55,13 @@ func _ready() -> void:
 		_n = shape.map_width
 	_rng.seed = int(_layout.get("meta", {}).get("seed", 2410))
 	_rock = StandardMaterial3D.new()
-	_rock.albedo_texture = load(TEX % "cliff_rock_alb_ht")
-	_rock.albedo_color = Color(0.62, 0.6, 0.68)
+	_rock.albedo_texture = load(TEX % "cave_wall_alb_ht")
+	_rock.albedo_color = Color(0.85, 0.82, 0.85)
+	_rock.normal_enabled = true
+	_rock.normal_texture = load(TEX % "cave_wall_nrm_rgh")
 	_rock.uv1_triplanar = true
 	_rock.uv1_world_triplanar = true
-	_rock.uv1_scale = Vector3(0.25, 0.25, 0.25)
+	_rock.uv1_scale = Vector3(0.3, 0.3, 0.3)
 	_rock.roughness = 0.9
 	_build_ground()
 	for room in _layout.get("rooms", []):
@@ -75,12 +85,12 @@ func _build_ground() -> void:
 	add_child(terrain)
 	var mat := ShaderMaterial.new()
 	mat.shader = GROUND_SHADER
-	mat.set_shader_parameter("rock_alb", load(TEX % "cliff_rock_alb_ht"))
-	mat.set_shader_parameter("rock_nrm", load(TEX % "cliff_rock_nrm_rgh"))
-	mat.set_shader_parameter("dust_alb", load(TEX % "forest_floor_alb_ht"))
-	mat.set_shader_parameter("dust_nrm", load(TEX % "forest_floor_nrm_rgh"))
-	mat.set_shader_parameter("gravel_alb", load(TEX % "gravel_alb_ht"))
-	mat.set_shader_parameter("gravel_nrm", load(TEX % "gravel_nrm_rgh"))
+	mat.set_shader_parameter("rock_alb", load(TEX % "cave_wall_alb_ht"))
+	mat.set_shader_parameter("rock_nrm", load(TEX % "cave_wall_nrm_rgh"))
+	mat.set_shader_parameter("dust_alb", load(TEX % "cave_dust_alb_ht"))
+	mat.set_shader_parameter("dust_nrm", load(TEX % "cave_dust_nrm_rgh"))
+	mat.set_shader_parameter("gravel_alb", load(TEX % "cave_gravel_alb_ht"))
+	mat.set_shader_parameter("gravel_nrm", load(TEX % "cave_gravel_nrm_rgh"))
 	mat.set_shader_parameter("base_y", base_y)
 	for mesh in terrain.find_children("*", "MeshInstance3D", true, false):
 		(mesh as MeshInstance3D).material_override = mat
@@ -118,12 +128,13 @@ func _dress_room(room: Dictionary) -> void:
 		return
 	if kind == "stair":
 		return
-	_crags(center, r, 7 if kind != "slime" else 4)
+	_crags(center, r, 6 if kind != "slime" else 4)
 	_webs(center, r, 7 if kind == "web" else 3)
 	_fungi(center, r, kind)
+	_spores(center, r, kind)
 	match kind:
 		"bone":
-			_bones(center, r * 0.7, 26)
+			_bones(center, r * 0.7, 4)
 		"egg":
 			_egg_clusters(center, r, 3)
 		"slime":
@@ -137,41 +148,74 @@ func _rim_point(center: Vector2, r: float, inset: float) -> Vector2:
 	var d := r - inset - _rng.randf() * 3.0
 	return center + Vector2(cos(a), sin(a)) * d
 
-func _crags(center: Vector2, r: float, count: int) -> void:
+## The mesh of a baked prop (assets/models/caverns, art/pipeline prop_bake.py),
+## cached; with `glow` its materials also light up their own albedo.
+func _prop_mesh(prop: String, glow: Color = Color(0, 0, 0, 0), energy: float = 1.0) -> Mesh:
+	var key := "%s|%s" % [prop, glow]
+	if _meshes.has(key):
+		return _meshes[key]
+	var path := PROP % prop
+	var mesh: Mesh = null
+	if ResourceLoader.exists(path):
+		var scene: Node = (load(path) as PackedScene).instantiate()
+		var found := scene.find_children("*", "MeshInstance3D", true, false)
+		if not found.is_empty():
+			mesh = (found[0] as MeshInstance3D).mesh
+		scene.free()
+	if mesh != null and glow.a > 0.0:
+		mesh = mesh.duplicate()
+		for i in mesh.get_surface_count():
+			var src := mesh.surface_get_material(i) as BaseMaterial3D
+			if src == null:
+				continue
+			var lit := src.duplicate() as BaseMaterial3D
+			lit.emission_enabled = true
+			lit.emission = glow
+			lit.emission_texture = src.albedo_texture
+			lit.emission_energy_multiplier = energy
+			mesh.surface_set_material(i, lit)
+	_meshes[key] = mesh
+	return mesh
+
+## One MultiMesh of a prop at `xforms`.
+func _scatter(prop: String, xforms: Array, node_name: String, glow: Color = Color(0, 0, 0, 0), energy: float = 1.0) -> void:
+	var mesh := _prop_mesh(prop, glow, energy)
+	if mesh == null or xforms.is_empty():
+		return
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
-	var cone := CylinderMesh.new()
-	cone.top_radius = 0.0
-	cone.bottom_radius = 1.0
-	cone.height = 1.0
-	cone.radial_segments = 7
-	cone.rings = 1
-	cone.material = _rock
-	mm.mesh = cone
-	mm.instance_count = count * 3
-	var k := 0
-	for i in count:
-		var p := _rim_point(center, r, 4.0)
-		# A clump: one tall spike and two small ones.
-		for j in 3:
-			var off: Vector2 = Vector2(_rng.randf_range(-2.2, 2.2), _rng.randf_range(-2.2, 2.2)) if j > 0 else Vector2.ZERO
-			var h: float = _rng.randf_range(4.0, 9.0) if j == 0 else _rng.randf_range(1.5, 3.5)
-			var w := h * _rng.randf_range(0.18, 0.28)
-			var g := _on_ground(p.x + off.x, p.y + off.y)
-			var basis := Basis(Vector3.UP, _rng.randf() * TAU) * Basis.from_scale(Vector3(w, h, w))
-			basis = Basis(Vector3(_rng.randf_range(-1, 1), 0, _rng.randf_range(-1, 1)).normalized(), _rng.randf_range(0.0, 0.12)) * basis
-			mm.set_instance_transform(k, Transform3D(basis, g + Vector3(0, h * 0.5 - 0.3, 0)))
-			k += 1
+	mm.mesh = mesh
+	mm.instance_count = xforms.size()
+	for i in xforms.size():
+		mm.set_instance_transform(i, xforms[i])
 	var inst := MultiMeshInstance3D.new()
-	inst.name = "Crags"
+	inst.name = node_name
 	inst.multimesh = mm
 	inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(inst)
 
-## Orb webs stretched between the rim crags, facing the room's centre.
+## A prop standing on the ground at `p`, turned `yaw`, sunk `sink` metres.
+func _stand(p: Vector2, yaw: float, s: float, sink: float = 0.15, tilt: float = 0.0) -> Transform3D:
+	var basis := Basis(Vector3.UP, yaw).scaled(Vector3.ONE * s)
+	if tilt > 0.0:
+		basis = Basis(Vector3(_rng.randf_range(-1, 1), 0, _rng.randf_range(-1, 1)).normalized(), tilt) * basis
+	return Transform3D(basis, _on_ground(p.x, p.y) - Vector3(0, sink, 0))
+
+## Stalagmite clumps along the rim: one big spire group and a small one.
+func _crags(center: Vector2, r: float, count: int) -> void:
+	var xforms: Array = []
+	for i in count:
+		var p := _rim_point(center, r, 3.5)
+		xforms.append(_stand(p, _rng.randf() * TAU, _rng.randf_range(0.55, 1.05), 0.5, _rng.randf_range(0.0, 0.08)))
+		var q := p + Vector2(_rng.randf_range(-4.0, 4.0), _rng.randf_range(-4.0, 4.0))
+		xforms.append(_stand(q, _rng.randf() * TAU, _rng.randf_range(0.2, 0.35), 0.2, _rng.randf_range(0.0, 0.15)))
+	_scatter("stalag", xforms, "Crags")
+
+## Dew-beaded orb webs strung along the rim, facing the room's centre.
 func _webs(center: Vector2, r: float, count: int) -> void:
 	var mat := ShaderMaterial.new()
 	mat.shader = WEB_SHADER
+	mat.set_shader_parameter("web", load(WEB_TEX))
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.use_custom_data = true
@@ -181,13 +225,13 @@ func _webs(center: Vector2, r: float, count: int) -> void:
 	mm.mesh = quad
 	mm.instance_count = count
 	for i in count:
-		var p := _rim_point(center, r, 1.0)
-		var s := _rng.randf_range(4.0, 9.0)
+		var p := _rim_point(center, r, 1.5)
+		var s := _rng.randf_range(5.0, 10.0)
 		var g := _on_ground(p.x, p.y)
 		var to_center := Vector3(center.x - p.x, 0, center.y - p.y).normalized()
 		var basis := Basis.looking_at(-to_center, Vector3.UP)
-		basis = basis * Basis(Vector3.RIGHT, _rng.randf_range(-0.35, 0.15)) * Basis(Vector3.FORWARD, _rng.randf() * TAU)
-		mm.set_instance_transform(i, Transform3D(basis.scaled_local(Vector3(s, s, 1)), g + Vector3(0, s * 0.55, 0)))
+		basis = basis * Basis(Vector3.RIGHT, _rng.randf_range(-0.45, 0.1)) * Basis(Vector3.FORWARD, _rng.randf() * TAU)
+		mm.set_instance_transform(i, Transform3D(basis.scaled_local(Vector3(s, s, 1)), g + Vector3(0, s * 0.5 + _rng.randf_range(0.5, 3.0), 0)))
 		mm.set_instance_custom_data(i, Color(_rng.randf(), 0, 0, 0))
 	var inst := MultiMeshInstance3D.new()
 	inst.name = "Webs"
@@ -195,186 +239,141 @@ func _webs(center: Vector2, r: float, count: int) -> void:
 	inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(inst)
 
-## Bioluminescent fungi clusters at the room's edge; a few carry a light.
+## Bioluminescent mushroom clumps at the room's edge; one carries a light.
 func _fungi(center: Vector2, r: float, kind: String) -> void:
-	var glow := Color(0.35, 1.0, 0.75) if kind != "egg" else Color(0.75, 0.45, 1.0)
-	var cap := StandardMaterial3D.new()
-	cap.albedo_color = glow.darkened(0.5)
-	cap.emission_enabled = true
-	cap.emission = glow
-	cap.emission_energy_multiplier = 2.4
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	var sphere := SphereMesh.new()
-	sphere.radius = 0.5
-	sphere.height = 0.5
-	sphere.is_hemisphere = true
-	sphere.radial_segments = 8
-	sphere.rings = 3
-	sphere.material = cap
-	mm.mesh = sphere
-	var clusters := 3
-	mm.instance_count = clusters * 7
-	var k := 0
-	for i in clusters:
-		var p := _rim_point(center, r, 2.5)
-		for j in 7:
-			var q := p + Vector2(_rng.randf_range(-1.6, 1.6), _rng.randf_range(-1.6, 1.6))
-			var s := _rng.randf_range(0.25, 0.8)
-			mm.set_instance_transform(k, Transform3D(Basis.from_scale(Vector3(s, s * 0.8, s)), _on_ground(q.x, q.y) + Vector3(0, s * 0.35, 0)))
-			k += 1
+	var glow := Color(0.35, 1.0, 0.8) if kind != "egg" else Color(0.75, 0.5, 1.0)
+	var xforms: Array = []
+	for i in 4:
+		var p := _rim_point(center, r, 3.0)
+		xforms.append(_stand(p, _rng.randf() * TAU, _rng.randf_range(1.2, 2.2), 0.1))
 		if i == 0:
-			_light(_on_ground(p.x, p.y) + Vector3(0, 1.4, 0), glow, 1.6, 13.0)
-	var inst := MultiMeshInstance3D.new()
-	inst.name = "Fungi"
-	inst.multimesh = mm
-	inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(inst)
+			_light(_on_ground(p.x, p.y) + Vector3(0, 2.6, 0), glow, 1.2, 14.0)
+	_scatter("mushrooms", xforms, "Fungi", glow, 0.14)
 
+## Glowing spores drifting slowly up through the room's air (GPU motes).
+func _spores(center: Vector2, r: float, kind: String) -> void:
+	var tint := Color(0.55, 1.0, 0.8) if kind != "egg" else Color(0.85, 0.6, 1.0)
+	var pm := ParticleProcessMaterial.new()
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	pm.emission_box_extents = Vector3(r * 0.8, 3.0, r * 0.8)
+	pm.direction = Vector3.UP
+	pm.spread = 60.0
+	pm.initial_velocity_min = 0.08
+	pm.initial_velocity_max = 0.3
+	pm.gravity = Vector3(0, 0.03, 0)
+	pm.scale_min = 0.04
+	pm.scale_max = 0.1
+	var ramp := Gradient.new()
+	ramp.set_color(0, Color(tint, 0.0))
+	ramp.set_color(1, Color(tint, 0.0))
+	ramp.add_point(0.25, tint)
+	ramp.add_point(0.75, tint)
+	var ramp_tex := GradientTexture1D.new()
+	ramp_tex.gradient = ramp
+	pm.color_ramp = ramp_tex
+	var mote := StandardMaterial3D.new()
+	mote.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mote.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mote.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	mote.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	mote.vertex_color_use_as_albedo = true
+	mote.albedo_texture = load(MOTE_TEX)
+	var quad := QuadMesh.new()
+	quad.material = mote
+	var p := GPUParticles3D.new()
+	p.name = "Spores"
+	p.amount = int(r * 1.8)
+	p.lifetime = 9.0
+	p.preprocess = 9.0
+	p.process_material = pm
+	p.draw_pass_1 = quad
+	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	p.visibility_aabb = AABB(Vector3(-r, -4.0, -r), Vector3(r * 2.0, 14.0, r * 2.0))
+	p.position = _on_ground(center.x, center.y) + Vector3(0, 3.5, 0)
+	add_child(p)
+
+## Bone heaps scattered over the floor (the Kemik rooms).
 func _bones(center: Vector2, r: float, count: int) -> void:
-	var bone := StandardMaterial3D.new()
-	bone.albedo_color = Color(0.78, 0.74, 0.64)
-	bone.roughness = 0.8
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	var cap := CapsuleMesh.new()
-	cap.radius = 0.06
-	cap.height = 0.9
-	cap.radial_segments = 6
-	cap.rings = 1
-	cap.material = bone
-	mm.mesh = cap
-	mm.instance_count = count
+	var xforms: Array = []
 	for i in count:
 		var a := _rng.randf() * TAU
-		var d := sqrt(_rng.randf()) * r
-		var p := center + Vector2(cos(a), sin(a)) * d
-		var basis := Basis(Vector3.UP, _rng.randf() * TAU) * Basis(Vector3.RIGHT, PI * 0.5 + _rng.randf_range(-0.2, 0.2))
-		mm.set_instance_transform(i, Transform3D(basis.scaled(Vector3.ONE * _rng.randf_range(0.7, 1.6)), _on_ground(p.x, p.y) + Vector3(0, 0.06, 0)))
-	var inst := MultiMeshInstance3D.new()
-	inst.name = "Bones"
-	inst.multimesh = mm
-	add_child(inst)
+		var p := center + Vector2(cos(a), sin(a)) * sqrt(_rng.randf()) * r
+		xforms.append(_stand(p, _rng.randf() * TAU, _rng.randf_range(0.8, 1.4), 0.05))
+	_scatter("bones", xforms, "Bones")
 
+## Silk-wrapped egg clutches with a faint violet pulse.
 func _egg_clusters(center: Vector2, r: float, count: int) -> void:
-	var egg := StandardMaterial3D.new()
-	egg.albedo_color = Color(0.86, 0.82, 0.7)
-	egg.roughness = 0.35
-	egg.emission_enabled = true
-	egg.emission = Color(0.55, 0.3, 0.75)
-	egg.emission_energy_multiplier = 0.9
-	egg.rim_enabled = true
-	egg.rim = 0.6
-	egg.subsurf_scatter_enabled = false
+	var xforms: Array = []
 	for i in count:
 		var p := _rim_point(center, r, 5.0)
-		var root := Node3D.new()
-		root.name = "EggSacs"
-		root.position = _on_ground(p.x, p.y)
-		add_child(root)
-		for j in _rng.randi_range(5, 9):
-			var m := MeshInstance3D.new()
-			var s := SphereMesh.new()
-			var rad := _rng.randf_range(0.45, 1.0)
-			s.radius = rad
-			s.height = rad * 2.3
-			s.radial_segments = 12
-			s.rings = 6
-			m.mesh = s
-			m.material_override = egg
-			m.position = Vector3(_rng.randf_range(-1.8, 1.8), rad * 0.9, _rng.randf_range(-1.8, 1.8))
-			m.rotation = Vector3(_rng.randf_range(-0.3, 0.3), 0, _rng.randf_range(-0.3, 0.3))
-			root.add_child(m)
-		_light(root.position + Vector3(0, 1.6, 0), Color(0.7, 0.4, 1.0), 1.8, 12.0)
+		xforms.append(_stand(p, _rng.randf() * TAU, _rng.randf_range(1.0, 1.5), 0.1))
+		var q := p + Vector2(_rng.randf_range(-3.5, 3.5), _rng.randf_range(-3.5, 3.5))
+		xforms.append(_stand(q, _rng.randf() * TAU, _rng.randf_range(0.5, 0.75), 0.05))
+		_light(_on_ground(p.x, p.y) + Vector3(0, 1.8, 0), Color(0.7, 0.4, 1.0), 1.8, 12.0)
+	_scatter("eggs", xforms, "EggSacs", Color(0.55, 0.3, 0.8), 0.35)
 
+## Venom pools: a shoreline-cut glossy quad each, a green mist over them.
 func _slime_pools(center: Vector2, r: float) -> void:
-	var slime := StandardMaterial3D.new()
-	slime.albedo_color = Color(0.04, 0.08, 0.03)
-	slime.roughness = 0.05
-	slime.metallic_specular = 1.0
-	slime.emission_enabled = true
-	slime.emission = Color(0.2, 0.7, 0.12)
-	slime.emission_energy_multiplier = 0.12
 	for i in 4:
 		var a := _rng.randf() * TAU
 		var p := center + Vector2(cos(a), sin(a)) * _rng.randf_range(0.0, r * 0.6)
+		var rad := _rng.randf_range(3.0, 6.0)
+		var mat := ShaderMaterial.new()
+		mat.shader = SLIME_SHADER
+		mat.set_shader_parameter("seed", _rng.randf() * 10.0)
+		var quad := QuadMesh.new()
+		quad.size = Vector2(rad * 2.0, rad * 2.0)
+		quad.orientation = PlaneMesh.FACE_Y
 		var m := MeshInstance3D.new()
-		var cyl := CylinderMesh.new()
-		var rad := _rng.randf_range(2.5, 5.5)
-		cyl.top_radius = rad
-		cyl.bottom_radius = rad
-		cyl.height = 0.05
-		cyl.radial_segments = 20
-		m.mesh = cyl
-		m.material_override = slime
-		m.scale = Vector3(1.0, 1.0, _rng.randf_range(0.6, 1.0))
+		m.name = "VenomPool"
+		m.mesh = quad
+		m.material_override = mat
+		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		m.scale = Vector3(1.0, 1.0, _rng.randf_range(0.65, 1.0))
 		m.rotation.y = _rng.randf() * TAU
-		m.position = _on_ground(p.x, p.y) + Vector3(0, 0.08, 0)
+		m.position = _on_ground(p.x, p.y) + Vector3(0, 0.06, 0)
 		add_child(m)
-	_light(_on_ground(center.x, center.y) + Vector3(0, 2.0, 0), Color(0.4, 1.0, 0.3), 1.2, 16.0)
+		FlipbookFX.play(self, m.position, [
+			{"atlas": "toxic_mist_8x8_1k", "size": Vector2(rad * 2.2, rad * 1.1), "height": rad * 0.4, "fps": 9.0,
+				"loop": true, "opacity": 0.28, "tint": Color(0.6, 1.0, 0.45), "delay": -_rng.randf() * 5.0, "fade_in": 0.01},
+		], {"life": 0.0, "name": "VenomMist"})
+	_light(_on_ground(center.x, center.y) + Vector3(0, 2.5, 0), Color(0.4, 1.0, 0.3), 1.6, 20.0)
 
 ## Silk-wrapped victims hanging from the dark above the room.
 func _cocoons(center: Vector2, r: float, count: int) -> void:
 	var silk := StandardMaterial3D.new()
-	silk.albedo_color = Color(0.8, 0.8, 0.78)
+	silk.albedo_color = Color(0.75, 0.76, 0.74)
 	silk.roughness = 0.9
+	var xforms: Array = []
 	for i in count:
 		var a := _rng.randf() * TAU
 		var p := center + Vector2(cos(a), sin(a)) * _rng.randf_range(4.0, r - 4.0)
-		var m := MeshInstance3D.new()
-		var cap := CapsuleMesh.new()
-		cap.radius = 0.45
-		cap.height = 2.1
-		cap.radial_segments = 10
-		cap.rings = 4
-		m.mesh = cap
-		m.material_override = silk
-		var hang := _rng.randf_range(3.0, 6.0)
-		m.position = _on_ground(p.x, p.y) + Vector3(0, hang, 0)
-		m.rotation = Vector3(_rng.randf_range(-0.15, 0.15), _rng.randf() * TAU, _rng.randf_range(-0.15, 0.15))
-		add_child(m)
+		var s := _rng.randf_range(0.9, 1.25)
+		var base := _on_ground(p.x, p.y) + Vector3(0, _rng.randf_range(2.5, 5.0), 0)
+		var basis := Basis(Vector3.UP, _rng.randf() * TAU) * Basis(Vector3.RIGHT, _rng.randf_range(-0.12, 0.12))
+		xforms.append(Transform3D(basis.scaled(Vector3.ONE * s), base))
 		var thread := MeshInstance3D.new()
 		var line := CylinderMesh.new()
-		line.top_radius = 0.025
-		line.bottom_radius = 0.025
+		line.top_radius = 0.02
+		line.bottom_radius = 0.03
 		line.height = 20.0
 		line.radial_segments = 4
 		thread.mesh = line
 		thread.material_override = silk
-		thread.position = m.position + Vector3(0, 11.0, 0)
+		thread.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		thread.position = base + Vector3(0, 2.3 * s + 10.0, 0)
 		add_child(thread)
+	_scatter("cocoon", xforms, "Cocoons")
 
 # ------------------------------------------------------------------- camp
 
 func _build_camp(center: Vector2) -> void:
-	var canvas := StandardMaterial3D.new()
-	canvas.albedo_color = Color(0.55, 0.47, 0.36)
-	canvas.roughness = 0.95
-	var wood := StandardMaterial3D.new()
-	wood.albedo_color = Color(0.3, 0.2, 0.12)
-	wood.roughness = 0.9
-	# Tent: a prism.
-	var tent := MeshInstance3D.new()
-	var prism := PrismMesh.new()
-	prism.size = Vector3(4.2, 2.6, 5.0)
-	tent.mesh = prism
-	tent.material_override = canvas
-	tent.position = _on_ground(center.x - 9.0, center.y - 6.0) + Vector3(0, 1.3, 0)
-	tent.rotation.y = 0.5
-	add_child(tent)
-	# Crates and barrels.
-	for i in 6:
-		var b := MeshInstance3D.new()
-		var box := BoxMesh.new()
-		var s := _rng.randf_range(0.7, 1.1)
-		box.size = Vector3(s, s, s)
-		b.mesh = box
-		b.material_override = wood
-		var p := center + Vector2(_rng.randf_range(2.0, 7.0), _rng.randf_range(-9.0, -5.0))
-		b.position = _on_ground(p.x, p.y) + Vector3(0, s * 0.5, 0)
-		b.rotation.y = _rng.randf() * TAU
-		add_child(b)
-	# Campfire: stones, embers and a warm flickerless light.
+	# The explorers' tent with its crates and barrels, facing the fire.
+	var tent_at := center + Vector2(-9.0, -6.0)
+	var to_fire := center - tent_at
+	_scatter("camp", [_stand(tent_at, atan2(to_fire.x, to_fire.y), 1.0, 0.1)], "Camp")
+	_scatter("bones", [_stand(center + Vector2(10.0, 9.0), 1.1, 0.9, 0.05)], "CampBones")
+	# Campfire: stones, embers and a warm light.
 	var fire_at := _on_ground(center.x, center.y)
 	var ember := StandardMaterial3D.new()
 	ember.albedo_color = Color(1.0, 0.45, 0.15)
@@ -403,6 +402,9 @@ func _build_camp(center: Vector2) -> void:
 	_light(fire_at + Vector3(0, 1.2, 0), Color(1.0, 0.62, 0.32), 3.0, 22.0)
 	# The camp hearth is the Floo Network fireplace (TravelNodes, travel.json).
 	# Lanterns on posts around the camp.
+	var wood := StandardMaterial3D.new()
+	wood.albedo_color = Color(0.3, 0.2, 0.12)
+	wood.roughness = 0.9
 	for a in [0.6, 2.4, 4.1]:
 		var p := center + Vector2(cos(a), sin(a)) * 13.0
 		var g := _on_ground(p.x, p.y)
@@ -426,14 +428,11 @@ func _build_camp(center: Vector2) -> void:
 		_light(g + Vector3(0, 2.4, 0), Color(1.0, 0.7, 0.4), 1.4, 11.0)
 
 ## The way back up: worn steps climbing north-west into the rock to the crypt's
-## undercroft door (the portal trigger is at the stair foot, maps.json
+## undercroft gate (the portal trigger is at the stair foot, maps.json
 ## `caverns_ascend`).
 func _build_crypt_stair() -> void:
 	var foot := Vector2(-209.0, -209.0)
 	var dir := Vector2(-1, -1).normalized()
-	var stone := StandardMaterial3D.new()
-	stone.albedo_color = Color(0.36, 0.35, 0.34)
-	stone.roughness = 0.9
 	var y0 := ground_y(foot.x, foot.y)
 	var basis := Basis.looking_at(Vector3(dir.x, 0, dir.y), Vector3.UP)
 	for i in 14:
@@ -442,31 +441,19 @@ func _build_crypt_stair() -> void:
 		var box := BoxMesh.new()
 		box.size = Vector3(5.0, 0.45 + float(i) * 0.42, 0.9)
 		step.mesh = box
-		step.material_override = stone
+		step.material_override = _rock
 		step.basis = basis
 		step.position = Vector3(p.x, y0 + box.size.y * 0.5 - 0.2, p.y)
 		add_child(step)
-	# Door frame and a faint daylight spill from above.
+	# The crypt gate at the top (its front faces back down the stair) and a
+	# faint daylight spill from above.
 	var top := foot + dir * 13.5
 	var top_y := y0 + 14.0 * 0.42 + 0.3
-	for side in [-1.0, 1.0]:
-		var pillar := MeshInstance3D.new()
-		var pb := BoxMesh.new()
-		pb.size = Vector3(0.8, 4.2, 0.8)
-		pillar.mesh = pb
-		pillar.material_override = stone
-		var off: Vector3 = Vector3(dir.y, 0, -dir.x) * 2.6 * float(side)
-		pillar.position = Vector3(top.x, top_y + 2.1, top.y) + off
-		add_child(pillar)
-	var lintel := MeshInstance3D.new()
-	var lb := BoxMesh.new()
-	lb.size = Vector3(6.0, 0.7, 0.9)
-	lintel.mesh = lb
-	lintel.material_override = stone
-	lintel.basis = basis
-	lintel.position = Vector3(top.x, top_y + 4.5, top.y)
-	add_child(lintel)
-	_light(Vector3(top.x, top_y + 3.0, top.y), Color(0.7, 0.78, 0.95), 2.2, 16.0)
+	# The gate's doorway meets the steps where they enter the rock face.
+	var gate_at := foot + dir * 6.0
+	var gate := Transform3D(basis, Vector3(gate_at.x, y0 + 1.7, gate_at.y))
+	_scatter("arch", [gate], "CryptGate")
+	_light(Vector3(top.x, top_y + 3.0, top.y) - Vector3(dir.x, 0, dir.y) * 2.0, Color(0.7, 0.78, 0.95), 2.2, 16.0)
 	_light(Vector3(foot.x, y0 + 2.5, foot.y), Color(1.0, 0.66, 0.38), 1.4, 10.0)
 
 func _light(at: Vector3, color: Color, energy: float, reach: float) -> void:

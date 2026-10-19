@@ -15,12 +15,15 @@ uniform sampler2D dust_nrm : filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D gravel_alb : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D gravel_nrm : filter_linear_mipmap_anisotropic, repeat_enable;
 
-uniform float rock_scale = 0.11;
-uniform float floor_scale = 0.18;
-uniform vec3 rock_tint : source_color = vec3(0.62, 0.6, 0.68);
-uniform vec3 dust_tint : source_color = vec3(0.74, 0.7, 0.66);
-uniform vec3 bone_tint : source_color = vec3(0.86, 0.80, 0.68);
-uniform vec3 slime_tint : source_color = vec3(0.10, 0.20, 0.08);
+uniform float rock_scale = 0.07;
+uniform float floor_scale = 0.12;
+uniform vec3 rock_tint : source_color = vec3(0.9, 0.88, 0.95);
+uniform vec3 dust_tint : source_color = vec3(0.95, 0.9, 0.88);
+uniform vec3 bone_tint : source_color = vec3(0.8, 0.76, 0.68);
+uniform vec3 slime_tint : source_color = vec3(0.06, 0.12, 0.05);
+// How much of the textures' own (warm) colour survives the cave grade.
+uniform float rock_sat = 0.35;
+uniform float floor_sat = 0.45;
 uniform float base_y = 1550.0;
 // Height above the floor beside it (metres) where the walls fade to black.
 uniform float dark_from = 14.0;
@@ -32,6 +35,16 @@ varying vec3 world_nrm;
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	world_nrm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
+}
+
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float vnoise(vec2 p) {
+	vec2 i = floor(p), f = fract(p);
+	vec2 u = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash(i), hash(i + vec2(1, 0)), u.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), u.x), u.y);
+}
+vec3 grade(vec3 c, float sat) {
+	return mix(vec3(dot(c, vec3(0.3, 0.59, 0.11))), c, sat);
 }
 
 vec4 triplanar(sampler2D tex, vec3 p, vec3 w) {
@@ -55,16 +68,18 @@ void fragment() {
 	vec3 s = COLOR.rgb;
 	// Height-aware blend: gravel pokes through dust where its height is high.
 	float g = clamp(s.g * 1.6 + (g_alb.a - 0.5) * 0.8, 0.0, 1.0) * step(0.02, s.g);
-	float dust_luma = dot(d_alb.rgb, vec3(0.33));
-	vec3 dust = mix(vec3(dust_luma), d_alb.rgb, 0.25) * dust_tint * 1.15;
-	vec3 floor_col = mix(dust, g_alb.rgb * bone_tint, g);
+	// Large-scale damp/dry patches break the tiling.
+	float macro = vnoise(world_pos.xz * 0.035) * 0.6 + vnoise(world_pos.xz * 0.11) * 0.4;
+	vec3 dust = grade(d_alb.rgb, floor_sat) * dust_tint * mix(0.7, 1.25, macro);
+	vec3 floor_col = mix(dust, grade(g_alb.rgb, floor_sat + 0.15) * bone_tint, g);
 	floor_col = mix(floor_col, slime_tint + d_alb.rgb * 0.08, s.b);
 	vec4 floor_nrm = mix(d_nrm, g_nrm, g);
 	float floor_rough = mix(mix(d_nrm.a, g_nrm.a, g), 0.18, s.b);
 
 	// Rock on slopes (normal.y < ~0.75), with a noisy transition.
 	float slope = smoothstep(0.86, 0.66, n.y + (r_alb.a - 0.5) * 0.12);
-	vec3 col = mix(floor_col, r_alb.rgb * rock_tint, slope);
+	vec3 rock = grade(r_alb.rgb, rock_sat) * rock_tint * mix(0.8, 1.15, vnoise(world_pos.xz * 0.05 + world_pos.y * 0.07));
+	vec3 col = mix(floor_col, rock, slope);
 	vec4 nm = mix(floor_nrm, r_nrm, slope);
 	float rough = mix(floor_rough, max(r_nrm.a, 0.6), slope);
 
