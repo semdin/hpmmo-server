@@ -82,6 +82,8 @@ var skill_pick: HudSkillPick = null
 var skill_window: HudSkillWindow = null
 var character_window: HudCharacterWindow = null
 var bestiary: HudBestiary = null
+## The Floo Network window (map controller opens it at a fireplace).
+var floo: HudFloo = null
 var _exp_ticks: Control = null
 var _level := 1
 ## Last house rank shown; 0 until the first payload so a load is not a "rank up".
@@ -197,6 +199,8 @@ func _setup_panels() -> void:
 	bestiary = HudBestiary.new()
 	bestiary.world_map = world_map
 	modal.add_child(bestiary)
+	floo = HudFloo.new()
+	modal.add_child(floo)
 	skill_pick = HudSkillPick.new()
 	skill_pick.hud = self
 	modal.add_child(skill_pick)
@@ -871,6 +875,9 @@ func handle_escape(world: Node = null) -> String:
 	if bestiary != null and bestiary.is_open():
 		bestiary.close()
 		return "bestiary"
+	if floo != null and floo.is_open():
+		floo.close()
+		return "floo"
 	if quest_scroll != null and quest_scroll.is_open():
 		quest_scroll.close()
 		return "quest"

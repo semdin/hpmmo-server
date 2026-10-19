@@ -587,6 +587,15 @@ func sim_transfer_request(portal_id: String, to_map: String) -> void:
 	SimAuthority.request_transfer(multiplayer.get_remote_sender_id(),
 		portal_id.strip_edges().substr(0, 64), to_map.strip_edges().substr(0, 64))
 
+## v20 Floo Network: learn the fireplace `node_id` (empty dest) or travel.
+## Refusals come back through the transfer refusal path.
+@rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
+func sim_travel_request(node_id: String, dest_id: String) -> void:
+	if is_client:
+		return
+	SimAuthority.request_travel(multiplayer.get_remote_sender_id(),
+		node_id.strip_edges().substr(0, 48), dest_id.strip_edges().substr(0, 48))
+
 @rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
 func sim_transfer_ready(token: int) -> void:
 	if is_client:
@@ -1113,6 +1122,15 @@ func request_transfer(player_node: Node, portal_id: String, to_map: String = "")
 	if record.is_empty():
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
 	return SimAuthority.request_transfer(int(record.get("peer_id", 0)), portal_id, to_map)
+
+func request_travel(player_node: Node, node_id: String, dest_id: String = "") -> Dictionary:
+	if is_client:
+		sim_travel_request.rpc_id(1, node_id, dest_id)
+		return {"ok": true, "reason": "sent"}
+	var record := SimAuthority.record_for(player_node)
+	if record.is_empty():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	return SimAuthority.request_travel(int(record.get("peer_id", 0)), node_id, dest_id)
 
 ## The client finished loading the destination map: acknowledging is what moves
 ## entity ownership. Nothing else may do it.

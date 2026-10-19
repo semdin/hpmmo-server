@@ -1,0 +1,18 @@
+{
+  "_comment": "Travel objects (docs/spider-caverns-plan.md section 4). `nodes`: fixed places a player can travel from/to. kind floo = a fireplace of the Floo Network: the player stands within `floo.radius`, opens the Floo window (interact), picks a known fireplace and pays `floo.cost` x `floo.item`; the authority checks distance, item, combat and knowledge, then moves the body through the ordinary transfer (same map or not) to the arrival point `arrive` metres in front of the destination hearth. pos y = 0 on the grounds means 'on the terrain'. yaw (degrees) is the direction the hearth faces (the room side). A fireplace becomes known when its owner first opens it; `known_by_default` are known to every character.",
+  "floo": {
+    "item": "floo_powder",
+    "cost": 1,
+    "radius": 3.2,
+    "arrive": 1.8,
+    "combat_lock_s": 5.0,
+    "known_by_default": ["floo_courtyard"]
+  },
+  "nodes": {
+    "floo_courtyard": {"kind": "floo", "map": "grounds", "label": "Castle Courtyard", "pos": [-24.0, 0.0, 58.0], "yaw": 90.0},
+    "floo_hogsmeade": {"kind": "floo", "map": "grounds", "label": "Hogsmeade Square", "pos": [694.0, 0.0, -150.0], "yaw": -54.0},
+    "floo_hagrid": {"kind": "floo", "map": "grounds", "label": "Hagrid's Hut", "pos": [-266.0, 0.0, -6.0], "yaw": -135.0},
+    "floo_great_hall": {"kind": "floo", "map": "castle_interior", "label": "The Great Hall", "pos": [-40.0, 200.0, 69.3], "yaw": 180.0},
+    "floo_caverns_camp": {"kind": "floo", "map": "spider_caverns", "label": "Blackweb Camp", "pos": [-166.0, 1550.0, -196.5], "yaw": -10.5, "level_min": 24}
+  }
+}

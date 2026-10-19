@@ -53,7 +53,7 @@ static func build(preset: String) -> Dictionary:
 			equipment[slot] = HPEquipment.worn(HPEquipment.instance(id, REFINE_TIER, _bonuses(id, rng)))
 
 	var inventory: Array = []
-	for stack in [["potion_health", 200], ["potion_mana", 200], ["scroll_imbue", 50], ["scroll_reweave", 50],
+	for stack in [["potion_health", 200], ["potion_mana", 200], ["scroll_imbue", 50], ["floo_powder", 20], ["scroll_reweave", 50],
 			["mat_phoenix_ash", 99], ["mat_dragon_heartstring", 99], ["mat_thestral_hair", 99], ["mat_elder_core", 99]]:
 		if not HPEquipment.item(String(stack[0])).is_empty():
 			inventory.append({"id": stack[0], "amount": stack[1], "tier": 0})

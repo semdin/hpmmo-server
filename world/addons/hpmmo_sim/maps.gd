@@ -297,3 +297,40 @@ static func _to_vec3(raw: Array, fallback: Vector3) -> Vector3:
 	if raw.size() != 3:
 		return fallback
 	return Vector3(float(raw[0]), float(raw[1]), float(raw[2]))
+
+# ------------------------------------------------------------------ travel
+
+## Travel objects (data/travel.json): Floo fireplaces today. Loaded on first use.
+const TRAVEL_PATH := "res://addons/hpmmo_sim/data/travel.json"
+static var _travel: Dictionary = {}
+
+static func travel() -> Dictionary:
+	if _travel.is_empty():
+		if FileAccess.file_exists(TRAVEL_PATH):
+			var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(TRAVEL_PATH))
+			_travel = parsed if parsed is Dictionary else {}
+		if _travel.is_empty():
+			_travel = {"nodes": {}}
+	return _travel
+
+static func travel_nodes() -> Dictionary:
+	return travel().get("nodes", {})
+
+static func travel_node(node_id: String) -> Dictionary:
+	return travel_nodes().get(node_id, {})
+
+## The travel nodes on `map_id` (ids).
+static func travel_nodes_for_map(map_id: String) -> Array:
+	var out: Array = []
+	for id in travel_nodes().keys():
+		if String((travel_nodes()[id] as Dictionary).get("map", "")) == base_map(map_id):
+			out.append(String(id))
+	return out
+
+static func floo_rules() -> Dictionary:
+	return travel().get("floo", {})
+
+## A hearth's facing (unit, horizontal) from its yaw.
+static func travel_facing(node: Dictionary) -> Vector3:
+	var yaw := deg_to_rad(float(node.get("yaw", 0.0)))
+	return Vector3(sin(yaw), 0.0, cos(yaw))

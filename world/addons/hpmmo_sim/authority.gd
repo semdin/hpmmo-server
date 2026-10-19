@@ -1101,12 +1101,15 @@ func request_transfer(peer_id: int, portal_id: String, to_map: String = "") -> D
 	if players_on_map(destination) + reserved_seats(destination) >= HPMaps.capacity(destination):
 		return _refuse_transfer(peer_id, HPProtocol.REJECT_MAP_FULL)
 
-	# --- reserve the destination spawn
 	if not dungeon_entry_pending.is_empty():
 		_count_dungeon_entry(record, String(dungeon_entry_pending["map"]), String(dungeon_entry_pending["dungeon"]))
+	return _grant_transfer(record, peer_id, from_map, destination, spawn_id, HPMaps.spawn_point(destination, spawn_id))
+
+## Reserve `approval` on `destination` for this body and tell its client to
+## load the map (portals, and the Floo Network with its own arrival point).
+func _grant_transfer(record: Dictionary, peer_id: int, from_map: String, destination: String, spawn_id: String, approval: Vector3) -> Dictionary:
 	var token := _next_transfer_token
 	_next_transfer_token += 1
-	var approval: Vector3 = HPMaps.spawn_point(destination, spawn_id)
 	transfers[token] = {
 		"uid": int(record["uid"]),
 		"peer_id": peer_id,
@@ -1132,6 +1135,85 @@ func request_transfer(peer_id: int, portal_id: String, to_map: String = "") -> D
 		token, peer_id, from_map, destination, spawn_id])
 	return {"ok": true, "reason": HPProtocol.REJECT_OK, "token": token, "map_id": destination,
 		"spawn_id": spawn_id, "pos": approval}
+
+## The Floo Network (data/travel.json, protocol v20). The body must stand at
+## the fireplace `node_id` on its own map; that fireplace is learned. With a
+## `dest_id` the trip is checked (known, level, out of combat, on foot, Floo
+## Powder in the bag, destination open), the powder is spent and the body goes
+## through the ordinary transfer to the destination hearth's arrival point -
+## also on the same map, where the loading screen hides the jump.
+func request_travel(peer_id: int, node_id: String, dest_id: String = "") -> Dictionary:
+	if not is_authority() or mutations_frozen():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	var record := player_record(peer_id)
+	if record.is_empty():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	if int(record.get("pending_transfer", 0)) != 0:
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_TRANSFER_PENDING)
+	if bool(record.get("dead", false)):
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_DEAD)
+	var body: Node3D = record.get("node")
+	if body == null or not is_instance_valid(body):
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_STATE)
+	var from_map := String(record.get("map_id", HPProtocol.DEFAULT_MAP))
+	var source := HPMaps.travel_node(node_id)
+	if source.is_empty() or String(source.get("map", "")) != HPMaps.base_map(from_map):
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_NO_PORTAL)
+	var rules := HPMaps.floo_rules()
+	var at := travel_point(source)
+	var offset := body.global_position - at
+	if Vector2(offset.x, offset.z).length() > float(rules.get("radius", 3.2)) + 0.5 or absf(offset.y) > 4.0:
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_RANGE)
+	if body.has_method("learn_floo") and bool(body.call("learn_floo", node_id)):
+		touch(record)
+		_push_stats(record)
+		if persistence != null:
+			persistence.save_player(record)
+	if dest_id == "" or dest_id == node_id:
+		return {"ok": true, "reason": "learned"}
+	var dest := HPMaps.travel_node(dest_id)
+	if dest.is_empty() or String(dest.get("kind", "")) != String(source.get("kind", "")):
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_NO_PORTAL)
+	var known: Array = body.call("floo_known") if body.has_method("floo_known") else []
+	if not known.has(dest_id):
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_FLOO_UNKNOWN)
+	if _player_level(record) < int(dest.get("level_min", 1)):
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_LEVEL)
+	if bool(record.get("mounted", false)):
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_MOUNTED)
+	var lock := int(float(rules.get("combat_lock_s", 5.0)) * HPProtocol.SIM_HZ)
+	if sim_tick - int(record.get("last_combat_tick", -100000)) < lock:
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_IN_COMBAT)
+	var destination := String(dest.get("map", HPProtocol.DEFAULT_MAP))
+	if not map_provider_ready(destination):
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_MAP_UNAVAILABLE)
+	var seats := players_on_map(destination) + reserved_seats(destination)
+	if destination != HPMaps.base_map(from_map) and seats >= HPMaps.capacity(destination):
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_MAP_FULL)
+	var bag: Array = body.inventory.duplicate(true)
+	if not HPEquipment.take(bag, String(rules.get("item", "floo_powder")), 0, int(rules.get("cost", 1))):
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_NO_FLOO_POWDER)
+	body.inventory.assign(bag)
+	body.inventory_revision += 1
+	body.inventory_changed.emit()
+	touch(record)
+	_push_stats(record)
+	if persistence != null:
+		persistence.save_player(record)
+	var arrival := travel_point(dest) + HPMaps.travel_facing(dest) * float(rules.get("arrive", 1.8))
+	print("[Authority] floo: peer %d %s -> %s" % [peer_id, node_id, dest_id])
+	return _grant_transfer(record, peer_id, from_map, destination, "floo:" + dest_id, arrival + Vector3.UP * 0.3)
+
+## Where a travel node stands: the grounds' authored points are x/z on the
+## terrain (y 0); every other map gives its floor height.
+func travel_point(node: Dictionary) -> Vector3:
+	var raw: Array = node.get("pos", [0.0, 0.0, 0.0])
+	var at := Vector3(float(raw[0]), float(raw[1]), float(raw[2]))
+	if String(node.get("map", "")) == HPProtocol.DEFAULT_MAP:
+		var ground := GroundsTerrain.height_at(at.x, at.z)
+		if not is_nan(ground):
+			at.y = ground
+	return at
 
 ## The client finished loading the destination map. Ownership moves HERE and
 ## nowhere else: this is the only place `map_id` changes for a player.
@@ -3319,6 +3401,9 @@ func build_stats(record: Dictionary) -> Dictionary:
 		# Cavern spider riders (mobs.json abilities `poison` / `web`): the poison
 		# runs on the burn clock; the web slows the body the owner predicts.
 		result["webbed_until_tick"] = int(record.get("webbed_until_tick", 0))
+		var body_node = record.get("node")
+		if body_node != null and is_instance_valid(body_node) and body_node.has_method("floo_known"):
+			result["floo_known"] = body_node.call("floo_known")
 		result["burn_until_tick"] = int(record.get("burn_until_tick", 0))
 		result["burn_kind"] = String(record.get("burn_kind", "burn"))
 		result["skill_points"] = HPRules.skill_points_available(int(record.get("level", 1)), skills, int(record.get("skill_bonus", 0)))
@@ -3962,6 +4047,8 @@ func request_equipment(peer_id: int, request_id: int, revision: int, operation: 
 			result = _consume_item(node, item_id, tier)
 		elif operation == "sell":
 			result = _sell_item(node, item_id, tier, uid)
+		elif operation == "buy":
+			result = _buy_item(node, item_id, clampi(tier, 1, 20))
 		else:
 			result.reason = "invalid_operation"
 		if bool(result.ok):
@@ -4010,6 +4097,21 @@ func _sell_item(node: Node, item_id: String, tier: int, uid: int) -> Dictionary:
 		return {"ok": false, "reason": "not_sellable"}
 	node.galleons += price
 	return {"ok": true, "reason": "sold", "inventory": bag, "galleons": price}
+
+## Buy `amount` of an item that has a `buy_price` (items.json) - Floo Powder
+## at a fireplace's Floo window today.
+func _buy_item(node: Node, item_id: String, amount: int) -> Dictionary:
+	var price := int(HPEquipment.item(item_id).get("buy_price", 0))
+	if price <= 0:
+		return {"ok": false, "reason": "not_for_sale"}
+	if int(node.galleons) < price * amount:
+		return {"ok": false, "reason": "no_gold"}
+	var bag: Array = node.inventory.duplicate(true)
+	HPEquipment.add(bag, item_id, 0, amount)
+	if not HPEquipment.capacity_ok(bag):
+		return {"ok": false, "reason": "bag_full"}
+	node.galleons -= price * amount
+	return {"ok": true, "reason": "bought", "inventory": bag}
 
 func _consume_item(node: Node, item_id: String, tier: int) -> Dictionary:
 	if item_id not in ["potion_health", "potion_mana"]:

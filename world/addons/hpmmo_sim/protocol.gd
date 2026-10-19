@@ -80,7 +80,12 @@ class_name HPProtocol
 ##     16, the Webbound Seal Stone (a monolith's variant names its body; 0/1 is
 ##     the Dark Monolith); the stats payload carries `webbed_until_tick` and
 ##     the burn clock with its `burn_kind` (spider venom rides it).
-const PROTOCOL_VERSION := 19
+## v20: the Floo Network (data/travel.json). `sim_travel_request(node_id,
+##     dest_id)`: standing at a fireplace, an empty dest only learns it; a dest
+##     spends Floo Powder and runs the ordinary transfer (grant -> ready ->
+##     commit, spawn id `floo:<dest>`, same map allowed). The stats payload
+##     carries `floo_known` (the fireplaces this character can travel to).
+const PROTOCOL_VERSION := 20
 
 ## Death choice (v18 `sim_respawn_request`).
 const RESPAWN_TOWN := 0
@@ -179,6 +184,10 @@ const REJECT_MAP_UNAVAILABLE := "map_unavailable"
 const REJECT_MAP_FULL := "map_full"
 const REJECT_TRANSFER_TOKEN := "bad_transfer_token"
 const REJECT_ABORTED := "aborted"
+# v20 travel (data/travel.json): Floo Network.
+const REJECT_NO_FLOO_POWDER := "no_floo_powder"
+const REJECT_FLOO_UNKNOWN := "floo_unknown"
+const REJECT_IN_COMBAT := "in_combat"
 
 ## Character binding outcomes (the character-bind fix). `BIND_NOT_FOUND` is also the
 ## answer for a character that exists but belongs to another account: the same

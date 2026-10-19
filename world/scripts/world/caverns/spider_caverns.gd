@@ -18,9 +18,6 @@ const HEIGHT_PATH := "res://assets/maps/spider_caverns/cavern_height.res"
 const GROUND_SHADER := preload("res://assets/shaders/cavern_ground.gdshader")
 const WEB_SHADER := preload("res://assets/shaders/cobweb.gdshader")
 const TEX := "res://assets/terrain/textures/%s.png"
-## The camp hearth (art/spider_caverns: gpt-image -> Hunyuan -> prop_bake); the
-## Floo Network node of the caverns (travel.json, phase S4).
-const FIREPLACE_PATH := "res://assets/models/travel/floo_fireplace.glb"
 
 var map_id := ""
 var collision_only := false
@@ -404,16 +401,7 @@ func _build_camp(center: Vector2) -> void:
 		st.position = fire_at + Vector3(cos(a) * 0.95, 0.12, sin(a) * 0.95)
 		add_child(st)
 	_light(fire_at + Vector3(0, 1.2, 0), Color(1.0, 0.62, 0.32), 3.0, 22.0)
-	# The hearth against the camp's north wall, facing the fire.
-	if ResourceLoader.exists(FIREPLACE_PATH):
-		var hearth: Node3D = (load(FIREPLACE_PATH) as PackedScene).instantiate()
-		hearth.name = "FlooFireplace"
-		var hp := center + Vector2(4.0, -21.5)
-		hearth.position = _on_ground(hp.x, hp.y) - Vector3(0, 0.15, 0)
-		hearth.rotation.y = atan2(center.x - hp.x, center.y - hp.y)
-		add_child(hearth)
-		_light(hearth.position + Vector3(0, 0.8, 0) + Vector3(sin(hearth.rotation.y), 0, cos(hearth.rotation.y)) * 0.8,
-			Color(1.0, 0.55, 0.25), 1.6, 8.0)
+	# The camp hearth is the Floo Network fireplace (TravelNodes, travel.json).
 	# Lanterns on posts around the camp.
 	for a in [0.6, 2.4, 4.1]:
 		var p := center + Vector2(cos(a), sin(a)) * 13.0

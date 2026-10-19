@@ -2819,6 +2819,19 @@
    "seconds": 1.48,
    "purpose": "Enchanting an item succeeds: a hammer strike on an anvil with a bright magical sparkle burst",
    "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+  },
+  "floo_whoosh": {
+   "path": "assets/audio/transitions/floo_whoosh.wav",
+   "bus": "sfx",
+   "gain_db": -6.0,
+   "pitch_variation": 0.04,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 2.56,
+   "purpose": "Floo Network travel: powder ignites into roaring emerald flames sucked up the chimney",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (Blackweb Caverns S4, art/spider_caverns/audio)"
   }
  }
 }

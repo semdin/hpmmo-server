@@ -142,6 +142,44 @@ func _ready() -> void:
 	_build_ui()
 	current_map = _initial_map()
 	call_deferred("_bind_player")
+	call_deferred("_add_travel_nodes")
+
+# --------------------------------------------------------- Floo Network
+
+## The fireplaces of the Floo Network (data/travel.json) and the one the local
+## body stands at.
+var _travel: TravelNodes = null
+var _active_travel := ""
+
+func _add_travel_nodes() -> void:
+	if world == null or _travel != null:
+		return
+	_travel = TravelNodes.new()
+	world.add_child(_travel)
+	_travel.show_map(current_map)
+
+## Interact at a fireplace: the authority learns it (an empty destination) and
+## the Floo window opens.
+func open_floo(node_id: String) -> void:
+	if not is_instance_valid(local_player):
+		return
+	SimNet.request_travel(local_player, node_id, "")
+	var hud = world.get("hud") if world != null else null
+	var floo = hud.get("floo") if hud != null else null
+	if floo == null:
+		return
+	floo.on_travel = _floo_depart
+	floo.open_at(local_player, node_id)
+
+## The traveller steps into the green flames; the request follows once they
+## have caught, and the granted transfer's loading screen takes over.
+func _floo_depart(node_id: String, dest_id: String) -> void:
+	if busy or not is_instance_valid(local_player):
+		return
+	TravelNodes.burst(world, local_player.global_position)
+	await get_tree().create_timer(0.9).timeout
+	if is_instance_valid(local_player):
+		SimNet.request_travel(local_player, node_id, dest_id)
 
 ## The map this body belongs to, decided by where the body is: the catalog's
 ## y-band (the interior is authored above y=185) says which map a saved position
@@ -258,21 +296,31 @@ func _process(delta: float) -> void:
 			found = portal
 			break
 	_active_portal = found
+	# Not at a door: maybe at a Floo fireplace (data/travel.json).
+	_active_travel = ""
+	if found.is_empty() and _travel != null:
+		_active_travel = _travel.node_at(local_player.global_position, current_map)
 	if found.is_empty():
-		_active_label = ""
+		_active_label = "" if _active_travel == "" else "Press %s - Floo Network (%s)" % [
+			PROMPT_KEY, String(HPMaps.travel_node(_active_travel).get("label", ""))]
 	elif _mounted():
 		_active_label = "Mounted - the castle door is closed to broom flight. Dismount to enter."
 	else:
 		_active_label = "Press %s - %s" % [PROMPT_KEY, _portal_prompt(found)]
 
 func _unhandled_input(event: InputEvent) -> void:
-	if busy or _active_portal.is_empty() or not is_instance_valid(local_player):
+	if busy or not is_instance_valid(local_player):
+		return
+	if _active_portal.is_empty() and _active_travel == "":
 		return
 	if not event.is_action_pressed("interact"):
 		return
 	if player_input_blocked():
 		return
 	get_viewport().set_input_as_handled()
+	if _active_portal.is_empty():
+		open_floo(_active_travel)
+		return
 	_begin_transfer(_active_portal)
 
 ## The local body is mounted: entering the castle is refused (the authority
@@ -409,6 +457,8 @@ func _start_transfer(map_id: String, spawn_id: String, token: int, forced_pos: V
 	_loading_screen.set_progress(85.0, "Waiting for the server…")
 
 	current_map = map_id
+	if _travel != null:
+		_travel.show_map(map_id)
 	# Acknowledge first: the authority commits on that ack and places the body at
 	# the spawn it approved. The client only places the body itself when there is
 	# no authority to do it (or the answer never arrives) - moving the body into
@@ -429,6 +479,8 @@ func _start_transfer(map_id: String, spawn_id: String, token: int, forced_pos: V
 	await _loading_screen.close()
 	busy = false
 	_record_transfer(map_id, spawn_id, token)
+	if spawn_id.begins_with("floo:") and is_instance_valid(local_player):
+		TravelNodes.burst(world, local_player.global_position, 1.6)
 	if not _expired_return.is_empty():
 		var back: Dictionary = _expired_return
 		_expired_return = {}
@@ -934,6 +986,16 @@ func _reason_text(reason: String) -> String:
 			return "You are not experienced enough to enter."
 		"daily_limit":
 			return "You have entered this place enough times today - come back tomorrow."
+		"no_floo_powder":
+			return "You have no Floo Powder - buy a pinch at the fireplace."
+		"floo_unknown":
+			return "You have never visited that fireplace."
+		"in_combat":
+			return "The flames will not take you while you are fighting."
+		"mounted":
+			return "Dismount before stepping into the fireplace."
+		"out_of_range":
+			return "Move closer and try again."
 		"transfer_expired":
 			return "The transfer timed out; you are back at your last safe spot."
 		_:

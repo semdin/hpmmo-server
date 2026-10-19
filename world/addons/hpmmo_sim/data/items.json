@@ -932,5 +932,15 @@
     "rarity": "epic",
     "icon": "queen_seal",
     "slots": []
+  },
+  "floo_powder": {
+    "id": "floo_powder",
+    "name": "Floo Powder",
+    "type": "material",
+    "desc": "A pinch thrown into a Floo Network fireplace carries you to any hearth you have visited. Sold at every Floo fireplace.",
+    "rarity": "uncommon",
+    "icon": "floo_powder",
+    "slots": [],
+    "buy_price": 2500
   }
 }

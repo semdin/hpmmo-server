@@ -21,6 +21,8 @@ const LORE := {
 	"armour_commander": "A cursed suit that commands the others. Its shield turns aside blows from the front.",
 	"devils_snare": "A creeping plant that strangles whatever struggles. Burn its vines to reach the heart.",
 	"fluffy": "Hagrid's three-headed dog, guarding the trapdoor. Music sends it to sleep.",
+	"acromantula_venomfang": "Lean, long-legged hunters of the Blackweb Caverns. Their emerald venom burns for seconds after the bite.",
+	"acromantula_broodguard": "Bone-plated giants that guard the egg caverns. Their armour turns blows from the front; their webs pin you down.",
 }
 const ABILITIES := {
 	"slam": "Ground slam (area knock-down)",
@@ -31,6 +33,10 @@ const ABILITIES := {
 	"breath": "Fiery breath",
 	"roar": "Roar",
 	"boulder": "Hurls boulders from range",
+	"venom_bite": "Venomous bite (poison over time)",
+	"venom_spit": "Spits venom from range (poison over time)",
+	"web_shot": "Web shot (halves your speed)",
+	"brood_leap": "Leaps on you (knock-back)",
 }
 const RESIST_NAMES := {"fire": "Fire (Incendio)", "stun": "Stuns", "force": "Force (Depulso)",
 	"patronus": "Patronus", "arcane": "Arcane"}

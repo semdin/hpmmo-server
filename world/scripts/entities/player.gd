@@ -1552,6 +1552,24 @@ func apply_knockback(force: Vector3) -> void:
 	if force.y > 0.0:
 		velocity.y = maxf(velocity.y, force.y)
 
+## The Floo fireplaces this character can travel to (`quests.floo_known`,
+## authority-written; travel.json `known_by_default` are always known).
+func floo_known() -> Array:
+	var known: Array = (HPMaps.floo_rules().get("known_by_default", []) as Array).duplicate()
+	for id in _quest_state.get("floo_known", []):
+		if not known.has(id):
+			known.append(id)
+	return known
+
+## Learn a fireplace; true when it is new (the authority persists it).
+func learn_floo(node_id: String) -> bool:
+	if HPMaps.travel_node(node_id).is_empty() or floo_known().has(node_id):
+		return false
+	var mine: Array = (_quest_state.get("floo_known", []) as Array).duplicate()
+	mine.append(node_id)
+	_quest_state["floo_known"] = mine
+	return true
+
 ## A title; true when it is new.
 func grant_title(title_id: String) -> bool:
 	if titles.has(title_id):
@@ -2128,6 +2146,8 @@ func apply_authoritative_stats(stats: Dictionary) -> void:
 			attributes = fresh_attributes
 			_recalculate_equipment()
 	attribute_points = int(stats.get("attribute_points", attribute_points))
+	if stats.get("floo_known") is Array:
+		_quest_state["floo_known"] = (stats["floo_known"] as Array).duplicate()
 	if stats.get("titles") is Array and stats["titles"] != titles:
 		var fresh: Array = (stats["titles"] as Array).filter(func(t): return not titles.has(t))
 		titles = (stats["titles"] as Array).duplicate()
