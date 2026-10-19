@@ -26,3 +26,18 @@ A persistent workspace fetches only changed objects.
   production host. Keep fork-PR workflows requiring approval (repo Settings → Actions).
 - Upgrading Godot: replace `/opt/hpmmo-ci/godot/godot` and the export templates, then bump
   `GODOT_VERSION` in both workflows. The checks in the workflows fail if they disagree.
+
+## Git LFS server (since 2026-10-19)
+Git LFS no longer uses GitHub. `.lfsconfig` in both repos points at
+`https://lfs.agsilvery.com/api/semdin/hpmmo-<repo>`:
+- `hpmmo-lfs.service`: rudolfs 0.3.8 (Docker, pinned) on 127.0.0.1:8085, S3 backend =
+  Cloudflare R2 bucket `hpmmo-lfs` (prefix `lfs/`), 20 GiB local cache in
+  `/var/cache/hpmmo-lfs`, no rudolfs encryption key (nothing to lose; the bucket is private).
+  Env: `/etc/hpmmo/lfs.env` (generated from `/etc/hpmmo/r2.env`).
+- Caddy (`/etc/caddy/Caddyfile`): TLS via Let's Encrypt, HTTP basic auth on everything.
+  The credentials are in `/etc/hpmmo/lfs-auth.env` (user `hpmmo`). The runner user has
+  them in `~ghrunner/.git-credentials`; a developer machine stores them once with
+  `git credential approve` (Windows: Git Credential Manager).
+- DNS: `lfs.agsilvery.com` A record -> 185.118.141.74, DNS only (not proxied).
+- Workflows pull LFS in their own step after checkout (not `checkout lfs: true`),
+  so git-lfs reads `.lfsconfig` from the tree.
