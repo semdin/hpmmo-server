@@ -1161,12 +1161,15 @@ func request_travel(peer_id: int, node_id: String, dest_id: String = "") -> Dict
 	var source := HPMaps.travel_node(node_id)
 	if source.is_empty() or String(source.get("map", "")) != HPMaps.base_map(from_map):
 		return _refuse_transfer(peer_id, HPProtocol.REJECT_NO_PORTAL)
-	var rules := HPMaps.floo_rules()
+	# The node's kind decides the rules (travel.json floo / cabinet / passage).
+	var kind := String(source.get("kind", "floo"))
+	var floo := kind == "floo"
+	var rules: Dictionary = HPMaps.travel().get(kind, {})
 	var at := travel_point(source)
 	var offset := body.global_position - at
 	if Vector2(offset.x, offset.z).length() > float(rules.get("radius", 3.2)) + 0.5 or absf(offset.y) > 4.0:
 		return _refuse_transfer(peer_id, HPProtocol.REJECT_RANGE)
-	if body.has_method("learn_floo") and bool(body.call("learn_floo", node_id)):
+	if floo and body.has_method("learn_floo") and bool(body.call("learn_floo", node_id)):
 		touch(record)
 		_push_stats(record)
 		if persistence != null:
@@ -1174,10 +1177,13 @@ func request_travel(peer_id: int, node_id: String, dest_id: String = "") -> Dict
 	if dest_id == "" or dest_id == node_id:
 		return {"ok": true, "reason": "learned"}
 	var dest := HPMaps.travel_node(dest_id)
-	if dest.is_empty() or String(dest.get("kind", "")) != String(source.get("kind", "")):
+	if dest.is_empty() or String(dest.get("kind", "")) != kind:
+		return _refuse_transfer(peer_id, HPProtocol.REJECT_NO_PORTAL)
+	# A cabinet or a secret passage leads only to its twin.
+	if not floo and String(source.get("pair", "")) != dest_id:
 		return _refuse_transfer(peer_id, HPProtocol.REJECT_NO_PORTAL)
 	var known: Array = body.call("floo_known") if body.has_method("floo_known") else []
-	if not known.has(dest_id):
+	if floo and not known.has(dest_id):
 		return _refuse_transfer(peer_id, HPProtocol.REJECT_FLOO_UNKNOWN)
 	if _player_level(record) < int(dest.get("level_min", 1)):
 		return _refuse_transfer(peer_id, HPProtocol.REJECT_LEVEL)
@@ -1192,19 +1198,14 @@ func request_travel(peer_id: int, node_id: String, dest_id: String = "") -> Dict
 	var seats := players_on_map(destination) + reserved_seats(destination)
 	if destination != HPMaps.base_map(from_map) and seats >= HPMaps.capacity(destination):
 		return _refuse_transfer(peer_id, HPProtocol.REJECT_MAP_FULL)
-	var bag: Array = body.inventory.duplicate(true)
-	if not HPEquipment.take(bag, String(rules.get("item", "floo_powder")), 0, int(rules.get("cost", 1))):
-		return _refuse_transfer(peer_id, HPProtocol.REJECT_NO_FLOO_POWDER)
-	body.inventory.assign(bag)
-	body.inventory_revision += 1
-	body.inventory_changed.emit()
-	touch(record)
-	_push_stats(record)
-	if persistence != null:
-		persistence.save_player(record)
+	if floo:
+		var bag: Array = body.inventory.duplicate(true)
+		if not HPEquipment.take(bag, String(rules.get("item", "floo_powder")), 0, int(rules.get("cost", 1))):
+			return _refuse_transfer(peer_id, HPProtocol.REJECT_NO_FLOO_POWDER)
+		_set_bag(record, bag)
 	var arrival := travel_point(dest) + HPMaps.travel_facing(dest) * float(rules.get("arrive", 1.8))
-	print("[Authority] floo: peer %d %s -> %s" % [peer_id, node_id, dest_id])
-	return _grant_transfer(record, peer_id, from_map, destination, "floo:" + dest_id, arrival + Vector3.UP * 0.3)
+	print("[Authority] %s: peer %d %s -> %s" % [kind, peer_id, node_id, dest_id])
+	return _grant_transfer(record, peer_id, from_map, destination, kind + ":" + dest_id, arrival + Vector3.UP * 0.3)
 
 # ------------------------------------------------------------------ portkeys
 

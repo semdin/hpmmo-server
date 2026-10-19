@@ -163,6 +163,25 @@ func _add_travel_nodes() -> void:
 	_portkeys = PortkeyViews.new()
 	world.add_child(_portkeys)
 
+## The prompt over a travel object: the Floo Network, or a twin link's own
+## words and where it leads.
+func _travel_prompt(node_id: String) -> String:
+	var node := HPMaps.travel_node(node_id)
+	if TravelNodes.kind_of(node_id) == "floo":
+		return "Floo Network (%s)" % String(node.get("label", ""))
+	var pair := HPMaps.travel_node(String(node.get("pair", "")))
+	return "%s (to %s)" % [String(node.get("prompt", "Use")), String(pair.get("label", ""))]
+
+## A Vanishing Cabinet or the witch's passage: no window, the link has one end.
+func _passage_depart(node_id: String) -> void:
+	if busy or not is_instance_valid(local_player):
+		return
+	var kind := TravelNodes.kind_of(node_id)
+	TravelNodes.burst(world, local_player.global_position, 1.6, kind)
+	await get_tree().create_timer(0.8).timeout
+	if is_instance_valid(local_player):
+		SimNet.request_travel(local_player, node_id, String(HPMaps.travel_node(node_id).get("pair", "")))
+
 ## Interact at a fireplace: the authority learns it (an empty destination) and
 ## the Floo window opens.
 func open_floo(node_id: String) -> void:
@@ -312,8 +331,7 @@ func _process(delta: float) -> void:
 		_active_label = "Press %s - %s the Portkey (to %s)" % [PROMPT_KEY,
 			"Let go of" if bool(_active_portkey.get("holding", false)) else "Grab hold of", _active_portkey.get("label", "")]
 	elif found.is_empty():
-		_active_label = "" if _active_travel == "" else "Press %s - Floo Network (%s)" % [
-			PROMPT_KEY, String(HPMaps.travel_node(_active_travel).get("label", ""))]
+		_active_label = "" if _active_travel == "" else "Press %s - %s" % [PROMPT_KEY, _travel_prompt(_active_travel)]
 	elif _mounted():
 		_active_label = "Mounted - the castle door is closed to broom flight. Dismount to enter."
 	else:
@@ -333,7 +351,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		SimNet.portkey_grab(local_player, int(_active_portkey.get("id", 0)), not bool(_active_portkey.get("holding", false)))
 		return
 	if _active_portal.is_empty():
-		open_floo(_active_travel)
+		if TravelNodes.kind_of(_active_travel) == "floo":
+			open_floo(_active_travel)
+		else:
+			_passage_depart(_active_travel)
 		return
 	_begin_transfer(_active_portal)
 
@@ -493,8 +514,9 @@ func _start_transfer(map_id: String, spawn_id: String, token: int, forced_pos: V
 	await _loading_screen.close()
 	busy = false
 	_record_transfer(map_id, spawn_id, token)
-	if spawn_id.begins_with("floo:") and is_instance_valid(local_player):
-		TravelNodes.burst(world, local_player.global_position, 1.6)
+	var kind := spawn_id.get_slice(":", 0)
+	if kind in ["floo", "cabinet", "passage"] and spawn_id.contains(":") and is_instance_valid(local_player):
+		TravelNodes.burst(world, local_player.global_position, 1.6, kind)
 	elif spawn_id.begins_with("portkey:") and is_instance_valid(local_player):
 		PortkeyViews.swirl(world, local_player.global_position, 1.2)
 	if not _expired_return.is_empty():

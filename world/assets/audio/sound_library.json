@@ -2845,6 +2845,32 @@
    "seconds": 2.76,
    "purpose": "A Portkey activating: rising blue chime, a yank into a spinning whirlwind",
    "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (Blackweb Caverns S5, art/spider_caverns/audio)"
+  },
+  "cabinet_vanish": {
+   "path": "assets/audio/transitions/cabinet_vanish.wav",
+   "bus": "sfx",
+   "gain_db": -6.0,
+   "pitch_variation": 0.03,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 2.4,
+   "purpose": "A Vanishing Cabinet: doors thud shut, a hollow magical whoomp",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (Blackweb Caverns S7, art/spider_caverns/audio)"
+  },
+  "passage_stone": {
+   "path": "assets/audio/transitions/passage_stone.wav",
+   "bus": "sfx",
+   "gain_db": -6.0,
+   "pitch_variation": 0.03,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 2.56,
+   "purpose": "The One-Eyed Witch passage: stone grinding aside, trickling dust",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (Blackweb Caverns S7, art/spider_caverns/audio)"
   }
  }
 }

@@ -1,10 +1,10 @@
 {
  "generated": "2026-10-19",
  "source_repository": "hpmmo-client",
- "source_revision": "da5c9fba4a74b7d6d6bb4d45929ef75d8b9b485e",
+ "source_revision": "6f65a3998c1f25cce5ce8d59d158cfd81cef47d2",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
-  "assets/audio/sound_library.json": "948bf7ac8f6c77716f6d93e256b33226a1c2ddd23f4424ac8268dfa5d4e8cbf7",
+  "assets/audio/sound_library.json": "4960d9c5111e80c29446024602e6f9165f23c701f50eca81fa57cbea27196d68",
   "assets/castle/castle_blockout.glb": "eecd6ff7bfc698bc65f0d218fe60590d10ac478e1bc70b3f36c9b168af6cb5b9",
   "assets/castle/castle_interior.glb": "68a348318497101a94c634415729a9658936b7995800f0ef94247ec30e44626f",
   "assets/castle/castle_layout.json": "6041deba7459f6a6c1df1c12c6379ff9fd611242f124206c07552862488ff38f",
@@ -609,14 +609,14 @@
   "scripts/world/grounds/grounds_scatter.gd": "eccffbc4cfaac5c0af540064e4621577629e880cc1a574c82c89ac9b95e92206",
   "scripts/world/grounds/grounds_sites.gd": "a6f5cf6fea7710268895a0a1d969c88e124fbddf0974b25a44fddca4f1b608ee",
   "scripts/world/grounds_terrain.gd": "b8de6ea0a7ec9e82d7b8bd713b41fda5a0ec2bc3ca66d560c83aac223e59e72a",
-  "scripts/world/map_controller.gd": "7353a915cd57f350eaecc363941c33dfccb66c1c30e7151fc57637f25dc8f7fc",
+  "scripts/world/map_controller.gd": "529cfb087a161c84994a79ddeaa6c52c1cd19ad9e5869c192d422dccc8496f82",
   "scripts/world/npc.gd": "3bade05178f4b18072a75d57dd4012bd34a0c7804ee5381f4005db8783c5c26d",
   "scripts/world/portkey_views.gd": "ae27a482adda918274bd4eb6f3cd4d97ce9d4ed07a92382bcb758c51dc28f8d5",
   "scripts/world/quality_preset.gd": "4b8165785ba44814c10677441efbba05f2a8e24d02d553aabac50458828bf879",
   "scripts/world/safe_zone.gd": "c638ef9a5fc897596043ef8ac9a07167adf8bb0a1ff8a53fb515742651c02cf4",
   "scripts/world/target_ring.gd": "324a02f4110032e54971a53af7a0a6db8513a3f912c7b1bc68c56b8fe296f620",
   "scripts/world/training_dummy.gd": "da39ae14a0e9baed1fc07e28e8cb00468f74ffad302fbeb3149a4afb626d6e78",
-  "scripts/world/travel_nodes.gd": "b5672b4dc1e5286e799df6f982b8411bc61a30443682432b7474b36e9544072c",
+  "scripts/world/travel_nodes.gd": "62e6801b51b29fb3ccc6982925ca474ed1364620627c74784cfe2099fbd64ccb",
   "scripts/world/waypoint_guide.gd": "a28da73e15235ea137312c1b69524c69e23e12c73d97b095fff96d3534ff622c",
   "scripts/world/waypoint_router.gd": "f259fe627ce9adb6845ed97aec5dd37cffebc0306fad414495be82062fb5038a"
  }
