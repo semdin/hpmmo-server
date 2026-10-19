@@ -63,8 +63,16 @@ func current_effects() -> Dictionary:
 				"remaining": float(despair - tick) * dt, "duration": maxf(1.0, float(despair - tick) * dt), "debuff": true}
 		var burn := int(record.get("burn_until_tick", 0))
 		if burn > tick:
-			out["burn"] = {"icon": "status_burn", "title": "Burning", "desc": "Taking fire damage over time.",
-				"remaining": float(burn - tick) * dt, "duration": maxf(1.0, float(burn - tick) * dt), "debuff": true}
+			if String(record.get("burn_kind", "burn")) == "poison":
+				out["poison"] = {"icon": "status_burn", "title": "Poisoned", "desc": "Spider venom: damage over time.",
+					"remaining": float(burn - tick) * dt, "duration": maxf(1.0, float(burn - tick) * dt), "debuff": true}
+			else:
+				out["burn"] = {"icon": "status_burn", "title": "Burning", "desc": "Taking fire damage over time.",
+					"remaining": float(burn - tick) * dt, "duration": maxf(1.0, float(burn - tick) * dt), "debuff": true}
+		var webbed := int(record.get("webbed_until_tick", 0))
+		if webbed > tick:
+			out["webbed"] = {"icon": "status_stun", "title": "Webbed", "desc": "Sticky silk: you move at half speed.",
+				"remaining": float(webbed - tick) * dt, "duration": maxf(1.0, float(webbed - tick) * dt), "debuff": true}
 	return out
 
 func _refresh() -> void:

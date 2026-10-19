@@ -26,6 +26,8 @@ signal buffs_changed
 ## distance that depends on body size is derived from these, so a second resize
 ## is a constant change, not a hunt through the file. The capsule and camera are
 ## gameplay values and deliberately unchanged by the art swap.
+## On-foot speed while webbed by a cavern spider (mobs.json ability `web`).
+const WEBBED_FACTOR := 0.5
 const HERO_CROWN_HEIGHT := 1.75
 const CAMERA_HEIGHT := 1.55          # pivot at chest/eye level of the new body
 const NAMEPLATE_HEIGHT := 2.09       # crown + 0.34 headroom for the label
@@ -851,6 +853,10 @@ func _physics_process(delta: float) -> void:
 
 	# Item Movement Speed (boots, cloak penalty, efsun) applies on foot only.
 	var walk := walk_speed * (1.0 + float(derived_stats.get("move_speed", 0.0)) / 100.0)
+	# Webbed by a cavern spider (authority apply_web): the server body and the
+	# owner's prediction both read the tick from the record (stats payload).
+	if int(SimAuthority.record_for(self).get("webbed_until_tick", 0)) > SimAuthority.sim_tick:
+		walk *= WEBBED_FACTOR
 	var active_speed := mounted_speed if is_mounted else (swim_speed if is_swimming else walk)
 	var is_moving := input_dir.length_squared() > 0.01
 

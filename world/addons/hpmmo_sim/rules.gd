@@ -1044,6 +1044,10 @@ static func hunting_region_at(point: Vector3) -> Dictionary:
 		var center: Array = region.get("center", [0.0, 0.0])
 		if center.size() != 2:
 			continue
+		# Maps share x/z (they are y bands): a region belongs to its `map`
+		# (default the grounds) and only answers for points on it.
+		if HPMaps.map_for_point(point) != String(region.get("map", "grounds")):
+			continue
 		if Vector2(point.x - float(center[0]), point.z - float(center[1])).length() <= float(region.get("radius", 0.0)):
 			return region
 	return {}

@@ -108,13 +108,16 @@ func _spawn_initial() -> void:
 ## Returns the id of the rule that rejected the placement, or "" when the whole
 ## formation is clear.
 func _placement_refusal(anchor: Vector3, pack: Dictionary) -> String:
-	var clearance := HPRules.pack_tuning("respawn_clear_radius", 16.0)
+	# Grinding maps keep packs coming back while players stand in the room
+	# (entry `clear_radius`, Metin2-style); the open grounds keep 16 m.
+	var clearance := float((pack.get("entry", {}) as Dictionary).get("clear_radius",
+		HPRules.pack_tuning("respawn_clear_radius", 16.0)))
 	# Static rules first (safe zones, authored exclusions, geometry), then the
 	# dynamic ones (other packs, players): a refusal names the most fundamental
 	# reason, which is what the checks below assert on.
 	for offset in pack.get("offsets", []):
 		var point := _on_ground(anchor + offset)
-		if GroundsLake.is_water_at(point.x, point.z):
+		if point.y < GROUNDS_TOP and GroundsLake.is_water_at(point.x, point.z):
 			return "water"
 		if HPRules.is_spawn_blocked(point):
 			return "safe_zone"
@@ -160,8 +163,21 @@ func _ground_ok(point: Vector3) -> bool:
 ## The point dropped onto the grounds terrain (+0.1 m); unchanged where there is
 ## no terrain (e.g. a test world without the grounds).
 func _on_ground(point: Vector3) -> Vector3:
+	# A pack on another map (the Blackweb Caverns: entry `y` = its floor
+	# height) stands on that map's resident collider, not on the grounds'.
+	if point.y > GROUNDS_TOP:
+		var query := PhysicsRayQueryParameters3D.create(point + Vector3.UP * 30.0, point - Vector3.UP * 40.0, 1)
+		var hit := container.get_world_3d().direct_space_state.intersect_ray(query)
+		return point if hit.is_empty() else (hit["position"] as Vector3) + Vector3.UP * 0.1
 	var h := GroundsTerrain.height_at(point.x, point.z)
 	return point if is_nan(h) else Vector3(point.x, h + 0.1, point.z)
+
+## Above this a point is not on the grounds (maps.json y bands).
+const GROUNDS_TOP := 185.0
+
+## The authored floor height of a pack's area (entry `y`; 0 = the grounds).
+func _area_y(pack: Dictionary) -> float:
+	return float((pack.get("entry", {}) as Dictionary).get("y", 0.0))
 
 func _member_clear_of_geometry(point: Vector3) -> bool:
 	var shape := SphereShape3D.new()
@@ -192,10 +208,11 @@ func _sample_anchor(pack: Dictionary) -> Vector3:
 	# No collision there at all (a client only has terrain collision round its
 	# camera): every attempt would fail the same way, so one ray says "later"
 	# instead of forty placements times every pack on the map.
-	if not _has_floor(_on_ground(Vector3(area.get_center().x, 0.0, area.get_center().y))):
+	var area_y := _area_y(pack)
+	if not _has_floor(_on_ground(Vector3(area.get_center().x, area_y, area.get_center().y))):
 		return Vector3.INF
 	for _attempt in range(attempts):
-		var point := _on_ground(Vector3(rng.randf_range(area.position.x, area.end.x), 0.0,
+		var point := _on_ground(Vector3(rng.randf_range(area.position.x, area.end.x), area_y,
 			rng.randf_range(area.position.y, area.end.y)))
 		if not _formation_clear(point, int(pack["count"])):
 			continue

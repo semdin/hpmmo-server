@@ -2169,6 +2169,7 @@ func _start_burn(target: Dictionary, burn: Dictionary, attacker: Dictionary) -> 
 	target["burn_next_tick"] = sim_tick + int(ceil(float(interval) / TICK_MS))
 	target["burn_damage"] = int(burn.get("damage", 0))
 	target["burn_source_uid"] = int(attacker.get("uid", 0)) if not attacker.is_empty() else 0
+	target["burn_kind"] = "burn"
 
 ## Entities with something to advance each tick (a burn, a Protego ward,
 ## ground loot waiting to expire). The tick used to walk every entity - with
@@ -2202,7 +2203,7 @@ func _advance_effects() -> void:
 				# running, matching the core rule).
 				record["burn_next_tick"] = sim_tick + interval_ticks
 				var source: Dictionary = entities.get(int(record.get("burn_source_uid", 0)), {})
-				_apply_damage(record, int(record.get("burn_damage", 0)), "burn", source)
+				_apply_damage(record, int(record.get("burn_damage", 0)), String(record.get("burn_kind", "burn")), source)
 		if int(record.get("ward_until_tick", 0)) != 0 and sim_tick >= int(record["ward_until_tick"]):
 			record["ward_until_tick"] = 0
 			touch(record)
@@ -2805,6 +2806,33 @@ func apply_despair(uid: int, seconds: float) -> void:
 	touch(record)
 	_push_stats(record)
 
+## A spider's venom (mobs.json ability `poison`): damage over time on the burn
+## clock, credited to the creature. A stronger poison replaces a weaker one.
+func apply_poison(uid: int, damage: int, ticks: int, interval_ms: int, source: Node) -> void:
+	var record: Dictionary = entities.get(uid, {})
+	if record.is_empty() or int(record.get("kind", 0)) != HPProtocol.Kind.PLAYER or damage <= 0:
+		return
+	if int(record.get("burn_until_tick", 0)) > sim_tick and damage < int(record.get("burn_damage", 0)):
+		return
+	_start_burn(record, {"damage": damage, "ticks": ticks, "interval_ms": interval_ms}, record_for(source) if source != null else {})
+	record["burn_kind"] = "poison"
+	touch(record)
+	_push_stats(record)
+
+## A web shot (mobs.json ability `web`): the victim moves at `webbed_factor`
+## speed on foot until the tick (player.gd reads it from its record on both
+## the server body and the owner's prediction, which get it with the stats).
+func apply_web(uid: int, seconds: float) -> void:
+	var record: Dictionary = entities.get(uid, {})
+	if record.is_empty() or int(record.get("kind", 0)) != HPProtocol.Kind.PLAYER:
+		return
+	var until := sim_tick + int(ceil(seconds * 1000.0 / TICK_MS))
+	if until <= int(record.get("webbed_until_tick", 0)):
+		return
+	record["webbed_until_tick"] = until
+	touch(record)
+	_push_stats(record)
+
 ## A mob drinks back `amount` health (the kiss drains what it deals).
 func heal_mob(node: Node, amount: int) -> void:
 	var record := record_for(node)
@@ -3288,6 +3316,11 @@ func build_stats(record: Dictionary) -> Dictionary:
 		var skills: Dictionary = record.get("skill_levels", {})
 		result["skills"] = skills.duplicate()
 		result["despair_until_tick"] = int(record.get("despair_until_tick", 0))
+		# Cavern spider riders (mobs.json abilities `poison` / `web`): the poison
+		# runs on the burn clock; the web slows the body the owner predicts.
+		result["webbed_until_tick"] = int(record.get("webbed_until_tick", 0))
+		result["burn_until_tick"] = int(record.get("burn_until_tick", 0))
+		result["burn_kind"] = String(record.get("burn_kind", "burn"))
 		result["skill_points"] = HPRules.skill_points_available(int(record.get("level", 1)), skills, int(record.get("skill_bonus", 0)))
 		var node = record.get("node")
 		if node != null and is_instance_valid(node) and "attributes" in node:

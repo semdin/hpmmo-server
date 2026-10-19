@@ -1204,6 +1204,10 @@ func _resolve_attack(plan: Dictionary) -> void:
 ## victim, and a drain that heals the attacker by a share of what it dealt.
 func _apply_riders(plan: Dictionary, hits: Array) -> void:
 	var despair := float(plan.get("despair_s", 0.0))
+	# Cavern spiders: venom (damage over time, a share of the attack power per
+	# beat) and a web that halves the victim's speed.
+	var poison: Dictionary = plan.get("poison", {})
+	var web_s := float(plan.get("web_s", 0.0))
 	var push := float(plan.get("push", 0.0))
 	var lift := float(plan.get("lift", 0.0))
 	var dealt := 0
@@ -1211,6 +1215,12 @@ func _apply_riders(plan: Dictionary, hits: Array) -> void:
 		dealt += int((hit as Dictionary).get("amount", 0))
 		if despair > 0.0:
 			SimAuthority.apply_despair(int((hit as Dictionary).get("uid", 0)), despair)
+		if not poison.is_empty():
+			SimAuthority.apply_poison(int((hit as Dictionary).get("uid", 0)),
+				maxi(1, int(attack_power * float(poison.get("ratio", 0.15)))),
+				int(poison.get("ticks", 6)), int(poison.get("interval_ms", 1000)), self)
+		if web_s > 0.0:
+			SimAuthority.apply_web(int((hit as Dictionary).get("uid", 0)), web_s)
 		# A shove: away from the attacker, and up (the pixie's lift).
 		if push > 0.0 or lift > 0.0:
 			var victim := SimAuthority.record_by_uid(int((hit as Dictionary).get("uid", 0)))

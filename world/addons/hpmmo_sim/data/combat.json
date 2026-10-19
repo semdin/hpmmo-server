@@ -794,7 +794,12 @@
       "troll_slam": "melee",
       "troll_boulder": "projectile",
       "stupefy": "projectile",
-      "basic_cast": "projectile"
+      "basic_cast": "projectile",
+      "venom_bite": "melee",
+      "venom_spit": "projectile",
+      "web_shot": "projectile",
+      "brood_leap": "melee",
+      "poison": "spell"
     }
   },
   "houses": {

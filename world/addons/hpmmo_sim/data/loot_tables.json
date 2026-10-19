@@ -220,6 +220,53 @@
           "max": 1
         }
       ]
+    },
+    "cavern_spider": {
+      "always": [
+        {
+          "id": "galleons",
+          "min": 30,
+          "max": 90
+        }
+      ],
+      "rolls": [
+        {
+          "id": "potion_health",
+          "chance": 0.09,
+          "min": 1,
+          "max": 2
+        },
+        {
+          "id": "potion_mana",
+          "chance": 0.07,
+          "min": 1,
+          "max": 1
+        },
+        {
+          "id": "mat_thestral_hair",
+          "chance": 0.02,
+          "min": 1,
+          "max": 1
+        },
+        {
+          "id": "mat_elder_core",
+          "chance": 0.01,
+          "min": 1,
+          "max": 1
+        },
+        {
+          "id": "scroll_imbue",
+          "chance": 0.006,
+          "min": 1,
+          "max": 1
+        },
+        {
+          "id": "scroll_reweave",
+          "chance": 0.004,
+          "min": 1,
+          "max": 1
+        }
+      ]
     }
   },
   "elite": {

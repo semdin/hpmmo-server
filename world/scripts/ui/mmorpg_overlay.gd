@@ -704,9 +704,9 @@ func _grounds_layout() -> Dictionary:
 ## authored floor table is announced instead of a stale "Hogwarts Grounds".
 func location_for_banner() -> String:
 	var controller := _map_controller()
-	if controller != null and String(controller.get("current_map")) == "castle_interior" \
-			and controller.has_method("floor_display"):
-		return String(controller.call("floor_display", "castle_interior", _player.global_position.y))
+	var current := String(controller.get("current_map")) if controller != null else HPProtocol.DEFAULT_MAP
+	if current != HPProtocol.DEFAULT_MAP and controller.has_method("floor_display"):
+		return String(controller.call("floor_display", current, _player.global_position.y))
 	return zone_at(_player.global_position)
 
 func _map_controller() -> Node:
@@ -718,9 +718,8 @@ func _map_controller() -> Node:
 ## The hunting region (spawn_tables.json regions with a level band) the player
 ## stands in, or {} indoors / between hunting grounds.
 func hunting_region() -> Dictionary:
-	var controller := _map_controller()
-	if controller != null and String(controller.get("current_map")) != HPProtocol.DEFAULT_MAP:
-		return {}
+	# Regions are map-scoped (spawn_tables `map`): the caverns' floors answer
+	# down there; nothing answers in the castle or a dungeon copy.
 	return HPRules.hunting_region_at(_player.global_position)
 
 ## "Lv 6-12" for a band, coloured against the player's level: grey = far below

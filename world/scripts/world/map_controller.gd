@@ -623,12 +623,34 @@ func _load_instance(map_id: String) -> bool:
 		_instance_node.call("setup", map_id, false)
 	world.add_child(_instance_node)
 	_apply_interior_ambience(true, map_id)
+	# A map whose creatures live in the world's own containers (the caverns'
+	# packs are encounter-director packs like the grounds'): show them again.
+	# Grounds creatures stay invisible - mob_base hides bodies far from the
+	# camera, and every other map is a y band well over a kilometre away.
+	if HPMaps.map_info(HPMaps.base_map(map_id)).get("collision") is Dictionary:
+		for node_name in CREATURE_NODES:
+			var node := world.get_node_or_null(node_name)
+			if node is Node3D:
+				(node as Node3D).visible = true
+				_hidden.erase(node_name)
+				_creatures_shown = true
 	# The run may already be under way (a member joining late).
 	if _dungeon_states.has(map_id):
 		_apply_dungeon_state(map_id, _dungeon_states[map_id])
 	return true
 
+## The creature containers a creature map shows (see _load_instance).
+const CREATURE_NODES := ["Mobs", "Monoliths"]
+var _creatures_shown := false
+
 func _free_instance() -> void:
+	if _creatures_shown:
+		_creatures_shown = false
+		for node_name in CREATURE_NODES:
+			var node := world.get_node_or_null(node_name)
+			if node is Node3D and (node as Node3D).visible:
+				(node as Node3D).visible = false
+				_hidden[node_name] = true
 	if _instance_node != null and is_instance_valid(_instance_node):
 		_instance_node.get_parent().remove_child(_instance_node)
 		_instance_node.queue_free()

@@ -39,6 +39,120 @@
       },
       "loot_table": "spider"
     },
+    "acromantula_venomfang": {
+      "display": "Venomfang Acromantula",
+      "family": "beast",
+      "role": "skirmisher",
+      "scene": "res://scenes/entities/mobs/mob_acromantula_venomfang.tscn",
+      "base": {
+        "max_hp": 750,
+        "attack_power": 52,
+        "move_speed": 8.5,
+        "attack_range": 3.0,
+        "attack_cooldown": 1.3
+      },
+      "exp_mult": 1.4,
+      "resist": {
+        "fire": -0.25,
+        "patronus": 0.5
+      },
+      "loot_table": "cavern_spider",
+      "abilities": [
+        {
+          "id": "venom_bite",
+          "kind": "area",
+          "clip": "Bite",
+          "anticipation": 0.75,
+          "recovery": 0.7,
+          "radius": 2.4,
+          "offset": 1.6,
+          "damage_multiplier": 1.3,
+          "every": 3,
+          "poison": {
+            "ratio": 0.16,
+            "ticks": 6,
+            "interval_ms": 1000
+          },
+          "impact_fx": "expelliarmus",
+          "spell_id": "venom_bite"
+        },
+        {
+          "id": "venom_spit",
+          "kind": "area",
+          "at_target": true,
+          "clip": "Spit",
+          "anticipation": 0.9,
+          "recovery": 0.6,
+          "radius": 2.6,
+          "damage_multiplier": 0.8,
+          "min_range": 5.0,
+          "max_range": 16.0,
+          "cooldown": 7.0,
+          "poison": {
+            "ratio": 0.16,
+            "ticks": 6,
+            "interval_ms": 1000
+          },
+          "impact_fx": "expelliarmus",
+          "spell_id": "venom_spit"
+        }
+      ]
+    },
+    "acromantula_broodguard": {
+      "display": "Broodguard",
+      "family": "beast",
+      "role": "brute",
+      "scene": "res://scenes/entities/mobs/mob_acromantula_broodguard.tscn",
+      "base": {
+        "max_hp": 1400,
+        "attack_power": 66,
+        "move_speed": 6.5,
+        "attack_range": 3.6,
+        "attack_cooldown": 1.9
+      },
+      "exp_mult": 2.0,
+      "resist": {
+        "fire": -0.25,
+        "force": 0.2,
+        "stun": 0.4,
+        "patronus": 0.5
+      },
+      "loot_table": "cavern_spider",
+      "front_guard": 0.4,
+      "abilities": [
+        {
+          "id": "brood_leap",
+          "kind": "area",
+          "clip": "Leap",
+          "anticipation": 1.1,
+          "recovery": 0.9,
+          "radius": 3.4,
+          "offset": 2.2,
+          "damage_multiplier": 1.7,
+          "every": 4,
+          "push": 4.0,
+          "lift": 2.5,
+          "impact_fx": "bombarda",
+          "spell_id": "brood_leap"
+        },
+        {
+          "id": "web_shot",
+          "kind": "area",
+          "at_target": true,
+          "clip": "Spit",
+          "anticipation": 1.0,
+          "recovery": 0.7,
+          "radius": 3.0,
+          "damage_multiplier": 0.6,
+          "min_range": 6.0,
+          "max_range": 18.0,
+          "cooldown": 10.0,
+          "web_s": 3.5,
+          "impact_fx": "expelliarmus",
+          "spell_id": "web_shot"
+        }
+      ]
+    },
     "darksnatcher": {
       "display": "Dark Snatcher",
       "family": "dark_wizard",
@@ -408,6 +522,6 @@
     ]
   },
   "_exp_note": "exp_mult scales the level-based pack experience for creatures that are slower to kill than their level suggests (trolls, dementors).",
-  "_abilities_note": "abilities: telegraphed patterns an ordinary creature mixes in (`every` N attacks) or throws at a target out of reach (`min_range`/`max_range` + `cooldown`). at_target centres the area on the target; despair_s stops the victim's regeneration; drain heals the attacker by that share of the damage. aura: while fighting, players within `radius` take attack_power x damage_ratio per regeneration beat and despair. push/lift: shove each victim (m/s away from the attacker, and up) - the pixie's lift.",
+  "_abilities_note": "abilities: telegraphed patterns an ordinary creature mixes in (`every` N attacks) or throws at a target out of reach (`min_range`/`max_range` + `cooldown`). at_target centres the area on the target; despair_s stops the victim's regeneration; drain heals the attacker by that share of the damage. aura: while fighting, players within `radius` take attack_power x damage_ratio per regeneration beat and despair. push/lift: shove each victim (m/s away from the attacker, and up) - the pixie's lift. poison {ratio, ticks, interval_ms}: venom on every victim, attack_power x ratio per beat on the burn clock (authority apply_poison). web_s: the victim moves at half speed on foot for that long (apply_web, player.gd WEBBED_FACTOR).",
   "_parts_note": "D1 multi-part creatures: `parts` names the bones a body grows targetable parts on (their species and hit points come from the part's own entry and boss_overrides part_hp). The body is immune while any part stands. `front_guard`: share of a blow from in front (~60 degrees) that a shield-bearer ignores."
 }

@@ -910,6 +910,46 @@
       ],
       "level_min": 50,
       "level_max": 50
+    },
+    {
+      "id": "caverns_f1",
+      "map": "spider_caverns",
+      "display": "Webbed Galleries",
+      "level_min": 24,
+      "level_max": 28,
+      "center": [
+        -15.0,
+        -115.0
+      ],
+      "radius": 148.6,
+      "weight": 0.0,
+      "pack_count": 20,
+      "spawn_area": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": "caverns_f2",
+      "map": "spider_caverns",
+      "display": "Egg Caverns",
+      "level_min": 28,
+      "level_max": 32,
+      "center": [
+        15.0,
+        115.0
+      ],
+      "radius": 205.2,
+      "weight": 0.0,
+      "pack_count": 23,
+      "spawn_area": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
     }
   ],
   "_encounters_note": "The authored encounter list. Only the first `pack_count` encounters assigned to each region are active; the rest are authored content that waits for a pack-count change (and are reported by the director, never silently ignored). `zones` (id + weight) makes the region choice weighted; without it the fixed `zone` field is used.",
@@ -21622,6 +21662,1081 @@
       "aggro_mode": "reactive",
       "assist_radius": 16.0,
       "leash_distance": 30.0
+    },
+    {
+      "id": 1136,
+      "encounter_id": "enc_caverns_f1_maw_acromantula_venomfang_1136",
+      "template": "pack_five",
+      "zone": "caverns_f1",
+      "area": [
+        -103.3,
+        -184.5,
+        8.0,
+        8.0
+      ],
+      "y": 1549.06,
+      "mob": "acromantula_venomfang",
+      "level": 26,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1137,
+      "encounter_id": "enc_caverns_f1_maw_acromantula_1137",
+      "template": "pack_five",
+      "zone": "caverns_f1",
+      "area": [
+        -123.4,
+        -178.0,
+        8.0,
+        8.0
+      ],
+      "y": 1548.97,
+      "mob": "acromantula",
+      "level": 24,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1138,
+      "encounter_id": "enc_caverns_f1_maw_acromantula_venomfang_1138",
+      "template": "pack_five",
+      "zone": "caverns_f1",
+      "area": [
+        -118.0,
+        -157.7,
+        8.0,
+        8.0
+      ],
+      "y": 1549.01,
+      "mob": "acromantula_venomfang",
+      "level": 26,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1139,
+      "encounter_id": "enc_caverns_f1_gallery_acromantula_venomfang_1139",
+      "template": "pack_five",
+      "zone": "caverns_f1",
+      "area": [
+        -33.8,
+        -174.5,
+        8.0,
+        8.0
+      ],
+      "y": 1547.97,
+      "mob": "acromantula_venomfang",
+      "level": 28,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1140,
+      "encounter_id": "enc_caverns_f1_gallery_acromantula_venomfang_1140",
+      "template": "pack_five",
+      "zone": "caverns_f1",
+      "area": [
+        12.7,
+        -146.9,
+        8.0,
+        8.0
+      ],
+      "y": 1548.01,
+      "mob": "acromantula_venomfang",
+      "level": 27,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1141,
+      "encounter_id": "enc_caverns_f1_gallery_acromantula_venomfang_1141",
+      "template": "pack_five",
+      "zone": "caverns_f1",
+      "area": [
+        -19.7,
+        -166.8,
+        8.0,
+        8.0
+      ],
+      "y": 1548.08,
+      "mob": "acromantula_venomfang",
+      "level": 26,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1142,
+      "encounter_id": "enc_caverns_f1_gallery_acromantula_venomfang_1142",
+      "template": "pack_five",
+      "zone": "caverns_f1",
+      "area": [
+        -47.1,
+        -162.5,
+        8.0,
+        8.0
+      ],
+      "y": 1547.91,
+      "mob": "acromantula_venomfang",
+      "level": 26,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1143,
+      "encounter_id": "enc_caverns_f1_gallery_acromantula_venomfang_1143",
+      "template": "pack_five",
+      "zone": "caverns_f1",
+      "area": [
+        9.5,
+        -182.0,
+        8.0,
+        8.0
+      ],
+      "y": 1548.0,
+      "mob": "acromantula_venomfang",
+      "level": 28,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1144,
+      "encounter_id": "enc_caverns_f1_bones_acromantula_venomfang_1144",
+      "template": "pack_five",
+      "zone": "caverns_f1",
+      "area": [
+        -109.7,
+        -74.0,
+        8.0,
+        8.0
+      ],
+      "y": 1548.43,
+      "mob": "acromantula_venomfang",
+      "level": 28,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1145,
+      "encounter_id": "enc_caverns_f1_bones_acromantula_venomfang_1145",
+      "template": "pack_five",
+      "zone": "caverns_f1",
+      "area": [
+        -130.1,
+        -91.0,
+        8.0,
+        8.0
+      ],
+      "y": 1548.58,
+      "mob": "acromantula_venomfang",
+      "level": 28,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1146,
+      "encounter_id": "enc_caverns_f1_bones_acromantula_venomfang_1146",
+      "template": "pack_five",
+      "zone": "caverns_f1",
+      "area": [
+        -126.8,
+        -55.6,
+        8.0,
+        8.0
+      ],
+      "y": 1548.5,
+      "mob": "acromantula_venomfang",
+      "level": 28,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1147,
+      "encounter_id": "enc_caverns_f1_cocoons_acromantula_1147",
+      "template": "pack_five",
+      "zone": "caverns_f1",
+      "area": [
+        87.6,
+        -180.8,
+        8.0,
+        8.0
+      ],
+      "y": 1546.94,
+      "mob": "acromantula",
+      "level": 24,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1148,
+      "encounter_id": "enc_caverns_f1_cocoons_acromantula_1148",
+      "template": "pack_five",
+      "zone": "caverns_f1",
+      "area": [
+        91.2,
+        -154.8,
+        8.0,
+        8.0
+      ],
+      "y": 1547.0,
+      "mob": "acromantula",
+      "level": 24,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1149,
+      "encounter_id": "enc_caverns_f1_cocoons_acromantula_1149",
+      "template": "pack_five",
+      "zone": "caverns_f1",
+      "area": [
+        58.2,
+        -170.6,
+        8.0,
+        8.0
+      ],
+      "y": 1547.03,
+      "mob": "acromantula",
+      "level": 25,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1150,
+      "encounter_id": "enc_caverns_f1_hollow_acromantula_1150",
+      "template": "pack_five",
+      "zone": "caverns_f1",
+      "area": [
+        29.6,
+        -82.9,
+        8.0,
+        8.0
+      ],
+      "y": 1546.04,
+      "mob": "acromantula",
+      "level": 26,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1151,
+      "encounter_id": "enc_caverns_f1_hollow_acromantula_1151",
+      "template": "pack_five",
+      "zone": "caverns_f1",
+      "area": [
+        69.4,
+        -95.3,
+        8.0,
+        8.0
+      ],
+      "y": 1545.98,
+      "mob": "acromantula",
+      "level": 24,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1152,
+      "encounter_id": "enc_caverns_f1_hollow_acromantula_venomfang_1152",
+      "template": "pack_five",
+      "zone": "caverns_f1",
+      "area": [
+        63.5,
+        -62.0,
+        8.0,
+        8.0
+      ],
+      "y": 1546.0,
+      "mob": "acromantula_venomfang",
+      "level": 27,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1153,
+      "encounter_id": "enc_caverns_f1_hollow_acromantula_venomfang_1153",
+      "template": "pack_five",
+      "zone": "caverns_f1",
+      "area": [
+        51.1,
+        -74.9,
+        8.0,
+        8.0
+      ],
+      "y": 1546.01,
+      "mob": "acromantula_venomfang",
+      "level": 26,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1154,
+      "encounter_id": "enc_caverns_f1_ledge_acromantula_1154",
+      "template": "pack_five",
+      "zone": "caverns_f1",
+      "area": [
+        -29.7,
+        -54.6,
+        8.0,
+        8.0
+      ],
+      "y": 1546.83,
+      "mob": "acromantula",
+      "level": 25,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1155,
+      "encounter_id": "enc_caverns_f1_ledge_acromantula_1155",
+      "template": "pack_five",
+      "zone": "caverns_f1",
+      "area": [
+        -32.0,
+        -79.5,
+        8.0,
+        8.0
+      ],
+      "y": 1547.01,
+      "mob": "acromantula",
+      "level": 26,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1156,
+      "encounter_id": "enc_caverns_f2_landing_acromantula_venomfang_1156",
+      "template": "pack_five",
+      "zone": "caverns_f2",
+      "area": [
+        71.9,
+        39.2,
+        8.0,
+        8.0
+      ],
+      "y": 1526.14,
+      "mob": "acromantula_venomfang",
+      "level": 28,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1157,
+      "encounter_id": "enc_caverns_f2_landing_acromantula_broodguard_1157",
+      "template": "pack_three",
+      "zone": "caverns_f2",
+      "area": [
+        52.0,
+        32.3,
+        8.0,
+        8.0
+      ],
+      "y": 1526.1,
+      "mob": "acromantula_broodguard",
+      "level": 30,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1158,
+      "encounter_id": "enc_caverns_f2_landing_acromantula_broodguard_1158",
+      "template": "pack_three",
+      "zone": "caverns_f2",
+      "area": [
+        58.2,
+        15.5,
+        8.0,
+        8.0
+      ],
+      "y": 1526.1,
+      "mob": "acromantula_broodguard",
+      "level": 29,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1159,
+      "encounter_id": "enc_caverns_f2_nursery_acromantula_venomfang_1159",
+      "template": "pack_five",
+      "zone": "caverns_f2",
+      "area": [
+        -36.6,
+        35.7,
+        8.0,
+        8.0
+      ],
+      "y": 1525.09,
+      "mob": "acromantula_venomfang",
+      "level": 28,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1160,
+      "encounter_id": "enc_caverns_f2_nursery_acromantula_venomfang_1160",
+      "template": "pack_five",
+      "zone": "caverns_f2",
+      "area": [
+        -46.2,
+        64.5,
+        8.0,
+        8.0
+      ],
+      "y": 1525.1,
+      "mob": "acromantula_venomfang",
+      "level": 30,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1161,
+      "encounter_id": "enc_caverns_f2_nursery_acromantula_venomfang_1161",
+      "template": "pack_five",
+      "zone": "caverns_f2",
+      "area": [
+        -26.1,
+        57.0,
+        8.0,
+        8.0
+      ],
+      "y": 1524.97,
+      "mob": "acromantula_venomfang",
+      "level": 30,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1162,
+      "encounter_id": "enc_caverns_f2_nursery_acromantula_broodguard_1162",
+      "template": "pack_three",
+      "zone": "caverns_f2",
+      "area": [
+        -80.0,
+        32.7,
+        8.0,
+        8.0
+      ],
+      "y": 1525.05,
+      "mob": "acromantula_broodguard",
+      "level": 29,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1163,
+      "encounter_id": "enc_caverns_f2_nursery_acromantula_venomfang_1163",
+      "template": "pack_five",
+      "zone": "caverns_f2",
+      "area": [
+        -59.4,
+        69.1,
+        8.0,
+        8.0
+      ],
+      "y": 1524.98,
+      "mob": "acromantula_venomfang",
+      "level": 28,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1164,
+      "encounter_id": "enc_caverns_f2_nursery_acromantula_broodguard_1164",
+      "template": "pack_three",
+      "zone": "caverns_f2",
+      "area": [
+        -61.1,
+        43.9,
+        8.0,
+        8.0
+      ],
+      "y": 1525.03,
+      "mob": "acromantula_broodguard",
+      "level": 29,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1165,
+      "encounter_id": "enc_caverns_f2_pools_acromantula_broodguard_1165",
+      "template": "pack_three",
+      "zone": "caverns_f2",
+      "area": [
+        126.3,
+        96.9,
+        8.0,
+        8.0
+      ],
+      "y": 1524.02,
+      "mob": "acromantula_broodguard",
+      "level": 32,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1166,
+      "encounter_id": "enc_caverns_f2_pools_acromantula_broodguard_1166",
+      "template": "pack_three",
+      "zone": "caverns_f2",
+      "area": [
+        161.7,
+        113.8,
+        8.0,
+        8.0
+      ],
+      "y": 1524.01,
+      "mob": "acromantula_broodguard",
+      "level": 30,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1167,
+      "encounter_id": "enc_caverns_f2_pools_acromantula_venomfang_1167",
+      "template": "pack_five",
+      "zone": "caverns_f2",
+      "area": [
+        167.6,
+        89.4,
+        8.0,
+        8.0
+      ],
+      "y": 1523.94,
+      "mob": "acromantula_venomfang",
+      "level": 28,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1168,
+      "encounter_id": "enc_caverns_f2_pools_acromantula_venomfang_1168",
+      "template": "pack_five",
+      "zone": "caverns_f2",
+      "area": [
+        121.8,
+        72.9,
+        8.0,
+        8.0
+      ],
+      "y": 1524.05,
+      "mob": "acromantula_venomfang",
+      "level": 29,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1169,
+      "encounter_id": "enc_caverns_f2_deep_acromantula_venomfang_1169",
+      "template": "pack_five",
+      "zone": "caverns_f2",
+      "area": [
+        51.1,
+        163.1,
+        8.0,
+        8.0
+      ],
+      "y": 1522.8,
+      "mob": "acromantula_venomfang",
+      "level": 30,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1170,
+      "encounter_id": "enc_caverns_f2_deep_acromantula_broodguard_1170",
+      "template": "pack_three",
+      "zone": "caverns_f2",
+      "area": [
+        58.8,
+        144.0,
+        8.0,
+        8.0
+      ],
+      "y": 1523.02,
+      "mob": "acromantula_broodguard",
+      "level": 31,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1171,
+      "encounter_id": "enc_caverns_f2_deep_acromantula_broodguard_1171",
+      "template": "pack_three",
+      "zone": "caverns_f2",
+      "area": [
+        17.4,
+        116.4,
+        8.0,
+        8.0
+      ],
+      "y": 1523.0,
+      "mob": "acromantula_broodguard",
+      "level": 30,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1172,
+      "encounter_id": "enc_caverns_f2_deep_acromantula_broodguard_1172",
+      "template": "pack_three",
+      "zone": "caverns_f2",
+      "area": [
+        5.0,
+        134.7,
+        8.0,
+        8.0
+      ],
+      "y": 1522.97,
+      "mob": "acromantula_broodguard",
+      "level": 30,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1173,
+      "encounter_id": "enc_caverns_f2_deep_acromantula_venomfang_1173",
+      "template": "pack_five",
+      "zone": "caverns_f2",
+      "area": [
+        15.5,
+        149.0,
+        8.0,
+        8.0
+      ],
+      "y": 1523.09,
+      "mob": "acromantula_venomfang",
+      "level": 29,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1174,
+      "encounter_id": "enc_caverns_f2_ossuary_acromantula_venomfang_1174",
+      "template": "pack_five",
+      "zone": "caverns_f2",
+      "area": [
+        -151.4,
+        164.0,
+        8.0,
+        8.0
+      ],
+      "y": 1525.04,
+      "mob": "acromantula_venomfang",
+      "level": 29,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1175,
+      "encounter_id": "enc_caverns_f2_ossuary_acromantula_venomfang_1175",
+      "template": "pack_five",
+      "zone": "caverns_f2",
+      "area": [
+        -136.4,
+        133.7,
+        8.0,
+        8.0
+      ],
+      "y": 1525.01,
+      "mob": "acromantula_venomfang",
+      "level": 30,
+      "count": 5,
+      "max_alive": 5,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1176,
+      "encounter_id": "enc_caverns_f2_ossuary_acromantula_broodguard_1176",
+      "template": "pack_three",
+      "zone": "caverns_f2",
+      "area": [
+        -155.0,
+        137.9,
+        8.0,
+        8.0
+      ],
+      "y": 1524.97,
+      "mob": "acromantula_broodguard",
+      "level": 31,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1177,
+      "encounter_id": "enc_caverns_f2_seal_acromantula_broodguard_1177",
+      "template": "pack_three",
+      "zone": "caverns_f2",
+      "area": [
+        186.3,
+        196.6,
+        8.0,
+        8.0
+      ],
+      "y": 1522.04,
+      "mob": "acromantula_broodguard",
+      "level": 30,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
+    },
+    {
+      "id": 1178,
+      "encounter_id": "enc_caverns_f2_seal_acromantula_broodguard_1178",
+      "template": "pack_three",
+      "zone": "caverns_f2",
+      "area": [
+        158.9,
+        188.5,
+        8.0,
+        8.0
+      ],
+      "y": 1522.04,
+      "mob": "acromantula_broodguard",
+      "level": 29,
+      "count": 3,
+      "max_alive": 3,
+      "aggro_mode": "aggressive",
+      "assist_radius": 14.0,
+      "leash_distance": 24.0,
+      "respawn_s": [
+        12,
+        18
+      ],
+      "clear_radius": 5.0
     }
   ],
   "_exclusions_note": "Authored keep-outs on the new grounds. Lake water needs no entry: the encounter director rejects any point over water (GroundsLake.is_water_at) and steep ground.",
@@ -21902,7 +23017,9 @@
   "mob_scenes": {
     "inferi": "res://scenes/entities/mobs/mob_inferi.tscn",
     "acromantula": "res://scenes/entities/mobs/mob_acromantula.tscn",
-    "darksnatcher": "res://scenes/entities/mobs/mob_darksnatcher.tscn"
+    "darksnatcher": "res://scenes/entities/mobs/mob_darksnatcher.tscn",
+    "acromantula_venomfang": "res://scenes/entities/mobs/mob_acromantula_venomfang.tscn",
+    "acromantula_broodguard": "res://scenes/entities/mobs/mob_acromantula_broodguard.tscn"
   },
   "_density_note": "Metin2-style density v2 (2026-10-17): packs on a ~40 m jittered grid over the whole grounds (terrain-filtered: no lake, cliffs or safe zones); each belongs to its nearest hunting region. Generated by a one-off script, edit freely."
 }
