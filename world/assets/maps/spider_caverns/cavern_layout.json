@@ -1,0 +1,195 @@
+{
+ "_comment": "Generated from art/spider_caverns/layout.json + out/stats.json (cavern_heightfield.py). Room names/heights for labels and the map page.",
+ "meta": {
+  "size_m": 512,
+  "cells": 512,
+  "base_y": 1550.0,
+  "wall_height": 34.0,
+  "wall_ramp_m": 7.0,
+  "seed": 2410
+ },
+ "rooms": [
+  {
+   "id": "camp",
+   "name": "Kara Ağ Kampı",
+   "floor": 0,
+   "c": [
+    -170,
+    -175
+   ],
+   "r": 26,
+   "h": 0.0,
+   "kind": "camp",
+   "y": 1550.06
+  },
+  {
+   "id": "stair_foot",
+   "name": "Mahzen Merdiveni",
+   "floor": 0,
+   "c": [
+    -205,
+    -205
+   ],
+   "r": 12,
+   "h": 0.0,
+   "kind": "stair",
+   "y": 1549.92
+  },
+  {
+   "id": "f1_maw",
+   "name": "Ağ Ağzı",
+   "floor": 1,
+   "c": [
+    -95,
+    -170
+   ],
+   "r": 30,
+   "h": -1.0,
+   "kind": "web",
+   "y": 1548.78
+  },
+  {
+   "id": "f1_gallery",
+   "name": "Ağlı Galeri",
+   "floor": 1,
+   "c": [
+    -10,
+    -150
+   ],
+   "r": 40,
+   "h": -2.0,
+   "kind": "web",
+   "y": 1547.91
+  },
+  {
+   "id": "f1_bones",
+   "name": "Kemik Odası",
+   "floor": 1,
+   "c": [
+    -115,
+    -75
+   ],
+   "r": 30,
+   "h": -1.5,
+   "kind": "bone",
+   "y": 1548.52
+  },
+  {
+   "id": "f1_cocoons",
+   "name": "Koza Salonu",
+   "floor": 1,
+   "c": [
+    85,
+    -175
+   ],
+   "r": 32,
+   "h": -3.0,
+   "kind": "web",
+   "y": 1547.17
+  },
+  {
+   "id": "f1_hollow",
+   "name": "Çukur Galeri",
+   "floor": 1,
+   "c": [
+    55,
+    -85
+   ],
+   "r": 36,
+   "h": -4.0,
+   "kind": "web",
+   "y": 1546.02
+  },
+  {
+   "id": "f1_ledge",
+   "name": "Uçurum Kenarı",
+   "floor": 1,
+   "c": [
+    -30,
+    -55
+   ],
+   "r": 26,
+   "h": -3.0,
+   "kind": "bone",
+   "y": 1546.96
+  },
+  {
+   "id": "f2_landing",
+   "name": "Yumurta Eşiği",
+   "floor": 2,
+   "c": [
+    60,
+    30
+   ],
+   "r": 30,
+   "h": -24.0,
+   "kind": "egg",
+   "y": 1526.01
+  },
+  {
+   "id": "f2_nursery",
+   "name": "Kuluçka Mağarası",
+   "floor": 2,
+   "c": [
+    -50,
+    60
+   ],
+   "r": 42,
+   "h": -25.0,
+   "kind": "egg",
+   "y": 1525.0
+  },
+  {
+   "id": "f2_pools",
+   "name": "Zehir Gölleri",
+   "floor": 2,
+   "c": [
+    150,
+    95
+   ],
+   "r": 36,
+   "h": -26.0,
+   "kind": "slime",
+   "y": 1524.02
+  },
+  {
+   "id": "f2_deep",
+   "name": "Derin Kuluçka",
+   "floor": 2,
+   "c": [
+    40,
+    150
+   ],
+   "r": 40,
+   "h": -27.0,
+   "kind": "egg",
+   "y": 1522.96
+  },
+  {
+   "id": "f2_ossuary",
+   "name": "Kemiklik",
+   "floor": 2,
+   "c": [
+    -145,
+    150
+   ],
+   "r": 32,
+   "h": -25.0,
+   "kind": "bone",
+   "y": 1524.9
+  },
+  {
+   "id": "f2_seal",
+   "name": "Mühürlü Kapı",
+   "floor": 2,
+   "c": [
+    175,
+    200
+   ],
+   "r": 24,
+   "h": -28.0,
+   "kind": "slime",
+   "y": 1522.01
+  }
+ ]
+}

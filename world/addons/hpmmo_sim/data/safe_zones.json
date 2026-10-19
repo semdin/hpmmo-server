@@ -37,6 +37,18 @@
       "radius": 30.0,
       "y_min": -30.0,
       "y_max": 184.0
+    },
+    {
+      "id": "caverns_camp",
+      "shape": "cylinder",
+      "center": [
+        -175.0,
+        0.0,
+        -180.0
+      ],
+      "radius": 30.0,
+      "y_min": 1500.0,
+      "y_max": 1650.0
     }
   ]
 }

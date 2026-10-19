@@ -35,6 +35,7 @@ extends Node
 ## fallback when the catalog cannot answer.
 
 const CastleAtmosphere = preload("res://scripts/world/castle/castle_atmosphere.gd")
+const CavernAtmosphere = preload("res://scripts/world/caverns/cavern_atmosphere.gd")
 const INTERIOR_PATH := "res://scenes/world/castle_interior.tscn"
 const STAIRCASE_PATH := "res://scenes/world/castle/staircase.tscn"
 const MAPS_PATH := "res://addons/hpmmo_sim/maps.gd"
@@ -208,9 +209,20 @@ func _map_available(map_id: String) -> bool:
 			return true
 		MAP_INTERIOR:
 			return ResourceLoader.exists(INTERIOR_PATH)
-	if HPMaps.instance_slot(map_id) > 0:
+	if _scene_map(map_id):
 		return ResourceLoader.exists(HPMaps.map_scene(map_id))
 	return false
+
+## A map that is one scene placed in the world: a dungeon copy (`<base>#k`) or
+## a shared heightfield map with its own scene (maps.json `scene`, not
+## instanced - the Blackweb Caverns). The grounds and the castle have their
+## own loaders.
+func _scene_map(map_id: String) -> bool:
+	if HPMaps.instance_slot(map_id) > 0:
+		return true
+	if map_id == MAP_GROUNDS or map_id == MAP_INTERIOR or HPMaps.is_instanced(map_id):
+		return false
+	return HPMaps.map_scene(map_id) != ""
 
 # ------------------------------------------------------------------ process
 
@@ -444,7 +456,7 @@ func _place_player(pos: Vector3) -> void:
 # ------------------------------------------------------------------- maps
 
 func _map_loaded(map_id: String) -> bool:
-	if HPMaps.instance_slot(map_id) > 0:
+	if _scene_map(map_id):
 		return _instance_node != null and is_instance_valid(_instance_node) \
 			and String(_instance_node.get_meta("map_id", "")) == map_id
 	if map_id == MAP_GROUNDS:
@@ -455,7 +467,7 @@ func _unload_map(map_id: String) -> void:
 	if map_id == MAP_INTERIOR:
 		await _free_interior()
 		return
-	if HPMaps.instance_slot(map_id) > 0:
+	if _scene_map(map_id):
 		await _free_instance()
 		return
 	# Grounds: park (hide) the scenery WorldBuilder created and hide the entity
@@ -488,7 +500,7 @@ func _load_map(map_id: String) -> bool:
 		_sun_disabled.clear()
 		_apply_interior_ambience(false)
 		return true
-	if HPMaps.instance_slot(map_id) > 0:
+	if _scene_map(map_id):
 		return await _load_instance(map_id)
 	if map_id != MAP_INTERIOR:
 		return false
@@ -576,19 +588,25 @@ func _dress_portals(map_id: String, parent: Node3D) -> void:
 ## resident map the environment is the castle's (castle/castle_atmosphere.gd:
 ## dim ambient, AO, indirect light, volumetric fog, glow - by quality); the
 ## outdoor values are restored on the way out.
-func _apply_interior_ambience(inside: bool) -> void:
+func _apply_interior_ambience(inside: bool, map_id: String = "") -> void:
 	var env_node := world.get_node_or_null("WorldEnvironment")
 	if env_node == null or not (env_node is WorldEnvironment):
 		return
 	var env: Environment = (env_node as WorldEnvironment).environment
 	if env == null:
 		return
-	if inside:
-		if not env.has_meta("outdoor_ambient"):
-			env.set_meta("outdoor_ambient", CastleAtmosphere.apply(env))
-	elif env.has_meta("outdoor_ambient"):
-		CastleAtmosphere.restore(env, env.get_meta("outdoor_ambient"))
+	if env.has_meta("outdoor_ambient"):
+		var module = env.get_meta("ambient_module", CastleAtmosphere)
+		module.restore(env, env.get_meta("outdoor_ambient"))
 		env.remove_meta("outdoor_ambient")
+		env.remove_meta("ambient_module")
+	if inside:
+		# A map may name its own atmosphere (maps.json `atmosphere`); the castle's
+		# is the default indoor look (dungeon copies are castle rooms).
+		var cave := String(HPMaps.map_info(HPMaps.base_map(map_id)).get("atmosphere", "")) == "cavern"
+		var module = CavernAtmosphere if cave else CastleAtmosphere
+		env.set_meta("outdoor_ambient", module.apply(env))
+		env.set_meta("ambient_module", module)
 
 ## A dungeon copy: the map's scene placed at the copy's origin. In offline and
 ## host play this very node is also the authority's collision for the copy.
@@ -604,7 +622,7 @@ func _load_instance(map_id: String) -> bool:
 	if _instance_node.has_method("setup"):
 		_instance_node.call("setup", map_id, false)
 	world.add_child(_instance_node)
-	_apply_interior_ambience(true)
+	_apply_interior_ambience(true, map_id)
 	# The run may already be under way (a member joining late).
 	if _dungeon_states.has(map_id):
 		_apply_dungeon_state(map_id, _dungeon_states[map_id])
@@ -721,28 +739,29 @@ func _portal_contains(portal: Dictionary, point: Vector3) -> bool:
 
 func _portal_prompt(portal: Dictionary) -> String:
 	var label := String(portal.get("label", "the destination"))
-	if String(portal.get("to_map", "")) == MAP_INTERIOR or HPMaps.is_instanced(String(portal.get("to_map", ""))):
+	var to_map := String(portal.get("to_map", ""))
+	if to_map == MAP_INTERIOR or HPMaps.is_instanced(to_map) or _scene_map(to_map):
 		return "Enter %s" % label
 	return "Travel to the %s" % label
 
 func _loading_text(map_id: String) -> String:
 	if map_id == MAP_INTERIOR:
 		return "Entering Hogwarts Castle..."
-	if HPMaps.instance_slot(map_id) > 0:
+	if _scene_map(map_id):
 		return "Entering %s..." % HPMaps.display_name(map_id)
 	return "Returning to the Grounds..."
 
 func _loading_title(map_id: String) -> String:
 	if map_id == MAP_INTERIOR:
 		return "HOGWARTS CASTLE"
-	if HPMaps.instance_slot(map_id) > 0:
+	if _scene_map(map_id):
 		return HPMaps.display_name(map_id).to_upper()
 	return "HOGWARTS GROUNDS"
 
 func _place_name(map_id: String) -> String:
 	if map_id == MAP_INTERIOR:
 		return "the castle"
-	if HPMaps.instance_slot(map_id) > 0:
+	if _scene_map(map_id):
 		return HPMaps.display_name(map_id)
 	return "the grounds"
 
@@ -762,7 +781,9 @@ func _spawn_point(map_id: String, spawn_id: String) -> Vector3:
 ## interior map is not loaded the level is derived from the same authored
 ## heights.
 func floor_display(map_id: String, y: float) -> String:
-	if HPMaps.instance_slot(map_id) > 0:
+	if _scene_map(map_id):
+		if _instance_node != null and is_instance_valid(_instance_node) and _instance_node.has_method("floor_display"):
+			return String(_instance_node.call("floor_display", y))
 		return HPMaps.display_name(map_id)
 	if map_id != MAP_INTERIOR:
 		return "Hogwarts Grounds"

@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/world/caverns/spider_caverns.gd" id="1_sc"]
+
+[node name="SpiderCaverns" type="Node3D"]
+script = ExtResource("1_sc")

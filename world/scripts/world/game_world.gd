@@ -13,6 +13,7 @@ extends Node3D
 ## The chest window (built in code; opened by clicking a loot chest).
 var loot_window: Control = null
 
+const CavernColliders = preload("res://scripts/world/caverns/cavern_colliders.gd")
 const PLAYER_SCENE = preload("res://scenes/entities/player/player.tscn")
 const MONOLITH_SCENE = preload("res://scenes/entities/monolith/dark_monolith.tscn")
 const INFERI_SCENE = preload("res://scenes/entities/mobs/mob_inferi.tscn")
@@ -51,6 +52,9 @@ func _ready() -> void:
 	if not NetworkManager.is_dedicated_server:
 		_request_mob_scenes()
 	GroundsBuilder.build(self)
+	# Heightfield maps with creatures (the Blackweb Caverns) keep their ground
+	# resident in every process: packs live there whether or not it is loaded.
+	CavernColliders.ensure(self)
 	SimAuthority.attach_world(self)
 	var authority := SimAuthority.is_authority()
 	if not NetworkManager.is_dedicated_server:

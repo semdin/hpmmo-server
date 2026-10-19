@@ -44,6 +44,11 @@ func ensure_map_built(map_id: String) -> bool:
 		return true
 	if HPMaps.instance_slot(map_id) > 0:
 		return _ensure_instance_built(map_id)
+	# A shared heightfield map (the Blackweb Caverns): its ground is the
+	# resident collider every process builds at world start
+	# (scripts/world/caverns/cavern_colliders.gd); its scene is presentation.
+	if HPMaps.map_info(map_id).get("collision") is Dictionary:
+		return world.has_node("MapCollider_" + map_id)
 	if map_id != MAP_INTERIOR:
 		return false
 	if _built.has(map_id) and is_instance_valid(_built[map_id]):
