@@ -7,7 +7,13 @@ extends StaticBody3D
 signal monolith_damaged(current_hp: int, max_hp: int)
 signal monolith_destroyed
 
+## spawn_tables.json monolith_types key: "dark" (the grounds' Dark Monolith)
+## or "spider" (the Webbound Seal Stone of the Blackweb Caverns). The type
+## decides name, level, health, reward, waves, loot and respawn.
+@export var monolith_type := "dark"
+@export var glow := Color(0.35, 1.0, 0.45)
 @export var max_hp: int = 3000
+var _cfg: Dictionary = {}
 var current_hp: int = 3000
 var _respawn_timer: Timer = null
 var _base_albedo := Color(0.15, 0.05, 0.2)
@@ -22,7 +28,6 @@ var is_destroyed: bool = false
 ## the breathing glow is the green light, not emission (an emission map lit
 ## the whole stone).
 @onready var mesh: MeshInstance3D = $Model.find_children("*", "MeshInstance3D", true, false)[0]
-const GLOW := Color(0.35, 1.0, 0.45)
 @onready var hp_label: Label3D = $HpLabel3D
 @onready var aura_particles: CPUParticles3D = $AuraParticles
 @onready var dark_light: OmniLight3D = $OmniLight3D
@@ -35,6 +40,8 @@ const LOOT_SCENE = preload("res://scenes/entities/loot/loot_drop.tscn")
 func _ready() -> void:
 	add_to_group("monoliths")
 	add_to_group("targetable")
+	_cfg = HPRules.monolith_type(monolith_type)
+	max_hp = int(_cfg.get("max_hp", max_hp))
 	current_hp = max_hp
 	if mesh.get_active_material(0):
 		mesh.material_override = mesh.get_active_material(0).duplicate()
@@ -52,13 +59,17 @@ func _ready() -> void:
 		# Registered as a killable entity with its own reward, so the shatterer's
 		# EXP is paid exactly once through the normal reward path.
 		SimAuthority.register(HPProtocol.Kind.MONOLITH, self, {
-			"hp": current_hp, "max_hp": max_hp, "exp_reward": 850, "name": "Dark Monolith",
+			"hp": current_hp, "max_hp": max_hp, "exp_reward": int(_cfg.get("exp_reward", 850)),
+			"name": display_name(), "level": int(_cfg.get("level", 35)),
+			"loot_table": String(_cfg.get("loot_table", "monolith")),
+			# The body clients draw (HPProtocol.MOB_SCENES; 0 = the Dark Monolith).
+			"variant": HPProtocol.MOB_VARIANT_SPIDER_STONE if scene_file_path == HPProtocol.mob_scene(HPProtocol.MOB_VARIANT_SPIDER_STONE) else 0,
 		})
 
 func _update_label() -> void:
 	if hp_label:
 		var pct := int((float(current_hp) / float(max_hp)) * 100.0)
-		hp_label.text = "Dark Monolith (Lv.35)\n%d / %d (%d%%)" % [current_hp, max_hp, pct]
+		hp_label.text = "%s (Lv.%d)\n%d / %d (%d%%)" % [display_name(), int(_cfg.get("level", 35)), current_hp, max_hp, pct]
 		if pct > 50:
 			hp_label.modulate = Color(0.45, 1.0, 0.55)
 		elif pct > 25:
@@ -116,14 +127,14 @@ func _flash_red() -> void:
 
 func _spawn_wave(wave_num: int, target_player: Node3D) -> void:
 	# Zone notification
-	NetworkManager.system_chat("Dark Monolith: a wave of dark creatures emerges from the ground! (Wave %d/3)" % wave_num)
+	NetworkManager.system_chat("%s: a wave of creatures answers its call! (Wave %d/3)" % [display_name(), wave_num])
 	
 	# Visual burst
 	_burst = 6.0
 	
 	# Wave composition, spawn scatter and mob levels are server-owned data; the
 	# authority's seeded RNG decides them so every client sees the same wave.
-	var config: Dictionary = HPRules.spawn_tables().get("monolith_config", {})
+	var config: Dictionary = _cfg
 	var thresholds: Array = config.get("wave_thresholds", [])
 	var scenes: Dictionary = HPRules.spawn_tables().get("mob_scenes", {})
 	var wave_entry: Dictionary = {}
@@ -143,7 +154,7 @@ func _spawn_wave(wave_num: int, target_player: Node3D) -> void:
 			var angle := rng.randf() * TAU
 			var dist := rng.randf_range(dist_min, dist_max)
 			var spawn_pos := global_position + Vector3(cos(angle) * dist, 0.5, sin(angle) * dist)
-			var ground := GroundsTerrain.height_at(spawn_pos.x, spawn_pos.z)
+			var ground := _ground_y(spawn_pos)
 			if not is_nan(ground):
 				spawn_pos.y = ground + 0.3
 			mob.position = get_parent().to_local(spawn_pos)
@@ -167,7 +178,7 @@ func _destroy_monolith(shatterer: Node3D) -> void:
 		shatterer_name = shatterer.player_name
 	# EXP and the loot shower are granted by the authority (one reward per kill);
 	# this node only reports the event to the players nearby.
-	NetworkManager.system_chat("The Dark Monolith has been shattered by %s! Riches shower the realm!" % shatterer_name)
+	NetworkManager.system_chat("The %s has been shattered by %s! Riches shower the realm!" % [display_name(), shatterer_name])
 
 	# Disappear & schedule respawn through a child timer: it is freed with this
 	# node, so a scene change can never resume a coroutine on a freed instance.
@@ -177,7 +188,7 @@ func _destroy_monolith(shatterer: Node3D) -> void:
 		_respawn_timer.queue_free()
 	_respawn_timer = Timer.new()
 	_respawn_timer.one_shot = true
-	_respawn_timer.wait_time = 30.0
+	_respawn_timer.wait_time = float(_cfg.get("respawn_ms", 30000)) / 1000.0
 	_respawn_timer.timeout.connect(_respawn)
 	add_child(_respawn_timer)
 	_respawn_timer.start()
@@ -200,7 +211,20 @@ func _respawn() -> void:
 	# consider this monolith dead and refuse damage on the next wave.
 	if SimAuthority.is_authority():
 		SimAuthority.refresh_mob(self)
-	NetworkManager.system_chat("A new Dark Monolith has manifested in the realm!")
+	NetworkManager.system_chat("A new %s has manifested in the realm!" % display_name())
+
+func display_name() -> String:
+	return String(_cfg.get("name", "Dark Monolith"))
+
+## Ground height under a wave spawn: the grounds terrain outside, a ray onto
+## the map's collider elsewhere (the caverns' stones).
+func _ground_y(at: Vector3) -> float:
+	if global_position.y < 185.0:
+		return GroundsTerrain.height_at(at.x, at.z)
+	var query := PhysicsRayQueryParameters3D.create(Vector3(at.x, global_position.y + 12.0, at.z),
+		Vector3(at.x, global_position.y - 12.0, at.z), 1)
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	return NAN if hit.is_empty() else float((hit["position"] as Vector3).y)
 
 func _add_sky_beam() -> void:
 	# A tall, faint emerald beacon so players can find the stone from afar
@@ -213,7 +237,7 @@ func _add_sky_beam() -> void:
 	cm.height = 34.0
 	var bm := StandardMaterial3D.new()
 	bm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	bm.albedo_color = Color(GLOW.r * 0.5, GLOW.g * 0.5, GLOW.b * 0.5, 0.05)
+	bm.albedo_color = Color(glow.r * 0.5, glow.g * 0.5, glow.b * 0.5, 0.05)
 	bm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	bm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	bm.cull_mode = BaseMaterial3D.CULL_DISABLED

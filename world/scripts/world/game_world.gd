@@ -331,6 +331,12 @@ func _setup_npcs() -> void:
 	_spawn_npc(npcs, "Professor Flitwick", _on_ground(22, 20),
 		["Welcome! Stupefy interrupts, Incendio burns, and Expelliarmus weakens attacks.", "Practise at the dummies east of the courtyard, then pull a pack together. Watch the boss's warning circle."], Color(0.1, 0.24, 0.4))
 
+## A point on a non-grounds map's resident collider (a ray down from `at`).
+func _on_map_ground(at: Vector3) -> Vector3:
+	var query := PhysicsRayQueryParameters3D.create(at + Vector3.UP * 20.0, at - Vector3.UP * 30.0, 1)
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	return at if hit.is_empty() else (hit["position"] as Vector3)
+
 ## A point on the grounds terrain (the authored NPC spots are x, z only).
 func _on_ground(x: float, z: float) -> Vector3:
 	var h := GroundsTerrain.height_at(x, z)
@@ -386,10 +392,17 @@ func _check_external_models() -> void:
 
 func _setup_monoliths_and_mobs() -> void:
 	# Positions are the authority's data (spawn_tables.json "monoliths").
+	# Each entry names its type (monolith_types: the type's scene); a stone on
+	# another map (the caverns' seal stones) stands on that map's collider.
 	for entry in HPRules.spawn_tables().get("monoliths", []):
 		var raw: Array = entry.get("pos", [0.0, 0.0, 0.0])
 		var pos := _on_ground(float(raw[0]), float(raw[2]))
-		var monolith = MONOLITH_SCENE.instantiate()
+		if float(raw[1]) > 185.0:
+			pos = _on_map_ground(Vector3(float(raw[0]), float(raw[1]), float(raw[2])))
+		var type := String(entry.get("type", "dark"))
+		var path := String(HPRules.monolith_type(type).get("scene", ""))
+		var scene: PackedScene = load(path) if path != "" and ResourceLoader.exists(path) else MONOLITH_SCENE
+		var monolith = scene.instantiate()
 		monoliths_container.add_child(monolith)
 		monolith.global_position = pos
 
@@ -490,7 +503,11 @@ func _create_view(record: Dictionary) -> void:
 		HPProtocol.Kind.MOB:
 			scene = _mob_scene(int(record.get("variant", HPProtocol.MOB_VARIANT_INFERI)))
 		HPProtocol.Kind.MONOLITH:
+			# The variant names the stone's body (v19): the caverns' seal stone,
+			# else the Dark Monolith.
 			scene = MONOLITH_SCENE
+			if int(record.get("variant", 0)) == HPProtocol.MOB_VARIANT_SPIDER_STONE:
+				scene = _mob_scene(HPProtocol.MOB_VARIANT_SPIDER_STONE)
 		HPProtocol.Kind.DUMMY:
 			_bind_dummy(record)
 			return

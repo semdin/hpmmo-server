@@ -76,7 +76,11 @@ class_name HPProtocol
 ##     returns to town on its own at `respawn_tick`. `sim_player_info(uid,
 ##     info)` carries another player's name, house and level on first sight
 ##     and on every change (players used to show the default name).
-const PROTOCOL_VERSION := 18
+## v19: the Blackweb Caverns - mob variants 14-15 (Venomfang, Broodguard) and
+##     16, the Webbound Seal Stone (a monolith's variant names its body; 0/1 is
+##     the Dark Monolith); the stats payload carries `webbed_until_tick` and
+##     the burn clock with its `burn_kind` (spider venom rides it).
+const PROTOCOL_VERSION := 19
 
 ## Death choice (v18 `sim_respawn_request`).
 const RESPAWN_TOWN := 0
@@ -284,6 +288,10 @@ const MOB_VARIANT_DEVILS_SNARE := 10
 const MOB_VARIANT_SNARE_VINE := 11
 const MOB_VARIANT_FLUFFY := 12
 const MOB_VARIANT_FLUFFY_HEAD := 13
+# v19 Blackweb Caverns.
+const MOB_VARIANT_VENOMFANG := 14
+const MOB_VARIANT_BROODGUARD := 15
+const MOB_VARIANT_SPIDER_STONE := 16
 
 const MOB_SCENES := {
 	MOB_VARIANT_INFERI: "res://scenes/entities/mobs/mob_inferi.tscn",
@@ -299,6 +307,9 @@ const MOB_SCENES := {
 	MOB_VARIANT_SNARE_VINE: "res://scenes/entities/mobs/mob_snare_vine.tscn",
 	MOB_VARIANT_FLUFFY: "res://scenes/entities/mobs/mob_fluffy.tscn",
 	MOB_VARIANT_FLUFFY_HEAD: "res://scenes/entities/mobs/mob_fluffy_head.tscn",
+	MOB_VARIANT_VENOMFANG: "res://scenes/entities/mobs/mob_acromantula_venomfang.tscn",
+	MOB_VARIANT_BROODGUARD: "res://scenes/entities/mobs/mob_acromantula_broodguard.tscn",
+	MOB_VARIANT_SPIDER_STONE: "res://scenes/entities/monolith/spider_stone.tscn",
 }
 
 static func mob_variant(scene_path: String) -> int:

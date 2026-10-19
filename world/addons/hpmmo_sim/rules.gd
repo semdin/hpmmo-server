@@ -1110,9 +1110,18 @@ static func _scaled_table(table: Dictionary, factor: float) -> Dictionary:
 		rolls.append(scaled)
 	return {"always": table.get("always", []), "rolls": rolls}
 
-static func monolith_loot(rng: RandomNumberGenerator) -> Array:
+static func monolith_loot(rng: RandomNumberGenerator, table: String = "") -> Array:
 	ensure_loaded()
-	return roll_loot(_loot.get("monolith", {}), rng)
+	return roll_loot(_loot.get(table if table != "" and _loot.has(table) else "monolith", {}), rng)
+
+## A metin stone type (spawn_tables.json monolith_types; "dark" falls back to
+## the legacy monolith_config block).
+static func monolith_type(type_id: String) -> Dictionary:
+	ensure_loaded()
+	var types: Dictionary = _spawns.get("monolith_types", {})
+	if types.has(type_id):
+		return types[type_id]
+	return types.get("dark", _spawns.get("monolith_config", {}))
 
 ## Respawn delay for one authored encounter: its own `respawn_s` [min, max]
 ## (world bosses come back on a long timer) or the shared table.

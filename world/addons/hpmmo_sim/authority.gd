@@ -2427,7 +2427,7 @@ func _roll_drops(target: Dictionary) -> Array:
 	var drops: Array = []
 	var drop_factor := 1.0
 	if int(target.get("kind", 0)) == HPProtocol.Kind.MONOLITH:
-		drops = HPRules.monolith_loot(rng)
+		drops = HPRules.monolith_loot(rng, String(target.get("loot_table", "")))
 	else:
 		var killer: Dictionary = entities.get(killer_uid_of(target), {})
 		if not killer.is_empty() and int(killer.get("kind", 0)) == HPProtocol.Kind.PLAYER:

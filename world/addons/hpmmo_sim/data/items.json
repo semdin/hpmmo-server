@@ -905,5 +905,32 @@
       "ring_left",
       "ring_right"
     ]
+  },
+  "mat_spider_silk": {
+    "id": "mat_spider_silk",
+    "name": "Acromantula Silk",
+    "type": "material",
+    "desc": "Pearly, rope-strong silk spun in the Blackweb Caverns. Weavers and robe-makers pay well for it.",
+    "rarity": "uncommon",
+    "icon": "mat_spider_silk",
+    "slots": []
+  },
+  "mat_acromantula_venom": {
+    "id": "mat_acromantula_venom",
+    "name": "Acromantula Venom",
+    "type": "material",
+    "desc": "Emerald venom milked from a Venomfang's glands - worth a fortune to potioneers.",
+    "rarity": "rare",
+    "icon": "mat_acromantula_venom",
+    "slots": []
+  },
+  "queen_seal": {
+    "id": "queen_seal",
+    "name": "Queen's Seal",
+    "type": "material",
+    "desc": "An obsidian seal wrapped in old silk. It answers the sealed web gate deep in the Egg Caverns, where the brood's queen waits.",
+    "rarity": "epic",
+    "icon": "queen_seal",
+    "slots": []
   }
 }
