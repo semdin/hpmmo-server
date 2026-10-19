@@ -1,24 +1,31 @@
-# HPMMO server release.
+# HPMMO server release - runs on the self-hosted runner on the game host.
 #
-#   push to the release branch  -> build + test + package an immutable
-#                                  artifact, then deploy it to the box behind
-#                                  the `production` environment approval
-#   manual dispatch             -> optionally deploy an artifact (gated; may
-#                                  pin an earlier release_id/run_id)
+#   push to main        -> build + test + package an immutable artifact, then
+#                          deploy it
+#   manual dispatch     -> optionally deploy ; release_id may pin an
+#                          earlier artifact still in the host's local store
+#
+# Why self-hosted (2026-10-19): the runner keeps its checkout between runs, so
+# Git LFS only downloads objects that changed (a GitHub-hosted runner pulled
+# ~310 MB of LFS per push, which was the bill), and the artifact never leaves
+# the box: it goes into a local store instead of upload/download-artifact, and
+# the deploy is a local call instead of scp + ssh.
 #
 # Rules encoded here:
-#   * a merge to the designated release branch builds/tests automatically, and
-#     only a successfully built artifact is ever deployed;
-#   * a merge/deploy to production is a SEPARATE, explicitly-gated job that
-#     pins the exact commit + artifact identifier;
-#   * feature branches never touch a live server (they only build/test);
-#   * "new build jobs may replace obsolete build jobs" -> the build job's
-#     concurrency group cancels in progress;
-#   * "active deployment mutation must recover safely" -> the deploy job's
-#     concurrency group never cancels, so two deploys queue instead of
-#     interleaving (the controller's own flock is the second line of defence).
+#   * deploys go out on every push to main (no approval gate), as before;
+#   * only a successfully built + rehearsed artifact is ever deployed, and the
+#     deploy job pins its exact id and re-verifies its SHA256SUMS;
+#   * feature branches never touch production (they cannot even reach the
+#     deploy job - see the ref check);
+#   * the build job's concurrency group cancels obsolete builds, the deploy
+#     job's never cancels (the controller's own flock is the second line);
+#   * never add a `pull_request` trigger: this runner is the production host.
 #
-# The client release pipeline belongs to the release pipeline and is deliberately NOT here.
+# Host setup (once, see server/docs/self-hosted-runner.md):
+#   runner user `ghrunner`, label `hpmmo-server`, slice hpmmo-ci.slice (CPU/mem
+#   capped so a build cannot starve the world server), NOPASSWD sudo for exactly
+#   /opt/hpmmo/bin/hpmmo_deploy.sh, Godot at /opt/hpmmo-ci/godot/godot, artifact
+#   store /var/lib/hpmmo-ci/artifacts.
 name: server-release
 
 on:
@@ -29,26 +36,23 @@ on:
   workflow_dispatch:
     inputs:
       deploy:
-        description: 'Deploy the built artifact to production (needs the production environment approval)'
+        description: 'Deploy to production'
         type: boolean
         default: false
       release_id:
-        description: 'Release id to deploy - must equal the artifact identifier (default: this commit)'
-        type: string
-        required: false
-      run_id:
-        description: 'Run id whose artifact to deploy (default: this run)'
+        description: 'Release id (commit sha) to deploy from the host artifact store (default: this commit)'
         type: string
         required: false
 
 permissions:
   contents: read
-  # actions/download-artifact@v4 with an explicit github-token + run-id goes
-  # through the Actions REST API, which needs Actions: read on the token.
-  actions: read
 
 env:
   GODOT_VERSION: '4.7.2'
+  HPMMO_GODOT_BIN: /opt/hpmmo-ci/godot/godot
+  ARTIFACT_STORE: /var/lib/hpmmo-ci/artifacts
+  # Artifacts kept in the store (each ~0.8 GB): enough to redeploy recent ones.
+  ARTIFACT_KEEP: '3'
 
 jobs:
   # -------------------------------------------------------------------------
@@ -56,42 +60,23 @@ jobs:
   # -------------------------------------------------------------------------
   package:
     name: build + package (linux)
-    runs-on: ubuntu-22.04
+    runs-on: [self-hosted, hpmmo-server]
     concurrency:
-      # Per job, so the two build-ish jobs of one run never cancel each other;
-      # a newer run on the same ref replaces an obsolete one.
       group: server-build-package-${{ github.ref }}
       cancel-in-progress: true
     outputs:
       release_id: ${{ steps.id.outputs.release_id }}
-      artifact: ${{ steps.id.outputs.artifact }}
     steps:
       # The world tree keeps its models in Git LFS. Without `lfs: true` the
-      # artifact ships pointer files, the import pass fails against them, and
-      # the live world boots with unparsable model preloads (and the scripts
-      # that preload models stop compiling).
+      # artifact ships pointer files and the live world cannot parse its model
+      # preloads. The workspace persists, so only new objects are fetched.
       - uses: actions/checkout@v4
         with:
           lfs: true
 
       - name: Pin the artifact identifier
         id: id
-        run: |
-          sha="$(git rev-parse HEAD)"
-          echo "release_id=$sha" >> "$GITHUB_OUTPUT"
-          # artifact/identifier naming: hpmmo-server-<release id>
-          echo "artifact=hpmmo-server-$sha" >> "$GITHUB_OUTPUT"
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.release_id }}" ]; then
-            [ "${{ github.event.inputs.release_id }}" = "$sha" ] || {
-              echo "requested release id ${{ github.event.inputs.release_id }} is not this commit ($sha)" >&2
-              exit 1
-            }
-          fi
-
-      - name: Install the documented toolchain (cmake + ninja + clang)
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq cmake ninja-build clang libpq-dev python3
+        run: echo "release_id=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Build the C++ service
         run: |
@@ -100,85 +85,49 @@ jobs:
           ninja -C services/cpp/build
           ./services/cpp/build/hpmmo_service version
 
-      - name: Fetch the pinned Godot engine (for the world import cache)
-        id: godot
+      - name: Check the pinned Godot engine (for the world import cache)
         run: |
-          url="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
-          if curl -fsSL -o /tmp/godot.zip "$url"; then
-            unzip -q -o /tmp/godot.zip -d /tmp/godot
-            chmod +x "/tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64"
-            echo "path=/tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64" >> "$GITHUB_OUTPUT"
-          else
-            echo "::warning::Godot ${GODOT_VERSION} could not be downloaded; the artifact ships without an import cache"
-          fi
+          "$HPMMO_GODOT_BIN" --version | grep -q "^${GODOT_VERSION}\.stable" || {
+            echo "::error::$HPMMO_GODOT_BIN is not Godot ${GODOT_VERSION}"; exit 1; }
 
       - name: Rehearse the deployment controller (temp dir, stub services)
-        # Maintenance surface exit cases: happy path, failed checksum/build, failed save,
-        # failed migration, unhealthy release, queued releases, controller
-        # restart, absent admin interface, operator rollback, status endpoint.
         run: python3 tests/deploy_rehearsal.py
 
       - name: Package the immutable release artifact (with SHA256SUMS)
         run: |
-          HPMMO_GODOT="${{ steps.godot.outputs.path }}" \
+          rm -rf dist
+          HPMMO_GODOT="$HPMMO_GODOT_BIN" \
             bash deploy/package_server.sh --out dist --id "${{ steps.id.outputs.release_id }}"
 
-      - name: Verify the artifact manifest before publishing it
+      - name: Verify the artifact and put it in the host store
         run: |
-          archive="dist/hpmmo-server-${{ steps.id.outputs.release_id }}.tar.gz"
+          set -eu
+          id="${{ steps.id.outputs.release_id }}"
+          archive="dist/hpmmo-server-$id.tar.gz"
           test -f "$archive" || { echo "artifact $archive is missing" >&2; exit 1; }
-          mkdir -p /tmp/verify && tar -C /tmp/verify -xzf "$archive"
-          ( cd /tmp/verify && sha256sum -c --strict --quiet SHA256SUMS )
-          test -x /tmp/verify/services/cpp/build/hpmmo_service
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.id.outputs.artifact }}
-          path: |
-            dist/hpmmo-server-${{ steps.id.outputs.release_id }}.tar.gz
-            dist/hpmmo-server-${{ steps.id.outputs.release_id }}.tar.gz.sha256
-          if-no-files-found: error
-          retention-days: 14
+          verify="$RUNNER_TEMP/verify"; rm -rf "$verify"; mkdir -p "$verify"
+          tar -C "$verify" -xzf "$archive"
+          ( cd "$verify" && sha256sum -c --strict --quiet SHA256SUMS )
+          test -x "$verify/services/cpp/build/hpmmo_service"
+          rm -rf "$verify"
+          mkdir -p "$ARTIFACT_STORE"
+          mv -f "$archive" "$archive.sha256" "$ARTIFACT_STORE/"
+          rm -rf dist
+          # Keep the newest ARTIFACT_KEEP artifacts.
+          ls -1t "$ARTIFACT_STORE"/hpmmo-server-*.tar.gz | tail -n +"$((ARTIFACT_KEEP + 1))" | while read -r old; do
+            rm -f "$old" "$old.sha256"
+          done
+          ls -la "$ARTIFACT_STORE"
 
   # -------------------------------------------------------------------------
-  # Production deployment: a separate, explicitly-gated job that consumes the
-  # artifact built above and pins its exact identifier. It never rebuilds.
-  #
-  # Triggers (and why this is still safe):
-  #   * push to the designated release branch (main): a release actually
-  #     updates the server - the owner's request. The `production`
-  #     environment's required reviewers are the human gate, so the job parks
-  #     at "Waiting for approval" until a person approves it;
-  #   * workflow_dispatch with deploy=true, optionally pinning release_id /
-  #     run_id to ship an artifact built by an earlier, already-green run.
-  # In both cases the job needs the package job (build + tests + deployment
-  # rehearsal) to have succeeded first, and it re-checks the ref so a
-  # dispatch run on a feature branch can never reach the box.
-  #
-  # Manual setup required (exact names):
-  #   1. repository secrets: HPMMO_DEPLOY_HOST, HPMMO_DEPLOY_USER,
-  #      HPMMO_DEPLOY_SSH_KEY, HPMMO_DEPLOY_KNOWN_HOSTS;
-  #   2. environment `production` with required reviewers (Settings ->
-  #      Environments);
-  #   3. on the box: the public half of HPMMO_DEPLOY_SSH_KEY in the deploy
-  #      user's ~/.ssh/authorized_keys, and that user able to run
-  #      /opt/hpmmo/bin/hpmmo_deploy.sh as root (root login, or a NOPASSWD
-  #      sudo rule for exactly that command);
-  #   4. the release branch is `main` and matches `on.push.branches` above.
+  # Production deployment: a separate job that consumes the artifact built
+  # above (or a pinned earlier one) and never rebuilds.
   # -------------------------------------------------------------------------
   deploy:
     name: deploy to production
-    # The deploy artifact is Linux (production is Ubuntu 22.04 and `package`
-    # builds the artifact on ubuntu-22.04), so only `package` gates this job.
-    # The Windows integration job keeps running as its own portability signal:
-    # a red Windows job is a real bug (it caught the NOMINMAX/std::max
-    # failure above) but it is not a deployment gate - a Windows-only
-    # toolchain failure must not block a Linux deployment.
     needs: [package]
-    # success() is explicit: the box is only touched after build + tests +
-    # rehearsal (package) are green.
     if: success() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy))
-    runs-on: ubuntu-22.04
+    runs-on: [self-hosted, hpmmo-server]
     concurrency:
       group: server-deploy-production
       cancel-in-progress: false   # a deployment mutation must never be cancelled
@@ -190,123 +139,37 @@ jobs:
             exit 1
           }
 
-      - uses: actions/checkout@v4
-
-      - name: Refuse a half-configured deployment (fail closed)
-        # Secrets come from the environment, never interpolated into the
-        # script text, and an absent secret stops the job before it touches
-        # anything. Values are never printed.
-        env:
-          DEPLOY_HOST: ${{ secrets.HPMMO_DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.HPMMO_DEPLOY_USER }}
-          DEPLOY_KEY: ${{ secrets.HPMMO_DEPLOY_SSH_KEY }}
-          DEPLOY_KNOWN_HOSTS: ${{ secrets.HPMMO_DEPLOY_KNOWN_HOSTS }}
-        run: |
-          set -eu
-          missing=""
-          [ -n "$DEPLOY_HOST" ]        || missing="$missing HPMMO_DEPLOY_HOST"
-          [ -n "$DEPLOY_USER" ]        || missing="$missing HPMMO_DEPLOY_USER"
-          [ -n "$DEPLOY_KEY" ]         || missing="$missing HPMMO_DEPLOY_SSH_KEY"
-          [ -n "$DEPLOY_KNOWN_HOSTS" ] || missing="$missing HPMMO_DEPLOY_KNOWN_HOSTS"
-          if [ -n "$missing" ]; then
-            echo "::error::refusing to deploy: missing repository secret(s):$missing"
-            echo "Create them (see the deploy job's checklist in this workflow) and re-run." >&2
-            exit 1
-          fi
-          echo "deploy configuration complete (host, user, key, known_hosts present; values never printed)"
-
-      - name: Resolve the pinned artifact identifier
+      - name: Resolve the pinned artifact
         id: id
         run: |
-          id="${{ inputs.release_id }}"
-          [ -n "$id" ] || id="$(git rev-parse HEAD)"
-          echo "release_id=$id" >> "$GITHUB_OUTPUT"
-
-      - name: Download the artifact that was built (never rebuild here)
-        uses: actions/download-artifact@v4
-        with:
-          name: hpmmo-server-${{ steps.id.outputs.release_id }}
-          path: dist
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ inputs.run_id || github.run_id }}
-
-      - name: Verify the artifact before it leaves CI
-        # Nothing is rebuilt here: the exact bytes published by the package job
-        # (identified by hpmmo-server-<id>) are what reaches the server, and the
-        # controller re-verifies the same SHA256SUMS before it will stage them.
-        run: |
-          archive="dist/hpmmo-server-${{ steps.id.outputs.release_id }}.tar.gz"
-          test -f "$archive" || { echo "artifact $archive is missing" >&2; exit 1; }
-          mkdir -p /tmp/verify && tar -C /tmp/verify -xzf "$archive"
-          ( cd /tmp/verify && sha256sum -c --strict --quiet SHA256SUMS )
-          test -x /tmp/verify/services/cpp/build/hpmmo_service
-
-      - name: Install the deploy key (never printed)
-        env:
-          DEPLOY_KEY: ${{ secrets.HPMMO_DEPLOY_SSH_KEY }}
-          DEPLOY_KNOWN_HOSTS: ${{ secrets.HPMMO_DEPLOY_KNOWN_HOSTS }}
-        run: |
-          umask 077
-          mkdir -p ~/.ssh
-          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/id_ed25519
-          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
-          cat <<'EOF' > ~/.ssh/config
-          Host *
-            ServerAliveInterval 15
-            ServerAliveCountMax 4
-            TCPKeepAlive yes
-          EOF
-          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts ~/.ssh/config
-
-      - name: Ship the artifact and deploy through the release controller
-        # The controller on the box is the only thing that mutates the
-        # deployment: it verifies SHA256SUMS, announces maintenance, drains,
-        # saves, stops, migrates with the new binary, switches `current`
-        # atomically, restarts, verifies (health, ready, schema, version,
-        # ONLINE, synthetic login) and rolls back on any failure. --deploy is
-        # --stage + --release. A non-zero exit fails this job - it is the
-        # controller's own verdict, not a script reinvention of it.
-        env:
-          DEPLOY_HOST: ${{ secrets.HPMMO_DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.HPMMO_DEPLOY_USER }}
-          RELEASE_ID: ${{ steps.id.outputs.release_id }}
-        run: |
           set -eu
-          archive="dist/hpmmo-server-$RELEASE_ID.tar.gz"
-          remote="/tmp/hpmmo-server-$RELEASE_ID.tar.gz"
-          ssh_box() { ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" "$@"; }
-          # Staging needs room for the upload, the unpacked tree and its move
-          # into releases/ - fail early with a readable reason, not mid-scp.
-          need_kb=$(( $(du -k "$archive" | cut -f1) * 4 ))
-          free_kb="$(ssh_box "df -Pk /opt/hpmmo | awk 'NR==2{print \$4}'")"
-          if [ "$free_kb" -lt "$need_kb" ]; then
-            echo "::error::not enough disk on the box: ${free_kb} KB free, ${need_kb} KB needed"; exit 1
-          fi
-          # The upload is only a staging copy: remove it whatever the outcome
-          # (left behind, every deploy cost ~0.8 GB and filled the disk).
-          trap 'ssh_box "rm -f $remote" || true' EXIT
-          scp -i ~/.ssh/id_ed25519 -o BatchMode=yes -o StrictHostKeyChecking=yes \
-            "$archive" "$DEPLOY_USER@$DEPLOY_HOST:$remote"
-          ssh_box "sudo /opt/hpmmo/bin/hpmmo_deploy.sh --deploy $remote \
-               --id $RELEASE_ID --reason 'ci:${{ github.run_id }}' --countdown 30"
+          id="${{ inputs.release_id }}"
+          [ -n "$id" ] || id="${{ needs.package.outputs.release_id }}"
+          case "$id" in *[!0-9a-f]*|'') echo "::error::bad release id '$id'"; exit 1 ;; esac
+          archive="$ARTIFACT_STORE/hpmmo-server-$id.tar.gz"
+          test -f "$archive" || { echo "::error::$archive is not in the host artifact store"; ls -la "$ARTIFACT_STORE"; exit 1; }
+          echo "release_id=$id" >> "$GITHUB_OUTPUT"
+          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy through the release controller
+        # The controller is the only thing that mutates the deployment: it
+        # re-verifies SHA256SUMS, announces maintenance, drains, saves, stops,
+        # migrates, switches `current` atomically, restarts, verifies (health,
+        # ready, schema, version, ONLINE, synthetic login), rolls back on any
+        # failure, and prunes old release trees. Its exit code is the verdict.
+        run: |
+          sudo /opt/hpmmo/bin/hpmmo_deploy.sh --deploy "${{ steps.id.outputs.archive }}" \
+            --id "${{ steps.id.outputs.release_id }}" --reason "ci:${{ github.run_id }}" --countdown 30
 
       - name: Assert the box reports the deployed release ONLINE
-        # Belt and braces on top of the controller's exit code: read the
-        # existing status/journal path (never a parallel one) and require the
-        # exact release id to be the one advertised.
-        env:
-          DEPLOY_HOST: ${{ secrets.HPMMO_DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.HPMMO_DEPLOY_USER }}
-          RELEASE_ID: ${{ steps.id.outputs.release_id }}
         run: |
           set -eu
-          status="$(ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes -o StrictHostKeyChecking=yes \
-            "$DEPLOY_USER@$DEPLOY_HOST" 'sudo /opt/hpmmo/bin/hpmmo_deploy.sh --status')"
+          status="$(sudo /opt/hpmmo/bin/hpmmo_deploy.sh --status)"
           printf '%s\n' "$status"
           printf '%s\n' "$status" | grep -Eq '^state:[[:space:]]+ONLINE$' || {
             echo "::error::the controller reports the deployment is not ONLINE" >&2; exit 1; }
-          printf '%s\n' "$status" | grep -Eq "^release:[[:space:]]+$RELEASE_ID$" || {
-            echo "::error::the box does not report release $RELEASE_ID" >&2; exit 1; }
+          printf '%s\n' "$status" | grep -Eq "^release:[[:space:]]+${{ steps.id.outputs.release_id }}$" || {
+            echo "::error::the box does not report release ${{ steps.id.outputs.release_id }}" >&2; exit 1; }
 
       - name: Publish the deployment record
         if: always()
@@ -314,7 +177,6 @@ jobs:
           {
             echo "### Server release"
             echo "- release id: \`${{ steps.id.outputs.release_id }}\`"
-            echo "- artifact: \`hpmmo-server-${{ steps.id.outputs.release_id }}.tar.gz\`"
             echo "- deploy job: \`${{ job.status }}\`"
             echo "- rollback: see server/docs/runbook-rollback.md"
           } >> "$GITHUB_STEP_SUMMARY"
