@@ -226,7 +226,7 @@ install -d -m 700 /root/hpmmo-keys
 umask 077; openssl genpkey -algorithm ed25519 -out /root/hpmmo-keys/release.key
 
 # 2. certificate + release root
-bash deploy/tls/make_cert.sh --host 213.250.145.75 --out /etc/hpmmo/tls
+bash deploy/tls/make_cert.sh --host 185.118.141.74 --out /etc/hpmmo/tls
 install -d -m 755 /srv/hpmmo/client-releases/channels/{dev,beta,release}
 
 # 3. the release pipeline status/release script replaces the maintenance surface one at the
@@ -260,7 +260,7 @@ The original change text (kept for reference; volumes assume the layout
 ```sh
 # 1. certificate (as root, on the box; the key stays on the box, mode 600)
 install -d -m 750 /etc/hpmmo/tls
-deploy/tls/make_cert.sh --host 213.250.145.75 --san DNS:<any-internal-name> \
+deploy/tls/make_cert.sh --host 185.118.141.74 --san DNS:<any-internal-name> \
     --out /etc/hpmmo/tls                 # prints SPKI sha256 -> pin it in the launcher
 chmod 600 /etc/hpmmo/tls/release-key.pem && chown <status-user>: /etc/hpmmo/tls/*
 

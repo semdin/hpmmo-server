@@ -48,4 +48,13 @@ LimitNOFILE=65536
 EOF
 systemctl daemon-reload
 
+# Unbounded journals reached 1.6 GB on the first box.
+mkdir -p /etc/systemd/journald.conf.d
+cat > /etc/systemd/journald.conf.d/90-hpmmo.conf <<'EOF'
+# HPMMO (see deploy/tune_host.sh)
+[Journal]
+SystemMaxUse=300M
+EOF
+systemctl restart systemd-journald
+
 echo "tune_host: swap=$(swapon --show=SIZE --noheadings | head -1) swappiness=$(sysctl -n vm.swappiness) rmem_max=$(sysctl -n net.core.rmem_max)"

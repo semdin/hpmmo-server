@@ -138,7 +138,7 @@ jobs:
             dist/hpmmo-server-${{ steps.id.outputs.release_id }}.tar.gz
             dist/hpmmo-server-${{ steps.id.outputs.release_id }}.tar.gz.sha256
           if-no-files-found: error
-          retention-days: 90
+          retention-days: 14
 
   # -------------------------------------------------------------------------
   # Production deployment: a separate, explicitly-gated job that consumes the
@@ -273,11 +273,21 @@ jobs:
         run: |
           set -eu
           archive="dist/hpmmo-server-$RELEASE_ID.tar.gz"
+          remote="/tmp/hpmmo-server-$RELEASE_ID.tar.gz"
+          ssh_box() { ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" "$@"; }
+          # Staging needs room for the upload, the unpacked tree and its move
+          # into releases/ - fail early with a readable reason, not mid-scp.
+          need_kb=$(( $(du -k "$archive" | cut -f1) * 4 ))
+          free_kb="$(ssh_box "df -Pk /opt/hpmmo | awk 'NR==2{print \$4}'")"
+          if [ "$free_kb" -lt "$need_kb" ]; then
+            echo "::error::not enough disk on the box: ${free_kb} KB free, ${need_kb} KB needed"; exit 1
+          fi
+          # The upload is only a staging copy: remove it whatever the outcome
+          # (left behind, every deploy cost ~0.8 GB and filled the disk).
+          trap 'ssh_box "rm -f $remote" || true' EXIT
           scp -i ~/.ssh/id_ed25519 -o BatchMode=yes -o StrictHostKeyChecking=yes \
-            "$archive" "$DEPLOY_USER@$DEPLOY_HOST:/tmp/hpmmo-server-$RELEASE_ID.tar.gz"
-          ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes -o StrictHostKeyChecking=yes \
-            "$DEPLOY_USER@$DEPLOY_HOST" \
-            "sudo /opt/hpmmo/bin/hpmmo_deploy.sh --deploy /tmp/hpmmo-server-$RELEASE_ID.tar.gz \
+            "$archive" "$DEPLOY_USER@$DEPLOY_HOST:$remote"
+          ssh_box "sudo /opt/hpmmo/bin/hpmmo_deploy.sh --deploy $remote \
                --id $RELEASE_ID --reason 'ci:${{ github.run_id }}' --countdown 30"
 
       - name: Assert the box reports the deployed release ONLINE

@@ -192,7 +192,7 @@ var last_server: Array = []
 
 ## Join an existing game via IP and port. This process becomes a pure client: it
 ## decides nothing and asks the world server for everything.
-func join_game(address: String = "213.250.145.75", port: int = DEFAULT_PORT) -> Error:
+func join_game(address: String = "185.118.141.74", port: int = DEFAULT_PORT) -> Error:
 	disconnect_game()
 	last_server = [address, port]
 	SimAuthority.configure(SimAuthority.Role.CLIENT)

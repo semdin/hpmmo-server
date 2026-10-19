@@ -23,7 +23,7 @@
 #                           [--days N] [--ec] [--force]
 #
 #   --host   the name/IP the launcher will use (default: the host this runs on,
-#            or 213.250.145.75 when it cannot be determined). An IP host is put
+#            or 185.118.141.74 when it cannot be determined). An IP host is put
 #            into the SAN as IP:, anything else as DNS:.
 #   --san    an additional SAN entry (repeatable), written verbatim, so you can
 #            add both the public IP and an internal name to one certificate.
@@ -74,7 +74,7 @@ case "$DAYS" in ''|*[!0-9]*) die "--days must be a number";; esac
 
 if [ -z "$HOST" ]; then
     HOST="$(hostname -I 2>/dev/null | awk '{print $1}')"
-    [ -n "$HOST" ] || HOST="213.250.145.75"
+    [ -n "$HOST" ] || HOST="185.118.141.74"
 fi
 
 # An IP host belongs in the SAN as IP:, a name as DNS:. Getting this wrong is

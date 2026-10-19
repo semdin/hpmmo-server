@@ -91,6 +91,8 @@ PROG="$(basename "$0")"
 : "${HPMMO_STAGE_BUILD:=auto}"
 : "${HPMMO_STAGE_IMPORT:=auto}"
 : "${HPMMO_STATUS_LINES:=10}"
+# Successful releases kept on disk besides current + previous (each ~0.9 GB).
+: "${HPMMO_KEEP_RELEASES:=2}"
 
 # Variables a caller (operator, CI or the rehearsal harness) may override even
 # when the environment file defines them.
@@ -101,7 +103,7 @@ HPMMO_ADMIN_URL HPMMO_API_URL HPMMO_MAINTENANCE_COUNTDOWN HPMMO_DRAIN_TIMEOUT
 HPMMO_VERIFY_TIMEOUT HPMMO_HTTP_TIMEOUT HPMMO_SAVE_TIMEOUT HPMMO_HOLD_TIMEOUT
 HPMMO_ADMIN_READY_TIMEOUT HPMMO_ADMIN_READY_POLL
 HPMMO_POLL_INTERVAL HPMMO_LOCK_WAIT HPMMO_STAGE_BUILD HPMMO_STAGE_IMPORT
-HPMMO_STATUS_LINES"
+HPMMO_STATUS_LINES HPMMO_KEEP_RELEASES"
 
 save_caller_env() {
     CALLER_KEYS=()
@@ -1186,7 +1188,34 @@ The old release stays active and the world stays in maintenance."
     rm -f "$sout"
 
     say "release $id is live (previous ${prev_id:-none} kept at ${prev_dir:-/})"
-    say "releases other than current and previous may be deleted from ${HPMMO_RELEASES_DIR%/}"
+    prune_releases "$id" "$prev_id"
+    return 0
+}
+
+# Releases are immutable but not eternal: without pruning every deploy left
+# ~0.9 GB behind and the disk filled up. Only 40-hex release ids are touched
+# (hand-named trees such as *-known-good stay), and current + previous are
+# always kept on top of the HPMMO_KEEP_RELEASES newest others.
+prune_releases() {  # current_id previous_id
+    local cur="$1" prev="${2:-}" keep="${HPMMO_KEEP_RELEASES}" d name n=0
+    case "$keep" in ''|*[!0-9]*) warn "HPMMO_KEEP_RELEASES='$keep' is not a number; not pruning"; return 0 ;; esac
+    # shellcheck disable=SC2045  # ids are hex, no whitespace
+    for d in $(ls -1dt "${HPMMO_RELEASES_DIR%/}"/*/ 2>/dev/null); do
+        d="${d%/}"; name="${d##*/}"
+        [ -L "$d" ] && continue
+        case "$name" in *[!0-9a-f]*) continue ;; esac
+        [ "${#name}" -eq 40 ] || continue
+        { [ "$name" = "$cur" ] || [ "$name" = "$prev" ]; } && continue
+        n=$((n + 1))
+        [ "$n" -le "$keep" ] && continue
+        chmod -R u+w "$d" 2>/dev/null || true
+        if rm -rf "$d"; then
+            rm -f "$(release_meta "$name")"
+            say "pruned old release $name"
+        else
+            warn "could not prune $d"
+        fi
+    done
     return 0
 }
 

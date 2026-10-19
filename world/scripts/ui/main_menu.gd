@@ -22,7 +22,7 @@ extends Control
 ## --test-char=<level|trial|corridor|max> (with --solo: a levelled, geared
 ## developer character, see TestCharacter).
 
-const DEFAULT_SERVER_IP := "213.250.145.75"
+const DEFAULT_SERVER_IP := "185.118.141.74"
 const DEFAULT_GAME_PORT := 7777
 const DEFAULT_API_PORT := 8081
 const STATUS_POLL_SECONDS := 15.0
@@ -985,6 +985,9 @@ func _load_client_config() -> void:
 		if not (parsed is Dictionary):
 			continue
 		server_ip = str(parsed.get("server_ip", DEFAULT_SERVER_IP))
+		# The first host was retired on 2026-10-19; saved configs follow the default.
+		if server_ip == "213.250.145.75":
+			server_ip = DEFAULT_SERVER_IP
 		server_port = int(parsed.get("server_port", DEFAULT_GAME_PORT))
 		if api_port == 0:
 			api_port = int(parsed.get("api_port", DEFAULT_API_PORT))

@@ -22,7 +22,7 @@ func _ready() -> void:
 	world_instance = world_scene.instantiate()
 	add_child(world_instance)
 	print("[Dedicated Server] Game World successfully loaded!")
-	print("[Dedicated Server] Server is READY at 213.250.145.75:7777")
+	print("[Dedicated Server] Server is READY at 185.118.141.74:7777")
 	print("=========================================================")
 
 func _process(_delta: float) -> void:

@@ -2,9 +2,9 @@
   "version": "1.1.0",
   "min_client_version": "1.0.0",
   "game_title": "HPMMO",
-  "server_ip": "213.250.145.75",
+  "server_ip": "185.118.141.74",
   "server_port": 7777,
-  "patch_url": "http://213.250.145.75:8081/patch/latest.zip",
+  "patch_url": "http://185.118.141.74:8081/patch/latest.zip",
   "changelog": [
     "v1.1.0: Full PostgreSQL + RAM server persistence deployed",
     "v1.1.0: Account registration & multi-character selection system",
