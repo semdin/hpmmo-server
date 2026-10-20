@@ -1,7 +1,7 @@
 {
  "generated": "2026-10-20",
  "source_repository": "hpmmo-client",
- "source_revision": "8517f0811e05d695f1d8ae2cb53ba58e8e9c6b63",
+ "source_revision": "9f8f5cfadaa3f78b2e0c2663e69680394cc3813c",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/audio/sound_library.json": "4960d9c5111e80c29446024602e6f9165f23c701f50eca81fa57cbea27196d68",
@@ -540,7 +540,7 @@
   "scripts/spells/spell_effect.gd": "5ac3087ea84a7f5b96cc89330680b0a96e838086b6ab59570ab2a840ce7968a4",
   "scripts/spells/spell_projectile.gd": "86d921bbc3f76ebac39638d83e2cb07523868dba91ed219530c8e510c3393e9a",
   "scripts/spells/vfx_library.gd": "e7a4ca15de3b4e232c770bd26a980fd96aaf9d579bcf3864243d351ad3eab72f",
-  "scripts/systems/audio_manager.gd": "f5392a3da93fe61520f49baf19c6ff8001200de4ba4414e7025fc24b83ace463",
+  "scripts/systems/audio_manager.gd": "d08a4fe42c4e751f842c1dfb7d4be20376530b42c50fd2894e66b5d3a89a985c",
   "scripts/systems/quest_manager.gd": "651bad72553cb98efc50abfcb24eaff509748c3f0190dc25fc28f864fa83da7b",
   "scripts/ui/arcane_skin.gd": "c3e0288355634acb06cd0f1a02b0eac517feea57cbfcc3a7fc1a697fb30cbb3c",
   "scripts/ui/character_preview.gd": "77957d872b150bbaa1f31b48e76212681701eab5d8a16018832495bffea439bd",
@@ -608,7 +608,7 @@
   "scripts/world/dungeons/dungeon_greybox.gd": "432688c36a1bc8c093c6a797255bdde47c5fd23ae1017ffe6ed8dd4650bc15da",
   "scripts/world/dungeons/dungeon_trial.gd": "074e2cf213d9d3e96672f4250ab5d8dd071bb70b8f94e2cf6dd3a370033a45f2",
   "scripts/world/encounter_director.gd": "1532f60da2893895e78bb0aea64fd115f39cfcd2cfe40bc5db91f9c7677c60c2",
-  "scripts/world/game_world.gd": "619f4f1db202dbeffb544eec04f4cda362d1d84c090db7d09ad849b51b4806b0",
+  "scripts/world/game_world.gd": "6731b621e35a8d414fd4e9c143ba56068d54dff19b50d8ff536db096a9ea8013",
   "scripts/world/grounds/arch_kit.gd": "34e4aa046d3c8171931789fd564b0ea20ae9111ebe1d1ab8cfc0b4ef3540ec1d",
   "scripts/world/grounds/castle_exterior.gd": "33268c2b2a4c18521480bbda0a0168f36f541ffcd778e1627ae5ed31b2c6eda8",
   "scripts/world/grounds/grounds_builder.gd": "af4049678db3d00b9925a1a414dc760cb646a00401b2099e3803307ddced568a",

@@ -207,6 +207,9 @@ var _last_stinger: Dictionary = {}
 ## HPMMO_AUDIO_DEBUG=1 prints the mix state every five seconds.
 var _debug := OS.get_environment("HPMMO_AUDIO_DEBUG") != ""
 var _debug_timer := 0.0
+## Headless with no sound library (the dedicated server): nothing to play, so
+## no combat signal is even listened to.
+var _silent := false
 
 
 func _ready() -> void:
@@ -302,6 +305,7 @@ func _load_library() -> void:
 		# track some player body on the server.
 		if DisplayServer.get_name() == "headless":
 			set_process(false)
+			_silent = true
 		return
 	var parsed = JSON.parse_string(FileAccess.get_file_as_string(LIBRARY_PATH))
 	if typeof(parsed) != TYPE_DICTIONARY:
@@ -1085,7 +1089,7 @@ func _now() -> float:
 
 
 func _connect_combat_signals() -> void:
-	if not is_instance_valid(SimAuthority):
+	if _silent or not is_instance_valid(SimAuthority):
 		return
 	if SimAuthority.has_signal("cast_started"):
 		SimAuthority.cast_started.connect(_on_sim_cast_started)

@@ -438,9 +438,14 @@ func _setup_replication() -> void:
 	SimAuthority.entity_despawned.connect(_on_entity_despawned)
 	SimAuthority.entity_moved.connect(_on_entity_moved)
 	SimAuthority.entity_health.connect(_on_entity_health)
-	SimAuthority.cast_started.connect(_on_cast_started)
-	SimAuthority.cast_released.connect(_on_cast_released)
-	SimAuthority.cast_landed.connect(_on_cast_landed)
+	# Cast gestures, bolts and impacts are pictures only. A dedicated server
+	# drew them too - an invisible bolt scene per cast and an impact per hit,
+	# ~20 ms each, inside the sim tick: one player fighting held the server's
+	# frame at 50-90 ms.
+	if not NetworkManager.is_dedicated_server:
+		SimAuthority.cast_started.connect(_on_cast_started)
+		SimAuthority.cast_released.connect(_on_cast_released)
+		SimAuthority.cast_landed.connect(_on_cast_landed)
 	SimAuthority.loot_spawned.connect(_on_loot_spawned)
 	SimAuthority.chat.connect(_on_chat)
 	SimAuthority.world_event.connect(_on_world_event)
