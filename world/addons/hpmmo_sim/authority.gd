@@ -2338,7 +2338,17 @@ func _apply_damage(target: Dictionary, raw: int, spell_id: String, attacker: Dic
 		if amount > 0:
 			attacker["last_combat_tick"] = sim_tick
 	if amount > 0: target["last_combat_tick"] = sim_tick
-	target["hp"] = maxi(0, int(target.get("hp", 0)) - amount)
+	# Soul-drinkers (mobs.json `mana_first`, the dementors) feed on the magic
+	# first: a hit drains mana, and only what the mana cannot cover reaches HP.
+	var to_hp := amount
+	if mob_hits_player and amount > 0 and bool(HPRules.mob_def(String(attacker.get("species", ""))).get("mana_first", false)):
+		var drained := mini(amount, int(target.get("mana", 0)))
+		if drained > 0:
+			target["mana"] = int(target.get("mana", 0)) - drained
+			to_hp = amount - drained
+			if "current_mana" in target_node:
+				target_node.set("current_mana", int(target["mana"]))
+	target["hp"] = maxi(0, int(target.get("hp", 0)) - to_hp)
 	target["last_damage"] = amount
 	touch(target)
 	if not attacker.is_empty():
@@ -4413,6 +4423,8 @@ func _sell_item(node: Node, item_id: String, tier: int, uid: int) -> Dictionary:
 ## Throw away a bag entry (never a worn item): one item instance, or a whole
 ## stack at once. The client asks the player to confirm first; nothing is paid.
 func _destroy_item(node: Node, item_id: String, tier: int, uid: int) -> Dictionary:
+	if HPEquipment.equippable(item_id):
+		return {"ok": false, "reason": "not_destroyable"}
 	var bag: Array = node.inventory.duplicate(true)
 	if uid > 0:
 		var entry := HPEquipment.take_instance(bag, uid)

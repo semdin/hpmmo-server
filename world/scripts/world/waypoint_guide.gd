@@ -19,13 +19,17 @@ signal arrived
 const FOOTPRINT_SHADER := preload("res://assets/shaders/footprint.gdshader")
 const BEACON_SHADER := preload("res://assets/shaders/waypoint_beacon.gdshader")
 const STRIDE := 0.8
-const TRAIL := 9.0                # prints the forward ripple lights at once
-const AHEAD := 30.0               # metres of route shown ahead of the player
-const RIPPLE_SPEED := 9.0         # prints per second the glow runs forward
-const MAX_PRINTS := 40
+const TRAIL := 4.0                # prints the forward ripple lights at once
+const AHEAD := 10.0               # metres of route shown ahead of the player
+const RIPPLE_SPEED := 6.0         # prints per second the glow runs forward
+const MAX_PRINTS := 14
 const CHEVRONS := 22
 const CHEVRON_SPACING := 8.0
 const ARRIVE_RADIUS := 5.0
+## Over open ground a broom overhead counts as arrived: the height check only
+## matters where floors stack (castle storeys, caverns).
+const ARRIVE_RADIUS_AIR := 12.0
+const ARRIVE_AIR_HEIGHT := 120.0
 ## Off the route by this much (cut a corner, flew, got knocked) and the route
 ## is planned again from where you stand, so the prints start at your feet.
 const OFF_ROUTE := 6.0
@@ -225,8 +229,7 @@ func _process(delta: float) -> void:
 			return
 	var cur := current_map()
 	var p := player.global_position
-	if cur == target_map and Vector2(p.x - target.x, p.z - target.z).length() < ARRIVE_RADIUS \
-			and absf(p.y - target.y) < 6.0:
+	if cur == target_map and _arrived(p, cur):
 		clear()
 		arrived.emit()
 		return
@@ -257,6 +260,14 @@ func _process(delta: float) -> void:
 	else:
 		_chevrons.multimesh.visible_instance_count = 0
 		_draw_prints(delta, proj.x, cur)
+
+
+func _arrived(p: Vector3, cur: String) -> bool:
+	var flat := Vector2(p.x - target.x, p.z - target.z).length()
+	if flat < ARRIVE_RADIUS and absf(p.y - target.y) < 6.0:
+		return true
+	return cur == "grounds" and flat < ARRIVE_RADIUS_AIR \
+			and p.y > target.y - 2.0 and p.y - target.y < ARRIVE_AIR_HEIGHT
 
 
 func _draw_prints(delta: float, s_player: float, cur: String) -> void:

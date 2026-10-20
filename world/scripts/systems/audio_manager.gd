@@ -23,9 +23,8 @@ extends Node
 ##     battle music, and stingers mark a boss appearing, a boss falling and death;
 ##   * a tension mix: low health brings a heartbeat and muffles the world, a
 ##     dementor's despair adds an icy bed, combat ducks the ambience;
-##   * broom flight: a wind bed that follows speed, swooshes on hard turns and
-##     dives, and a high-altitude wind layer that replaces the ground ambience as
-##     the rider climbs;
+##   * broom flight: a wind bed that follows speed and a high-altitude wind
+##     layer that replaces the ground ambience as the rider climbs;
 ##   * footsteps from the rig's own `footstep:<surface>` animation events.
 
 const LIBRARY_PATH := "res://assets/audio/sound_library.json"
@@ -179,9 +178,6 @@ var _duck_amb: AudioEffectAmplify
 var _altitude := 0.0
 var _mounted := false
 var _speed := 0.0
-var _prev_dir := Vector3.ZERO
-var _prev_vy := 0.0
-var _swoosh_cd := 0.0
 var _flight_time := 0.0
 var _hp_frac := 1.0
 var _was_dead := false
@@ -943,10 +939,9 @@ func _measure_altitude() -> void:
 	_altitude = 150.0 if hit.is_empty() else maxf(0.0, body.global_position.y - (hit.position as Vector3).y)
 
 
-## Broom wind follows speed; hard turns and dives get a swoosh; the high wind
+## Broom wind follows speed; the high wind
 ## layer rises with altitude whether mounted or not.
 func _process_flight(delta: float) -> void:
-	_swoosh_cd = maxf(0.0, _swoosh_cd - delta)
 	var high := clampf((_altitude - HIGH_WIND_FROM) / (HIGH_WIND_FULL - HIGH_WIND_FROM), 0.0, 1.0) if _is_outdoors() else 0.0
 	_set_layer("amb_high_wind", high)
 	if not _mounted or not is_instance_valid(_local_player) or not (_local_player is CharacterBody3D):
@@ -958,17 +953,8 @@ func _process_flight(delta: float) -> void:
 	_flight_time = _flight_time + delta if _altitude > FLIGHT_MUSIC_HEIGHT else maxf(0.0, _flight_time - delta * 2.0)
 	var ratio := clampf(_speed / 20.0, 0.0, 1.0)
 	_set_layer("broom_wind", lerpf(0.35, 1.0, ratio), lerpf(0.85, 1.2, ratio), 4.0)
-	var dir := flat.normalized() if _speed > 0.5 else Vector3.ZERO
-	if _swoosh_cd <= 0.0 and _speed > 9.0 and _prev_dir != Vector3.ZERO and dir != Vector3.ZERO:
-		var turn_rate := _prev_dir.angle_to(dir) / maxf(delta, 0.001)
-		var dive := _prev_vy - vel.y
-		if turn_rate > 2.2 or (vel.y < -8.0 and dive > 0.25):
-			_swoosh_cd = randf_range(2.0, 3.5)
-			var node := play_sound_at("broom_swoosh_%d" % (randi() % 2 + 1), Vector3.ZERO, null, true)
-			if node != null:
-				node.set("volume_db", float(node.get("volume_db")) + lerpf(-4.0, 1.5, ratio))
-	_prev_dir = dir
-	_prev_vy = vel.y
+	# No one-shot swoosh on hard turns and dives: it fired as a sudden "whoop"
+	# on every sharp bank (2026-10-21 playtest). The wind bed carries the speed.
 
 
 ## Low health, despair, combat and death shape the mix.

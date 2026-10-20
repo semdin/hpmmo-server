@@ -1,8 +1,10 @@
 extends Node3D
 
-## Broom wake: a faint pale air ribbon, curling silvery mist puffs (fal Wan
-## flipbook vfx_broom_mist) and a few glittering gold motes (vfx_broom_motes),
-## all shed from the broom's own TailSocket and scaled by speed.
+## Broom wake: a few curling silvery mist puffs (fal Wan flipbook
+## vfx_broom_mist) and glittering gold motes (vfx_broom_motes), shed from the
+## broom's own TailSocket and scaled by speed. The air ribbon (a strip along
+## the flight path) is off: players read it as a long drawn line behind the
+## broom (2026-10-21 playtest); `RIBBON` brings it back.
 ##
 ## The ribbon's UV layout and taper profile come from the authored mesh
 ## `assets/vfx/meshes/trail_ribbon.glb` (U along the length 0 -> 1, V across,
@@ -26,6 +28,7 @@ const RIBBON_SHADER := "res://assets/shaders/spell_ribbon.gdshader"
 const QualityPreset = preload("res://scripts/world/quality_preset.gd")
 
 const SAMPLES := 26
+const RIBBON := false
 const MAX_LENGTH := 7.0
 
 var owner_node: Node3D
@@ -107,6 +110,21 @@ func _build() -> void:
 	var preset := VFX.BROOM_TRAIL
 	var colour: Color = preset["colour"]
 	# A faint air wake: a thin pale ribbon, not a jet of fire.
+	if RIBBON:
+		_build_ribbon(colour)
+	# Curling silvery air left hanging in the broom's wake (world space, so the
+	# puffs stay where they were shed). Sparse and faint: a steady chain of
+	# puffs read as a dotted line.
+	wisps = _make_flipbook("TrailWisps", "vfx_broom_mist", 6, 1.2, Color(0.86, 0.9, 1.0, 0.12),
+		Vector2(0.55, 1.8), 0.5, 0.15, false)
+	# A few glittering motes of broom magic drifting down out of the bristles.
+	sparks = _make_flipbook("TrailSparks", "vfx_broom_motes", 7, 1.3, Color(1.0, 0.88, 0.62, 0.8),
+		Vector2(0.5, 1.2), 0.35, -0.35, true)
+	if _quality == "low":
+		sparks.amount = 4
+
+
+func _build_ribbon(colour: Color) -> void:
 	ribbon = MeshInstance3D.new()
 	ribbon.name = "TrailRibbon"
 	ribbon.mesh = _mesh
@@ -121,16 +139,6 @@ func _build() -> void:
 	ribbon.material_override = _material
 	add_child(ribbon)
 	ribbon.visible = false
-
-	# Curling silvery air left hanging in the broom's wake (world space, so the
-	# puffs stay where they were shed and the wake reads as a path).
-	wisps = _make_flipbook("TrailWisps", "vfx_broom_mist", 14, 1.5, Color(0.86, 0.9, 1.0, 0.22),
-		Vector2(0.55, 2.1), 0.5, 0.15, false)
-	# A few glittering motes of broom magic drifting down out of the bristles.
-	sparks = _make_flipbook("TrailSparks", "vfx_broom_motes", 7, 1.3, Color(1.0, 0.88, 0.62, 0.8),
-		Vector2(0.5, 1.2), 0.35, -0.35, true)
-	if _quality == "low":
-		sparks.amount = 4
 
 
 ## A world-space flipbook stream from the tail socket: every particle plays the
@@ -254,7 +262,7 @@ func tick(delta: float) -> void:
 		return
 	_measure_agitation(vel, delta)
 	_scale_to_speed(delta)
-	if tail_socket != null and is_instance_valid(tail_socket):
+	if ribbon != null and tail_socket != null and is_instance_valid(tail_socket):
 		_history.push_back(tail_socket.global_position)
 		while _history.size() > SAMPLES:
 			_history.remove_at(0)
@@ -289,8 +297,8 @@ func _scale_to_speed(delta: float) -> void:
 	if wisps:
 		# Hovering sheds almost nothing; cruising breathes with the gust; a bank
 		# or a dive throws a thicker swirl.
-		var base := lerpf(0.08, 0.75, moving) * lerpf(0.45, 1.0, gust)
-		wisps.amount_ratio = clampf(base + _agitation * 0.55 * maxf(0.3, moving), 0.03, 1.0)
+		var base := lerpf(0.05, 0.4, moving) * lerpf(0.45, 1.0, gust)
+		wisps.amount_ratio = clampf(base + _agitation * 0.6 * maxf(0.3, moving), 0.0, 1.0)
 		wisps.speed_scale = lerpf(0.85, 1.15, _gust(37.0))
 		if tail_socket != null and is_instance_valid(tail_socket):
 			wisps.global_position = tail_socket.global_position
@@ -365,4 +373,4 @@ func _rebuild() -> void:
 func describe() -> Dictionary:
 	return {"flying": _flying, "samples": _history.size(), "speed": _speed,
 		"taper_from_asset": not _taper.is_empty(), "quality": _quality,
-		"layers": 3}
+		"layers": 3 if ribbon != null else 2}

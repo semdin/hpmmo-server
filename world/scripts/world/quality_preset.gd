@@ -16,6 +16,8 @@ extends RefCounted
 ##   * glow, SSAO;
 ##   * view distance (camera far plane) with fog density matched to it, so the
 ##     far plane always sits inside the haze instead of cutting the hills;
+##   * how far the grounds' villages and sites are drawn (the castle is a
+##     landmark and keeps the full view distance);
 ##   * vegetation: how much of the small stuff is drawn, how far every LOD
 ##     reaches (the last, far LOD has its own scale: distant impostors are
 ##     what cost draw calls) and which LODs cast shadows
@@ -42,6 +44,7 @@ const PRESETS := {
 		"ssao": false,
 		"ssr": false,
 		"view_distance": 1600.0,
+		"site_view_distance": 650.0,
 		"fog_density": 0.00060,
 		"foliage_density": 0.5,
 		"vegetation_lod_scale": 0.6,
@@ -67,6 +70,7 @@ const PRESETS := {
 		"ssao": false,
 		"ssr": false,
 		"view_distance": 2600.0,
+		"site_view_distance": 1000.0,
 		"fog_density": 0.00042,
 		"foliage_density": 0.8,
 		"vegetation_lod_scale": 0.8,
@@ -92,6 +96,7 @@ const PRESETS := {
 		"ssao": true,
 		"ssr": false,
 		"view_distance": 3800.0,
+		"site_view_distance": 1500.0,
 		"fog_density": 0.00032,
 		"foliage_density": 1.0,
 		"vegetation_lod_scale": 1.0,
@@ -215,6 +220,13 @@ static func apply(world: Node3D) -> void:
 			omni.distance_fade_enabled = true
 			omni.distance_fade_begin = fade_begin
 			omni.distance_fade_length = fade_begin * 0.35
+	var site_range := float(preset["site_view_distance"])
+	for node in world.get_tree().get_nodes_in_group("site_geometry"):
+		if node is GeometryInstance3D:
+			var geo := node as GeometryInstance3D
+			geo.visibility_range_end = site_range
+			geo.visibility_range_end_margin = site_range * 0.1
+			geo.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 	tune_particles(world)
 
 ## View distance on a camera (the player camera is created after the world, so

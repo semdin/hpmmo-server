@@ -21,6 +21,11 @@ static func item(id: String) -> Dictionary:
 static func fits(id: String, slot: String) -> bool:
 	return slot in SLOTS and slot in item(id).get("slots", [])
 
+## Gear (anything with an equipment slot) is never destroyed from the bag:
+## the Delete key only throws away stacks and materials; gear is sold instead.
+static func equippable(id: String) -> bool:
+	return not (item(id).get("slots", []) as Array).is_empty()
+
 ## The character level an item needs before it can be equipped (`required_level`
 ## in items.json; absent means anyone may wear it).
 static func required_level(id: String) -> int:

@@ -1119,7 +1119,7 @@ func _intent_move() -> Vector2:
 	if SimNet.is_client and not SimNet.forced_intent.is_empty():
 		# Headless probe: the intent it sends is the intent it predicts with.
 		return HPRules.sanitize_input_vector(SimNet.forced_intent.get("move", Vector2.ZERO))
-	if input_blocked():
+	if input_blocked() or pose_override == "floo":
 		return Vector2.ZERO
 	var input_dir := Vector2.ZERO
 	if Input.is_action_pressed("move_forward"):
@@ -1649,6 +1649,55 @@ func portkey_release() -> void:
 	pose_override = ""
 	if hero_anim:
 		hero_anim.cancel_oneshot()
+
+## ------------------------------------------------------------- Floo walk
+
+## Presentation only: the body stays where the authority has it while the
+## visuals walk from `from_world` to `to_world` (into a hearth on departure, out
+## of one on arrival) with the walk cycle playing. Movement keys are ignored
+## while it runs; `end_at_body` puts the visuals back on the body at the end
+## (arrival), otherwise they stay in the flames until floo_walk_reset (the
+## loading screen covers the jump).
+var _floo_tween: Tween = null
+
+func floo_walk(from_world: Vector3, to_world: Vector3, seconds: float, end_at_body := true) -> void:
+	if visuals == null:
+		return
+	if _floo_tween != null and _floo_tween.is_valid():
+		_floo_tween.kill()
+	var a := to_local(from_world)
+	var b := to_local(to_world)
+	var flat := Vector2(b.x - a.x, b.z - a.z)
+	if flat.length_squared() > 0.0001:
+		visuals.rotation.y = atan2(flat.x, flat.y)
+	pose_override = "floo"
+	if hero_anim != null:
+		hero_anim.cancel_oneshot()
+		hero_anim.set_ground_motion(Vector2(0.0, flat.length() / maxf(0.1, seconds)))
+	visuals.position.x = a.x
+	visuals.position.z = a.z
+	_floo_tween = create_tween()
+	_floo_tween.tween_method(func(t: float):
+		if is_instance_valid(visuals):
+			visuals.position.x = lerpf(a.x, b.x, t)
+			visuals.position.z = lerpf(a.z, b.z, t)
+	, 0.0, 1.0, seconds)
+	_floo_tween.tween_callback(func():
+		if hero_anim != null:
+			hero_anim.set_ground_motion(Vector2.ZERO)
+		if end_at_body:
+			floo_walk_reset()
+	)
+
+func floo_walk_reset() -> void:
+	if _floo_tween != null and _floo_tween.is_valid():
+		_floo_tween.kill()
+	_floo_tween = null
+	if visuals != null:
+		visuals.position.x = 0.0
+		visuals.position.z = 0.0
+	if pose_override == "floo":
+		pose_override = ""
 
 ## A title; true when it is new.
 func grant_title(title_id: String) -> bool:

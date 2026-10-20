@@ -273,6 +273,7 @@
         "arcane": -0.15,
         "patronus": -2.0
       },
+      "mana_first": true,
       "loot_table": "dementor",
       "abilities": [
         {

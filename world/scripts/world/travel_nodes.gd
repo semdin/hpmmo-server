@@ -23,7 +23,6 @@ const KIND_FX := {
 	"cabinet": [Color(0.55, 0.25, 0.85), "cabinet_vanish"],
 	"passage": [Color(0.75, 0.68, 0.55), "passage_stone"],
 }
-const FLAME_SHADER := preload("res://assets/shaders/castle/candle_flame.gdshader")
 const QualityPreset = preload("res://scripts/world/quality_preset.gd")
 const FLOO_GREEN := Color(0.35, 1.0, 0.45)
 ## The baked model is 2.7 m tall; a walk-in hearth a wizard steps into is ~4.6 m.
@@ -159,10 +158,12 @@ func _seam_glow(root: Node3D) -> void:
 static func kind_of(node_id: String) -> String:
 	return String(HPMaps.travel_node(node_id).get("kind", "floo"))
 
-## A low fire in the hearth: three flame cards and (not on low) a warm light.
+## A low fire in the hearth: three flipbook flames (FireCard), staggered in
+## depth, and (not on low) a warm light.
 func _hearth_fire(root: Node3D) -> void:
 	for k in 3:
-		_flame(root, Vector3((float(k) - 1.0) * 0.28, 0.42 + 0.06 * (k % 2), 0.05) * HEARTH_SCALE, Vector2(0.45, 0.7) * HEARTH_SCALE, Color(1, 1, 1), 3.4)
+		FireCard.make(root, Vector3((float(k) - 1.0) * 0.26, 0.36 + 0.05 * (k % 2), 0.05 - 0.05 * (k % 2)) * HEARTH_SCALE,
+			Vector2(0.48, 0.72) * HEARTH_SCALE * (1.0 - 0.15 * (k % 2)), Color(1, 1, 1), 1.6)
 	if QualityPreset.current() != "low":
 		var light := OmniLight3D.new()
 		light.light_color = Color(1.0, 0.55, 0.25)
@@ -170,24 +171,6 @@ func _hearth_fire(root: Node3D) -> void:
 		light.omni_range = 7.0
 		light.position = Vector3(0, 0.8, 0.9)
 		root.add_child(light)
-
-static func _flame(parent: Node3D, pos: Vector3, size: Vector2, tint: Color, intensity: float) -> MeshInstance3D:
-	var mi := MeshInstance3D.new()
-	var quad := QuadMesh.new()
-	quad.size = size
-	var fire := ShaderMaterial.new()
-	fire.shader = FLAME_SHADER
-	fire.set_shader_parameter("bob_height", 0.0)
-	fire.set_shader_parameter("intensity", intensity)
-	if tint != Color(1, 1, 1):
-		fire.set_shader_parameter("tint", tint)
-	quad.material = fire
-	mi.mesh = quad
-	mi.position = pos
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	parent.add_child(mi)
-	return mi
-
 
 ## The effect a traveller steps into and out of, by kind (flipbooks from
 ## fal Wan clips, tools/vfx/build_spell_vfx.py): the Floo Network's pinch of

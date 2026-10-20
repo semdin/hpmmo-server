@@ -379,7 +379,7 @@ func _build_camp(center: Vector2) -> void:
 	ember.albedo_color = Color(1.0, 0.45, 0.15)
 	ember.emission_enabled = true
 	ember.emission = Color(1.0, 0.45, 0.12)
-	ember.emission_energy_multiplier = 4.0
+	ember.emission_energy_multiplier = 1.6
 	var coals := MeshInstance3D.new()
 	var dome := SphereMesh.new()
 	dome.radius = 0.6
@@ -389,6 +389,10 @@ func _build_camp(center: Vector2) -> void:
 	coals.material_override = ember
 	coals.position = fire_at
 	add_child(coals)
+	# Flames over the coals: three flipbook cards of different heights.
+	for k in 3:
+		var off := Vector3(cos(TAU * k / 3.0), 0.0, sin(TAU * k / 3.0)) * 0.22
+		FireCard.make(self, fire_at + off + Vector3(0, 0.55, 0), Vector2(0.75, 1.15) * (1.0 - 0.15 * k), Color(1, 1, 1), 1.5)
 	for i in 8:
 		var a := TAU * float(i) / 8.0
 		var st := MeshInstance3D.new()
@@ -417,14 +421,7 @@ func _build_camp(center: Vector2) -> void:
 		post.material_override = wood
 		post.position = g + Vector3(0, 1.2, 0)
 		add_child(post)
-		var lamp := MeshInstance3D.new()
-		var ls := SphereMesh.new()
-		ls.radius = 0.16
-		ls.height = 0.32
-		lamp.mesh = ls
-		lamp.material_override = ember
-		lamp.position = g + Vector3(0, 2.45, 0)
-		add_child(lamp)
+		FireCard.make(self, g + Vector3(0, 2.52, 0), Vector2(0.34, 0.52), Color(1, 1, 1), 1.4)
 		_light(g + Vector3(0, 2.4, 0), Color(1.0, 0.7, 0.4), 1.4, 11.0)
 
 ## The way back up: worn steps climbing north-west into the rock to the crypt's

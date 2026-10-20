@@ -212,18 +212,9 @@ func _torch(at: Vector3, color: Color = Color(1.0, 0.68, 0.35), energy: float = 
 	light.light_energy = energy
 	light.omni_range = reach
 	add_child(light)
-	var flame := MeshInstance3D.new()
-	var sphere := SphereMesh.new()
-	sphere.radius = 0.18
-	sphere.height = 0.36
-	flame.mesh = sphere
-	var mat := _mat(color, 0.5)
-	mat.emission_enabled = true
-	mat.emission = color
-	mat.emission_energy_multiplier = 4.0
-	flame.material_override = mat
-	flame.position = at
-	add_child(flame)
+	# A living flame (FireCard flipbook); a cold or green torch keeps its hue.
+	var warm := color.r > 0.9 and color.g < 0.8
+	FireCard.make(self, at + Vector3(0, 0.12, 0), Vector2(0.42, 0.68), Color(1, 1, 1) if warm else color, 1.5)
 	# The iron sconce under the flame.
 	var cup := MeshInstance3D.new()
 	var cm := CylinderMesh.new()

@@ -189,6 +189,22 @@ func _passage_depart(node_id: String) -> void:
 	if is_instance_valid(local_player):
 		SimNet.request_travel(local_player, node_id, String(HPMaps.travel_node(node_id).get("pair", "")))
 
+## Standing at a hearth adds it to the network: no need to open its window.
+## One request per hearth per session; the authority checks the distance and
+## persists it, its stats push brings `floo_known` back.
+var _hearths_asked: Dictionary = {}
+
+func _learn_hearth(node_id: String) -> void:
+	if node_id == "" or _hearths_asked.has(node_id) or TravelNodes.kind_of(node_id) != "floo":
+		return
+	if not local_player.has_method("floo_known") or (local_player.call("floo_known") as Array).has(node_id):
+		return
+	_hearths_asked[node_id] = true
+	SimNet.request_travel(local_player, node_id, "")
+	var hud = world.get("hud") if world != null else null
+	if hud != null and hud.has_method("show_notice"):
+		hud.show_notice("%s added to your Floo Network." % String(HPMaps.travel_node(node_id).get("label", "")), "good")
+
 ## Interact at a fireplace: the authority learns it (an empty destination) and
 ## the Floo window opens.
 func open_floo(node_id: String) -> void:
@@ -202,15 +218,36 @@ func open_floo(node_id: String) -> void:
 	floo.on_travel = _floo_depart
 	floo.open_at(local_player, node_id)
 
-## The traveller steps into the green flames; the request follows once they
-## have caught, and the granted transfer's loading screen takes over.
+## The traveller walks into the hearth, the powder catches and the green
+## flames roar up around them; the request follows, and the granted transfer's
+## loading screen takes over. A refused trip walks them back out.
 func _floo_depart(node_id: String, dest_id: String) -> void:
 	if busy or not is_instance_valid(local_player):
 		return
-	TravelNodes.burst(world, _travel_mouth(node_id))
-	await get_tree().create_timer(0.9).timeout
-	if is_instance_valid(local_player):
-		SimNet.request_travel(local_player, node_id, dest_id)
+	var inside := _hearth_inside(node_id)
+	var start := local_player.global_position
+	if local_player.has_method("floo_walk"):
+		local_player.call("floo_walk", start, inside, 0.75, false)
+	await get_tree().create_timer(0.6).timeout
+	TravelNodes.burst(world, inside)
+	await get_tree().create_timer(0.7).timeout
+	if not is_instance_valid(local_player):
+		return
+	_floo_pending = true
+	SimNet.request_travel(local_player, node_id, dest_id)
+	await get_tree().create_timer(2.5).timeout
+	if _floo_pending and not busy and is_instance_valid(local_player) and local_player.has_method("floo_walk"):
+		_floo_pending = false
+		local_player.call("floo_walk", inside, local_player.global_position, 0.6)
+
+## A trip was asked for and no transfer has started yet (refused or lost).
+var _floo_pending := false
+
+## The hearth's floor, just inside the firebox, where a traveller stands in
+## the flames.
+func _hearth_inside(node_id: String) -> Vector3:
+	var node := HPMaps.travel_node(node_id)
+	return TravelNodes.point(node) + HPMaps.travel_facing(node) * 0.15
 
 ## The map this body belongs to, decided by where the body is: the catalog's
 ## y-band (the interior is authored above y=185) says which map a saved position
@@ -334,6 +371,7 @@ func _process(delta: float) -> void:
 		_active_portkey = _portkeys.grab_candidate(local_player.global_position, current_map)
 	if found.is_empty() and _active_portkey.is_empty() and _travel != null:
 		_active_travel = _travel.node_at(local_player.global_position, current_map)
+		_learn_hearth(_active_travel)
 	if found.is_empty() and not _active_portkey.is_empty():
 		_active_label = "Press %s - %s the Portkey (to %s)" % [PROMPT_KEY,
 			"Let go of" if bool(_active_portkey.get("holding", false)) else "Grab hold of", _active_portkey.get("label", "")]
@@ -479,6 +517,7 @@ func _start_transfer(map_id: String, spawn_id: String, token: int, forced_pos: V
 		_feedback("That map is not available in this build.")
 		return
 	busy = true
+	_floo_pending = false
 	_expired_return = {}
 	_active_portal = {}
 	_feedback("")
@@ -522,7 +561,15 @@ func _start_transfer(map_id: String, spawn_id: String, token: int, forced_pos: V
 	busy = false
 	_record_transfer(map_id, spawn_id, token)
 	var kind := spawn_id.get_slice(":", 0)
-	if kind in ["floo", "cabinet", "passage"] and spawn_id.contains(":") and is_instance_valid(local_player):
+	if is_instance_valid(local_player) and local_player.has_method("floo_walk_reset"):
+		local_player.call("floo_walk_reset")
+	if kind == "floo" and spawn_id.contains(":") and is_instance_valid(local_player):
+		# Out of the flames of the destination hearth and onto the rug.
+		var inside := _hearth_inside(spawn_id.get_slice(":", 1))
+		TravelNodes.burst(world, inside, 1.6, kind)
+		if local_player.has_method("floo_walk"):
+			local_player.call("floo_walk", inside, local_player.global_position, 0.9)
+	elif kind in ["cabinet", "passage"] and spawn_id.contains(":") and is_instance_valid(local_player):
 		TravelNodes.burst(world, local_player.global_position, 1.6, kind)
 	elif spawn_id.begins_with("portkey:") and is_instance_valid(local_player):
 		PortkeyViews.swirl(world, local_player.global_position, 1.2)

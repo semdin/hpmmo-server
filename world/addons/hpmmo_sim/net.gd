@@ -1236,16 +1236,19 @@ func submit_chat(text: String) -> void:
 	# Offline / hosting: the local body speaks through the same router.
 	var record := SimAuthority.player_record(local_peer_id)
 	if record.is_empty():
-		SimAuthority.emit_signal("chat", text)
-		if has_peers():
-			sim_chat_event.rpc(text)
+		_emit_system_chat(text)
 		return
 	route_chat(record, text)
 
 ## A system line (no speaker) for every connected player and the local view.
 func broadcast_system_chat(text: String) -> void:
+	_emit_system_chat(text)
+
+## The local signal; peers get it through bridge_authority's broadcast_chat.
+## Sending the RPC here too gave every client each system line twice.
+func _emit_system_chat(text: String) -> void:
 	SimAuthority.emit_signal("chat", text)
-	if not is_client and has_peers():
+	if not is_client and has_peers() and not SimAuthority.chat.is_connected(broadcast_chat):
 		sim_chat_event.rpc(text)
 
 ## True once a peer is attached (offline and dedicated-without-clients return

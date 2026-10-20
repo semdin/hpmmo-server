@@ -253,18 +253,7 @@ static func _sconce(root: Node3D, at: Vector3, facing_x: float) -> void:
 	cup.mesh = cone
 	cup.position = Vector3(facing_x * 0.7, 0.12, 0.0)
 	node.add_child(cup)
-	var flame := MeshInstance3D.new()
-	var quad := QuadMesh.new()
-	quad.size = Vector2(0.38, 0.62)
-	var fire := ShaderMaterial.new()
-	fire.shader = FLAME_SHADER
-	fire.set_shader_parameter("bob_height", 0.0)
-	fire.set_shader_parameter("intensity", 3.2)
-	quad.material = fire
-	flame.mesh = quad
-	flame.position = Vector3(facing_x * 0.7, 0.55, 0.0)
-	flame.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	node.add_child(flame)
+	FireCard.make(node, Vector3(facing_x * 0.7, 0.55, 0.0), Vector2(0.42, 0.7))
 	var light := OmniLight3D.new()
 	light.light_color = Color(1.0, 0.62, 0.32)
 	light.light_energy = 2.6
@@ -343,21 +332,10 @@ static func _fade(light: Light3D, begin: float = 38.0) -> void:
 	light.distance_fade_shadow = 20.0
 
 
+## A flipbook flame (FireCard); `intensity` is the old card's scale, halved
+## for the clip's own brightness.
 static func _flame(parent: Node3D, pos: Vector3, size: Vector2, tint: Color = Color(1, 1, 1), intensity: float = 3.0) -> void:
-	var mi := MeshInstance3D.new()
-	var quad := QuadMesh.new()
-	quad.size = size
-	var fire := ShaderMaterial.new()
-	fire.shader = FLAME_SHADER
-	fire.set_shader_parameter("bob_height", 0.0)
-	fire.set_shader_parameter("intensity", intensity)
-	quad.material = fire
-	mi.mesh = quad
-	mi.position = pos
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	if tint != Color(1, 1, 1):
-		fire.set_shader_parameter("tint", tint)
-	parent.add_child(mi)
+	FireCard.make(parent, pos, size * Vector2(1.1, 1.15), tint, intensity * 0.5)
 
 
 static func _iron() -> StandardMaterial3D:
@@ -399,11 +377,13 @@ static func _fx_sconce(holder: Node3D, colour: Color) -> void:
 	holder.add_child(light)
 
 
-## A hearth fire: a few flame cards across the hearth (`scale` ~ width / 4 m).
+## A hearth fire: a few flame cards across the hearth (`scale` ~ width / 4 m),
+## staggered in depth and height so the fire has body from any angle.
 static func _fx_fire(holder: Node3D, scale: float) -> void:
-	for k in 5:
-		var x := (float(k) - 2.0) * 0.35 * scale
-		_flame(holder, Vector3(x, 0.35 + 0.1 * (k % 2), 0.0), Vector2(0.55, 0.9) * (0.8 + 0.2 * scale), Color(1, 1, 1), 3.6)
+	for k in 4:
+		var x := (float(k) - 1.5) * 0.24 * scale
+		var z := 0.08 * float((k * 7) % 3 - 1)
+		_flame(holder, Vector3(x, 0.3 + 0.08 * (k % 2), z), Vector2(0.6, 0.95) * (0.8 + 0.2 * scale) * (1.0 - 0.12 * (k % 2)), Color(1, 1, 1), 3.2)
 	var light := OmniLight3D.new()
 	light.light_color = Color(1.0, 0.55, 0.25)
 	light.light_energy = 3.2
@@ -429,17 +409,7 @@ static func _fx_green_fire(holder: Node3D, with_light: bool) -> void:
 ## A hanging lantern: iron cage, chain, flame, warm light.
 static func _fx_lamp(holder: Node3D) -> void:
 	var iron := _iron()
-	var cage := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = Vector3(0.36, 0.5, 0.36)
-	var glass := StandardMaterial3D.new()
-	glass.albedo_color = Color(1.0, 0.8, 0.45)
-	glass.emission_enabled = true
-	glass.emission = Color(1.0, 0.7, 0.35)
-	glass.emission_energy_multiplier = 2.0
-	box.material = glass
-	cage.mesh = box
-	holder.add_child(cage)
+	lantern(holder, Vector3.ZERO, 1.0)
 	var chain := MeshInstance3D.new()
 	var cyl := CylinderMesh.new()
 	cyl.top_radius = 0.02
@@ -456,6 +426,83 @@ static func _fx_lamp(holder: Node3D) -> void:
 	light.position = Vector3(0, -0.3, 0)
 	_fade(light)
 	holder.add_child(light)
+
+
+## A lantern body centred on `at`: iron cap and base, four corner posts, smoky
+## amber glass panes you can see the candle through, and the candle flame. The
+## old one was a solid glowing box.
+static func lantern(parent: Node3D, at: Vector3, s: float = 1.0) -> void:
+	var iron := _iron()
+	var glass := StandardMaterial3D.new()
+	glass.albedo_color = Color(0.95, 0.72, 0.4, 0.22)
+	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	glass.roughness = 0.15
+	glass.emission_enabled = true
+	glass.emission = Color(1.0, 0.62, 0.3)
+	glass.emission_energy_multiplier = 0.35
+	glass.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var pane := MeshInstance3D.new()
+	var pb := BoxMesh.new()
+	pb.size = Vector3(0.3, 0.4, 0.3) * s
+	pb.material = glass
+	pane.mesh = pb
+	pane.position = at
+	pane.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(pane)
+	for spec in [[Vector3(0.38, 0.05, 0.38), 0.225], [Vector3(0.34, 0.05, 0.34), -0.225]]:
+		var plate := MeshInstance3D.new()
+		var b := BoxMesh.new()
+		b.size = (spec[0] as Vector3) * s
+		b.material = iron
+		plate.mesh = b
+		plate.position = at + Vector3(0, float(spec[1]) * s, 0)
+		parent.add_child(plate)
+	var cap := MeshInstance3D.new()
+	var cone := CylinderMesh.new()
+	cone.top_radius = 0.03 * s
+	cone.bottom_radius = 0.22 * s
+	cone.height = 0.14 * s
+	cone.radial_segments = 4
+	cone.material = iron
+	cap.mesh = cone
+	cap.position = at + Vector3(0, 0.32 * s, 0)
+	cap.rotation.y = PI * 0.25
+	parent.add_child(cap)
+	for c in [Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]:
+		var post := MeshInstance3D.new()
+		var pbox := BoxMesh.new()
+		pbox.size = Vector3(0.025, 0.42, 0.025) * s
+		pbox.material = iron
+		post.mesh = pbox
+		post.position = at + Vector3(c.x * 0.155, 0.0, c.y * 0.155) * s
+		parent.add_child(post)
+	var candle := MeshInstance3D.new()
+	var wax := CylinderMesh.new()
+	wax.top_radius = 0.035 * s
+	wax.bottom_radius = 0.04 * s
+	wax.height = 0.14 * s
+	wax.radial_segments = 8
+	var wax_mat := StandardMaterial3D.new()
+	wax_mat.albedo_color = Color(0.93, 0.89, 0.78)
+	wax_mat.emission_enabled = true
+	wax_mat.emission = Color(1.0, 0.6, 0.3)
+	wax_mat.emission_energy_multiplier = 0.25
+	wax.material = wax_mat
+	candle.mesh = wax
+	candle.position = at + Vector3(0, -0.13 * s, 0)
+	parent.add_child(candle)
+	var flame := MeshInstance3D.new()
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.1, 0.18) * s
+	var fire := ShaderMaterial.new()
+	fire.shader = FLAME_SHADER
+	fire.set_shader_parameter("bob_height", 0.0)
+	fire.set_shader_parameter("intensity", 2.4)
+	quad.material = fire
+	flame.mesh = quad
+	flame.position = at + Vector3(0, 0.0, 0)
+	flame.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(flame)
 
 
 

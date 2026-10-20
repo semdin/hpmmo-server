@@ -4,17 +4,22 @@ class_name GroundsScatter
 ## Solid trunks and boulders for the grounds vegetation.
 ##
 ## The Terrain3D instancer only draws the trees and rocks; it has no collision.
-## Players and mobs must not walk through a trunk, and the server simulates every
-## body, so both sides build the same colliders from the same baked instance files
+## Players must not walk through a trunk, and the server simulates every body,
+## so both sides build the same colliders from the same baked instance files
 ## (assets/terrain/grounds/scatter/<variant>.bin: float32 x, y, z, yaw, scale)
 ## and the collider spec in vegetation.json.
+##
+## The colliders sit on their own layer (VEGETATION_LAYER), which the player
+## body collides with and creatures do not: without a navigation mesh a pack
+## chasing through the forest wedged itself on trunk after trunk (2026-10-21
+## playtest), so creatures - and their steering rays, and bolts - pass through.
 ##
 ## One StaticBody3D per 256 m cell keeps the physics broadphase tidy (each body's
 ## AABB stays local) without paying a node per tree.
 
 const DIR := "res://assets/terrain/grounds/"
 const CELL := 256.0
-const GROUND_LAYER := 1
+const VEGETATION_LAYER := 32
 
 
 static func catalog() -> Dictionary:
@@ -59,7 +64,7 @@ static func build_colliders(parent: Node3D) -> int:
 			if body == null:
 				body = StaticBody3D.new()
 				body.name = "VegetationColliders_%d_%d" % [key.x, key.y]
-				body.collision_layer = GROUND_LAYER
+				body.collision_layer = VEGETATION_LAYER
 				body.collision_mask = 0
 				parent.add_child(body)
 				bodies[key] = body

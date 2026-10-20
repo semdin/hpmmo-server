@@ -90,6 +90,10 @@ static func build_all(parent: Node3D, visuals: bool) -> void:
 	_smugglers_camp(root, visuals)
 	_crypt(root, visuals)
 	_spider_hollow(root, visuals)
+	# Village and site meshes end at the preset's site range (QualityPreset.apply):
+	# a quidditch tower 900 m off is a few pixels and still a draw call.
+	for node in root.find_children("*", "GeometryInstance3D", true, false):
+		node.add_to_group("site_geometry")
 
 
 # --------------------------------------------------------------- buildings
@@ -253,11 +257,13 @@ static func _hagrid(parent: Node3D, visuals: bool) -> void:
 	var patch := Vector2(h.x + 10.0, h.z + 4.0)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 280
+	var pumpkins: Array[Transform3D] = []
 	for i in 14:
 		var p := patch + Vector2(rng.randf_range(-4, 4), rng.randf_range(-3, 3))
 		var g := GroundsLayout.ground(p.x, p.y)
 		var r := rng.randf_range(0.35, 0.8)
-		kit.cylinder(g + Vector3(0, -0.05, 0), r, r * 1.1, "pumpkin", 10, false, r * 0.7)
+		var tilt := Basis(Vector3(rng.randf_range(-1, 1), 0, rng.randf_range(-1, 1)).normalized(), rng.randf_range(0.0, 0.14))
+		pumpkins.append(Transform3D(tilt * Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * r * 2.0), g + Vector3(0, -0.06 * r, 0)))
 	for i in 12:
 		var a := TAU * i / 12.0
 		var p := patch + Vector2(cos(a) * 6.0, sin(a) * 4.6)
@@ -266,6 +272,25 @@ static func _hagrid(parent: Node3D, visuals: bool) -> void:
 	var root := kit.finish(parent, materials() if visuals else {}, "HagridsHut", 1, visuals)
 	if visuals:
 		_lamp_light(root, Vector3(h.x, fy + 2.4, h.z + 5.5), 1.2, 9.0)
+		_pumpkin_patch(root, pumpkins, rng)
+
+
+## The pumpkins as one MultiMesh of the procedural PumpkinMesh, each a shade
+## apart (instance colour multiplies the mottled skin).
+static func _pumpkin_patch(parent: Node3D, xforms: Array[Transform3D], rng: RandomNumberGenerator) -> void:
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	mm.mesh = PumpkinMesh.mesh()
+	mm.instance_count = xforms.size()
+	for i in xforms.size():
+		mm.set_instance_transform(i, xforms[i])
+		var v := rng.randf_range(0.85, 1.08)
+		mm.set_instance_color(i, Color(v, v * rng.randf_range(0.92, 1.04), v * 0.95))
+	var mmi := MultiMeshInstance3D.new()
+	mmi.name = "Pumpkins"
+	mmi.multimesh = mm
+	parent.add_child(mmi)
 
 
 # ------------------------------------------------------------- greenhouses

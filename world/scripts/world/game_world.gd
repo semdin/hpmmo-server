@@ -124,12 +124,18 @@ func _process(delta: float) -> void:
 		if candle.has_meta("base_y"):
 			candle.position.y = float(candle.get_meta("base_y")) + sin(_candle_t * 1.2 + float(candle.get_meta("phase"))) * 0.15
 	# Torch flicker + banner wave + lake shimmer (cheap life).
+	# Each lamp breathes around its own authored energy on its own phase: the
+	# old shared 9 Hz sine (one energy for every lamp) pulsed the whole valley
+	# in step.
 	for l in get_tree().get_nodes_in_group("torch_lights"):
 		if l is OmniLight3D:
-			(l as OmniLight3D).light_energy = 1.25 + sin(_candle_t * 9.0 + float((l as Node3D).get_index())) * 0.18
-	for f in get_tree().get_nodes_in_group("torch_flames"):
-		if f is MeshInstance3D:
-			(f as MeshInstance3D).scale = Vector3.ONE * (1.0 + sin(_candle_t * 11.0) * 0.12)
+			var omni := l as OmniLight3D
+			if not omni.has_meta("base_energy"):
+				omni.set_meta("base_energy", omni.light_energy)
+				omni.set_meta("flicker_phase", randf() * TAU)
+			var ph := float(omni.get_meta("flicker_phase"))
+			var wobble := sin(_candle_t * 7.3 + ph) * 0.6 + sin(_candle_t * 12.7 + ph * 1.7) * 0.4
+			omni.light_energy = float(omni.get_meta("base_energy")) * (0.93 + 0.07 * wobble)
 	for b in get_tree().get_nodes_in_group("castle_banners"):
 		if b is MeshInstance3D:
 			(b as MeshInstance3D).rotation.y = sin(_candle_t * 1.6) * 0.12
