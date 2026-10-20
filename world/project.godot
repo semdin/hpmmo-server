@@ -16,6 +16,7 @@ run/main_scene="res://server/world_server.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 boot_splash/show_image=false
 boot_splash/use_filter=false
+config/icon="res://assets/branding/hpmmo_icon.png"
 
 [autoload]
 
@@ -31,7 +32,7 @@ QuestManager="*res://scripts/systems/quest_manager.gd"
 
 window/size/viewport_width=1280
 window/size/viewport_height=720
-window/size/mode="fullscreen"
+window/size/mode=3
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 

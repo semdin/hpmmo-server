@@ -113,6 +113,9 @@ func _ready() -> void:
 	_rune.offset_right = -36
 	_rune.offset_bottom = -36
 	_root.add_child(_rune)
+	# The load and the world build block this thread (minutes on a first run on
+	# a Mac): the connection must outlive that (SimNet.set_world_loading).
+	SimNet.set_world_loading(true)
 
 ## The world scene loads on the main thread, once this screen has been drawn.
 ## It used to load on a background thread: online, the snapshots and stats that
@@ -121,6 +124,9 @@ func _ready() -> void:
 ## minutes, its client never past this screen). A frozen bar for a couple of
 ## seconds is the price of a load that always finishes.
 const LOAD_AFTER := 0.25
+
+func _exit_tree() -> void:
+	SimNet.set_world_loading(false)
 
 func _process(delta: float) -> void:
 	_t += delta

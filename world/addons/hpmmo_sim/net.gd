@@ -134,6 +134,30 @@ static func _relax_timeout(packet_peer: ENetPacketPeer) -> void:
 	if packet_peer != null:
 		packet_peer.set_timeout(PEER_TIMEOUT_LIMIT, PEER_TIMEOUT_MIN_MS, PEER_TIMEOUT_MAX_MS)
 
+## Entering the world after a fresh install can block the client's main thread
+## for minutes (a Mac compiling every Metal pipeline for the first time): no
+## packet is serviced, and at PEER_TIMEOUT_MAX_MS both ends gave up - the
+## player was thrown back to the login screen after a two-minute load. From the
+## bind until the client drives its body (its first input), both ends wait up
+## to LOADING_TIMEOUT_MAX_MS instead.
+const LOADING_TIMEOUT_MAX_MS := 300000
+var _loading_peers: Dictionary = {}   # server: peer_id -> true until its first input
+
+static func _set_loading_timeout(packet_peer: ENetPacketPeer, loading: bool) -> void:
+	if packet_peer != null:
+		packet_peer.set_timeout(PEER_TIMEOUT_LIMIT, PEER_TIMEOUT_MIN_MS,
+			LOADING_TIMEOUT_MAX_MS if loading else PEER_TIMEOUT_MAX_MS)
+
+func _peer_object(peer_id: int) -> ENetPacketPeer:
+	if multiplayer == null or not (multiplayer.multiplayer_peer is ENetMultiplayerPeer):
+		return null
+	return (multiplayer.multiplayer_peer as ENetMultiplayerPeer).get_peer(peer_id)
+
+## Client: the world scene is loading (true) or the body is in the world (false).
+func set_world_loading(loading: bool) -> void:
+	if is_client:
+		_set_loading_timeout(_peer_object(1), loading)
+
 func host(port: int = DEFAULT_PORT) -> Error:
 	# RPC receivers must exist before any peer can send a staircase update,
 	# including a client whose initial map is still loading.
@@ -305,6 +329,7 @@ func _on_peer_disconnected(peer_id: int) -> void:
 	_known_by_peer.erase(peer_id)
 	_peer_map.erase(peer_id)
 	_replaced_peers.erase(peer_id)
+	_loading_peers.erase(peer_id)
 	if not is_client:
 		SimAuthority.remove_player(peer_id)
 		emit_signal("client_spawned", peer_id, 0, "")
@@ -539,6 +564,8 @@ func sim_bind_character(character_id: int) -> void:
 		sim_bind_result.rpc_id(peer_id, false, refusal, {})
 		return
 	sim_bind_result.rpc_id(peer_id, true, "", character)
+	_loading_peers[peer_id] = true
+	_set_loading_timeout(_peer_object(peer_id), true)
 	# The bound body's own numbers and map, immediately - exactly as at join.
 	sim_stats_event.rpc_id(peer_id, int(record.get("uid", 0)), SimAuthority.build_stats(record))
 	var node = record.get("node")
@@ -551,7 +578,11 @@ func sim_input(seq: int, move: Vector2, yaw: float, jump: bool, descend: bool) -
 	if is_client:
 		return
 	inputs_received += 1
-	SimAuthority.submit_input(multiplayer.get_remote_sender_id(), seq, move, yaw, jump, descend)
+	var sender := multiplayer.get_remote_sender_id()
+	if _loading_peers.has(sender):
+		_loading_peers.erase(sender)
+		_set_loading_timeout(_peer_object(sender), false)
+	SimAuthority.submit_input(sender, seq, move, yaw, jump, descend)
 
 @rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
 func sim_cast_request(spell_id: String, aim: Vector3, cast_seq: int) -> void:

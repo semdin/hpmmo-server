@@ -1,7 +1,7 @@
 {
  "generated": "2026-10-20",
  "source_repository": "hpmmo-client",
- "source_revision": "f0d7e0f60a8a8f11fafafda2eb1c5625c486d15b",
+ "source_revision": "6fdad7df05fc3d8c05e033fb9816d35182b152c4",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/audio/sound_library.json": "4960d9c5111e80c29446024602e6f9165f23c701f50eca81fa57cbea27196d68",
@@ -454,7 +454,7 @@
   "assets/vfx/tex/star_flare_256.png": "40b5d340358c94bcba22fbae37e53c406a4cc83fa5736ad326e6244551b33345",
   "data/json/houses.json": "812d98383fc4ff12d012436b912bab3d4b644188b4e4a1b793a988787ea030e2",
   "data/json/quests.json": "6b22db277a3e09c1e3edb4ace485ee1d61942b96c1769e738ed299dadb09434e",
-  "project.godot": "edf03155da6ab76694138071e7330b91bdb886cbdbdfdde264fca948b301d226",
+  "project.godot": "c6aa0af55cfe248346b7cc325a39409d856030e037b12f4a48a2726c386900ad",
   "scenes/entities/loot/loot_drop.tscn": "9d5e9c3b0e5ee3c2a58b27ad86e42b54423619aa1039d75b47a93937c7594f45",
   "scenes/entities/mobs/mob_acromantula.tscn": "9fb56cdf7d760c719338eebd8638347755953f21fb7b506e7185ba7f72098048",
   "scenes/entities/mobs/mob_acromantula_broodguard.tscn": "c6c95616b6d851dede2de466fbe4d2fe5c3493c8b1c1d25a9f911c3210787aaf",
@@ -594,7 +594,7 @@
   "scripts/ui/ui_theme.gd": "cf1d1062ba6082a2c0b3859d4d139312728cede6a62af80879dd037579ab8ea2",
   "scripts/ui/ui_window.gd": "c0f856206a39aa7a1493d077fe6922e7efd479aad96b73f9fb13f844165438a4",
   "scripts/ui/world_labels.gd": "12d5f6b155ebb51a69dffa3816f68b6dc418cd21dad15d10656955f8661e2533",
-  "scripts/ui/world_loader.gd": "b5f4f8bb6c31ecb75fd3c042c30e4a9eab775d8694ce9d091e49772c2c35341a",
+  "scripts/ui/world_loader.gd": "d58539d350fdc1ee9d75c91bd43a477c91618ec242dc385b0f1a2ac372120e5c",
   "scripts/world/castle/castle_atmosphere.gd": "9c386592208589cf6b595ffcdd91caff9a92cd80602d36d07630140c73f9d110",
   "scripts/world/castle/castle_blockout.gd": "012478cfd78364e6b3e19e6d5c08dd71b84dc21a834296ce4d4fc37014b1e23e",
   "scripts/world/castle/castle_decor.gd": "3fde61002c08ad052cd713c611d1998a2cd9cb2515d48aefe299b18343bfa1c9",
