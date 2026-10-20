@@ -96,6 +96,11 @@ func _ready() -> void:
 	map_host.name = "MapHost"
 	map_host.world = world
 	add_child(map_host)
+	# The castle interior is built now, not on the first player to walk in:
+	# that build (~1900 bodies) froze every player's tick for ~0.7 s, live.
+	# HPMMO_LAZY_MAPS=1 keeps the old build-on-first-use.
+	if _env("HPMMO_LAZY_MAPS", "") != "1":
+		map_host.ensure_map_built(MapHost.MAP_INTERIOR)
 	# Roster transitions are logged immediately (not only on the 5 s status
 	# tick): operations and the map transfer map tests need to see joins, leaves and
 	# entity counts without waiting for a timer.

@@ -16,9 +16,9 @@ extends Node
 ## surfaces and lights (castle_interior.gd / castle/castle_blockout.gd). The
 ## grounds map itself is always resident.
 ##
-## Built lazily on first use so a server nobody takes indoors pays nothing, and
-## kept once built: the two maps never overlap in space and rebuilding the
-## interior per visit would hitch the tick.
+## The world server builds it at boot (world_server.gd; HPMMO_LAZY_MAPS=1 for
+## build-on-first-use), and it is kept: the two maps never overlap in space and
+## building it while players are online hitched every tick.
 
 const MAP_GROUNDS := "grounds"
 const MAP_INTERIOR := "castle_interior"

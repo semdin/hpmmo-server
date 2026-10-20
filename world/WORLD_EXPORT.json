@@ -1,7 +1,7 @@
 {
  "generated": "2026-10-20",
  "source_repository": "hpmmo-client",
- "source_revision": "716b749913cb55f16909df6442e2870083c3065f",
+ "source_revision": "70b7d5dab67d9aae1920c6cd9059f866cb02987e",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/audio/sound_library.json": "4960d9c5111e80c29446024602e6f9165f23c701f50eca81fa57cbea27196d68",
@@ -608,7 +608,7 @@
   "scripts/world/dungeons/dungeon_greybox.gd": "432688c36a1bc8c093c6a797255bdde47c5fd23ae1017ffe6ed8dd4650bc15da",
   "scripts/world/dungeons/dungeon_trial.gd": "074e2cf213d9d3e96672f4250ab5d8dd071bb70b8f94e2cf6dd3a370033a45f2",
   "scripts/world/encounter_director.gd": "1532f60da2893895e78bb0aea64fd115f39cfcd2cfe40bc5db91f9c7677c60c2",
-  "scripts/world/game_world.gd": "6731b621e35a8d414fd4e9c143ba56068d54dff19b50d8ff536db096a9ea8013",
+  "scripts/world/game_world.gd": "dfe14c7c5acb7014ca221bbbe1ffb1b7cb87ffbc4f30caec35ec9f831956ba63",
   "scripts/world/grounds/arch_kit.gd": "34e4aa046d3c8171931789fd564b0ea20ae9111ebe1d1ab8cfc0b4ef3540ec1d",
   "scripts/world/grounds/castle_exterior.gd": "33268c2b2a4c18521480bbda0a0168f36f541ffcd778e1627ae5ed31b2c6eda8",
   "scripts/world/grounds/grounds_builder.gd": "af4049678db3d00b9925a1a414dc760cb646a00401b2099e3803307ddced568a",

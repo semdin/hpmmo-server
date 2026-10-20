@@ -488,11 +488,26 @@ func _request_mob_scenes() -> void:
 			# shared dependency (the creature view below waits on these).
 			ResourceLoader.load_threaded_request(String(path), "PackedScene", false)
 
+## Creature scenes stay loaded for the life of the world. Nothing else held
+## them: once the last troll of a pack despawned the PackedScene was freed, and
+## the next troll in sight loaded it from disk again - live logs showed the same
+## troll scene opened 120+ times in a session, each a frame hitch (and a ping
+## spike, as the ping includes the client's frame) right as a fight began.
+var _mob_scene_cache: Dictionary = {}   # path -> PackedScene
+
 func _mob_scene(variant: int) -> PackedScene:
 	var path := HPProtocol.mob_scene(variant)
+	var cached: PackedScene = _mob_scene_cache.get(path)
+	if cached != null:
+		return cached
+	var scene: PackedScene = null
 	if ResourceLoader.load_threaded_get_status(path) != ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
-		return ResourceLoader.load_threaded_get(path) as PackedScene
-	return load(path) as PackedScene
+		scene = ResourceLoader.load_threaded_get(path) as PackedScene
+	else:
+		scene = load(path) as PackedScene
+	if scene != null:
+		_mob_scene_cache[path] = scene
+	return scene
 
 func _on_entity_replicating(record: Dictionary) -> void:
 	var uid := int(record["uid"])
