@@ -1,7 +1,7 @@
 {
  "generated": "2026-10-20",
  "source_repository": "hpmmo-client",
- "source_revision": "c58da9d908ba6fb74f019c5f8b1e8796c656e859",
+ "source_revision": "8517f0811e05d695f1d8ae2cb53ba58e8e9c6b63",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/audio/sound_library.json": "4960d9c5111e80c29446024602e6f9165f23c701f50eca81fa57cbea27196d68",
@@ -454,7 +454,7 @@
   "assets/vfx/tex/star_flare_256.png": "40b5d340358c94bcba22fbae37e53c406a4cc83fa5736ad326e6244551b33345",
   "data/json/houses.json": "812d98383fc4ff12d012436b912bab3d4b644188b4e4a1b793a988787ea030e2",
   "data/json/quests.json": "6b22db277a3e09c1e3edb4ace485ee1d61942b96c1769e738ed299dadb09434e",
-  "project.godot": "05188c3a4a9f409c59927a6d22daa129528a5c6520dea3a8ea6dadc0fe9de12b",
+  "project.godot": "edf03155da6ab76694138071e7330b91bdb886cbdbdfdde264fca948b301d226",
   "scenes/entities/loot/loot_drop.tscn": "9d5e9c3b0e5ee3c2a58b27ad86e42b54423619aa1039d75b47a93937c7594f45",
   "scenes/entities/mobs/mob_acromantula.tscn": "9fb56cdf7d760c719338eebd8638347755953f21fb7b506e7185ba7f72098048",
   "scenes/entities/mobs/mob_acromantula_broodguard.tscn": "c6c95616b6d851dede2de466fbe4d2fe5c3493c8b1c1d25a9f911c3210787aaf",
