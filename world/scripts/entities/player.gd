@@ -1208,21 +1208,12 @@ func _jump_bit() -> bool:
 	return held
 
 func _handle_hotkeys() -> void:
-	if Input.is_action_just_pressed("spell_1"):
-		cast_spell("stupefy")
-	elif Input.is_action_just_pressed("spell_2"):
-		cast_spell("incendio")
-	elif Input.is_action_just_pressed("spell_3"):
-		cast_spell("bombarda")
-	elif Input.is_action_just_pressed("spell_4"):
-		cast_spell("expelliarmus")
-	elif Input.is_action_just_pressed("spell_q"):
-		cast_spell("protego")
-	elif Input.is_action_just_pressed("spell_e"):
-		cast_spell("ultimate")
-	elif Input.is_action_just_pressed("spell_5"):
-		cast_spell("patronum")
-	elif Input.is_action_just_pressed("mount_broom"):
+	# The keys cast whatever the player put on that bar slot (HudActionBar).
+	for i in HudActionBar.SPELL_ACTIONS.size():
+		if Input.is_action_just_pressed(HudActionBar.SPELL_ACTIONS[i]):
+			cast_spell(HudActionBar.spell_at(i))
+			return
+	if Input.is_action_just_pressed("mount_broom"):
 		toggle_broom_mount()
 	elif Input.is_action_just_pressed("target_cycle"):
 		cycle_nearest_target()

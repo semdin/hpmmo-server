@@ -290,7 +290,12 @@ static func _ward_lines(world: Node3D) -> void:
 	const BAND := 1.1          # metres across the rune band
 	const TILE := BAND * 5.14  # the rune strip is 5.14:1
 	const VEIL_H := 2.6
+	# Only the grounds' own zones: another map's zone (the caverns' camp, deep
+	# under the grounds at the same x/z) would draw a ring by the greenhouses.
+	var grounds_zones := HPMaps.safe_zone_ids(HPProtocol.DEFAULT_MAP)
 	for zone in zones:
+		if not grounds_zones.is_empty() and not grounds_zones.has(String(zone.get("id", ""))):
+			continue
 		var radius := float(zone.get("radius", 0.0))
 		var c: Array = zone.get("center", [0.0, 0.0, 0.0])
 		var cx := float(c[0])

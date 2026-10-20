@@ -172,6 +172,7 @@ func _spawn_wave(wave_num: int, target_player: Node3D) -> void:
 func _destroy_monolith(shatterer: Node3D) -> void:
 	is_destroyed = true
 	emit_signal("monolith_destroyed")
+	_shatter_fx()
 
 	var shatterer_name := "A brave Wizard"
 	if is_instance_valid(shatterer) and "player_name" in shatterer:
@@ -192,6 +193,33 @@ func _destroy_monolith(shatterer: Node3D) -> void:
 	_respawn_timer.timeout.connect(_respawn)
 	add_child(_respawn_timer)
 	_respawn_timer.start()
+
+## The stone bursting into shards (eyes only: never on the dedicated server).
+func _shatter_fx() -> void:
+	if NetworkManager.is_dedicated_server or not is_inside_tree() or get_parent() == null:
+		return
+	var shape := get_node_or_null("CollisionShape3D") as CollisionShape3D
+	var height := 7.0
+	if shape != null and shape.shape is CylinderShape3D:
+		height = (shape.shape as CylinderShape3D).height
+	MonolithShatter.play(get_parent(), global_position, glow, height)
+
+## A client's view of a stone the server owns: it breaks when the replicated
+## death arrives and stands again on the replicated respawn.
+func present_death() -> void:
+	if is_destroyed:
+		return
+	is_destroyed = true
+	_shatter_fx()
+	hide()
+
+func present_respawn() -> void:
+	if not is_destroyed:
+		return
+	is_destroyed = false
+	current_hp = max_hp
+	show()
+	_update_label()
 
 func _respawn() -> void:
 	if is_queued_for_deletion():

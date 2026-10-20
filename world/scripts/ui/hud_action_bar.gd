@@ -1,11 +1,13 @@
 extends Control
 class_name HudActionBar
 
-## The action bar: the seven spell slots (1-4, Q, E, 5 = Expecto Patronum) and, after a gap, four quick
+## The action bar: the seven spell slots (1-4, Q, E, 5) and, after a gap, four quick
 ## slots on F1-F4 that hold consumables - Wiggenweld and Mana Draught by default,
 ## any potion dragged onto them from the bag. A filled slot can be dragged onto
-## another (move or swap) or out onto the world to empty it; right-click clears too. The
-## assignment is remembered per install (`user://quickslots.cfg`).
+## another (move or swap) or out onto the world to empty it; right-click clears too.
+## Spell slots are arranged the same way: drag one onto another to swap them, or
+## drag a spell in from the skill window (V); the keys follow the slots
+## (`spell_at`). Both are remembered per install (`user://quickslots.cfg`).
 ##
 ## Using a quick slot asks the authority to consume the item exactly like the
 ## bag does (`SimNet.submit_equipment(..., "consume", ...)`), so the server still
@@ -18,6 +20,8 @@ const SPELLS := [
 	["stupefy", "1"], ["incendio", "2"], ["bombarda", "3"],
 	["expelliarmus", "4"], ["protego", "Q"], ["ultimate", "E"], ["patronum", "5"],
 ]
+## The input action of each spell slot, in bar order.
+const SPELL_ACTIONS := ["spell_1", "spell_2", "spell_3", "spell_4", "spell_q", "spell_e", "spell_5"]
 const QUICK_KEYS := ["F1", "F2", "F3", "F4"]
 const QUICK_ACTIONS := ["quickslot_1", "quickslot_2", "quickslot_3", "quickslot_4"]
 const QUICK_DEFAULTS := ["potion_health", "potion_mana", "", ""]
@@ -31,22 +35,34 @@ var quick_slots: Array[HudSlot] = []
 var quick_items: Array = ["", "", "", ""]
 var _quick_cd: Array = [0.0, 0.0, 0.0, 0.0]
 var _pending_slot := -1
+## Which spell each slot holds (the player's hotkeys read it through spell_at).
+static var spell_order: Array = []
+
+## The spell on bar slot `index` (the default layout until the bar loads).
+static func spell_at(index: int) -> String:
+	if index >= 0 and index < spell_order.size():
+		return String(spell_order[index])
+	return String(SPELLS[index][0]) if index >= 0 and index < SPELLS.size() else ""
 
 func _init() -> void:
 	name = "ActionBar"
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 func _ready() -> void:
-	for spec in SPELLS:
+	_load_spells()
+	for i in SPELLS.size():
 		var s := HudSlot.new(SLOT)
-		s.name = "Spell_" + String(spec[0])
-		s.key_text = String(spec[1])
-		s.held_id = String(spec[0])
-		s.icon_texture = UITheme.spell_icon(String(spec[0]))
-		var spell_id := String(spec[0])
-		s.pressed.connect(func(): _cast(spell_id))
+		s.name = "SpellSlot%d" % (i + 1)
+		s.key_text = String(SPELLS[i][1])
+		s.accept_drop = _accept_spell_drop
+		s.drag_slot_index = i
+		s.drag_key = "spell_slot"
+		s.keep_on_release = true
+		s.item_dropped.connect(_on_spell_drop.bind(i))
+		s.pressed.connect(func(): _cast(s.held_id))
 		add_child(s)
 		spell_slots.append(s)
+	_show_spells()
 	for i in range(4):
 		var q := HudSlot.new(SLOT)
 		q.name = "Quick%d" % (i + 1)
@@ -98,7 +114,7 @@ func _draw() -> void:
 	draw_rect(Rect2(plate.position, Vector2(plate.size.x, 1.5)), Color(HudKit.GOLD.r, HudKit.GOLD.g, HudKit.GOLD.b, 0.85))
 	draw_rect(Rect2(Vector2(plate.position.x, plate.end.y - 1), Vector2(plate.size.x, 1)), Color(0, 0, 0, 0.8))
 	# Divider between spells and quick slots.
-	var dx := SLOT * 6.0 + GAP * 5.0 + GROUP_GAP * 0.5
+	var dx := SLOT * SPELLS.size() + GAP * (SPELLS.size() - 1) + GROUP_GAP * 0.5
 	draw_line(Vector2(dx, 2), Vector2(dx, size.y - 2), Color(HudKit.GOLD.r, HudKit.GOLD.g, HudKit.GOLD.b, 0.5), 1.0)
 	# Corner studs.
 	for p in [plate.position, Vector2(plate.end.x, plate.position.y)]:
@@ -150,6 +166,53 @@ func _unhandled_input(event: InputEvent) -> void:
 func _cast(spell_id: String) -> void:
 	if player != null and is_instance_valid(player):
 		player.cast_spell(spell_id)
+
+## ------------------------------------------------------------- spell slots
+
+func _show_spells() -> void:
+	for i in spell_slots.size():
+		var s := spell_slots[i]
+		var id := spell_at(i)
+		if s.held_id != id:
+			s.held_id = id
+			s.icon_texture = UITheme.spell_icon(id)
+			s.tooltip_text = ""
+
+## A spell from another slot (swap) or from the skill window (V).
+func _accept_spell_drop(_slot: HudSlot, payload: Dictionary) -> bool:
+	return payload.has("spell_slot") and GameData.SPELLS.has(String(payload.get("id", "")))
+
+func _on_spell_drop(_slot: HudSlot, payload: Dictionary, index: int) -> void:
+	place_spell(String(payload.get("id", "")), index)
+
+## Put `spell_id` on slot `index`; the spell that was there moves to the slot
+## the dropped one came from, so every spell stays on the bar exactly once.
+func place_spell(spell_id: String, index: int) -> void:
+	var from := spell_order.find(spell_id)
+	if from == index or index < 0 or index >= spell_order.size():
+		return
+	if from >= 0:
+		spell_order[from] = spell_order[index]
+	spell_order[index] = spell_id
+	_show_spells()
+	_save()
+
+func _load_spells() -> void:
+	var defaults: Array = SPELLS.map(func(spec): return String(spec[0]))
+	spell_order = defaults.duplicate()
+	var cfg := ConfigFile.new()
+	if cfg.load(SAVE_PATH) != OK:
+		return
+	var saved = cfg.get_value("spells", "order", [])
+	# Only a full permutation of today's spells is trusted (a new spell or a
+	# removed one falls back to the default layout).
+	if saved is Array and saved.size() == defaults.size():
+		var sorted_saved: Array = (saved as Array).duplicate()
+		var sorted_defaults: Array = defaults.duplicate()
+		sorted_saved.sort()
+		sorted_defaults.sort()
+		if sorted_saved == sorted_defaults:
+			spell_order = (saved as Array).duplicate()
 
 ## ------------------------------------------------------------- quick slots
 
@@ -258,7 +321,7 @@ func _spell_tooltip(key: String, spell: Dictionary, trained: int = 1, cooldown: 
 	if spell.is_empty():
 		return ""
 	var grade := "Master" if HPRules.skill_is_master(trained) else "Level %d" % trained
-	return "[%s] %s  ·  %s\n%d mana · %.1fs cooldown\n%s\n[V] Skill training" % [key, spell.get("name", ""), grade,
+	return "[%s] %s  ·  %s\n%d mana · %.1fs cooldown\n%s\nDrag onto another slot to swap  ·  [V] Skills" % [key, spell.get("name", ""), grade,
 		int(spell.get("mana_cost", 0)), cooldown if cooldown >= 0.0 else float(spell.get("cooldown", 0.0)), spell.get("desc", "")]
 
 func _item_tooltip(key: String, id: String) -> String:
@@ -287,4 +350,5 @@ func _save() -> void:
 	var cfg := ConfigFile.new()
 	for i in range(4):
 		cfg.set_value("quick", "slot%d" % (i + 1), quick_items[i])
+	cfg.set_value("spells", "order", spell_order)
 	cfg.save(SAVE_PATH)

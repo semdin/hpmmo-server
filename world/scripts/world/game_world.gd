@@ -438,6 +438,9 @@ func _setup_replication() -> void:
 	SimAuthority.entity_despawned.connect(_on_entity_despawned)
 	SimAuthority.entity_moved.connect(_on_entity_moved)
 	SimAuthority.entity_health.connect(_on_entity_health)
+	if not NetworkManager.is_dedicated_server:
+		SimAuthority.entity_died.connect(_on_entity_died_view)
+		SimAuthority.entity_respawned.connect(_on_entity_respawned_view)
 	# Cast gestures, bolts and impacts are pictures only. A dedicated server
 	# drew them too - an invisible bolt scene per cast and an impact per hit,
 	# ~20 ms each, inside the sim tick: one player fighting held the server's
@@ -587,6 +590,13 @@ func _create_view(record: Dictionary) -> void:
 	var spawn_pos: Vector3 = record.get("pos", Vector3.ZERO)
 	view.global_position = spawn_pos
 	SimAuthority.attach_view_node(uid, view)
+	# A creature's health is level-scaled on the server: the scene's own number
+	# (220 for any Inferi) stood on the label until the first hit.
+	if kind != HPProtocol.Kind.PLAYER and int(record.get("max_hp", 0)) > 0 and "max_hp" in view:
+		view.max_hp = int(record["max_hp"])
+		view.current_hp = int(record.get("hp", view.max_hp))
+		if view.has_method("_update_label"):
+			view.call("_update_label")
 	if "sim_target_pos" in view:
 		view.sim_target_pos = spawn_pos
 	if "sim_target_rot" in view:
@@ -690,6 +700,17 @@ func _on_entity_moved(uid: int, pos: Vector3, rot_y: float, flags: int) -> void:
 		view.global_position = view.global_position.lerp(pos, 0.4)
 		if "visuals" in view and view.visuals:
 			view.visuals.rotation.y = rot_y
+
+## A replicated Metin stone shatters (and stands again) on the server's word.
+func _on_entity_died_view(uid: int, _killer_uid: int) -> void:
+	var view = _views.get(uid)
+	if is_instance_valid(view) and view.is_in_group("monoliths") and view.has_method("present_death"):
+		view.call("present_death")
+
+func _on_entity_respawned_view(uid: int) -> void:
+	var view = _views.get(uid)
+	if is_instance_valid(view) and view.is_in_group("monoliths") and view.has_method("present_respawn"):
+		view.call("present_respawn")
 
 func _on_entity_health(uid: int, hp: int, max_hp: int, _flags: int) -> void:
 	if not _views.has(uid):

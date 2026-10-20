@@ -35,6 +35,7 @@ var player: Node3D = null
 var guide: WaypointGuide = null
 var view: MapView
 var _hint: Label
+var _coords: Label
 var _floors: HBoxContainer
 var _floor_buttons := {}
 ## "grounds" or "castle"
@@ -72,6 +73,9 @@ func _ready() -> void:
 	if ResourceLoader.exists(MAP_TEXTURE):
 		view.texture = load(MAP_TEXTURE)
 	body.add_child(view)
+	_coords = HudKit.label("", 14, HudKit.PARCHMENT, HudKit.body(), 2)
+	_coords.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	body.add_child(_coords)
 	_hint = HudKit.label("", 13, HudKit.TEXT_DIM, HudKit.body(), 0)
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	body.add_child(_hint)
@@ -175,6 +179,30 @@ func _process(_delta: float) -> void:
 			_apply_mode()
 			view.centre_on_player()
 		view.queue_redraw()
+		_update_coords()
+
+## One way to write a place everywhere (minimap, this map, the waypoint):
+## whole metres, x then z.
+static func coords_text(at: Vector2) -> String:
+	return "%d, %d" % [roundi(at.x), roundi(at.y)]
+
+## You, the cursor and the waypoint, in world coordinates.
+func _update_coords() -> void:
+	if _coords == null:
+		return
+	var parts: Array = []
+	if player != null and is_instance_valid(player):
+		parts.append("You  " + coords_text(Vector2(player.global_position.x, player.global_position.z)))
+	if view.hovering:
+		parts.append("Cursor  " + coords_text(view.hover))
+	if guide != null and is_instance_valid(guide) and guide.has_target():
+		var mark := "Waypoint  " + coords_text(Vector2(guide.target.x, guide.target.z))
+		if player != null and is_instance_valid(player):
+			mark += "  (%d m)" % roundi(Vector2(player.global_position.x, player.global_position.z).distance_to(Vector2(guide.target.x, guide.target.z)))
+		parts.append(mark)
+	var text := "   ·   ".join(parts)
+	if _coords.text != text:
+		_coords.text = text
 
 ## Right-click on the map at world (x, z): set the waypoint there, or clear it
 ## when the click is on the current one.
@@ -215,6 +243,10 @@ class MapView extends Control:
 	var zoom := 0.45
 	var centre := Vector2.ZERO
 	var _dragging := false
+	## The world point under the mouse while it is over the map.
+	var hover := Vector2.ZERO
+	var hovering := false
+	var _hover_px := Vector2.ZERO
 
 	func _init() -> void:
 		clip_contents = true
@@ -271,10 +303,18 @@ class MapView extends Control:
 					hit = world_to_screen(Vector2(g.target.x, g.target.z)).distance_to(event.position) < 14.0
 				host.waypoint_click(screen_to_world(event.position), hit)
 				accept_event()
-		elif event is InputEventMouseMotion and _dragging:
-			centre -= event.relative / zoom
-			_clamp()
-			accept_event()
+		elif event is InputEventMouseMotion:
+			if _dragging:
+				centre -= event.relative / zoom
+				_clamp()
+				accept_event()
+			_hover_px = event.position
+			hover = screen_to_world(event.position)
+			hovering = true
+
+	func _notification(what: int) -> void:
+		if what == NOTIFICATION_MOUSE_EXIT:
+			hovering = false
 
 	## One of the minimap's painted markers, centred on `at`.
 	func _draw_marker(id: String, at: Vector2, px: float) -> void:
@@ -291,7 +331,23 @@ class MapView extends Control:
 			_draw_grounds()
 		_draw_route()
 		_draw_player()
+		_draw_cursor_coords()
 		draw_rect(Rect2(Vector2.ZERO, size), HudKit.GOLD.darkened(0.2), false, 2.0)
+
+	## A small dark tag beside the cursor with the world point under it.
+	func _draw_cursor_coords() -> void:
+		if not hovering or _dragging:
+			return
+		hover = screen_to_world(_hover_px)
+		var f := HudKit.bold()
+		var txt := HudWorldMap.coords_text(hover)
+		var tw := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
+		var at := _hover_px + Vector2(14, 18)
+		at.x = minf(at.x, size.x - tw - 12.0)
+		at.y = minf(at.y, size.y - 8.0)
+		draw_rect(Rect2(at - Vector2(5, 15), Vector2(tw + 10, 20)), Color(0.02, 0.03, 0.05, 0.82))
+		draw_rect(Rect2(at - Vector2(5, 15), Vector2(tw + 10, 20)), Color(HudKit.GOLD, 0.6), false, 1.0)
+		draw_string(f, at, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, HudKit.GOLD_HI)
 
 	func _draw_grounds() -> void:
 		draw_rect(Rect2(Vector2.ZERO, size), Color(0.05, 0.05, 0.06))
@@ -468,6 +524,13 @@ class MapView extends Control:
 			draw_colored_polygon(PackedVector2Array([pin, pin + Vector2(-6, -12), pin + Vector2(6, -12)]), colour.darkened(0.2))
 			draw_circle(pin + Vector2(0, -14), 6.5, colour)
 			draw_circle(pin + Vector2(0, -14), 2.4, Color(1, 1, 1, 0.9))
+			# the mark's coordinates over the pin
+			var f := HudKit.bold()
+			var txt := HudWorldMap.coords_text(Vector2(g.target.x, g.target.z))
+			var tw := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
+			var tp := pin + Vector2(-tw * 0.5, -26)
+			draw_string_outline(f, tp, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, 4, Color(0, 0, 0, 0.9))
+			draw_string(f, tp, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1.0, 0.92, 0.7))
 
 	func _draw_player() -> void:
 		var p := host.player

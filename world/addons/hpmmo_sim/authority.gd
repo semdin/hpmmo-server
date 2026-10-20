@@ -4342,7 +4342,7 @@ func request_equipment(peer_id: int, request_id: int, revision: int, operation: 
 	elif bool(record.get("dead", false)): reason = "dead"
 	elif int(record.get("pending_transfer", 0)) != 0: reason = "transfer_pending"
 	elif int(record.get("cast_id", 0)) != 0 or sim_tick < int(record.get("cast_lock_until_tick", 0)): reason = "casting"
-	elif operation != "consume" and sim_tick - int(record.get("last_combat_tick", -100000)) < 5 * HPProtocol.SIM_HZ: reason = "in_combat"
+	elif operation not in ["consume", "destroy"] and sim_tick - int(record.get("last_combat_tick", -100000)) < 5 * HPProtocol.SIM_HZ: reason = "in_combat"
 	elif slot == "broom" and bool(record.get("mounted", false)): reason = "mounted"
 	elif operation == "equip" and not HPEquipment.level_ok(item_id, int(node.level)): reason = "level_too_low"
 	var result := {"ok": false, "reason": reason}
@@ -4359,6 +4359,8 @@ func request_equipment(peer_id: int, request_id: int, revision: int, operation: 
 			result = _sell_item(node, item_id, tier, uid)
 		elif operation == "buy":
 			result = _buy_item(node, item_id, clampi(tier, 1, 20))
+		elif operation == "destroy":
+			result = _destroy_item(node, item_id, tier, uid)
 		else:
 			result.reason = "invalid_operation"
 		if bool(result.ok):
@@ -4407,6 +4409,23 @@ func _sell_item(node: Node, item_id: String, tier: int, uid: int) -> Dictionary:
 		return {"ok": false, "reason": "not_sellable"}
 	node.galleons += price
 	return {"ok": true, "reason": "sold", "inventory": bag, "galleons": price}
+
+## Throw away a bag entry (never a worn item): one item instance, or a whole
+## stack at once. The client asks the player to confirm first; nothing is paid.
+func _destroy_item(node: Node, item_id: String, tier: int, uid: int) -> Dictionary:
+	var bag: Array = node.inventory.duplicate(true)
+	if uid > 0:
+		var entry := HPEquipment.take_instance(bag, uid)
+		if entry.is_empty() or String(entry.get("id", "")) != item_id:
+			return {"ok": false, "reason": "item_missing"}
+	else:
+		var count := 0
+		for entry in bag:
+			if String(entry.id) == item_id and int(entry.get("tier", 0)) == tier and int(entry.get("uid", 0)) == 0:
+				count += int(entry.amount)
+		if count <= 0 or not HPEquipment.take(bag, item_id, tier, count):
+			return {"ok": false, "reason": "item_missing"}
+	return {"ok": true, "reason": "destroyed", "inventory": bag}
 
 ## Buy `amount` of an item that has a `buy_price` (items.json) - Floo Powder
 ## at a fireplace's Floo window today.

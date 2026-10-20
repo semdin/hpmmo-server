@@ -3,9 +3,10 @@ class_name WaypointGuide
 
 ## The map waypoint (right-click on the M map): a target, the route to it
 ## (WaypointRouter) and the way the route is shown in the world.
-##   * On foot: Marauder's-Map footprints. An invisible walker strides ahead of
-##     the player along the route, inking a short trail of left/right prints that
-##     fade behind it, then starts again from the player.
+##   * On foot: Marauder's-Map footprints. A steady trail of left/right prints
+##     from the player's feet along the route for the next stretch, pinned to
+##     the route (they do not swim as you walk) with a glow rippling forward;
+##     new prints ink in ahead as you go, however fast you move.
 ##   * In the air (on the broom, or well above the ground): a line of gold
 ##     chevrons gliding toward the target at flying height, straight there.
 ##   * Always: a column of light over the target, seen from far away.
@@ -18,14 +19,16 @@ signal arrived
 const FOOTPRINT_SHADER := preload("res://assets/shaders/footprint.gdshader")
 const BEACON_SHADER := preload("res://assets/shaders/waypoint_beacon.gdshader")
 const STRIDE := 0.8
-const STEPS_PER_SECOND := 3.0
-const TRAIL := 9.0
-const LOOP_AHEAD := 44.0          # metres the walker goes ahead before restarting
-const MAX_PRINTS := 14
+const TRAIL := 9.0                # prints the forward ripple lights at once
+const AHEAD := 30.0               # metres of route shown ahead of the player
+const RIPPLE_SPEED := 9.0         # prints per second the glow runs forward
+const MAX_PRINTS := 40
 const CHEVRONS := 22
 const CHEVRON_SPACING := 8.0
 const ARRIVE_RADIUS := 5.0
-const OFF_ROUTE := 16.0
+## Off the route by this much (cut a corner, flew, got knocked) and the route
+## is planned again from where you stand, so the prints start at your feet.
+const OFF_ROUTE := 6.0
 
 var world: Node3D = null
 var player: Node3D = null
@@ -36,7 +39,7 @@ var path := PackedVector3Array()
 var _arc := PackedFloat32Array()
 var _path_map := ""
 var _goal := Vector3.INF
-var _walker := 0.0
+var _ripple := 0.0
 var _flow := 0.0
 var _reroute_wait := 0.0
 var _seg := 0
@@ -167,7 +170,6 @@ func _reroute() -> void:
 		_arc[i] = total
 	_path_map = cur
 	_seg = 0
-	_walker = 0.0
 	changed.emit()
 
 
@@ -237,9 +239,11 @@ func _process(delta: float) -> void:
 		return
 	var proj := _project(p)
 	if proj.y > OFF_ROUTE and _reroute_wait <= 0.0:
-		_reroute_wait = 1.5
+		_reroute_wait = 0.6
 		_reroute()
-		return
+		if path.size() < 2:
+			return
+		proj = _project(p)
 	_beacon.visible = _goal != Vector3.INF
 	if _beacon.visible:
 		_beacon.global_position = _goal + Vector3(0, 70.0, 0)
@@ -258,17 +262,14 @@ func _process(delta: float) -> void:
 func _draw_prints(delta: float, s_player: float, cur: String) -> void:
 	var total := _arc[_arc.size() - 1]
 	var k_player := s_player / STRIDE
-	_walker += delta * STEPS_PER_SECOND
-	if _walker < k_player:
-		_walker = k_player
-	if _walker > k_player + LOOP_AHEAD / STRIDE or _walker * STRIDE > total + TRAIL * STRIDE:
-		_walker = k_player
+	var first := int(floor(k_player)) + 1
+	var last := mini(int(floor(minf(total, s_player + AHEAD) / STRIDE)), first + MAX_PRINTS - 1)
+	var count := maxi(1, last - first + 1)
+	# The glow runs from the feet to the far end and starts over.
+	_ripple = fmod(_ripple + delta * RIPPLE_SPEED, float(count) + TRAIL)
 	var mm := _prints.multimesh
 	var n := 0
-	var first := int(floor(_walker - TRAIL))
-	for k in range(maxi(first, int(ceil(k_player)) + 1), int(floor(_walker)) + 1):
-		if n >= MAX_PRINTS or float(k) * STRIDE > total:
-			break
+	for k in range(first, last + 1):
 		var at: Array = _at(float(k) * STRIDE)
 		var pos: Vector3 = at[0]
 		var fwd: Vector3 = at[1]
@@ -284,9 +285,22 @@ func _draw_prints(delta: float, s_player: float, cur: String) -> void:
 			pos.y += 0.05
 		var basis := Basis(right, fwd, Vector3.UP)
 		mm.set_instance_transform(n, Transform3D(basis, pos))
-		mm.set_instance_custom_data(n, Color(_walker - float(k), 0, 0, 0))
+		# x: steps since the ripple passed this print; y: how far along the
+		# shown stretch it is (the far end fades out, the feet fade in).
+		var i := float(k - first)
+		mm.set_instance_custom_data(n, Color(_ripple - i, i / float(count), k - k_player, 0))
 		n += 1
 	mm.visible_instance_count = n
+
+
+## Ground height under `at` on the current map (terrain outside, a ray onto the
+## floors elsewhere); NAN when there is nothing under it.
+func _ground_at(at: Vector3) -> float:
+	if current_map() == "grounds":
+		return GroundsTerrain.height_at(at.x, at.z)
+	var query := PhysicsRayQueryParameters3D.create(at + Vector3.UP * 6.0, at + Vector3.DOWN * 30.0, 1)
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	return NAN if hit.is_empty() else float((hit["position"] as Vector3).y)
 
 
 func _draw_air(delta: float, p: Vector3) -> void:
@@ -308,6 +322,10 @@ func _draw_air(delta: float, p: Vector3) -> void:
 		# hold the rider's height, settle onto the target over the last 60 m
 		var y := lerpf(p.y - 1.0, to.y, smoothstep(dist - 60.0, dist, s))
 		var pos := p + fwd * s
+		# never inside a rise: a low rider's line climbs over the hill ahead
+		var ground := _ground_at(pos)
+		if not is_nan(ground):
+			y = maxf(y, ground + 1.6)
 		pos.y = y
 		mm.set_instance_transform(n, Transform3D(Basis(right, fwd, Vector3.UP), pos))
 		mm.set_instance_custom_data(n, Color(0, 0, 0, 0))

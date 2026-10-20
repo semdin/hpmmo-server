@@ -140,6 +140,13 @@ var _slow_factor := 1.0
 var _scan_timer := 0.0
 var _stuck_timer := 0.0
 var _last_pos := Vector3.ZERO
+## Obstacle handling: a committed sidestep round something the steering could
+## not see past (a trunk, a boulder), which side the mob is going round, and
+## the body's half width for the probes.
+var _detour_dir := Vector3.ZERO
+var _detour_time := 0.0
+var _steer_side := 1.0
+var _body_radius := -1.0
 ## Last replicated AI state a client view rendered (puppets only).
 var _puppet_state := -1
 ## Last v14 mob-info revision a client view applied (puppets only).
@@ -929,48 +936,93 @@ func _move_to(point: Vector3, speed: float, delta: float) -> void:
 		velocity.z = 0
 		return
 	direction = direction.normalized()
+	var wanted := direction
+	if _detour_time > 0.0:
+		_detour_time -= delta
+		# The sidestep ends as soon as the way to the goal is open again.
+		if _path_clear(wanted):
+			_detour_time = 0.0
+		else:
+			direction = _detour_dir
 	direction = _steer(direction)
 	# Local separation: five mobs must not occupy one point.
 	var push := _separation()
 	if push.length_squared() > 0.0001:
 		direction = (direction + push * float(HPRules.pack_tuning("separation_weight", 1.35))).normalized()
-	direction = _steer(direction)
+		direction = _steer(direction)
 	speed *= _speed_scale()
 	velocity.x = direction.x * speed
 	velocity.z = direction.z * speed
 	_face_direction(direction, delta)
 	_play_slot("run" if state in [State.CHASE, State.RETURN] else "walk")
-	_check_stuck(delta)
+	_check_stuck(delta, wanted)
 
 ## Obstacle steering: probe the desired direction and fan out to either side,
 ## so a mob walks around architecture instead of into it. The world has no
-## baked navigation mesh, so this is the obstacle-avoidance layer.
+## baked navigation mesh, so this is the obstacle-avoidance layer. The side it
+## turned to last is tried first, so it keeps going round one way instead of
+## flipping left and right in front of a trunk.
 func _steer(direction: Vector3) -> Vector3:
-	var offsets := [0.0, 0.5, -0.5, 1.0, -1.0, 1.5, -1.5]
-	for offset in offsets:
-		var probe := direction.rotated(Vector3.UP, float(offset))
+	for offset in [0.0, 0.5, -0.5, 1.0, -1.0, 1.5, -1.5, 2.1, -2.1]:
+		var probe := direction.rotated(Vector3.UP, float(offset) * _steer_side)
 		if _path_clear(probe):
+			if offset != 0.0:
+				_steer_side *= signf(offset)
 			return probe
 	return direction
 
+## Three rays, the body's width apart, low enough to see boulders. A hit on a
+## walkable slope (the hill it is climbing) does not count as blocked.
 func _path_clear(direction: Vector3) -> bool:
+	if _body_radius < 0.0:
+		_body_radius = _collision_radius()
 	var space := get_world_3d().direct_space_state
-	var query := PhysicsRayQueryParameters3D.create(global_position + Vector3.UP,
-		global_position + Vector3.UP + direction * 2.2, 1)
-	return space.intersect_ray(query).is_empty()
+	var side := direction.cross(Vector3.UP).normalized() * minf(_body_radius, 1.2) * 0.85
+	var reach := _body_radius + 1.7
+	for lateral in [Vector3.ZERO, side, -side]:
+		var from: Vector3 = global_position + Vector3.UP * 0.55 + lateral
+		var query := PhysicsRayQueryParameters3D.create(from, from + direction * reach, 1)
+		var hit := space.intersect_ray(query)
+		if not hit.is_empty() and (hit["normal"] as Vector3).y < 0.55:
+			return false
+	return true
 
-## Nudges the body sideways when it has barely moved while trying to: a body
-## wedged on scenery should slide along it, not vibrate in place.
-func _check_stuck(delta: float) -> void:
+func _collision_radius() -> float:
+	var shape_node := get_node_or_null("CollisionShape3DBoss" if is_boss else "CollisionShape3D") as CollisionShape3D
+	if shape_node == null:
+		shape_node = get_node_or_null("CollisionShape3D") as CollisionShape3D
+	if shape_node != null and shape_node.shape is CapsuleShape3D:
+		return (shape_node.shape as CapsuleShape3D).radius
+	if shape_node != null and shape_node.shape is SphereShape3D:
+		return (shape_node.shape as SphereShape3D).radius
+	if shape_node != null and shape_node.shape is CylinderShape3D:
+		return (shape_node.shape as CylinderShape3D).radius
+	if shape_node != null and shape_node.shape is BoxShape3D:
+		var b := (shape_node.shape as BoxShape3D).size
+		return maxf(b.x, b.z) * 0.5
+	return 0.5
+
+## A body that has barely moved while trying to is wedged on scenery the probes
+## missed: it commits to a sidestep (square to where it wants to go) for a
+## moment, the side that is open first; wedged again, it tries the other side.
+func _check_stuck(delta: float, wanted: Vector3) -> void:
 	var moved := global_position.distance_to(_last_pos)
 	if moved < 0.02 * maxf(0.2, delta * 60.0):
 		_stuck_timer += delta
 	else:
 		_stuck_timer = 0.0
 	_last_pos = global_position
-	if _stuck_timer > 0.6:
+	if _stuck_timer > 0.35:
 		_stuck_timer = 0.0
-		velocity = velocity.rotated(Vector3.UP, PI * 0.5) * 1.0
+		if _detour_time > 0.0:
+			_steer_side = -_steer_side
+		var side := wanted.cross(Vector3.UP).normalized() * _steer_side
+		if not _path_clear(side) and _path_clear(-side):
+			side = -side
+			_steer_side = -_steer_side
+		# a little back from the obstacle as well as round it
+		_detour_dir = (side - wanted * 0.35).normalized()
+		_detour_time = 0.9
 
 ## Server-side sleep. An idle creature with no player within `awake_range`
 ## has its physics processing switched off entirely - 1700 creatures each
@@ -1360,6 +1412,7 @@ func _respawn() -> void:
 	_cancel_attack()
 	_corpse_time = 0
 	_stuck_timer = 0
+	_detour_time = 0.0
 	_published_state = -1
 	_puppet_state = -1
 	_set_state(State.IDLE)

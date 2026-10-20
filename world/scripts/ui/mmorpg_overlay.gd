@@ -157,6 +157,17 @@ func _build() -> void:
 	_map_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_map_title.clip_text = true
 	_map.add_child(_map_title)
+	# Where exactly: the world position (x, z) in whole metres, under the name.
+	_coords_label = HudKit.label("", 13, HudKit.PARCHMENT, HudKit.body(), 4)
+	_coords_label.name = "Coords"
+	_coords_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_coords_label.offset_left = -130.0
+	_coords_label.offset_right = 130.0
+	_coords_label.offset_top = 52.0
+	_coords_label.offset_bottom = 70.0
+	_coords_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_coords_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_map.add_child(_coords_label)
 
 	# Round-trip time to the world server, in the disc's empty top-left corner.
 	_ping_label = HudKit.label("", 13, HudKit.PARCHMENT, HudKit.title(), 4)
@@ -459,9 +470,19 @@ func _process(_delta: float) -> void:
 	_update_boss()
 	_update_vignette()
 	_update_ping()
+	_update_coords()
 
 var _ping_label: Label = null
 var _ping_next_ms := 0
+var _coords_label: Label = null
+
+func _update_coords() -> void:
+	if _coords_label == null:
+		return
+	var p := _player.global_position
+	var text := HudWorldMap.coords_text(Vector2(p.x, p.z))
+	if _coords_label.text != text:
+		_coords_label.text = text
 
 ## Online only (offline play has no server to measure). Refreshed twice a
 ## second; green under 80 ms, amber under 150, red above.

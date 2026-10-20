@@ -4,11 +4,12 @@ extends Control
 ## the equipment doll on top, the 5 x 8 satchel below, the purse at the
 ## bottom. The merchant opens beside it (left) for selling: drag a bag item
 ## onto the merchant, or right-click it while the merchant is open, then
-## confirm the price. Every change is a request to the authority
+## confirm the price. Delete throws the selected bag item away (after a yes/no
+## question). Every change is a request to the authority
 ## (`SimNet.submit_equipment`); the window only shows what it answers.
 
 const SLOT_LABELS := {"head":"Head", "chest":"Robes", "hands":"Hands", "feet":"Feet", "main_hand":"Wand", "off_hand":"Focus", "neck":"Neck", "ring_left":"Ring I", "ring_right":"Ring II", "broom":"Broom"}
-const REASONS := {"in_combat":"Wait five seconds after combat.", "casting":"Finish casting first.", "dead":"You are defeated.", "mounted":"Dismount before changing your broom.", "level_too_low":"Your level is too low for that item.", "bag_full":"No room for the replaced item.", "wrong_slot":"That item does not fit.", "item_missing":"That item is no longer available.", "stale_inventory":"Inventory changed. Please try again.", "stale_request":"Action already handled.", "no_gold":"Not enough Galleons.", "no_material":"Missing refinement material.", "no_wand":"Equip a wand first.", "max_tier":"Already fully refined.", "refined":"Refined!", "enchanted":"The enchantment holds!", "enchant_failed":"The weave slipped - the scroll is spent.", "no_scroll":"You have no such scroll.", "bonus_full":"This item cannot hold more enchantments.", "no_bonus":"There is nothing to reweave yet.", "not_enchantable":"That item cannot be enchanted.", "nothing_equipped":"Equip an item in that slot first.", "not_refinable":"That item cannot be refined.", "refinement_failed":"Refinement failed.", "save_conflict":"Inventory refreshed from your saved character.", "transfer_pending":"Wait until the map loads.", "invalid_state":"Equipment temporarily unavailable.", "resource_full":"That resource is already full.", "consumed":"", "sold":"", "not_sellable":"No merchant wants that."}
+const REASONS := {"in_combat":"Wait five seconds after combat.", "casting":"Finish casting first.", "dead":"You are defeated.", "mounted":"Dismount before changing your broom.", "level_too_low":"Your level is too low for that item.", "bag_full":"No room for the replaced item.", "wrong_slot":"That item does not fit.", "item_missing":"That item is no longer available.", "stale_inventory":"Inventory changed. Please try again.", "stale_request":"Action already handled.", "no_gold":"Not enough Galleons.", "no_material":"Missing refinement material.", "no_wand":"Equip a wand first.", "max_tier":"Already fully refined.", "refined":"Refined!", "enchanted":"The enchantment holds!", "enchant_failed":"The weave slipped - the scroll is spent.", "no_scroll":"You have no such scroll.", "bonus_full":"This item cannot hold more enchantments.", "no_bonus":"There is nothing to reweave yet.", "not_enchantable":"That item cannot be enchanted.", "nothing_equipped":"Equip an item in that slot first.", "not_refinable":"That item cannot be refined.", "refinement_failed":"Refinement failed.", "save_conflict":"Inventory refreshed from your saved character.", "transfer_pending":"Wait until the map loads.", "invalid_state":"Equipment temporarily unavailable.", "resource_full":"That resource is already full.", "consumed":"", "sold":"", "not_sellable":"No merchant wants that.", "destroyed":""}
 const COLUMNS := 5
 const ROWS := 8
 const DOLL_LEFT := ["head", "chest", "hands", "feet", "main_hand"]
@@ -45,6 +46,11 @@ var _offer_hint: Label
 var _sell_button: Button
 var _sell_entry: Dictionary = {}
 var _sold_price := 0
+# Destroy (Delete key)
+var _hover_slot: UISlot = null
+var _destroy_window: UIWindow
+var _destroy_text: Label
+var _destroy_entry: Dictionary = {}
 
 func _ready() -> void:
 	theme = UITheme.get_theme()
@@ -54,6 +60,7 @@ func _ready() -> void:
 	add_child(_presentation_layer)
 	_build_inventory()
 	_build_merchant()
+	_build_destroy_confirm()
 	_tooltip = ItemTooltip.new()
 	_presentation_layer.add_child(_tooltip)
 	_ring_menu = PopupMenu.new()
@@ -303,6 +310,7 @@ static func _mid_attack(stats: Dictionary, key: String) -> float:
 	return (float(span[0]) + float(span[1])) * 0.5 * HPRules.wand_multiplier(int(stats.get("wand_tier", 0)))
 
 func _on_slot_entered(slot: UISlot) -> void:
+	_hover_slot = slot
 	if slot.item_id == "" or _tooltip == null: return
 	_tooltip.show_item(slot.item_id, slot.entry)
 	if slot != _offer_slot and is_instance_valid(player):
@@ -311,7 +319,8 @@ func _on_slot_entered(slot: UISlot) -> void:
 			if price > 0: _tooltip._add_lore("Sells for %s Galleons" % galleon_text(price))
 	_tooltip.follow_cursor()
 
-func _on_slot_exited(_slot: UISlot) -> void:
+func _on_slot_exited(slot: UISlot) -> void:
+	if _hover_slot == slot: _hover_slot = null
 	_tooltip.hide_item()
 
 func _activate(slot: UISlot) -> void:
@@ -442,6 +451,84 @@ func _sell_offer() -> void:
 	_sold_price = _price_of(_sell_entry)
 	_request("sell", "", _sell_entry)
 
+# ------------------------------------------------------------------ destroy
+
+func _build_destroy_confirm() -> void:
+	_destroy_window = _make_window("DESTROY ITEM", "ui_inventory", Vector2(340, 190))
+	_destroy_window.name = "DestroyConfirm"
+	_destroy_window.closed.connect(func(): _destroy_entry = {})
+	_destroy_window.hide()
+	_destroy_text = UITheme.body("", UITheme.FS_BODY, UITheme.c("parchment"))
+	_destroy_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_destroy_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_destroy_text.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_destroy_window.body.add_child(_destroy_text)
+	var buttons := HBoxContainer.new()
+	buttons.add_theme_constant_override("separation", 8)
+	_destroy_window.body.add_child(buttons)
+	for spec in [["Yes", _confirm_destroy], ["No", func(): _destroy_window.close()]]:
+		var b := Button.new()
+		b.text = spec[0]
+		b.focus_mode = Control.FOCUS_NONE
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.pressed.connect(spec[1])
+		buttons.add_child(b)
+
+## Delete: the selected bag item (else the one under the cursor). Worn items
+## are taken off first; an item on Ollivander's anvil stays.
+func _unhandled_key_input(event: InputEvent) -> void:
+	if not visible or not (event is InputEventKey) or not event.pressed or event.echo:
+		return
+	if _destroy_window.visible:
+		if event.keycode in [KEY_ENTER, KEY_KP_ENTER, KEY_Y]:
+			_confirm_destroy()
+			get_viewport().set_input_as_handled()
+		elif event.keycode in [KEY_ESCAPE, KEY_N]:
+			_destroy_window.close()
+			get_viewport().set_input_as_handled()
+		return
+	if event.keycode != KEY_DELETE:
+		return
+	var slot: UISlot = null
+	for candidate in _bag_slots:
+		if candidate.item_id != "" and _selection_key(candidate) == _selected_key:
+			slot = candidate
+	if slot == null and _hover_slot != null and is_instance_valid(_hover_slot) and _hover_slot in _bag_slots:
+		slot = _hover_slot
+	get_viewport().set_input_as_handled()
+	if slot == null or slot.item_id == "":
+		_notify("Select an item in your bag first.", "warn")
+		return
+	if _pending or _locked(slot.entry):
+		return
+	_ask_destroy(slot.entry.merged({"id": slot.item_id}))
+
+func _ask_destroy(entry: Dictionary) -> void:
+	_destroy_entry = entry.duplicate(true)
+	var name := String(HPEquipment.item(String(entry.get("id", ""))).get("name", entry.get("id", "")))
+	var tier := int(entry.get("tier", 0))
+	if tier > 0:
+		name += " +%d" % tier
+	var amount := int(entry.get("amount", 1))
+	if amount > 1:
+		name += " x%d" % amount
+	_destroy_text.text = "Destroy %s?
+It is gone for good." % name
+	var canvas := get_viewport().get_visible_rect().size
+	ArcaneSkin.place(_destroy_window, ((canvas - Vector2(340, 190)) * 0.5).floor(), Vector2(340, 190))
+	_destroy_window.open()
+
+func _confirm_destroy() -> void:
+	if _destroy_entry.is_empty() or not is_instance_valid(player):
+		_destroy_window.close()
+		return
+	var entry := _destroy_entry
+	_destroy_window.close()
+	if _bag_entry(entry).is_empty():
+		return
+	_selected_key = ""
+	_request("destroy", "", entry)
+
 # ------------------------------------------------------------------ requests
 
 func _request(operation: String, slot: String, entry: Dictionary = {}) -> void:
@@ -459,6 +546,8 @@ func _answer(answer: Dictionary) -> void:
 	if ok and reason == "sold":
 		_clear_offer()
 		_notify("Sold for %s Galleons." % galleon_text(_sold_price), "good")
+	elif ok and reason == "destroyed":
+		_notify("Item destroyed.", "info")
 	elif not ok:
 		_notify(String(REASONS.get(reason, "Unable to change equipment.")), "warn")
 	elif String(REASONS.get(reason, "")) != "":
@@ -497,6 +586,7 @@ func _on_visibility_changed() -> void:
 		if _tooltip: _tooltip.hide_item()
 		if _ring_menu: _ring_menu.hide()
 		if _merchant: _set_merchant_open(false)
+		if _destroy_window: _destroy_window.close()
 
 func _process(_delta: float) -> void:
 	if visible and _tooltip.visible: _tooltip.follow_cursor()

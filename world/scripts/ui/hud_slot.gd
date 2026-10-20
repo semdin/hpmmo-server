@@ -50,6 +50,11 @@ var held_id := ""
 var empty_hint := ""
 ## Index reported in this slot's own drag payload; -1 means it cannot be dragged.
 var drag_slot_index := -1
+## The payload key the index travels under ("quick_slot" for potions,
+## "spell_slot" for spells), so each bar only takes its own kind.
+var drag_key := "quick_slot"
+## A spell dropped nowhere stays where it was (a potion slot empties instead).
+var keep_on_release := false
 var flash := 0.0
 var _hover := false
 var _dragging_out := false
@@ -219,13 +224,13 @@ func _get_drag_data(_at: Vector2) -> Variant:
 	set_drag_preview(holder)
 	_dragging_out = true
 	queue_redraw()
-	return {"id": held_id, "quick_slot": drag_slot_index}
+	return {"id": held_id, drag_key: drag_slot_index}
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_DRAG_END and _dragging_out:
 		_dragging_out = false
 		queue_redraw()
-		if not get_viewport().gui_is_drag_successful():
+		if not get_viewport().gui_is_drag_successful() and not keep_on_release:
 			drag_released.emit(self)
 
 func _can_drop_data(_at: Vector2, payload: Variant) -> bool:

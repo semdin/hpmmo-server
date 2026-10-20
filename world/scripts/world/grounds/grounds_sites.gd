@@ -42,11 +42,6 @@ static func materials() -> Dictionary:
 	var dark := StandardMaterial3D.new()
 	dark.albedo_color = Color(0.03, 0.03, 0.035)
 	dark.roughness = 1.0
-	var web := StandardMaterial3D.new()
-	web.albedo_color = Color(0.85, 0.86, 0.88, 0.35)
-	web.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	web.cull_mode = BaseMaterial3D.CULL_DISABLED
-	web.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_mats = {
 		"stone": PBR.surface("castle_wall_varriation", Color(0.95, 0.93, 0.90), {"metres": 4.0}),
 		"rubble": PBR.surface("stone_wall", Color(0.85, 0.84, 0.82), {"metres": 4.0}),
@@ -64,7 +59,6 @@ static func materials() -> Dictionary:
 		"metal": metal,
 		"gold": gold,
 		"dark": dark,
-		"web": web,
 		"cloth_red": _cloth(Color(0.55, 0.08, 0.08)),
 		"cloth_blue": _cloth(Color(0.10, 0.20, 0.48)),
 		"cloth_green": _cloth(Color(0.10, 0.36, 0.18)),
@@ -477,20 +471,79 @@ static func _crypt(parent: Node3D, visuals: bool) -> void:
 	kit.finish(parent, materials() if visuals else {}, "Crypt", 1, visuals)
 
 
+## The Matriarch's webs: the caverns' dew-beaded orb web (cobweb.gdshader over
+## a silk photo) strung between the real trunks round the hollow, plus a few
+## sagging over the open floor. (Flat translucent boxes read as white cards.)
+static func _hollow_webs(root: Node3D, c: Vector3) -> void:
+	var trunks: Array = []
+	for variant in ["fir_a", "fir_b", "fir_c", "pine_a", "pine_b", "pine_c", "broadleaf_a", "broadleaf_b"]:
+		var data := GroundsScatter.instances(variant)
+		for i in data.size() / 5:
+			var p := Vector2(data[i * 5], data[i * 5 + 2])
+			if p.distance_to(Vector2(c.x, c.z)) < 26.0:
+				trunks.append(Vector3(p.x, data[i * 5 + 1], p.y))
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7004
+	var xforms: Array = []
+	var used := {}
+	for i in trunks.size():
+		if xforms.size() >= 12:
+			break
+		for j in range(i + 1, trunks.size()):
+			var a: Vector3 = trunks[i]
+			var b: Vector3 = trunks[j]
+			var span := Vector2(a.x, a.z).distance_to(Vector2(b.x, b.z))
+			if span < 2.5 or span > 8.0 or used.has(i) or used.has(j):
+				continue
+			used[i] = true
+			used[j] = true
+			var mid := (a + b) * 0.5
+			var across := Vector3(b.x - a.x, 0.0, b.z - a.z).normalized()
+			var s := span * 1.05
+			var basis := Basis(across, Vector3.UP, across.cross(Vector3.UP)) * Basis(Vector3.RIGHT, rng.randf_range(-0.25, 0.25))
+			var g := GroundsLayout.ground(mid.x, mid.z)
+			xforms.append(Transform3D(basis.scaled_local(Vector3(s, s * 0.85, 1.0)), g + Vector3(0, s * 0.42 + rng.randf_range(0.6, 2.2), 0)))
+			break
+	# open-floor webs facing the hollow's heart, low and tilted back
+	while xforms.size() < 16:
+		var ang := rng.randf() * TAU
+		var r := rng.randf_range(9.0, 19.0)
+		var g := GroundsLayout.ground(c.x + cos(ang) * r, c.z + sin(ang) * r)
+		var to_c := Vector3(c.x - g.x, 0.0, c.z - g.z).normalized()
+		var basis := Basis.looking_at(-to_c, Vector3.UP) * Basis(Vector3.RIGHT, rng.randf_range(-0.5, -0.1)) * Basis(Vector3.FORWARD, rng.randf() * TAU)
+		var s := rng.randf_range(3.0, 5.5)
+		xforms.append(Transform3D(basis.scaled_local(Vector3(s, s, 1.0)), g + Vector3(0, s * 0.45 + 0.2, 0)))
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://assets/shaders/cobweb.gdshader")
+	mat.set_shader_parameter("web", load("res://assets/vfx/tex/cobweb_1024.png"))
+	mat.set_shader_parameter("tint", Color(0.6, 0.8, 0.55))
+	mat.set_shader_parameter("opacity", 0.7)
+	var quad := QuadMesh.new()
+	quad.size = Vector2(1, 1)
+	quad.material = mat
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_custom_data = true
+	mm.mesh = quad
+	mm.instance_count = xforms.size()
+	for k in xforms.size():
+		mm.set_instance_transform(k, xforms[k])
+		mm.set_instance_custom_data(k, Color(rng.randf(), 0, 0, 0))
+	var inst := MultiMeshInstance3D.new()
+	inst.name = "Webs"
+	inst.multimesh = mm
+	inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(inst)
+
+
 static func _spider_hollow(parent: Node3D, visuals: bool) -> void:
 	var c := GroundsLayout.landmark("spider_hollow")
 	if c == Vector3.INF or not visuals:
 		return
-	var kit := ArchKit.new(false)
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 7004
-	for i in 18:
-		var a := rng.randf() * TAU
-		var r := rng.randf_range(4.0, 20.0)
-		var g := GroundsLayout.ground(c.x + cos(a) * r, c.z + sin(a) * r)
-		var s := rng.randf_range(2.0, 6.0)
-		kit.box(g + Vector3(0, s * 0.8, 0), Vector3(s, s * 0.9, 0.02), rng.randf() * PI, "web", false)
-	var root := kit.finish(parent, materials() if visuals else {}, "SpiderHollow", 1, true)
+	var root := Node3D.new()
+	root.name = "SpiderHollow"
+	parent.add_child(root)
+	_hollow_webs(root, c)
 	var l := OmniLight3D.new()
 	l.light_color = Color(0.5, 0.75, 0.45)
 	l.light_energy = 1.4

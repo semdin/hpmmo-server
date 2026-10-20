@@ -22776,11 +22776,11 @@
     }
   ],
   "pack_tuning": {
-    "hp_multiplier": 1.4,
+    "hp_multiplier": 1.7,
     "hp_strength_base": 0.45,
     "hp_strength_per_level": 0.075,
     "hp_strength_floor": 0.35,
-    "attack_multiplier": 0.75,
+    "attack_multiplier": 0.95,
     "exp_base": 20,
     "exp_per_level": 8,
     "exp_per_level_sq": 0.6,
@@ -22977,7 +22977,7 @@
     }
   ],
   "monolith_config": {
-    "max_hp": 3000,
+    "max_hp": 15000,
     "respawn_ms": 30000,
     "exp_reward": 850,
     "wave_thresholds": [
@@ -23075,7 +23075,7 @@
   "_monolith_types_note": "Metin stones by type. Each monoliths[] entry names its `type` (default dark). A type: name, level, max_hp, exp_reward, respawn_ms, loot_table (loot_tables.json key), scene, spawn distances and the HP-threshold waves. monolith_config is the dark type's legacy block (kept for older readers).",
   "monolith_types": {
     "dark": {
-      "max_hp": 3000,
+      "max_hp": 15000,
       "respawn_ms": 30000,
       "exp_reward": 850,
       "wave_thresholds": [
@@ -23143,7 +23143,7 @@
     "spider": {
       "name": "Webbound Seal Stone",
       "level": 30,
-      "max_hp": 9000,
+      "max_hp": 20000,
       "exp_reward": 2600,
       "respawn_ms": 180000,
       "loot_table": "monolith_spider",

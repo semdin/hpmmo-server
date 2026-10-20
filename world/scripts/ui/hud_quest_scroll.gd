@@ -138,6 +138,9 @@ func _layout() -> void:
 func open(id: String = "") -> void:
 	quest_id = id if id != "" else String(QuestManager.current_quest().get("id", ""))
 	refresh()
+	# Over every other window: opened from the quest log (J), the scroll was
+	# drawn behind it (the log is a later sibling).
+	move_to_front()
 	show()
 	_layout()
 	UIFocus.block(self)

@@ -72,6 +72,7 @@ func _layout() -> void:
 	ArcaneSkin.place(card, at, s)
 
 func open() -> void:
+	move_to_front()   # the window just opened is the one on top
 	show()
 	_layout()
 	_placed = true

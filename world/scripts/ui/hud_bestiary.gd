@@ -1,9 +1,9 @@
 extends HudWindow
 class_name HudBestiary
 
-## The bestiary (B): every creature of the realm with a portrait, where it is
-## found (hunting regions with their level bands, world bosses, dungeons), what
-## it is weak to and what it does. "Show on map" opens the world map with that
+## The bestiary (B): every creature of the realm with a portrait, a line of
+## lore and a few short facts - where it is found, its boss, what it is weak
+## to and what it shrugs off. "Show on map" opens the world map with that
 ## creature's packs marked. Everything is read from the same data the authority
 ## spawns from (spawn_tables.json, mobs.json, dungeons.json), so it never lies
 ## about where a creature lives.
@@ -24,20 +24,6 @@ const LORE := {
 	"acromantula_venomfang": "Lean, long-legged hunters of the Blackweb Caverns. Their emerald venom burns for seconds after the bite.",
 	"acromantula_broodguard": "Bone-plated giants that guard the egg caverns. Their armour turns blows from the front; their webs pin you down.",
 }
-const ABILITIES := {
-	"slam": "Ground slam (area knock-down)",
-	"kiss": "Dementor's Kiss (drains health and mana)",
-	"sweep": "Halberd sweep (hits all around)",
-	"lift": "Lifts you into the air",
-	"lash": "Vine lash",
-	"breath": "Fiery breath",
-	"roar": "Roar",
-	"boulder": "Hurls boulders from range",
-	"venom_bite": "Venomous bite (poison over time)",
-	"venom_spit": "Spits venom from range (poison over time)",
-	"web_shot": "Web shot (halves your speed)",
-	"brood_leap": "Leaps on you (knock-back)",
-}
 const RESIST_NAMES := {"fire": "Fire (Incendio)", "stun": "Stuns", "force": "Force (Depulso)",
 	"patronus": "Patronus", "arcane": "Arcane"}
 ## Dungeon entrances on the world map (grounds x, z) and how to reach them.
@@ -53,7 +39,7 @@ var _detail: VBoxContainer
 var _selected := ""
 
 func _init() -> void:
-	super._init("Bestiary", Vector2(820, 600))
+	super._init("Bestiary", Vector2(760, 520))
 	name = "Bestiary"
 
 func _ready() -> void:
@@ -217,13 +203,13 @@ func _show(species: String) -> void:
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 14)
 	_detail.add_child(head)
-	head.add_child(_portrait(species, 170))
+	head.add_child(_portrait(species, 140))
 	var id_col := VBoxContainer.new()
 	id_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	id_col.alignment = BoxContainer.ALIGNMENT_CENTER
 	head.add_child(id_col)
 	id_col.add_child(HudKit.label(String(e["display"]), 24, HudKit.GOLD_HI, HudKit.title(), 4))
-	id_col.add_child(HudKit.label("%s  ·  %s  ·  %s" % [_level_text(e), String(e["family"]).capitalize(), String(e["role"]).capitalize()],
+	id_col.add_child(HudKit.label("%s  ·  %s" % [_level_text(e), String(e["family"]).capitalize()],
 		14, HudKit.TEXT_DIM, HudKit.body(), 2))
 	var lore := HudKit.label(String(LORE.get(species, "")), 14, HudKit.TEXT, HudKit.body(), 2)
 	lore.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -236,23 +222,18 @@ func _show(species: String) -> void:
 		show.pressed.connect(_show_on_map)
 		id_col.add_child(show)
 
-	_section("Where to find it")
+	# Short and scannable: where (region names only), the boss, weak / strong.
 	var regions: Array = (e["regions"] as Dictionary).values()
 	regions.sort_custom(func(a, b): return int(a["lo"]) < int(b["lo"]))
-	for r in regions:
-		var region := HPRules.region_by_id(String(r["zone"]))
-		var lv := "Lv %d" % int(r["lo"]) if int(r["lo"]) == int(r["hi"]) else "Lv %d–%d" % [int(r["lo"]), int(r["hi"])]
-		_line("%s — %s  (%d packs)" % [String(region.get("display", r["zone"])), lv, int(r["packs"])])
-	for boss in e["bosses"]:
-		_line("%s %s — %s, Lv %d" % ["World boss:" if bool(boss["world"]) else "Boss:", String(boss["name"]),
-			String(boss["region"]), int(boss["level"])], HudKit.GOLD_LT)
+	var names: Array = regions.map(func(r): return String(HPRules.region_by_id(String(r["zone"])).get("display", r["zone"])))
+	if names.size() > 3:
+		names = names.slice(0, 3) + ["+%d more" % (names.size() - 3)]
 	for d in e["dungeons"]:
-		var where: Array = DUNGEON_WHERE.get(String(d["id"]), [String(d["id"]), "", Vector2.ZERO])
-		var limit := ", %d runs a day" % int(d["per_day"]) if int(d["per_day"]) > 0 else ""
-		_line("Dungeon: %s — %s (from Lv %d%s)" % [where[0], where[1], int(d["level_min"]), limit], Color(0.72, 0.8, 1.0))
-	if int(e["aggressive_from"]) > 0:
-		_line("Some packs attack on sight from Lv %d." % int(e["aggressive_from"]), Color(1.0, 0.6, 0.5))
-
+		names.append(String((DUNGEON_WHERE.get(String(d["id"]), [String(d["id"])]) as Array)[0]) + " (dungeon)")
+	if not names.is_empty():
+		_fact("Found", ", ".join(names))
+	for boss in e["bosses"]:
+		_fact("Boss", "%s  ·  Lv %d" % [String(boss["name"]), int(boss["level"])], HudKit.GOLD_LT)
 	var weak: Array = []
 	var strong: Array = []
 	var resist: Dictionary = e["resist"]
@@ -263,24 +244,25 @@ func _show(species: String) -> void:
 			weak.append(label)
 		elif v >= 0.3:
 			strong.append(label)
-	if not weak.is_empty() or not strong.is_empty() or not (e["abilities"] as Array).is_empty():
-		_section("Fighting it")
 	if not weak.is_empty():
-		_line("Weak to: " + ", ".join(weak), Color(0.6, 1.0, 0.6))
+		_fact("Weak", ", ".join(weak), Color(0.6, 1.0, 0.6))
 	if not strong.is_empty():
-		_line("Resists: " + ", ".join(strong), Color(1.0, 0.75, 0.55))
-	for a in e["abilities"]:
-		var id := String(a.get("id", a.get("name", ""))) if a is Dictionary else String(a)
-		_line("• " + String(ABILITIES.get(id, id.capitalize())))
+		_fact("Resists", ", ".join(strong), Color(1.0, 0.75, 0.55))
+	if int(e["aggressive_from"]) > 0:
+		_fact("Aggressive", "from Lv %d" % int(e["aggressive_from"]), Color(1.0, 0.6, 0.5))
 
-func _section(text: String) -> void:
-	var l := HudKit.label(text.to_upper(), 14, HudKit.GOLD, HudKit.bold(), 2)
-	_detail.add_child(l)
-
-func _line(text: String, colour: Color = HudKit.TEXT) -> void:
+## One short labelled line: "Found   Village Outskirts, Pitch Woods".
+func _fact(caption: String, text: String, colour: Color = HudKit.TEXT) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	var c := HudKit.label(caption.to_upper(), 12, HudKit.GOLD, HudKit.bold(), 2)
+	c.custom_minimum_size = Vector2(86, 0)
+	row.add_child(c)
 	var l := HudKit.label(text, 14, colour, HudKit.body(), 2)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_detail.add_child(l)
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(l)
+	_detail.add_child(row)
 
 func _show_on_map() -> void:
 	if world_map == null or _selected == "":
