@@ -25,7 +25,7 @@ const TIPS := [
 ]
 
 var _path := WORLD_SCENE
-var _phase := "load"      # load -> switch -> settle -> fade
+var _phase := "load"      # load -> switch -> settle -> (warm, macOS) -> fade
 var _t := 0.0
 var _progress := 0.0
 var _shown := 0.0
@@ -36,6 +36,7 @@ var _tip: Label
 var _root: Control
 var _spin := 0.0
 var _rune: Control
+var _warmup: ShaderWarmup = null   # macOS: shaders compile behind this screen
 
 static func enter_world(tree: SceneTree, path: String = WORLD_SCENE) -> void:
 	var existing := tree.root.get_node_or_null("WorldLoader")
@@ -151,6 +152,17 @@ func _process(delta: float) -> void:
 			if ready_world:
 				_status.text = "Entering the valley…"
 			if (ready_world and _settle > 0.6 and _shown >= MIN_SHOW) or _settle > 12.0:
+				if ready_world and ShaderWarmup.wanted():
+					_status.text = "Preparing spells and creatures…"
+					_warmup = ShaderWarmup.start(world)
+					_phase = "warm"
+					return
+				_progress = 100.0
+				_phase = "fade"
+				_t = 0.0
+		"warm":
+			_progress = minf(99.0, _progress + delta * 2.0)
+			if not is_instance_valid(_warmup) or _warmup.done:
 				_progress = 100.0
 				_phase = "fade"
 				_t = 0.0
