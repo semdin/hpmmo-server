@@ -418,6 +418,8 @@ func _play_anim(name_hint: String, blend: float = 0.18) -> void:
 		anim_player.play(clip, blend)
 
 func _update_label() -> void:
+	if NetworkManager.is_dedicated_server:
+		return   # no screen: the nameplate text was re-laid-out on every hit
 	if label == null:
 		label = get_node_or_null("Label3D")
 	if label == null:
@@ -1079,6 +1081,8 @@ var _voice_timer := 0.0
 
 ## Spell effects audio hook: play a creature voice at this body's position.
 func _play_voice(key: String) -> void:
+	if NetworkManager.is_dedicated_server:
+		return
 	var audio := get_node_or_null("/root/AudioManager")
 	if audio == null:
 		return

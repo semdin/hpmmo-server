@@ -18,7 +18,7 @@ const DISTANCE := 7.0       # metres in front of the camera
 const SPACING := 1.4
 const SCALE := 0.35         # big creatures still fit the view; scale changes no shader
 const QUIET := 0.75         # done once no pipeline compiled for this long...
-const MIN_TIME := 1.5
+const MIN_TIME := 2.5
 const MAX_TIME := 60.0      # ...or after this, whatever is left compiles in play
 const REFIRE := [0.0, 0.9]  # spell stages fire twice: short layers die fast
 
@@ -38,6 +38,7 @@ var _start_count := 0
 var _last_count := 0
 var _mute_was := false
 var _slot := 0
+var _bodies: Array = []
 
 static func wanted() -> bool:
 	if DisplayServer.get_name() == "headless":
@@ -76,7 +77,49 @@ func _ready() -> void:
 		for path in HPProtocol.MOB_SCENES.values():
 			_add_body(String(path), true)
 		_add_body("res://scenes/entities/player/player.tscn", true)
-	print("[ShaderWarmup] started: %d bodies" % get_child_count())
+	_bodies = get_children()
+	_add_combat_extras()
+	print("[ShaderWarmup] started: %d bodies" % _bodies.size())
+
+## What first shows on a hit or a kill (1.0.70 still froze there on an M5): the
+## hit flash overlay on every body, the loot chest with its rim overlay, an
+## attack telegraph, the target ring, floating text and the level-up pillar
+## (stun stars and burn are spell stages, drawn below).
+func _add_combat_extras() -> void:
+	var flash := HitFeedback.flash_material()
+	flash.albedo_color = Color(1.0, 0.95, 0.85, 0.3)
+	for body in _bodies:
+		for mesh in (body as Node).find_children("*", "MeshInstance3D", true, false):
+			(mesh as GeometryInstance3D).material_overlay = flash
+	for item_id in ["chest", "chest_rare"]:
+		var chest := preload("res://scenes/entities/loot/loot_drop.tscn").instantiate()
+		add_child(chest)
+		chest.position = _grid(_slot)
+		_slot += 1
+		chest.setup(item_id, 1, [])
+		chest.remove_from_group("loot")
+	var ring := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(2.0, 2.0)
+	ring.mesh = plane
+	var ring_mat := ShaderMaterial.new()
+	ring_mat.shader = TargetRing.SHADER
+	ring.material_override = ring_mat
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(ring)
+	ring.position = _grid(_slot) + Vector3.BACK * 0.5
+	ring.rotation.x = PI * 0.5   # face the camera
+	_slot += 1
+	for body in _bodies:
+		if body.has_method("_show_warning"):
+			body.set("_attack_center", (body as Node3D).global_position)
+			body.call("_show_warning", {})
+			break
+	for body in _bodies:
+		if body.has_method("_spawn_floating_text"):
+			body.call("_spawn_floating_text", "1234!", Color(1.0, 0.8, 0.3), 1.3)
+			LevelUpFX.play(body, 2)
+			break
 
 func _add_body(path: String, puppet: bool) -> void:
 	if not ResourceLoader.exists(path):

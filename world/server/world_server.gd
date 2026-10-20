@@ -39,6 +39,11 @@ func _ready() -> void:
 	# Marks this process as a server before the world scene builds: without it the
 	# world would spawn a local player body nobody is driving.
 	NetworkManager.is_dedicated_server = true
+	# Nothing here is ever seen or heard. The AudioManager autoload would mix
+	# zones and answer every combat signal; particle emitters spawned by any
+	# scene (monolith runes, torches, spell bodies) would simulate on the CPU.
+	AudioManager.disable_for_server()
+	get_tree().node_added.connect(_strip_presentation)
 	NetworkManager.is_server = true
 	NetworkManager.is_connected_to_game = true
 	var port := int(_env("HPMMO_WORLD_PORT", str(SimNet.DEFAULT_PORT)))
@@ -134,6 +139,13 @@ func _print_roster(event: String) -> void:
 	print("[WorldServer] roster(%s): players=%d entities=%d | %s" % [
 		event, SimAuthority.players_by_peer.size(), SimAuthority.entities.size(),
 		" ; ".join(players)])
+
+## Particle emitters cost CPU even headless (CPUParticles3D simulates on the
+## main thread) and decide nothing: stop each one as it enters the tree.
+func _strip_presentation(node: Node) -> void:
+	if node is CPUParticles3D or node is GPUParticles3D:
+		node.set("emitting", false)
+		node.process_mode = Node.PROCESS_MODE_DISABLED
 
 func _env(name: String, fallback: String) -> String:
 	var value := OS.get_environment(name)

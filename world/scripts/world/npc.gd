@@ -80,6 +80,9 @@ func _update_label() -> void:
 		WorldLabels.track(label, 16.0)
 
 func _process(delta: float) -> void:
+	if NetworkManager.is_dedicated_server:
+		set_process(false)   # the sway / glow below is for eyes only
+		return
 	_t += delta
 	if _rig:
 		_rig.position.y = sin(_t * 2.0) * 0.03

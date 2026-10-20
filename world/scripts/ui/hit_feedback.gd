@@ -70,13 +70,18 @@ func _ready() -> void:
 	_canvas.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_canvas.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(_canvas)
-	_flash_material = StandardMaterial3D.new()
-	_flash_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	_flash_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	_flash_material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	_flash_material.albedo_color = Color(1, 1, 1, 0)
+	_flash_material = flash_material()
 	if SimAuthority.has_signal("entity_hit") and not SimAuthority.entity_hit.is_connected(_on_entity_hit):
 		SimAuthority.entity_hit.connect(_on_entity_hit)
+
+## The additive overlay a hit flashes over the victim (ShaderWarmup draws it too).
+static func flash_material() -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	mat.albedo_color = Color(1, 1, 1, 0)
+	return mat
 
 func _exit_tree() -> void:
 	if _hitstop_until > 0.0:

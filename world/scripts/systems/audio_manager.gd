@@ -409,7 +409,21 @@ func _bus_for(entry: Dictionary) -> String:
 
 ## Play one positional sound. `owner_node` is used only to key loops and to
 ## clean up; it never gates whether the sound plays.
+## The dedicated server (world_server.gd) switches the whole mixer off: it
+## ships the sound library, so "no library" never told it apart, and it ran the
+## zone, flight and tension mix every frame and answered every combat signal.
+func disable_for_server() -> void:
+	_silent = true
+	set_process(false)
+	for connection in get_incoming_connections():
+		var sig: Signal = connection["signal"]
+		if sig.get_object() == SimAuthority:
+			sig.disconnect(connection["callable"])
+	stop_everything()
+
 func play_sound_at(key: String, position: Vector3, owner_node: Node = null, force_flat: bool = false) -> Node:
+	if _silent:
+		return null
 	var entry: Dictionary = library.get(key, {})
 	if entry.is_empty():
 		return null
@@ -575,6 +589,8 @@ func _release_streams() -> void:
 ## Switch the ambient beds, scatter and reverb. `set_zone` is the explicit hook
 ## (it also turns autodetection off until `autodetect_zone` is set again).
 func set_zone(name: String) -> void:
+	if _silent:
+		return
 	if not ZONES.has(name) or name == zone:
 		return
 	_apply_zone(name, false)
@@ -1061,6 +1077,8 @@ func combat_music_active() -> bool:
 
 ## A short musical cue over the soundtrack; the music ducks under it.
 func play_stinger(key: String) -> void:
+	if _silent:
+		return
 	if not has_sound(key) or not audio_available():
 		return
 	# Stingers are rare punctuation: never two within a few seconds (a login

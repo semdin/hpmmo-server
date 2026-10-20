@@ -250,6 +250,9 @@ func _add_sky_beam() -> void:
 var _burst := 0.0
 
 func _process(delta: float) -> void:
+	if NetworkManager.is_dedicated_server:
+		set_process(false)   # the sway / glow below is for eyes only
+		return
 	# The runes breathe: a slow pulse on the green light.
 	var pulse := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.0021)
 	_burst = maxf(0.0, _burst - delta * 5.0)

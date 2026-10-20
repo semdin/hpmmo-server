@@ -80,6 +80,9 @@ func setup() -> void:
 	_update_label()
 
 func _process(delta: float) -> void:
+	if NetworkManager.is_dedicated_server:
+		set_process(false)   # the sway / glow below is for eyes only
+		return
 	_t += delta
 	if _pole:
 		_pole.rotation.y = sin(_t * 1.2) * 0.05

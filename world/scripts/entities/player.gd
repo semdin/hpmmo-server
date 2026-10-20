@@ -698,6 +698,8 @@ func _process(delta: float) -> void:
 
 ## Splash burst + expanding ripple ring at the waterline (entering or leaving the lake).
 func _spawn_water_splash() -> void:
+	if NetworkManager.is_dedicated_server:
+		return
 	if not is_inside_tree() or get_parent() == null:
 		return
 	var origin := Vector3(global_position.x, WATER_SURFACE_Y + 0.05, global_position.z)
@@ -2402,6 +2404,8 @@ func _apply_wand_aura() -> void:
 	HeroAppearance.show_cloak(visuals, equipment.get("chest", {}))
 
 func _spawn_floating_text(text: String, col: Color, scale_mult: float = 1.0) -> void:
+	if NetworkManager.is_dedicated_server:
+		return   # nobody looks: it was a Label3D scene per hit a player took
 	if FT_SCENE:
 		var ft = FT_SCENE.instantiate()
 		get_parent().add_child(ft)
