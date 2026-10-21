@@ -94,6 +94,9 @@ func _build() -> void:
 	_map_view.transparent_bg = false
 	_map_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_map_view.msaa_3d = Viewport.MSAA_DISABLED
+	# Torch and chandelier shadows are invisible at 178 px; without an atlas the
+	# map pass skips every omni light's shadow cube.
+	_map_view.positional_shadow_atlas_size = 0
 	_map.add_child(_map_view)
 
 	_map_cam = Camera3D.new()
@@ -461,10 +464,10 @@ func _legacy_help_visibility() -> void:
 	var canvas := get_viewport().get_visible_rect().size
 	_help_panel.visible = canvas.y >= HELP_MIN_CANVAS_H
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if not is_instance_valid(_player):
 		return
-	_follow_minimap()
+	_follow_minimap(delta)
 	_update_minimap()
 	_update_zone()
 	_update_boss()
@@ -503,19 +506,49 @@ func _update_ping() -> void:
 	_ping_label.show()
 
 
+const MAP_CAM_HEIGHT := 120.0
+const INDOOR_SLAB_ABOVE := 2.6
+const INDOOR_SLAB_BELOW := 4.0
+const INDOOR_MAP_HZ := 10.0
+var _indoor_map_wait := 0.0
+
 ## Park the map camera over the player. It only renders while the overlay is on
 ## screen: the viewport is a second pass over the whole 3D scene, and the perf
 ## captures hide this layer, so paying for it then would be pure waste.
-func _follow_minimap() -> void:
+##
+## Indoors (the castle, a dungeon copy) the view from 120 m up is the roof, and
+## drawing the whole castle under it cost about four times the main view (2300
+## draw calls a frame). There the camera's clip planes cut a slab from just over
+## the player's head to a few metres under the feet - the floor plan of the
+## storey the player stands on. Every map but the grounds is redrawn at
+## INDOOR_MAP_HZ, which a walking pace does not notice.
+func _follow_minimap(delta: float) -> void:
 	if _map_cam == null:
 		return
-	_map_cam.global_position = _player.global_position + Vector3.UP * 120.0
-	if _map_view != null:
-		# `CanvasLayer` is a Node, not a CanvasItem, so it has `visible` but no
-		# `is_visible_in_tree`.
-		var wanted := SubViewport.UPDATE_ALWAYS if visible else SubViewport.UPDATE_DISABLED
-		if _map_view.render_target_update_mode != wanted:
-			_map_view.render_target_update_mode = wanted
+	_map_cam.global_position = _player.global_position + Vector3.UP * MAP_CAM_HEIGHT
+	var controller := _map_controller()
+	var map_id := String(controller.get("current_map")) if controller != null else HPProtocol.DEFAULT_MAP
+	var indoor := map_id != HPProtocol.DEFAULT_MAP
+	# A heightfield map (the caverns) has no storeys to slice and is cheap to
+	# draw whole: a slab there loses the slopes around the player.
+	var slab := indoor and not (HPMaps.map_info(HPMaps.base_map(map_id)).get("collision") is Dictionary)
+	_map_cam.near = MAP_CAM_HEIGHT - INDOOR_SLAB_ABOVE if slab else 0.05
+	_map_cam.far = MAP_CAM_HEIGHT + INDOOR_SLAB_BELOW if slab else 400.0
+	if _map_view == null:
+		return
+	# `CanvasLayer` is a Node, not a CanvasItem, so it has `visible` but no
+	# `is_visible_in_tree`.
+	if not visible:
+		_map_view.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	elif not indoor:
+		_map_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	else:
+		_indoor_map_wait -= delta
+		if _indoor_map_wait <= 0.0:
+			_indoor_map_wait = 1.0 / INDOOR_MAP_HZ
+			_map_view.render_target_update_mode = SubViewport.UPDATE_ONCE
+		elif _map_view.render_target_update_mode == SubViewport.UPDATE_ALWAYS:
+			_map_view.render_target_update_mode = SubViewport.UPDATE_DISABLED
 
 ## Hunting regions (spawn_tables.json regions with a level band) inside the
 ## disc: a filled tint and a ring coloured like the zone banner's level band.

@@ -12,6 +12,7 @@ extends RefCounted
 ## Client only - the dedicated server never builds it.
 
 const QualityPreset = preload("res://scripts/world/quality_preset.gd")
+const StaticMerge = preload("res://scripts/world/static_merge.gd")
 const CANDLE_SHADER := preload("res://assets/shaders/castle/floating_candle.gdshader")
 const FLAME_SHADER := preload("res://assets/shaders/castle/candle_flame.gdshader")
 
@@ -28,8 +29,10 @@ static func build(parent: Node3D, map_y: float, quality: String = "") -> Node3D:
 	parent.add_child(root)
 	_floating_candles(root, map_y, int(HALL_CANDLE_COUNT.get(quality, 260)))
 	_hall_candle_lights(root, map_y)
+	# Two shadowed omni lights re-render a cube shadow map every frame anyone
+	# moves under them (~330 draw calls); low keeps the light, not its shadow.
 	for z in [31.0, 52.0]:
-		_chandelier(root, Vector3(0.0, map_y + 15.0, z), 3.2, 18)
+		_chandelier(root, Vector3(0.0, map_y + 15.0, z), 3.2, 18, quality != "low")
 	# Entrance Hall wall sconces: a torch per bay on both long walls.
 	for z in [27.3, 42.0, 56.7]:
 		for side in [-1.0, 1.0]:
@@ -43,7 +46,26 @@ static func build(parent: Node3D, map_y: float, quality: String = "") -> Node3D:
 	_prop(root, "owl_lectern", Vector3(-96.2, map_y + 1.0, 56.0), 90.0, 1.75)
 	for z in [49.6, 62.4]:
 		_prop(root, "armour", Vector3(-17.15, map_y, z), 90.0, 2.45)
+	_batch(root)
 	return root
+
+
+## The iron, glass and wax of every sconce, lantern and chandelier above are
+## ~500 primitive meshes; batch them per material on a 16 m grid (a batch
+## still culls with its room). Flames (shader cards that face the camera),
+## candle MultiMeshes and the glb props stay as they are.
+static func _batch(root: Node3D) -> void:
+	var pieces: Array = []
+	for node in root.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		if not (mi.mesh is PrimitiveMesh) or mi.mesh is QuadMesh:
+			continue
+		var plain := true
+		for s in mi.mesh.get_surface_count():
+			plain = plain and mi.get_active_material(s) is StandardMaterial3D
+		if plain:
+			pieces.append(mi)
+	StaticMerge.merge(root, pieces, "DecorBatch", 16.0)
 
 
 ## Place a prop glb scaled to `height` metres, standing on `at`, turned `yaw_deg`

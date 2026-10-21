@@ -23,6 +23,7 @@ var _board: Label3D = null
 var _flash_until := 0.0
 
 const PBR = preload("res://scripts/assets/pbr_kit.gd")
+const StaticMerge = preload("res://scripts/world/static_merge.gd")
 const WARD_SHADER := preload("res://assets/shaders/stair_ward.gdshader")
 const THRESHOLD_SHADER := preload("res://assets/shaders/stair_threshold.gdshader")
 ## Loaded at run time on a screen only: the server's world copy has no fx art.
@@ -103,6 +104,17 @@ func _polish_geometry() -> void:
 		tread.position = mid + along * (s - ramp_length * 0.5) + normal_v * 0.12
 		tread.rotation.x = -angle
 		platform.add_child(tread)
+	# ~80 boxes per flight (50 steps, treads, deck, rails, glow lines) ride the
+	# deck rigidly: one mesh per material. Seven flights in view were ~650 draw
+	# calls before, plus as many again for the moonlight's shadow.
+	if DisplayServer.get_name() != "headless":
+		var pieces: Array = []
+		for child in platform.get_children():
+			var label := String(child.name)
+			if child is MeshInstance3D and (label.begins_with("Deck") or label.begins_with("Step")
+					or label.begins_with("Rail") or label.begins_with("Tread") or label.begins_with("EdgeGlow")):
+				pieces.append(child)
+		StaticMerge.merge(platform, pieces, "FlightMesh")
 
 func _build_presentation() -> void:
 	_polish_geometry()
