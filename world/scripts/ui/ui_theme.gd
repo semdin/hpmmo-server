@@ -217,6 +217,36 @@ static func chrome_at(id: String, px: float) -> Texture2D:
 	return out
 
 
+## An item/spell icon resampled once (Lanczos) to exactly `px` screen pixels
+## and cached, for the slots: a 512 px master squeezed into a ~56 px cell by the
+## GPU's bilinear sampling read only 4 of its texels per pixel - grainy and
+## shimmering. Drawn 1:1, the icon is as crisp as the master allows.
+static func icon_pixels(id: String, px: int) -> Texture2D:
+	var source := icon_for(id)
+	if source == null or px < 8 or px >= source.get_width():
+		return source
+	var key := "%s#%d" % [id, px]
+	if _icons.has(key):
+		return _icons[key]
+	var out: Texture2D = source
+	var img := source.get_image()
+	if img != null:
+		var scaled := img.duplicate() as Image
+		if scaled.is_compressed():
+			scaled.decompress()
+		scaled.clear_mipmaps()
+		var w := px
+		var h := px
+		if scaled.get_width() != scaled.get_height():
+			var aspect := float(scaled.get_width()) / float(scaled.get_height())
+			w = px if aspect >= 1.0 else maxi(1, int(round(px * aspect)))
+			h = px if aspect <= 1.0 else maxi(1, int(round(px / aspect)))
+		scaled.resize(w, h, Image.INTERPOLATE_LANCZOS)
+		out = ImageTexture.create_from_image(scaled)
+	_icons[key] = out
+	return out
+
+
 ## A fixed-size icon holder, for chrome and content alike. `px` is the box, and
 ## the icon is fitted inside it, so a square crest and a tall broom can use the
 ## same call.

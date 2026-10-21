@@ -28,6 +28,9 @@ const DummyScript = preload("res://scripts/world/training_dummy.gd")
 var local_player: Node3D = null
 ## cast_id -> the travelling bolt view drawn for it (see _on_cast_landed).
 var _bolt_views: Dictionary = {}
+## cast_id -> where the caster aimed (cast_started), so the drawn bolt can home
+## on the same body the authority's bolt steers onto.
+var _cast_aims: Dictionary = {}
 var overlay: CanvasLayer = null
 ## Client half of map transfer: portal interaction, fade and
 ## loading UI, loading the castle interior and unloading the outdoor world.
@@ -737,6 +740,9 @@ func _on_entity_health(uid: int, hp: int, max_hp: int, _flags: int) -> void:
 		view.call("_update_label")
 
 func _on_cast_started(caster_uid: int, cast_id: int, spell_id: String, aim: Vector3, release_tick: int) -> void:
+	_cast_aims[cast_id] = aim
+	if _cast_aims.size() > 64:
+		_cast_aims.erase(_cast_aims.keys()[0])
 	var caster = SimAuthority.record_by_uid(caster_uid).get("node")
 	if is_instance_valid(caster) and caster.has_method("present_replicated_cast_start"):
 		var delay := maxf(0.01, float(release_tick - SimAuthority.sim_tick) / HPProtocol.SIM_HZ)
@@ -761,8 +767,38 @@ func _on_cast_released(cast_id: int, caster_uid: int, spell_id: String, origin: 
 	proj.global_position = _presentation_cast_origin(caster, origin)
 	# The bolt on screen is a VIEW: the authority already decided what it hits.
 	proj.visual_only = true
-	proj.setup(caster if caster is Node3D else null, spell_id, dir, null, 1.0)
+	var aim = _cast_aims.get(cast_id)
+	_cast_aims.erase(cast_id)
+	var target: Node3D = _aimed_body(caster, aim) if aim is Vector3 else null
+	proj.setup(caster if caster is Node3D else null, spell_id, dir, target, 1.0)
 	_bolt_views[cast_id] = proj
+
+## The body a cast was aimed at - the client's copy of the authority's
+## `_aim_target_uid` (chest or feet within AIM_TARGET_RADIUS of the aim point),
+## so the drawn bolt steers onto the body the server's bolt steers onto instead
+## of dying on a hump the server's bolt skims over.
+func _aimed_body(caster, aim: Vector3) -> Node3D:
+	var best: Node3D = null
+	var best_d := INF
+	for uid in SimAuthority.entities:
+		var record: Dictionary = SimAuthority.entities[uid]
+		if bool(record.get("dead", false)):
+			continue
+		var kind := int(record.get("kind", 0))
+		if kind != HPProtocol.Kind.MOB and kind != HPProtocol.Kind.PLAYER 				and kind != HPProtocol.Kind.DUMMY and kind != HPProtocol.Kind.MONOLITH:
+			continue
+		var node = record.get("node")
+		if node == null or not is_instance_valid(node) or not (node is Node3D) or node == caster:
+			continue
+		var at: Vector3 = (node as Node3D).global_position
+		var d := Vector2(aim.x - at.x, aim.z - at.z).length()
+		if d > SimAuthority.AIM_TARGET_RADIUS or aim.y < at.y - 0.6 or aim.y > at.y + 3.0 or d >= best_d:
+			continue
+		if caster is Node3D and not HPRules.can_damage(caster, node):
+			continue
+		best_d = d
+		best = node
+	return best
 
 ## Where the client draws a spell from. The authority's `origin` stays the
 ## body-centred launch point that decided the hit geometry; only the drawn bolt

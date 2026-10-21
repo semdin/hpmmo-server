@@ -4459,9 +4459,9 @@ func _sell_item(node: Node, item_id: String, tier: int, uid: int) -> Dictionary:
 
 ## Throw away a bag entry (never a worn item): one item instance, or a whole
 ## stack at once. The client asks the player to confirm first; nothing is paid.
+## Only the bag is searched, so worn gear (in `equipment`) is safe - gear
+## lying in the bag can go like anything else.
 func _destroy_item(node: Node, item_id: String, tier: int, uid: int) -> Dictionary:
-	if HPEquipment.equippable(item_id):
-		return {"ok": false, "reason": "not_destroyable"}
 	var bag: Array = node.inventory.duplicate(true)
 	if uid > 0:
 		var entry := HPEquipment.take_instance(bag, uid)

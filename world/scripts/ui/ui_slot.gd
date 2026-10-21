@@ -85,6 +85,7 @@ func _ready() -> void:
 	_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_icon)
+	_icon.resized.connect(_fit_icon)
 
 	_cooldown = ColorRect.new()
 	_cooldown.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -185,6 +186,7 @@ func _apply_item() -> void:
 		tex = UITheme.icon_for(p_id)
 	_icon.texture = tex
 	_icon.visible = tex != null
+	_fit_icon()
 	var amount := int(p_entry.get("amount", 0))
 	_count_label.text = ("x%d" % amount) if (amount > 1 and p_id != "") else ""
 	var tier := int(p_entry.get("tier", 0))
@@ -192,6 +194,17 @@ func _apply_item() -> void:
 		_count_label.text = "+%d  %s" % [tier, _count_label.text]
 	if _caption_label != null:
 		_caption_label.visible = caption != "" and p_id == ""
+
+
+## Swap the master for a copy resampled to the icon's size in screen pixels
+## (UITheme.icon_pixels), so the cell draws it 1:1.
+func _fit_icon() -> void:
+	if _icon == null or item_id == "" or not _icon.visible or not is_inside_tree():
+		return
+	var scale := get_viewport().get_final_transform().get_scale().x * _icon.get_global_transform_with_canvas().get_scale().x
+	var px := int(round(minf(_icon.size.x, _icon.size.y) * scale))
+	if px > 0:
+		_icon.texture = UITheme.icon_pixels(item_id, px)
 
 
 ## Draw the cooldown veil. `remaining` in seconds, `fraction` 0..1 of the bar.

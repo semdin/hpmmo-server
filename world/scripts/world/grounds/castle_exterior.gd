@@ -226,9 +226,11 @@ static func _entrance(kit: ArchKit, top: float) -> void:
 		kit.box(Vector3(sx * (w * 0.5 + 1.2), top + (h + 2.0) * 0.5, front_z + 1.5), Vector3(2.4, h + 2.0, 3.0), 0.0, "trim")
 	kit.box(Vector3(0, top + h + 2.6, front_z + 1.5), Vector3(w + 4.8, 3.2, 3.0), 0.0, "trim")
 	kit.gable(Vector3(0, top + h + 4.2, front_z + 1.5), Vector2(3.0, w + 5.0), 3.2, PI * 0.5, "roof", "trim", 0.3)
-	# the doors stand at the back of the porch, against the facade
-	kit.box(Vector3(0, top + h * 0.5, front_z + 0.2), Vector3(w, h, 0.4), 0.0, "door")
-	kit.box(Vector3(0, top + h + 0.6, front_z + 0.12), Vector3(w, 1.2, 0.2), 0.0, "dark", false)
+	# the doors stand at the back of the porch, just proud of the hall's plinth
+	# band (which juts 0.4 m from the facade): a door face level with the plinth
+	# face z-fought with it across the bottom of the doors
+	kit.box(Vector3(0, top + h * 0.5, front_z + 0.65), Vector3(w, h, 0.4), 0.0, "door")
+	kit.box(Vector3(0, top + h + 0.6, front_z + 0.55), Vector3(w, 1.2, 0.2), 0.0, "dark", false)
 	# a flush stone apron in front (its top is the threshold height)
 	var g := GroundsTerrain.height_at(DOOR_CENTER.x, DOOR_CENTER.z + 6.0)
 	var apron_bottom := (g if not is_nan(g) else top) - 1.5

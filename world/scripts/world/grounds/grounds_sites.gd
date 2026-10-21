@@ -337,21 +337,72 @@ static func _greenhouses(parent: Node3D, visuals: bool) -> void:
 	var g := GroundsLayout.landmark("greenhouses")
 	if g == Vector3.INF:
 		return
+	# Founded on a stone plinth that follows the ground; the greenhouse itself
+	# is the Blender model (art/greenhouse/greenhouse_work.blend). The glass
+	# shell keeps a plain box collider.
 	var kit := ArchKit.new()
+	var tops: Array[Vector3] = []
 	for i in 3:
 		var c := Vector2(g.x - 14.0 + i * 14.0, g.z)
 		var span := GroundsLayout.ground_span(c, Vector2(9, 18))
 		var fy := span.y + 0.05
 		kit.box(Vector3(c.x, (span.x - 1.0 + fy + 0.6) * 0.5, c.y), Vector3(9.4, fy + 0.6 - span.x + 1.0, 18.4), 0.0, "stone")
 		kit.box(Vector3(c.x, fy + 0.6 + 1.6, c.y), Vector3(9.0, 3.2, 18.0), 0.0, "glasshouse")
-		kit.gable(Vector3(c.x, fy + 3.8, c.y), Vector2(18.0, 9.0), 2.4, PI * 0.5, "glasshouse", "glasshouse", 0.1)
-		for k in 7:
-			var z := c.y - 9.0 + k * 3.0
-			for sx in [-1, 1]:
-				kit.box(Vector3(c.x + sx * 4.55, fy + 2.2, z), Vector3(0.12, 3.2, 0.12), 0.0, "metal", false)
-			kit.box(Vector3(c.x, fy + 5.05, z), Vector3(0.1, 0.1, 0.1), 0.0, "metal", false)
-		kit.box(Vector3(c.x, fy + 6.2, c.y), Vector3(0.14, 0.14, 18.2), 0.0, "metal", false)
-	kit.finish(parent, materials() if visuals else {}, "Greenhouses", 1, visuals)
+		tops.append(Vector3(c.x, fy + 0.6, c.y))
+	var root := kit.finish(parent, materials() if visuals else {}, "Greenhouses", 1, visuals)
+	if not visuals or not ResourceLoader.exists(GREENHOUSE):
+		return
+	var shell := root.get_node_or_null("Greenhouses_glasshouse")
+	if shell != null:
+		shell.queue_free()   # the model draws the glass; the box stays a collider
+	for at in tops:
+		var house: Node3D = (load(GREENHOUSE) as PackedScene).instantiate()
+		house.name = "Greenhouse"
+		root.add_child(house)
+		house.global_position = at
+		_greenhouse_materials(house)
+
+
+const GREENHOUSE := "res://assets/models/grounds/greenhouse.glb"
+
+## The model's slots (GH_*) painted with the site's own PBR stone and wood,
+## dark green painted iron, clear sky-tinted glass, terracotta and leaves.
+static func _greenhouse_materials(house: Node3D) -> void:
+	if not _mats.has("gh_frame"):
+		var frame := StandardMaterial3D.new()
+		frame.albedo_color = Color(0.09, 0.2, 0.14)
+		frame.metallic = 0.55
+		frame.roughness = 0.42
+		var glass := StandardMaterial3D.new()
+		glass.albedo_color = Color(0.78, 0.9, 0.86, 0.16)
+		glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		glass.roughness = 0.04
+		glass.metallic = 0.2
+		glass.metallic_specular = 1.0
+		glass.rim_enabled = true
+		glass.rim = 0.6
+		glass.rim_tint = 0.8
+		glass.cull_mode = BaseMaterial3D.CULL_DISABLED
+		var pot := StandardMaterial3D.new()
+		pot.albedo_color = Color(0.62, 0.3, 0.16)
+		pot.roughness = 0.85
+		var leaf := StandardMaterial3D.new()
+		leaf.albedo_color = Color(0.16, 0.38, 0.12)
+		leaf.roughness = 0.6
+		leaf.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_mats["gh_frame"] = frame
+		_mats["gh_glass"] = glass
+		_mats["gh_pot"] = pot
+		_mats["gh_leaf"] = leaf
+	var by_name := {"GH_Stone": _mats["stone"], "GH_Frame": _mats["gh_frame"], "GH_Glass": _mats["gh_glass"],
+		"GH_Wood": _mats["wood"], "GH_Floor": _mats["cobble"], "GH_Pot": _mats["gh_pot"], "GH_Leaf": _mats["gh_leaf"]}
+	for node in house.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		for i in mi.mesh.get_surface_count():
+			var m := mi.mesh.surface_get_material(i)
+			if m != null and by_name.has(m.resource_name):
+				mi.set_surface_override_material(i, by_name[m.resource_name])
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 
 
 # -------------------------------------------------- boathouse and lake stair

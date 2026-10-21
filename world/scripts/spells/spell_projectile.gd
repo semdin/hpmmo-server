@@ -24,7 +24,7 @@ var _reflection_grace := 0.0
 var travel_effect: Node3D
 
 func _ready() -> void:
-	body_entered.connect(_on_body_entered)
+	body_entered.connect(_on_overlap)
 	area_entered.connect(_on_area_entered)
 	collision_mask = 3
 
@@ -83,6 +83,13 @@ func _physics_process(delta: float) -> void:
 				_end_travel("out_of_range")
 			queue_free()
 		return
+	# Aimed at a body: steer onto its chest every frame, as the authority's bolt
+	# does, so a target up or down a slope is met on screen where it is hit.
+	var homing := _homing_target()
+	if homing != null:
+		var chest := homing.global_position + Vector3.UP * SimAuthority.AIM_CHEST_HEIGHT
+		if (chest - global_position).length_squared() > 0.0001:
+			direction = (chest - global_position).normalized()
 	var next := global_position + direction * speed * delta
 	# Swept ray prevents fast spells tunnelling through thin walls/enemies.
 	var query := PhysicsRayQueryParameters3D.create(global_position, next, 3)
@@ -108,6 +115,10 @@ func _physics_process(delta: float) -> void:
 		skips += 1
 	if mob_caster and not hit.is_empty() and hit.collider is Node and (hit.collider as Node).is_in_group("mobs"):
 		hit = {}
+	# A homing bolt skims over ground between caster and target (the
+	# authority's HOMING_GROUND_NORMAL_Y); walls still stop it.
+	if homing != null and not hit.is_empty() and hit.collider != homing 			and not (hit.collider is Node and (hit.collider as Node).has_method("take_damage")) 			and (hit.normal as Vector3).y >= SimAuthority.HOMING_GROUND_NORMAL_Y:
+		hit = {}
 	if not hit.is_empty():
 		global_position = hit.position
 		_on_body_entered(hit.collider)
@@ -116,6 +127,23 @@ func _physics_process(delta: float) -> void:
 	look_at(global_position + direction, Rules.safe_up(direction))
 	# a gentle pulse, never an abrupt on/off
 	mesh.scale = _base_scale * (1 + sin(lifetime * 18.0) * 0.06)
+
+## The aimed-at body while it is alive, else null (the bolt flies straight on).
+func _homing_target() -> Node3D:
+	if target_node == null or not is_instance_valid(target_node) or not target_node.is_inside_tree():
+		return null
+	if "is_dead" in target_node and bool(target_node.get("is_dead")):
+		return null
+	if "is_destroyed" in target_node and bool(target_node.get("is_destroyed")):
+		return null
+	return target_node
+
+## The area brushed a body. A homing bolt leaves scenery to the swept ray
+## (which tells a hump it skims from a wall it stops at).
+func _on_overlap(body: Node3D) -> void:
+	if _homing_target() != null and body != target_node and not body.has_method("take_damage"):
+		return
+	_on_body_entered(body)
 
 func _on_body_entered(body: Node3D) -> void:
 	if spent or body == caster:
