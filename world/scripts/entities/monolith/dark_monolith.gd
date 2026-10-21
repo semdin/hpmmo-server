@@ -18,6 +18,11 @@ var current_hp: int = 3000
 var _respawn_timer: Timer = null
 var _base_albedo := Color(0.15, 0.05, 0.2)
 
+## Where the stone was authored (spawn_tables.json). Every stone - the first
+## and each one after a shatter - comes down somewhere within `roam` metres of
+## it (the type's `roam`, else 30 m outside / 12 m in the caverns).
+var home := Vector3.ZERO
+
 var wave1_triggered: bool = false
 var wave2_triggered: bool = false
 var wave3_triggered: bool = false
@@ -35,6 +40,7 @@ var is_destroyed: bool = false
 const ACROMANTULA_SCENE = preload("res://scenes/entities/mobs/mob_acromantula.tscn")
 const INFERI_SCENE = preload("res://scenes/entities/mobs/mob_inferi.tscn")
 const SNATCHER_SCENE = preload("res://scenes/entities/mobs/mob_darksnatcher.tscn")
+const SKILL_FX = preload("res://scripts/spells/skill_fx.gd")
 const LOOT_SCENE = preload("res://scenes/entities/loot/loot_drop.tscn")
 
 func _ready() -> void:
@@ -218,8 +224,9 @@ func present_respawn() -> void:
 		return
 	is_destroyed = false
 	current_hp = max_hp
-	show()
 	_update_label()
+	# The new spot rides in the next snapshot: fall onto it a moment later.
+	fall_in(0.25)
 
 func _respawn() -> void:
 	if is_queued_for_deletion():
@@ -232,7 +239,9 @@ func _respawn() -> void:
 	wave2_triggered = false
 	wave3_triggered = false
 	is_destroyed = false
-	show()
+	if home != Vector3.ZERO:
+		global_position = pick_landing()
+	fall_in()
 	$CollisionShape3D.set_deferred("disabled", false)
 	_update_label()
 	# The record has to come back to life with it, or the authority would still
@@ -240,6 +249,110 @@ func _respawn() -> void:
 	if SimAuthority.is_authority():
 		SimAuthority.refresh_mob(self)
 	NetworkManager.system_chat("A new %s has manifested in the realm!" % display_name())
+
+## A random open spot near `home` (authority): ground under it, no water, no
+## roof or wall over it and a level footprint for the stone. Home when none.
+func pick_landing() -> Vector3:
+	var caverns := home.y > 185.0
+	var roam := float(_cfg.get("roam", 12.0 if caverns else 30.0))
+	if roam <= 0.0 or not is_inside_tree():
+		return home
+	var space := get_world_3d().direct_space_state
+	for _attempt in 30:
+		var angle := randf() * TAU
+		var spot := home + Vector3(cos(angle), 0.0, sin(angle)) * sqrt(randf()) * roam
+		var heights: Array = []
+		for probe in [Vector3.ZERO, Vector3(2.2, 0, 0), Vector3(-2.2, 0, 0), Vector3(0, 0, 2.2), Vector3(0, 0, -2.2)]:
+			var p: Vector3 = spot + probe
+			var ray := PhysicsRayQueryParameters3D.create(Vector3(p.x, home.y + 14.0, p.z), Vector3(p.x, home.y - 10.0, p.z), 1)
+			var hit := space.intersect_ray(ray)
+			var y := float((hit["position"] as Vector3).y) if not hit.is_empty() else NAN
+			if not caverns:
+				var ground := GroundsTerrain.height_at(p.x, p.z)
+				if is_nan(ground) or GroundsLake.is_water_at(p.x, p.z) or (not is_nan(y) and y > ground + 0.6):
+					y = NAN
+				else:
+					y = ground
+			if is_nan(y) or absf(y - home.y) > 5.0:
+				heights.clear()
+				break
+			heights.append(y)
+		if heights.size() == 5 and heights.max() - heights.min() < 1.2:
+			return Vector3(spot.x, heights.min(), spot.z)
+	return home
+
+## The stone comes down out of the sky onto where it stands now: a falling
+## streak of its glow, then the impact - shockwave, dust, a shake for anyone
+## close. Eyes only; on the dedicated server it simply stands.
+const FALL_HEIGHT := 70.0
+const FALL_TIME := 0.85
+
+func fall_in(delay := 0.0) -> void:
+	if NetworkManager.is_dedicated_server or not is_inside_tree():
+		show()
+		return
+	hide()
+	if delay > 0.0:
+		await get_tree().create_timer(delay).timeout
+		if not is_instance_valid(self) or is_destroyed:
+			return
+	var model := get_node_or_null("Model") as Node3D
+	show()
+	if model == null:
+		return
+	hp_label.visible = false
+	model.position.y = FALL_HEIGHT
+	model.rotation.y = randf() * TAU
+	var streak := _fall_streak()
+	var tw := create_tween()
+	tw.tween_property(model, "position:y", 0.0, FALL_TIME).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.parallel().tween_property(model, "rotation:y", model.rotation.y + 0.6, FALL_TIME)
+	tw.tween_callback(func():
+		streak.queue_free()
+		_land()
+	)
+	# A little settle after the thump.
+	tw.tween_property(model, "scale", Vector3(1.06, 0.9, 1.06), 0.07)
+	tw.tween_property(model, "scale", Vector3.ONE, 0.25).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(func(): hp_label.visible = true)
+
+## A glowing comet tail that rides above the falling stone.
+func _fall_streak() -> Node3D:
+	var tail := MeshInstance3D.new()
+	tail.name = "FallStreak"
+	var cm := CylinderMesh.new()
+	cm.top_radius = 0.05
+	cm.bottom_radius = 1.1
+	cm.height = 26.0
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.albedo_color = Color(glow.r, glow.g, glow.b, 0.35)
+	cm.material = mat
+	tail.mesh = cm
+	tail.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var model := get_node("Model") as Node3D
+	model.add_child(tail)
+	tail.position = Vector3(0, 7.0 + 13.0, 0)
+	return tail
+
+func _land() -> void:
+	var height := 7.0
+	var shape := get_node_or_null("CollisionShape3D") as CollisionShape3D
+	if shape != null and shape.shape is CylinderShape3D:
+		height = (shape.shape as CylinderShape3D).height
+	FlipbookFX.play(get_parent(), global_position, [
+		{"atlas": "shockwave_8x8_1k", "size": height * 3.0, "flat": true, "height": 0.15, "fps": 26.0, "tint": glow},
+		{"atlas": "smoke_puff_8x8_1k", "size": height * 1.6, "height": 1.4, "fps": 16.0, "opacity": 0.7,
+			"tint": Color(0.5, 0.48, 0.44)},
+	], {"life": 2.6, "light": glow, "light_energy": 7.0, "light_range": 20.0, "light_height": height * 0.4,
+		"sound": "spell_bombarda_impact"})
+	_burst = 4.0
+	for player in get_tree().get_nodes_in_group("players"):
+		if bool(player.get("is_local_player")) and (player as Node3D).global_position.distance_to(global_position) < 45.0:
+			SKILL_FX.shake_camera(player, 0.6)
 
 func display_name() -> String:
 	return String(_cfg.get("name", "Dark Monolith"))

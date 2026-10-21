@@ -2,9 +2,9 @@ extends HudWindow
 class_name HudFloo
 
 ## The Floo Network window (interact at a fireplace, data/travel.json). Lists
-## every hearth of the network grouped by map: the ones this character has
-## visited can be travelled to for one pinch of Floo Powder, the rest carry a
-## lock and say how to open them (stand at that hearth once). Floo Powder and
+## every hearth of the network grouped by map: each can be travelled to for
+## one pinch of Floo Powder; a hearth above the character's level carries a
+## lock and says the level it needs. Floo Powder and
 ## the keeper's Portkey boots are sold right here. Everything is decided by the
 ## authority (SimNet.request_travel / the "buy" equipment operation); this
 ## window only asks and shows.
@@ -28,7 +28,7 @@ var _buy_id := -1
 var _travel_buttons: Array[Button] = []
 
 func _init() -> void:
-	super._init("Floo Network", Vector2(470, 600))
+	super._init("Floo Network", Vector2(520, 620))
 	name = "FlooNetwork"
 
 func _ready() -> void:
@@ -66,10 +66,11 @@ func _powder_card() -> PanelContainer:
 	_powder_label = HudKit.label("", 17, HudKit.GOLD_HI, HudKit.bold())
 	text.add_child(_powder_label)
 	_price_label = HudKit.label("", 13, HudKit.PARCHMENT.darkened(0.15), HudKit.body(), 3)
+	_price_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	text.add_child(_price_label)
 	for amount in [1, 5]:
 		var buy := HudKit.button("Buy %d" % amount, 14)
-		buy.custom_minimum_size = Vector2(70, 34)
+		buy.custom_minimum_size = Vector2(64, 34)
 		buy.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		buy.pressed.connect(_buy.bind(amount))
 		row.add_child(buy)
@@ -103,7 +104,9 @@ func _boot_row() -> PanelContainer:
 	text.add_theme_constant_override("separation", 0)
 	row.add_child(text)
 	text.add_child(HudKit.label("Old Boot (Portkey)", 14, HudKit.PARCHMENT, HudKit.bold(), 3))
-	text.add_child(HudKit.label("%s Galleons - carries your party anywhere" % _galleons(int(HPEquipment.item(BOOT).get("buy_price", 0))), 12, HudKit.TEXT_DIM, HudKit.body(), 2))
+	var boot_note := HudKit.label("%s Galleons - carries your party anywhere" % _galleons(int(HPEquipment.item(BOOT).get("buy_price", 0))), 12, HudKit.TEXT_DIM, HudKit.body(), 2)
+	boot_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	text.add_child(boot_note)
 	var buy := HudKit.button("Buy", 14)
 	buy.custom_minimum_size = Vector2(70, 30)
 	buy.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -155,7 +158,7 @@ func _refresh_powder() -> void:
 	var price := int(HPEquipment.item(POWDER).get("buy_price", 0))
 	var count := _powder_count()
 	_powder_label.text = "Floo Powder: %d %s" % [count, "pinch" if count == 1 else "pinches"]
-	_price_label.text = "%s Galleons a pinch - one pinch per journey" % _galleons(price)
+	_price_label.text = "%s Galleons a pinch, one per journey" % _galleons(price)
 	var cost := int(HPMaps.floo_rules().get("cost", 1))
 	for button in _travel_buttons:
 		if is_instance_valid(button):
@@ -175,7 +178,6 @@ func refresh() -> void:
 	for child in _list.get_children():
 		child.queue_free()
 	_travel_buttons.clear()
-	var known: Array = player.call("floo_known") if is_instance_valid(player) and player.has_method("floo_known") else []
 	var level := int(player.get("level")) if is_instance_valid(player) else 1
 	# Group the hearths by map, in the order travel.json lists them.
 	var groups: Dictionary = {}
@@ -191,15 +193,15 @@ func refresh() -> void:
 		var heading := HudKit.label(HPMaps.display_name(String(map_id)), 12, HudKit.GOLD, HudKit.bold(), 3)
 		_list.add_child(heading)
 		for id in groups[map_id]:
-			_list.add_child(_destination(String(id), known.has(id), level))
+			_list.add_child(_destination(String(id), level))
 	_refresh_powder()
 
 ## One hearth: a card with its name, a line saying what it takes, and the
-## Travel button (or why there is none).
-func _destination(id: String, is_known: bool, level: int) -> PanelContainer:
+## Travel button (or the level it waits for).
+func _destination(id: String, level: int) -> PanelContainer:
 	var dest := HPMaps.travel_node(id)
 	var need := int(dest.get("level_min", 1))
-	var open_to_travel := is_known and level >= need
+	var open_to_travel := level >= need
 	var card := PanelContainer.new()
 	card.add_theme_stylebox_override("panel", _card_box(HudKit.NAVY_LT if open_to_travel else HudKit.INK,
 		EMERALD if open_to_travel else HudKit.GOLD_DK, 0.92 if open_to_travel else 0.75))
@@ -216,18 +218,20 @@ func _destination(id: String, is_known: bool, level: int) -> PanelContainer:
 	row.add_child(text)
 	var name_label := HudKit.label(String(dest.get("label", id)), 16,
 		HudKit.GOLD_HI if open_to_travel else HudKit.TEXT_DIM, HudKit.bold(), 3)
+	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	name_label.clip_text = true
 	text.add_child(name_label)
-	var note := ""
-	if not is_known:
-		note = "Stand at this hearth once to add it to your network"
-	elif level < need:
-		note = "Requires level %d" % need
-	else:
-		note = "1 pinch of Floo Powder"
+	var note := "1 pinch of Floo Powder"
+	if level < need:
+		note = "Requires level %d (you are %d)" % [need, level]
 	var note_label := HudKit.label(note, 12, EMERALD.darkened(0.1) if open_to_travel else HudKit.TEXT_DIM.darkened(0.15), HudKit.body(), 2)
 	note_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	text.add_child(note_label)
-	if open_to_travel:
+	if not open_to_travel:
+		var badge := HudKit.label("Lv %d" % need, 14, Color(0.9, 0.45, 0.35), HudKit.bold(), 3)
+		badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(badge)
+	else:
 		var go := HudKit.button("Travel", 14)
 		go.custom_minimum_size = Vector2(92, 34)
 		go.size_flags_vertical = Control.SIZE_SHRINK_CENTER

@@ -1204,7 +1204,7 @@ func _grant_transfer(record: Dictionary, peer_id: int, from_map: String, destina
 
 ## The Floo Network (data/travel.json, protocol v20). The body must stand at
 ## the fireplace `node_id` on its own map; that fireplace is learned. With a
-## `dest_id` the trip is checked (known, level, out of combat, on foot, Floo
+## `dest_id` the trip is checked (level, out of combat, on foot, Floo
 ## Powder in the bag, destination open), the powder is spent and the body goes
 ## through the ordinary transfer to the destination hearth's arrival point -
 ## also on the same map, where the loading screen hides the jump.
@@ -1246,9 +1246,7 @@ func request_travel(peer_id: int, node_id: String, dest_id: String = "") -> Dict
 	# A cabinet or a secret passage leads only to its twin.
 	if not floo and String(source.get("pair", "")) != dest_id:
 		return _refuse_transfer(peer_id, HPProtocol.REJECT_NO_PORTAL)
-	var known: Array = body.call("floo_known") if body.has_method("floo_known") else []
-	if floo and not known.has(dest_id):
-		return _refuse_transfer(peer_id, HPProtocol.REJECT_FLOO_UNKNOWN)
+	# Every hearth of the network is open; the destination's level is the gate.
 	if _player_level(record) < int(dest.get("level_min", 1)):
 		return _refuse_transfer(peer_id, HPProtocol.REJECT_LEVEL)
 	if bool(record.get("mounted", false)):
@@ -1422,7 +1420,7 @@ func _fire_portkey(pk: Dictionary) -> void:
 		_broadcast_portkey(pk, "gone")
 		print("[Authority] portkey %d fizzled (nobody holding); boot returned" % int(pk.id))
 		return
-	var center := travel_point(dest) + HPMaps.travel_facing(dest) * float(rules.get("arrive", 3.5))
+	var center := _portkey_landing(dest, rules, riders[0])
 	var carried: Array = []
 	for i in riders.size():
 		var r: Dictionary = riders[i]
@@ -1437,6 +1435,44 @@ func _fire_portkey(pk: Dictionary) -> void:
 	pk["holders"] = carried
 	print("[Authority] portkey %d fired: %d carried to %s" % [int(pk.id), carried.size(), String(pk.dest)])
 	_broadcast_portkey(pk, "fired")
+
+## Where a Portkey sets its riders down: a random open spot `scatter` metres
+## from the destination (a Portkey drops you somewhere about, not on the rug).
+## A spot must have ground under it within reach of the destination's height,
+## no water, nothing standing on it (a roof, a wall) and room for a ring of
+## riders on gentle ground. The arrival point in front of the node otherwise.
+func _portkey_landing(dest: Dictionary, rules: Dictionary, rider: Dictionary) -> Vector3:
+	var at := travel_point(dest)
+	var fallback := at + HPMaps.travel_facing(dest) * float(rules.get("arrive", 3.5))
+	var body = rider.get("node")
+	if body == null or not is_instance_valid(body) or not (body as Node3D).is_inside_tree():
+		return fallback
+	var space := (body as Node3D).get_world_3d().direct_space_state
+	var span: Array = rules.get("scatter", [10.0, 30.0])
+	var grounds := String(dest.get("map", "")) == HPProtocol.DEFAULT_MAP
+	for _attempt in 24:
+		var angle := rng.randf() * TAU
+		var spot := at + Vector3(cos(angle), 0.0, sin(angle)) * rng.randf_range(float(span[0]), float(span[1]))
+		var ok := true
+		var heights: Array = []
+		for probe in [Vector3.ZERO, Vector3(1.8, 0, 0), Vector3(-1.8, 0, 0), Vector3(0, 0, 1.8), Vector3(0, 0, -1.8)]:
+			var p: Vector3 = spot + probe
+			var ray := PhysicsRayQueryParameters3D.create(Vector3(p.x, at.y + 14.0, p.z), Vector3(p.x, at.y - 10.0, p.z), 1)
+			var hit := space.intersect_ray(ray)
+			var y := float((hit["position"] as Vector3).y) if not hit.is_empty() else NAN
+			if grounds:
+				var ground := GroundsTerrain.height_at(p.x, p.z)
+				if is_nan(ground) or GroundsLake.is_water_at(p.x, p.z) or (not is_nan(y) and y > ground + 0.6):
+					ok = false
+					break
+				y = ground
+			if is_nan(y) or absf(y - at.y) > 6.0:
+				ok = false
+				break
+			heights.append(y)
+		if ok and heights.max() - heights.min() < 1.4:
+			return Vector3(spot.x, float(heights[0]), spot.z)
+	return fallback
 
 ## A bag change made by the authority (Floo/Portkey items): the same upkeep as
 ## an equipment operation.
@@ -4084,6 +4120,7 @@ func party_state_for(uid: int) -> Dictionary:
 			continue
 		members.append({"uid": int(member_uid), "name": String(r.get("name", "")), "level": _player_level(r),
 			"house": String(r.get("house", "")), "hp": int(r.get("hp", 0)), "max_hp": int(r.get("max_hp", 1)),
+			"mana": int(r.get("mana", 0)), "max_mana": int(r.get("max_mana", 1)),
 			"map_id": String(r.get("map_id", HPProtocol.DEFAULT_MAP)), "dead": bool(r.get("dead", false))})
 	return {"party_id": int(p["id"]), "leader": int(p["leader"]), "members": members}
 

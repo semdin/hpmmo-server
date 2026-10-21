@@ -203,8 +203,10 @@ def test_agreement(out_dir, profile):
         check(True, "[%s] world server is listening" % profile)
         # Both clients run CONCURRENTLY: the point of the test is that two
         # independent clients are in the world at the same time.
-        alpha = start_probe("alpha", "agree", port, out_dir, seconds=30, profile=profile)
-        beta = start_probe("beta", "agree", port, out_dir, seconds=30, profile=profile)
+        # Long enough for a seeded elite in the probed pack (x3 health) to fall
+        # and the pack to respawn after it.
+        alpha = start_probe("alpha", "agree", port, out_dir, seconds=55, profile=profile)
+        beta = start_probe("beta", "agree", port, out_dir, seconds=55, profile=profile)
         alpha = collect_probe(alpha, 22)
         beta = collect_probe(beta, 22)
     finally:

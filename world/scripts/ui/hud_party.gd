@@ -4,12 +4,12 @@ class_name HudParty
 ## Party frames under the player's own frame, and the invitation prompt.
 ##
 ## Everything shown comes from the authority: `SimAuthority.party_state`
-## (members, leader, live health once a second) and `party_invited`. Answers
+## (members, leader, live health and mana once a second) and `party_invited`. Answers
 ## travel as chat commands (`/accept`, `/decline`), so the prompt is a thin
 ## shortcut over what can also be typed.
 
 const ROW_W := 190.0
-const ROW_H := 38.0
+const ROW_H := 46.0
 
 var _rows: VBoxContainer
 var _prompt: PanelContainer
@@ -77,6 +77,13 @@ func _member_row(m: Dictionary, leader: bool, away: bool) -> Control:
 	bar.value = float(m.get("hp", 0))
 	HudKit.style_gauge(bar, Color(0.75, 0.18, 0.16))
 	box.add_child(bar)
+	var mana := ProgressBar.new()
+	mana.show_percentage = false
+	mana.custom_minimum_size = Vector2(ROW_W - 12.0, 6.0)
+	mana.max_value = maxf(1.0, float(m.get("max_mana", 1)))
+	mana.value = float(m.get("mana", 0))
+	HudKit.style_gauge(mana, Color(0.18, 0.42, 0.92))
+	box.add_child(mana)
 	if bool(m.get("dead", false)) or away:
 		panel.modulate = Color(1, 1, 1, 0.45)
 	return panel

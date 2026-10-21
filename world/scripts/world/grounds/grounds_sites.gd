@@ -253,44 +253,82 @@ static func _hagrid(parent: Node3D, visuals: bool) -> void:
 	kit.box(Vector3(h.x, fy + 1.3, h.z + 4.62), Vector3(1.6, 2.6, 0.3), 0.0, "wood", false)
 	kit.window(Vector3(h.x + 3.2, fy + 1.9, h.z + 3.2), Vector3(0.7, 0, 0.7), 0.8, 1.0, "timber", "glass")
 	kit.window(Vector3(h.x - 3.2, fy + 1.9, h.z + 3.2), Vector3(-0.7, 0, 0.7), 0.8, 1.0, "timber", "glass")
-	# pumpkin patch with a low fence
+	# pumpkin patch with a low post-and-rail fence: pumpkins of every size that
+	# never overlap, a few giants among them, leaves on the ground between
 	var patch := Vector2(h.x + 10.0, h.z + 4.0)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 280
+	var placed: Array = []   # [Vector2 at, float diameter]
+	for attempt in 400:
+		if placed.size() >= 16:
+			break
+		var d := rng.randf_range(0.55, 1.0) if placed.size() >= 3 else rng.randf_range(1.25, 1.5)
+		var p := patch + Vector2(rng.randf_range(-4.6, 4.6), rng.randf_range(-3.3, 3.3))
+		if pow((p.x - patch.x) / 5.0, 2.0) + pow((p.y - patch.y) / 3.7, 2.0) > 1.0:
+			continue
+		var free := true
+		for other in placed:
+			if p.distance_to(other[0]) < (d + float(other[1])) * 0.55:
+				free = false
+				break
+		if free:
+			placed.append([p, d])
 	var pumpkins: Array[Transform3D] = []
-	for i in 14:
-		var p := patch + Vector2(rng.randf_range(-4, 4), rng.randf_range(-3, 3))
+	for item in placed:
+		var p: Vector2 = item[0]
+		var d: float = item[1]
 		var g := GroundsLayout.ground(p.x, p.y)
-		var r := rng.randf_range(0.35, 0.8)
-		var tilt := Basis(Vector3(rng.randf_range(-1, 1), 0, rng.randf_range(-1, 1)).normalized(), rng.randf_range(0.0, 0.14))
-		pumpkins.append(Transform3D(tilt * Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * r * 2.0), g + Vector3(0, -0.06 * r, 0)))
-	for i in 12:
-		var a := TAU * i / 12.0
+		var tilt := Basis(Vector3(rng.randf_range(-1, 1), 0, rng.randf_range(-1, 1)).normalized(), rng.randf_range(0.0, 0.12))
+		var squash := Vector3(d, d * rng.randf_range(0.85, 1.1), d)
+		pumpkins.append(Transform3D(tilt * Basis(Vector3.UP, rng.randf() * TAU).scaled(squash), g + Vector3(0, -0.03 * d, 0)))
+	var leaves: Array[Transform3D] = []
+	for i in 34:
+		var p := patch + Vector2(rng.randf_range(-4.7, 4.7), rng.randf_range(-3.4, 3.4))
+		if pow((p.x - patch.x) / 5.2, 2.0) + pow((p.y - patch.y) / 3.9, 2.0) > 1.0:
+			continue
+		var g := GroundsLayout.ground(p.x, p.y)
+		var tip := Basis(Vector3(rng.randf_range(-1, 1), 0, rng.randf_range(-1, 1)).normalized(), rng.randf_range(0.0, 0.25))
+		leaves.append(Transform3D(tip * Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * rng.randf_range(0.8, 1.35)), g + Vector3(0, 0.02, 0)))
+	var posts: Array[Vector3] = []
+	for i in 14:
+		var a := TAU * i / 14.0
 		var p := patch + Vector2(cos(a) * 6.0, sin(a) * 4.6)
 		var g := GroundsLayout.ground(p.x, p.y)
-		kit.box(g + Vector3(0, 0.5, 0), Vector3(0.14, 1.0, 0.14), 0.0, "timber", false)
+		posts.append(g)
+		kit.box(g + Vector3(0, 0.55, 0), Vector3(0.16, 1.1, 0.16), a, "timber", false)
+	for i in posts.size():
+		var a := posts[i]
+		var b := posts[(i + 1) % posts.size()]
+		var mid := (a + b) * 0.5
+		var run := Vector2(b.x - a.x, b.z - a.z)
+		for rail_y in [0.42, 0.86]:
+			kit.box(mid + Vector3(0, rail_y, 0), Vector3(run.length() + 0.1, 0.09, 0.07), atan2(-run.y, run.x), "timber", false)
 	var root := kit.finish(parent, materials() if visuals else {}, "HagridsHut", 1, visuals)
 	if visuals:
 		_lamp_light(root, Vector3(h.x, fy + 2.4, h.z + 5.5), 1.2, 9.0)
-		_pumpkin_patch(root, pumpkins, rng)
+		_pumpkin_patch(root, pumpkins, leaves, rng)
 
 
-## The pumpkins as one MultiMesh of the procedural PumpkinMesh, each a shade
-## apart (instance colour multiplies the mottled skin).
-static func _pumpkin_patch(parent: Node3D, xforms: Array[Transform3D], rng: RandomNumberGenerator) -> void:
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.use_colors = true
-	mm.mesh = PumpkinMesh.mesh()
-	mm.instance_count = xforms.size()
-	for i in xforms.size():
-		mm.set_instance_transform(i, xforms[i])
-		var v := rng.randf_range(0.85, 1.08)
-		mm.set_instance_color(i, Color(v, v * rng.randf_range(0.92, 1.04), v * 0.95))
-	var mmi := MultiMeshInstance3D.new()
-	mmi.name = "Pumpkins"
-	mmi.multimesh = mm
-	parent.add_child(mmi)
+## The pumpkins and their leaves as two MultiMeshes of the Blender-baked
+## PumpkinMesh, each a shade apart (instance colour multiplies the skin).
+static func _pumpkin_patch(parent: Node3D, xforms: Array[Transform3D], leaves: Array[Transform3D], rng: RandomNumberGenerator) -> void:
+	for layer in [["Pumpkins", PumpkinMesh.mesh(), xforms], ["PumpkinLeaves", PumpkinMesh.leaf_mesh(), leaves]]:
+		if layer[1] == null:
+			continue
+		var list: Array[Transform3D] = layer[2]
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_colors = true
+		mm.mesh = layer[1]
+		mm.instance_count = list.size()
+		for i in list.size():
+			mm.set_instance_transform(i, list[i])
+			var v := rng.randf_range(0.88, 1.1)
+			mm.set_instance_color(i, Color(v, v * rng.randf_range(0.94, 1.04), v * rng.randf_range(0.9, 1.0)))
+		var mmi := MultiMeshInstance3D.new()
+		mmi.name = String(layer[0])
+		mmi.multimesh = mm
+		parent.add_child(mmi)
 
 
 # ------------------------------------------------------------- greenhouses

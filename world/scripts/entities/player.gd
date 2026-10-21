@@ -1457,7 +1457,7 @@ func _update_flight_pose(delta: float) -> void:
 			_align_broom_to_hips()
 	# The rider sits on the saddle: lift the visuals by the seat height instead of
 	# the old 0.15 m placeholder, so the boots clear the ground while hovering.
-	visuals.position.y = _mount_blend * (0.34 + sin(_flight_time * 3.0) * 0.05)
+	visuals.position.y = _mount_blend * (0.34 + sin(_flight_time * 3.0) * 0.05) + _emerge_lift
 	var speed_ratio := Vector2(velocity.x, velocity.z).length() / mounted_speed
 	visuals.rotation.x = lerpf(visuals.rotation.x, -0.2 * speed_ratio * _mount_blend, minf(1, delta * 5))
 	var turn := 0.0 if not is_local_player or input_blocked() else Input.get_axis("move_right", "move_left")
@@ -1698,6 +1698,66 @@ func floo_walk_reset() -> void:
 		visuals.position.z = 0.0
 	if pose_override == "floo":
 		pose_override = ""
+
+## ------------------------------------------------------- Portkey arrival
+
+## Presentation only, like the Floo walk: the visuals spring out of the mouth
+## of the arrival boot (`mouth_world`), small at first, arc up and over and
+## land on the body where the authority set it down. Keys are ignored while
+## it runs (pose "floo").
+var _emerge_lift := 0.0
+
+## Hidden while the loading screen lifts, until the boot lets the body out;
+## shown again after a few seconds whatever happens to the boot.
+func portkey_hide() -> void:
+	if visuals == null:
+		return
+	pose_override = "floo"
+	visuals.scale = Vector3.ONE * 0.01
+	var generation := _pose_generation
+	await get_tree().create_timer(3.0).timeout
+	if is_instance_valid(self) and generation == _pose_generation and visuals.scale.x < 0.05:
+		portkey_emerge_reset()
+
+func portkey_emerge(mouth_world: Vector3, seconds := 0.75) -> void:
+	if visuals == null:
+		return
+	if _floo_tween != null and _floo_tween.is_valid():
+		_floo_tween.kill()
+	_pose_generation += 1
+	var a := to_local(mouth_world)
+	var flat := Vector2(-a.x, -a.z)
+	if flat.length_squared() > 0.0001:
+		visuals.rotation.y = atan2(flat.x, flat.y)
+	pose_override = "floo"
+	if hero_anim != null:
+		hero_anim.cancel_oneshot()
+		hero_anim.set_locomotion("fall", "Fall_Loop")
+	visuals.scale = Vector3.ONE * 0.12
+	visuals.position.x = a.x
+	visuals.position.z = a.z
+	_emerge_lift = a.y
+	_floo_tween = create_tween()
+	_floo_tween.tween_method(func(t: float):
+		if not is_instance_valid(visuals):
+			return
+		var grow := 1.0 - pow(1.0 - t, 3.0)
+		visuals.scale = Vector3.ONE * lerpf(0.12, 1.0, grow)
+		visuals.position.x = lerpf(a.x, 0.0, t)
+		visuals.position.z = lerpf(a.z, 0.0, t)
+		_emerge_lift = lerpf(a.y, 0.0, t) + sin(t * PI) * 1.3
+	, 0.0, 1.0, seconds)
+	_floo_tween.tween_callback(portkey_emerge_reset)
+	_floo_tween.tween_callback(func():
+		if hero_anim != null:
+			hero_anim.play_oneshot("Land")
+	)
+
+func portkey_emerge_reset() -> void:
+	_emerge_lift = 0.0
+	if visuals != null:
+		visuals.scale = Vector3.ONE
+	floo_walk_reset()
 
 ## A title; true when it is new.
 func grant_title(title_id: String) -> bool:

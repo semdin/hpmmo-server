@@ -557,6 +557,8 @@ func _start_transfer(map_id: String, spawn_id: String, token: int, forced_pos: V
 	_loading_screen.set_progress(95.0, "Almost there…")
 	for _i in range(4):
 		await get_tree().process_frame
+	if spawn_id.begins_with("portkey:") and is_instance_valid(local_player) and local_player.has_method("portkey_hide"):
+		local_player.call("portkey_hide")   # the arrival boot lets the body out
 	await _loading_screen.close()
 	busy = false
 	_record_transfer(map_id, spawn_id, token)
@@ -572,7 +574,7 @@ func _start_transfer(map_id: String, spawn_id: String, token: int, forced_pos: V
 	elif kind in ["cabinet", "passage"] and spawn_id.contains(":") and is_instance_valid(local_player):
 		TravelNodes.burst(world, local_player.global_position, 1.6, kind)
 	elif spawn_id.begins_with("portkey:") and is_instance_valid(local_player):
-		PortkeyViews.swirl(world, local_player.global_position, 1.2)
+		PortkeyViews.arrival(world, local_player)
 	if not _expired_return.is_empty():
 		var back: Dictionary = _expired_return
 		_expired_return = {}

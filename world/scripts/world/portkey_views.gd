@@ -172,6 +172,84 @@ func grab_candidate(pos: Vector3, map_id: String) -> Dictionary:
 		return {"id": int(id), "holding": (state.get("holders", []) as Array).has(me), "label": String(state.get("label", ""))}
 	return {}
 
+## The arrival: a giant boot spins down out of a whirlwind beside the body,
+## thumps onto the ground, bulges as if something is climbing out - and the
+## body springs out of its mouth (player.portkey_emerge), after which the boot
+## spins away into nothing. `body` is the local player; the boot stands
+## `BOOT_GAP` metres off on the ground. Returns the boot's mouth (world).
+const ARRIVAL_SCALE := 3.6
+const BOOT_GAP := 1.9
+## The shaft opening of portkey_boot.glb in its own space (0.39 m long, the
+## shaft over +x, 0.42 m tall).
+const BOOT_MOUTH := Vector3(0.095, 0.4, 0.0)
+
+static func arrival(parent: Node3D, body: Node3D) -> void:
+	if parent == null or body == null or not ResourceLoader.exists(BOOT):
+		if body != null and body.has_method("portkey_emerge_reset"):
+			body.call("portkey_emerge_reset")
+		return
+	var dir := Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0))
+	if dir.length_squared() < 0.01:
+		dir = Vector3.FORWARD
+	var at := body.global_position + dir.normalized() * BOOT_GAP
+	var space := body.get_world_3d().direct_space_state
+	var ray := PhysicsRayQueryParameters3D.create(at + Vector3.UP * 3.0, at - Vector3.UP * 4.0, 1)
+	var hit := space.intersect_ray(ray)
+	if not hit.is_empty():
+		at = hit["position"]
+	var root := Node3D.new()
+	root.name = "PortkeyArrival"
+	parent.add_child(root)
+	root.global_position = at
+	# Lying open toward the body: the shaft (+x) points at it, tipped back so
+	# the mouth gapes up and out.
+	var toward := body.global_position - at
+	toward.y = 0.0
+	root.rotation.y = atan2(-toward.z, toward.x) if toward.length_squared() > 0.01 else 0.0
+	var spin := Node3D.new()
+	root.add_child(spin)
+	var boot: Node3D = (load(BOOT) as PackedScene).instantiate()
+	boot.rotation = Vector3(0.0, 0.0, deg_to_rad(-12.0))
+	spin.add_child(boot)
+	spin.scale = Vector3.ONE * 0.01
+	spin.position = Vector3(0, 2.2, 0)
+	var light := OmniLight3D.new()
+	light.light_color = BLUE
+	light.light_energy = 0.0
+	light.omni_range = 6.0
+	light.position = Vector3(0, 1.4, 0)
+	root.add_child(light)
+	FlipbookFX.play(parent, at, [
+		{"atlas": "portkey_vortex_8x8_2k", "size": 4.2, "height": 1.8, "fps": 28.0},
+	], {"life": 2.4, "light": BLUE, "light_energy": 3.0, "sound": "portkey_whoosh"})
+	var s := ARRIVAL_SCALE
+	var tw := root.create_tween()
+	# Down out of the whirlwind, turning.
+	tw.tween_property(spin, "scale", Vector3.ONE * s, 0.38).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(spin, "position", Vector3.ZERO, 0.38).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.parallel().tween_property(spin, "rotation:y", TAU * 1.5, 0.38).from(0.0)
+	tw.parallel().tween_property(light, "light_energy", 3.5, 0.3)
+	# Thump, then the bulge as something climbs out.
+	tw.tween_property(spin, "scale", Vector3(s * 1.15, s * 0.8, s * 1.15), 0.08)
+	tw.tween_property(spin, "scale", Vector3.ONE * s, 0.12)
+	tw.tween_property(spin, "scale", Vector3(s * 0.9, s * 1.25, s * 0.9), 0.14).set_trans(Tween.TRANS_SINE)
+	tw.tween_callback(func():
+		if is_instance_valid(body) and is_instance_valid(boot):
+			var mouth: Vector3 = boot.global_transform * BOOT_MOUTH
+			FlipbookFX.play(parent, mouth, [
+				{"atlas": "portkey_aura_8x8_1k", "size": 1.6, "height": 0.4, "fps": 30.0},
+			], {"life": 1.0, "light": BLUE, "light_energy": 2.5})
+			if body.has_method("portkey_emerge"):
+				body.call("portkey_emerge", mouth, 0.75)
+	)
+	tw.tween_property(spin, "scale", Vector3.ONE * s, 0.3).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+	# The boot has done its job: a last turn and it is gone.
+	tw.tween_interval(0.9)
+	tw.tween_property(spin, "rotation:y", TAU * 2.0, 0.45).as_relative()
+	tw.parallel().tween_property(spin, "scale", Vector3.ONE * 0.01, 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	tw.parallel().tween_property(light, "light_energy", 0.0, 0.45)
+	tw.tween_callback(root.queue_free)
+
 ## The Portkey whirlwind at one spot (arrival).
 static func swirl(parent: Node, at: Vector3, _seconds: float = 1.6) -> void:
 	FlipbookFX.play(parent, at, [

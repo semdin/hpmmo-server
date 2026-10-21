@@ -411,6 +411,9 @@ func _setup_monoliths_and_mobs() -> void:
 		var monolith = scene.instantiate()
 		monoliths_container.add_child(monolith)
 		monolith.global_position = pos
+		# Each stone lands somewhere about its authored spot, not on it.
+		monolith.home = pos
+		monolith.global_position = monolith.pick_landing()
 
 	var director := preload("res://scripts/world/encounter_director.gd").new()
 	director.name = "EncounterDirector"
@@ -702,6 +705,8 @@ func _on_entity_moved(uid: int, pos: Vector3, rot_y: float, flags: int) -> void:
 				view.is_mounted = replicated_mount
 				if view.has_method("_apply_mount_state"):
 					view._apply_mount_state(replicated_mount)
+	elif view.is_in_group("monoliths"):
+		view.global_position = pos   # stones never slide: a new one stands elsewhere
 	else:
 		view.global_position = view.global_position.lerp(pos, 0.4)
 		if "visuals" in view and view.visuals:
