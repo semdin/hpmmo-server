@@ -6,10 +6,13 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
+#include <deque>
 #include <cstdio>
 #include <fstream>
 #include <limits>
+#include <mutex>
 #include <optional>
 #include <set>
 #include <sstream>
@@ -53,8 +56,51 @@ void send_json(httplib::Response& res, int status, const json& body) {
     res.set_content(body.dump(), "application/json");
 }
 
+// Sliding-window limiter for the unauthenticated endpoints. Every login and
+// registration costs an argon2 hash (64 MB, a sizeable share of a core), so an
+// unthrottled flood starves the world server's own calls (session introspect,
+// character saves) and with them every player's join and logout.
+class RateLimiter {
+public:
+    bool allow(const std::string& key, int limit, std::chrono::seconds window) {
+        const auto now = std::chrono::steady_clock::now();
+        std::lock_guard<std::mutex> lock(mu_);
+        auto& hits = hits_[key];
+        while (!hits.empty() && now - hits.front() > window) hits.pop_front();
+        if (static_cast<int>(hits.size()) >= limit) return false;
+        hits.push_back(now);
+        if (hits_.size() > 20000) prune(now);
+        return true;
+    }
+
+private:
+    void prune(std::chrono::steady_clock::time_point now) {
+        for (auto it = hits_.begin(); it != hits_.end();) {
+            if (it->second.empty() || now - it->second.back() > std::chrono::hours(1)) it = hits_.erase(it);
+            else ++it;
+        }
+    }
+    std::mutex mu_;
+    std::unordered_map<std::string, std::deque<std::chrono::steady_clock::time_point>> hits_;
+};
+
+RateLimiter& limiter() {
+    static RateLimiter instance;
+    return instance;
+}
+
+std::string lowered(std::string text) {
+    for (char& ch : text) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+    return text;
+}
+
 void send_error(httplib::Response& res, int status, const std::string& message) {
     send_json(res, status, {{"success", false}, {"message", message}});
+}
+
+void send_too_many(httplib::Response& res, int retry_after_seconds) {
+    res.set_header("Retry-After", std::to_string(retry_after_seconds));
+    send_error(res, 429, "Too many attempts. Please wait a moment and try again.");
 }
 
 void send_db_error(httplib::Response& res, const db::Result& r, const std::string& what) {
@@ -470,6 +516,10 @@ bool refuse_for_maintenance(httplib::Response& res, const Config& cfg, const std
 
 void handle_register(const httplib::Request& req, httplib::Response& res, const Config& cfg,
                      db::Pool& pool) {
+    if (!limiter().allow("register-ip:" + req.remote_addr, 5, std::chrono::hours(1))) {
+        std::printf("[register] rate limited %s\n", req.remote_addr.c_str());
+        return send_too_many(res, 600);
+    }
     auto body = parse_body(req, res);
     if (!body) return;
     const std::string username = body->value("username", "");
@@ -513,6 +563,12 @@ void handle_login(const httplib::Request& req, httplib::Response& res, const Con
     const std::string username = body->value("username", "");
     const std::string password = body->value("password", "");
     if (refuse_for_maintenance(res, cfg, username)) return;
+    // Per address (a flood) and per account (guessing one password).
+    if (!limiter().allow("login-ip:" + req.remote_addr, 20, std::chrono::seconds(60)) ||
+        !limiter().allow("login-user:" + lowered(username), 10, std::chrono::seconds(300))) {
+        std::printf("[login] rate limited %s\n", req.remote_addr.c_str());
+        return send_too_many(res, 60);
+    }
 
     auto lease = pool.acquire();
     db::Result r = lease.exec(
@@ -995,12 +1051,21 @@ void handle_character_save(const httplib::Request& req, httplib::Response& res, 
             lease.rollback();
             return send_db_error(res, del, "inventory replace");
         }
-        for (const auto& line : inventory) {
+        // One statement for the whole bag: a row per INSERT was ~40 round
+        // trips per save, and the world saves after every loot and quest step.
+        if (!inventory.empty()) {
+            json rows = json::array();
+            for (const auto& line : inventory) {
+                json bonuses = json::parse(line.bonuses, nullptr, false);
+                rows.push_back({{"item_id", line.item_id}, {"amount", line.amount}, {"tier", line.tier},
+                                {"uid", line.uid}, {"bonuses", bonuses.is_discarded() ? json::array() : bonuses}});
+            }
             db::Result ins = lease.exec(
                 "INSERT INTO character_items (character_id,item_id,amount,tier,uid,bonuses) "
-                "VALUES ($1,$2,$3,$4,NULLIF($5,'0')::bigint,$6::jsonb)",
-                {std::to_string(char_id), line.item_id, std::to_string(line.amount),
-                 std::to_string(line.tier), std::to_string(line.uid), line.bonuses});
+                "SELECT $1, x.item_id, x.amount, x.tier, NULLIF(x.uid, 0), x.bonuses "
+                "FROM jsonb_to_recordset($2::jsonb) "
+                "AS x(item_id text, amount integer, tier integer, uid bigint, bonuses jsonb)",
+                {std::to_string(char_id), rows.dump()});
             if (!ins.ok) {
                 lease.rollback();
                 return send_db_error(res, ins, "inventory replace");
@@ -1010,22 +1075,39 @@ void handle_character_save(const httplib::Request& req, httplib::Response& res, 
     if (!equipment.is_null()) {
         auto del = lease.exec("DELETE FROM character_equipment WHERE character_id=$1", {std::to_string(char_id)});
         if (!del.ok) { lease.rollback(); return send_db_error(res,del,"equipment replace"); }
+        json rows = json::array();
         for (auto it=equipment.begin(); it!=equipment.end(); ++it) {
             json line = it.value(); line["amount"] = 1;
             const ItemLine worn = *parse_item(line);  // validated above
+            json bonuses = json::parse(worn.bonuses, nullptr, false);
+            rows.push_back({{"slot", it.key()}, {"item_id", worn.item_id}, {"tier", worn.tier},
+                            {"uid", worn.uid}, {"bonuses", bonuses.is_discarded() ? json::array() : bonuses}});
+        }
+        if (!rows.empty()) {
             auto ins = lease.exec("INSERT INTO character_equipment(character_id,slot,item_id,tier,uid,bonuses) "
-                                  "VALUES($1,$2,$3,$4,NULLIF($5,'0')::bigint,$6::jsonb)",
-                {std::to_string(char_id),it.key(),worn.item_id,std::to_string(worn.tier),
-                 std::to_string(worn.uid),worn.bonuses});
+                                  "SELECT $1, x.slot, x.item_id, x.tier, NULLIF(x.uid, 0), x.bonuses "
+                                  "FROM jsonb_to_recordset($2::jsonb) "
+                                  "AS x(slot text, item_id text, tier integer, uid bigint, bonuses jsonb)",
+                {std::to_string(char_id), rows.dump()});
             if (!ins.ok) { lease.rollback(); return send_db_error(res,ins,"equipment replace"); }
         }
     }
-    for (const auto* key : {"base_max_hp", "base_max_mana", "inventory_revision", "equipment_version"}) {
-        if (!body->contains(key)) continue;
-        // key is selected only from the fixed list above.
-        auto upd_gear = lease.exec(std::string("UPDATE characters SET ")+key+"=$2 WHERE id=$1",
-            {std::to_string(char_id),std::to_string((*body)[key].get<long long>())});
-        if (!upd_gear.ok) { lease.rollback(); return send_db_error(res,upd_gear,"equipment state"); }
+    // The equipment-state columns in one UPDATE; an absent field keeps its value.
+    {
+        std::vector<std::optional<std::string>> gear_params = {std::to_string(char_id)};
+        for (const auto* key : {"base_max_hp", "base_max_mana", "inventory_revision", "equipment_version"}) {
+            if (body->contains(key)) gear_params.push_back(std::to_string((*body)[key].get<long long>()));
+            else gear_params.push_back(std::nullopt);
+        }
+        if (gear_params[1] || gear_params[2] || gear_params[3] || gear_params[4]) {
+            auto upd_gear = lease.exec(
+                "UPDATE characters SET base_max_hp=COALESCE($2::bigint, base_max_hp), "
+                "base_max_mana=COALESCE($3::bigint, base_max_mana), "
+                "inventory_revision=COALESCE($4::bigint, inventory_revision), "
+                "equipment_version=COALESCE($5::bigint, equipment_version) WHERE id=$1",
+                gear_params);
+            if (!upd_gear.ok) { lease.rollback(); return send_db_error(res,upd_gear,"equipment state"); }
+        }
     }
     db::Result commit_res;
     if (!lease.commit_checked(commit_res)) {

@@ -696,8 +696,10 @@ func reset_encounter(pack_id: int, reason: String) -> void:
 	if pack_id <= 0:
 		return
 	var affected: Array = []
-	for uid in entities.keys():
-		var record: Dictionary = entities[uid]
+	# The pack's members from the interest index, not a walk of every creature
+	# in the world (each member that breaks off calls this).
+	for uid in HPSnapshots.pack_uids(self, pack_id):
+		var record: Dictionary = entities.get(uid, {})
 		if int(record.get("kind", 0)) != HPProtocol.Kind.MOB:
 			continue
 		if int(record.get("pack_id", 0)) != pack_id or bool(record.get("dead", false)):
@@ -817,6 +819,7 @@ func submit_input(peer_id: int, seq: int, move: Vector2, yaw: float, jump: bool,
 	intent["jump"] = jump
 	intent["descend"] = descend
 	intent["seq"] = seq
+	record["input_ms"] = Time.get_ticks_msec()
 	touch(record)
 
 ## Cast request. Returns {ok, reason, cast_id}. Rejections are explicit so the
@@ -1704,6 +1707,7 @@ func _step() -> void:
 	_advance_effects()
 	_advance_portkeys()
 	_check_respawns()
+	_expire_stale_inputs()
 	_check_fall_protection()
 	_check_transfers()
 	_tick_safe_spawns()
@@ -1722,6 +1726,26 @@ func _step() -> void:
 		_autosave_accumulator_ms = 0
 		if persistence != null:
 			persistence.autosave_all(entities, players_by_peer)
+
+## A remote body runs on the last intent its client sent. When the frames
+## stop (a frozen client, a dead connection that ENet only notices after
+## PEER_TIMEOUT_MAX_MS) the intent is let go after HPProtocol.INPUT_BUFFER_MS,
+## so the body stops instead of walking on into a pack or off a cliff.
+func _expire_stale_inputs() -> void:
+	var now := Time.get_ticks_msec()
+	for uid in _player_uids():
+		var record: Dictionary = entities.get(uid, {})
+		var intent = record.get("input")
+		if not (intent is Dictionary) or not record.has("input_ms"):
+			continue
+		if now - int(record["input_ms"]) <= HPProtocol.INPUT_BUFFER_MS:
+			continue
+		if (intent["move"] as Vector2) == Vector2.ZERO and not bool(intent["jump"]) and not bool(intent["descend"]):
+			continue
+		intent["move"] = Vector2.ZERO
+		intent["jump"] = false
+		intent["descend"] = false
+		touch(record)
 
 # ------------------------------------------------------------- mount phase
 ##
@@ -3817,8 +3841,13 @@ func flags_for(record: Dictionary) -> int:
 		flags |= HPProtocol.FLAG_BOSS
 	if bool(record.get("is_enraged", false)):
 		flags |= HPProtocol.FLAG_ENRAGED
-	var node = record.get("node")
-	if node != null and is_instance_valid(node) and HPRules.is_protected_node(node):
+	# Protection is a zone lookup; snapshots ask for every visible entity of
+	# every peer, so the answer is kept for the tick.
+	if int(record.get("__protected_tick", -1)) != sim_tick:
+		var node = record.get("node")
+		record["__protected_tick"] = sim_tick
+		record["__protected"] = node != null and is_instance_valid(node) and HPRules.is_protected_node(node)
+	if bool(record["__protected"]):
 		flags |= HPProtocol.FLAG_PROTECTED
 	return flags
 

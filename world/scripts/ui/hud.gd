@@ -591,8 +591,13 @@ func _update_slot_cd(slot: Button, spell_id: String, key_hint: String) -> void:
 		cell.set_cooldown(cd, cd / maxf(float(spell.cooldown), 0.01))
 	slot.disabled = player.is_dead
 	slot.modulate = Color(0.62, 0.62, 0.62, 0.85) if player.is_dead else Color.WHITE
-	slot.tooltip_text = tr("[%s] %s\n%d mana • %.1fs cooldown\n%s") % [
-		key_hint, I18n.t(String(spell.name)), spell.mana_cost, spell.cooldown, I18n.t(String(spell.desc))]
+	# The text only changes with the language: it was re-translated and
+	# re-formatted for six slots every frame.
+	var locale := TranslationServer.get_locale()
+	if slot.get_meta("tooltip_locale", "") != locale:
+		slot.set_meta("tooltip_locale", locale)
+		slot.tooltip_text = tr("[%s] %s\n%d mana • %.1fs cooldown\n%s") % [
+			key_hint, I18n.t(String(spell.name)), spell.mana_cost, spell.cooldown, I18n.t(String(spell.desc))]
 
 func _update_target_frame() -> void:
 	if not is_instance_valid(current_target) or ("current_hp" in current_target and current_target.current_hp <= 0):

@@ -187,6 +187,14 @@ static func _ensure_index(authority) -> void:
 	for key in _packs.keys():
 		_file_pack(authority, key)
 
+## Every creature uid filed under `pack_id` (on any map or copy).
+static func pack_uids(authority, pack_id: int) -> Array:
+	_ensure_index(authority)
+	var out: Array = []
+	for key in _pack_keys.get(pack_id, []):
+		out.append_array(_packs.get(key, []))
+	return out
+
 ## A pooled pack respawned somewhere else: re-file just that pack.
 static func reindex_pack(authority, pack_id: int) -> void:
 	if authority != _index_owner:
@@ -230,6 +238,10 @@ static func _file_pack(authority, key: String) -> void:
 	_pack_cells[key] = cells.keys()
 
 
+## Of the MAX_ENTITIES_PER_SNAPSHOT slots, this many always carry the nearest
+## bodies; the rest rotate over everything farther away.
+const PRIORITY_SLOTS := 20
+
 static func encode_for(authority, peer_id: int, center: Vector3, known: Dictionary) -> Dictionary:
 	var uids := interest_set(authority, peer_id, center)
 	var buffer := StreamPeerBuffer.new()
@@ -254,20 +266,36 @@ static func encode_for(authority, peer_id: int, center: Vector3, known: Dictiona
 			_encode_entity(buffer, own, own_node, authority)
 			sent += 1
 		others.erase(own_uid)
-	var start := int(known.get("__offset", 0)) % maxi(1, others.size())
-	var visited := 0
-	for i in range(others.size()):
-		if sent >= HPProtocol.MAX_ENTITIES_PER_SNAPSHOT:
-			break
-		var uid = others[(start + i) % others.size()]
-		visited += 1
-		var record: Dictionary = authority.entities[uid]
-		var node = record.get("node")
+	# The nearest bodies (other players count as half their distance) go in
+	# every snapshot; only the far remainder takes turns for the slots left.
+	# Rotating the whole set put a fight's own targets at 3-5 Hz in a crowd.
+	var keyed: Array = []
+	for uid in others:
+		var node = (authority.entities[uid] as Dictionary).get("node")
 		if node == null or not is_instance_valid(node):
 			continue
-		_encode_entity(buffer, record, node, authority)
+		var d := (node as Node3D).global_position.distance_squared_to(center)
+		if int(authority.entities[uid].get("kind", 0)) == HPProtocol.Kind.PLAYER:
+			d *= 0.25
+		keyed.append([d, uid])
+	keyed.sort_custom(func(a, b): return float(a[0]) < float(b[0]))
+	var budget := HPProtocol.MAX_ENTITIES_PER_SNAPSHOT - sent
+	var nearest := mini(keyed.size(), PRIORITY_SLOTS if keyed.size() > budget else budget)
+	for i in range(nearest):
+		var record: Dictionary = authority.entities[keyed[i][1]]
+		_encode_entity(buffer, record, record["node"], authority)
 		sent += 1
-	known["__offset"] = (start + visited) % maxi(1, others.size())
+	var rest := keyed.slice(nearest)
+	var start := int(known.get("__offset", 0)) % maxi(1, rest.size())
+	var visited := 0
+	for i in range(rest.size()):
+		if sent >= HPProtocol.MAX_ENTITIES_PER_SNAPSHOT:
+			break
+		var record: Dictionary = authority.entities[rest[(start + i) % rest.size()][1]]
+		visited += 1
+		_encode_entity(buffer, record, record["node"], authority)
+		sent += 1
+	known["__offset"] = (start + visited) % maxi(1, rest.size())
 	buffer.seek(0)
 	return {"bytes": buffer.data_array, "uids": uids}
 

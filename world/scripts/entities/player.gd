@@ -1431,6 +1431,9 @@ func _tick_regeneration(delta: float) -> void:
 	if before != Vector2i(current_hp, current_mana):
 		emit_stats()
 
+var _wand_grip_cache: Node = null
+var _wand_node_cache: Node3D = null
+
 func _update_flight_pose(delta: float) -> void:
 	_flight_time += delta
 	_mount_blend = move_toward(_mount_blend, 1.0 if is_mounted else 0.0, delta * 3.2)
@@ -1441,8 +1444,15 @@ func _update_flight_pose(delta: float) -> void:
 		if hero_anim and hero_anim.has_oneshot():
 			grip_target = 0.0
 		broom_grip.target_weight = grip_target
-	var wand_grip = visuals.find_child("WandGripModifier", true, false)
-	var wand_node := visuals.find_child("EquippedWand", true, false) as Node3D
+	# Two recursive tree searches per body per frame were most of this
+	# function: keep the nodes until they leave the tree (a re-equip rebuilds
+	# the wand holder, show_equipped_wand).
+	if not is_instance_valid(_wand_grip_cache) or not _wand_grip_cache.is_inside_tree():
+		_wand_grip_cache = visuals.find_child("WandGripModifier", true, false)
+	if not is_instance_valid(_wand_node_cache) or not _wand_node_cache.is_inside_tree():
+		_wand_node_cache = visuals.find_child("EquippedWand", true, false) as Node3D
+	var wand_grip = _wand_grip_cache
+	var wand_node := _wand_node_cache
 	if wand_grip:
 		wand_grip.target_weight = (1.0 - _mount_blend) if wand_node != null else 0.0
 	if wand_node:

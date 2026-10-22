@@ -610,13 +610,21 @@ static func quest_by_id(quest_id: String) -> Dictionary:
 ## claimed (`ready`). Several are open at once; they accumulate.
 static func quests_open(character_level: int, done: Array, ready: Array) -> Array:
 	var out: Array = []
+	# Sets, not Array.has: the chain is ~100 quests and the log as long, and this
+	# runs on every kill and every visit check of every player.
+	var done_set := {}
+	for id in done:
+		done_set[String(id)] = true
+	var ready_set := {}
+	for id in ready:
+		ready_set[String(id)] = true
 	for quest in quest_chain():
 		var id := String(quest.get("id", ""))
-		if done.has(id) or ready.has(id) or int(quest.get("level", 1)) > character_level:
+		if done_set.has(id) or ready_set.has(id) or int(quest.get("level", 1)) > character_level:
 			continue
 		var blocked := false
 		for need in quest.get("requires", []):
-			if not done.has(String(need)):
+			if not done_set.has(String(need)):
 				blocked = true
 				break
 		if not blocked:
@@ -832,25 +840,36 @@ static func _zone_list() -> Array:
 ## volume they author. Without a catalog the legacy behaviour (all volumes
 ## apply) is preserved rather than silently disabling protection.
 static func _zone_applies(zone: Dictionary, point: Vector3) -> bool:
+	return _zone_applies_on(zone, _zones_for_point(point))
+
+## The safe-zone ids of the map holding `point`, or null when the point is on
+## no catalogued map (every volume applies then). Resolved once per query, not
+## once per volume: map_for_point walks the map catalog.
+static func _zones_for_point(point: Vector3) -> Variant:
 	var map_id := HPMaps.map_for_point(point)
 	if not HPMaps.map_exists(map_id):
-		return true
-	return HPMaps.safe_zone_ids(map_id).has(String(zone.get("id", "")))
+		return null
+	return HPMaps.safe_zone_ids(map_id)
+
+static func _zone_applies_on(zone: Dictionary, map_zones: Variant) -> bool:
+	return map_zones == null or (map_zones as Array).has(String(zone.get("id", "")))
 
 static func spawn_buffer() -> float:
 	ensure_loaded()
 	return float(_zones.get("spawn_buffer", 8.0))
 
 static func is_protected_point(point: Vector3) -> bool:
+	var map_zones: Variant = _zones_for_point(point)
 	for zone in _zone_list():
-		if _point_in_zone(point, zone, 0.0):
+		if _point_in_zone_on(point, zone, 0.0, map_zones):
 			return true
 	return false
 
 static func is_spawn_blocked(point: Vector3) -> bool:
 	var pad := spawn_buffer()
+	var map_zones: Variant = _zones_for_point(point)
 	for zone in _zone_list():
-		if _point_in_zone(point, zone, pad):
+		if _point_in_zone_on(point, zone, pad, map_zones):
 			return true
 	return false
 
@@ -866,7 +885,10 @@ static func protection_id(point: Vector3) -> String:
 	return ""
 
 static func _point_in_zone(point: Vector3, zone: Dictionary, pad: float) -> bool:
-	if not _zone_applies(zone, point):
+	return _point_in_zone_on(point, zone, pad, _zones_for_point(point))
+
+static func _point_in_zone_on(point: Vector3, zone: Dictionary, pad: float, map_zones: Variant) -> bool:
+	if not _zone_applies_on(zone, map_zones):
 		return false
 	var y_min := float(zone.get("y_min", -1000.0))
 	var y_max := float(zone.get("y_max", 1000.0))

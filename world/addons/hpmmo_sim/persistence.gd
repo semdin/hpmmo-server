@@ -11,7 +11,25 @@ extends Node
 ## process (an admin tool, a crash-recovered session) wrote first, the save is
 ## refused with the current revision instead of silently overwriting it.
 
-const REQUEST_TIMEOUT_SEC := 5.0
+## Requests run on their own thread (`use_threads`): on the main loop an
+## HTTPRequest only advances once per frame, and the frames right after boot
+## (thousands of creatures spawning) are long enough that three of them - connect,
+## send, read - outlasted a 5 s timeout, so the first join after a restart
+## (the deploy's own login check) was refused. The timeout is generous for the
+## same reason: it is counted in frame time.
+const REQUEST_TIMEOUT_SEC := 15.0
+
+static func _new_request() -> HTTPRequest:
+	var request := HTTPRequest.new()
+	request.use_threads = true
+	request.timeout = REQUEST_TIMEOUT_SEC
+	return request
+
+static func _parse_body(data: PackedByteArray) -> Dictionary:
+	if data.is_empty():
+		return {}
+	var parsed: Variant = JSON.parse_string(data.get_string_from_utf8())
+	return parsed if parsed is Dictionary else {}
 
 var base_url: String = "http://127.0.0.1:8081"
 var host: String = "127.0.0.1"
@@ -52,63 +70,40 @@ func _headers() -> PackedStringArray:
 		"X-Service-Token: " + service_token,
 	])
 
-## Synchronous POST for calls that must complete before the game continues
-## (join). Only used at join/disconnect, never per tick.
-func _post_sync(path: String, body: Dictionary) -> Dictionary:
-	var client := HTTPClient.new()
-	var err := client.connect_to_host(host, port)
+## How long an arriving session waits for the last save of its character (a
+## relog a moment after leaving) to land before the join is refused.
+const SAVE_SETTLE_TIMEOUT_MS := 6000
+
+## One POST through an HTTPRequest, awaited: the caller is a coroutine, and the
+## main loop - every player's tick and the ENet service - keeps running while
+## the account service answers. The synchronous HTTPClient loop this replaced
+## froze the whole world for the round trip at every join, bind and logout
+## (up to 5 s per request when the service or the database was slow).
+func _post_await(path: String, body: Dictionary) -> Dictionary:
+	var request := _new_request()
+	add_child(request)
+	var err := request.request(base_url + path, _headers(), HTTPClient.METHOD_POST, JSON.stringify(body))
 	if err != OK:
-		last_error = "connect:%d" % err
-		return {}
-	var deadline := Time.get_ticks_msec() + int(REQUEST_TIMEOUT_SEC * 1000)
-	while client.get_status() in [HTTPClient.STATUS_CONNECTING, HTTPClient.STATUS_RESOLVING]:
-		if Time.get_ticks_msec() > deadline:
-			last_error = "connect_timeout"
-			return {}
-		client.poll()
-		OS.delay_msec(2)
-	if client.get_status() != HTTPClient.STATUS_CONNECTED:
-		last_error = "connect_status:%d" % client.get_status()
-		return {}
-	err = client.request(HTTPClient.METHOD_POST, path, _headers(), JSON.stringify(body))
-	if err != OK:
+		request.queue_free()
 		last_error = "request:%d" % err
-		return {}
-	while client.get_status() == HTTPClient.STATUS_REQUESTING:
-		if Time.get_ticks_msec() > deadline:
-			last_error = "request_timeout"
-			return {}
-		client.poll()
-		OS.delay_msec(2)
-	if not client.has_response():
-		last_error = "no_response"
-		return {}
-	var status := client.get_response_code()
-	var chunks := PackedByteArray()
-	while client.get_status() == HTTPClient.STATUS_BODY:
-		if Time.get_ticks_msec() > deadline:
-			last_error = "body_timeout"
-			return {}
-		client.poll()
-		var chunk := client.read_response_body_chunk()
-		if chunk.size() > 0:
-			chunks.append_array(chunk)
-		else:
-			OS.delay_msec(1)
-	var parsed: Variant = JSON.parse_string(chunks.get_string_from_utf8())
-	if parsed is Dictionary:
-		parsed["_status"] = status
-		return parsed
-	last_error = "http_%d" % status
-	return {"_status": status}
+		return {"_status": 0}
+	var answer: Array = await request.request_completed
+	request.queue_free()
+	if int(answer[0]) != HTTPRequest.RESULT_SUCCESS:
+		last_error = "%s: result %d" % [path, int(answer[0])]
+		print("[Persistence] %s failed (HTTPRequest result %d)" % [path, int(answer[0])])
+	var response := _parse_body(answer[3])
+	response["_status"] = int(answer[1])
+	return response
 
 ## Resolve a client's session token into who it is. The world server is the only
 ## caller, which is why this needs the service token rather than the player's.
+## A coroutine: `await` it.
 func resolve_session(token: String) -> Dictionary:
 	if token.strip_edges().is_empty():
 		return {"ok": false, "reason": "no_token"}
-	var response := _post_sync("/api/session/introspect", {"token": token})
-	if response.is_empty() or int(response.get("_status", 0)) != 200:
+	var response: Dictionary = await _post_await("/api/session/introspect", {"token": token})
+	if int(response.get("_status", 0)) != 200:
 		var status := int(response.get("_status", 0))
 		var reason := "auth_failed"
 		if status == 503:
@@ -125,11 +120,12 @@ func resolve_session(token: String) -> Dictionary:
 		"house": "Gryffindor",
 	}
 
+## A coroutine: `await` it.
 func load_character(character_id: int) -> Dictionary:
 	if character_id <= 0:
 		return {}
-	var response := _post_sync("/api/characters/load", {"character_id": character_id})
-	if response.is_empty() or int(response.get("_status", 0)) != 200:
+	var response: Dictionary = await _post_await("/api/characters/load", {"character_id": character_id})
+	if int(response.get("_status", 0)) != 200:
 		last_error = "load_%d" % int(response.get("_status", 0))
 		return {}
 	var character: Variant = response.get("character", {})
@@ -143,24 +139,25 @@ func load_character(character_id: int) -> Dictionary:
 ## the account comparison against the sheet the service returns is the fact a
 ## client cannot forge, because the client never sees or sends an account id.
 ## Fails closed: a sheet without an account id (an older service) is refused
-## rather than trusted.
+## rather than trusted. A coroutine: `await` it.
 func resolve_character(character_id: int, account_id: int) -> Dictionary:
 	if character_id <= 0:
 		return {"ok": false, "reason": "invalid_character"}
 	if account_id <= 0:
 		return {"ok": false, "reason": "no_account"}
 
-	# If there is a pending dirty save and nothing is actively saving or reconciling,
-	# synchronously flush it now so the arriving session reads its fresh data immediately.
+	# A save of this character still on its way (the player's last session, a
+	# takeover a moment ago) lands first, so the new session reads the fresh
+	# sheet. Never load past unsaved loot; past the deadline the join is refused.
 	if _pending_saves.has(character_id) and not _saving.has(character_id) and not _reconciling.has(character_id):
-		_flush_character_sync(character_id)
+		_flush_character(character_id)
+	var deadline := Time.get_ticks_msec() + SAVE_SETTLE_TIMEOUT_MS
+	while _pending_saves.has(character_id) or _saving.has(character_id) or _reconciling.has(character_id):
+		if Time.get_ticks_msec() > deadline:
+			return {"ok": false, "reason": "save_pending"}
+		await get_tree().create_timer(0.05).timeout
 
-	# HTTPRequest callbacks need the main loop. Never block it waiting for them,
-	# and never discard unsaved loot to allow a join against an older sheet.
-	if _pending_saves.has(character_id) or _saving.has(character_id) or _reconciling.has(character_id):
-		return {"ok": false, "reason": "save_pending"}
-
-	var character := load_character(character_id)
+	var character: Dictionary = await load_character(character_id)
 	if character.is_empty():
 		return {"ok": false, "reason": "character_not_found"}
 	var owner := int(character.get("account_id", 0))
@@ -178,42 +175,43 @@ var _reconciling: Dictionary = {}
 var _save_failures: Dictionary = {}
 var _retry_elapsed := 0.0
 
-func _flush_character_sync(character_id: int) -> bool:
-	if _saving.has(character_id) or _reconciling.has(character_id):
-		return false
-	if not _pending_saves.has(character_id):
-		return true
-	var body: Dictionary = _pending_saves[character_id]
-	_pending_saves.erase(character_id)
-	body["base_revision"] = int(revisions.get(character_id, -1))
-	var response := _post_sync("/api/characters/save", body)
-	var status := int(response.get("_status", 0))
-	if status == 200:
-		revisions[character_id] = int(response.get("revision", 0))
-		_save_failures.erase(character_id)
-		return true
-	elif status == 409:
-		_reconcile_character(character_id, body)
-		return false
-	last_error = "save_%d" % status
-	var fails: int = int(_save_failures.get(character_id, 0)) + 1
-	_save_failures[character_id] = fails
-	_pending_saves[character_id] = body
-	return false
+## A save that is not urgent waits this long, so a burst of changes (every
+## kill moves a quest, every chest take changes the bag) becomes one write of
+## the latest sheet instead of one full-inventory rewrite per event.
+const SAVE_DEBOUNCE_MS := 5000
+## The periodic autosave spreads its characters over this window instead of
+## sending every save in the same frame.
+const AUTOSAVE_SPREAD_MS := 20000
 
-func save_character(character_id: int, payload: Dictionary) -> void:
+var _due: Dictionary = {}           # character_id -> ticks_msec the queued save goes out
+var _due_check_elapsed := 0.0
+
+## Queue `payload` as the character's next write. It goes out `delay_ms` from
+## now (0 = at once); a later call replaces the queued sheet but never pushes
+## an earlier due time back, so no change waits longer than its first delay.
+func save_character(character_id: int, payload: Dictionary, delay_ms: int = SAVE_DEBOUNCE_MS) -> void:
 	if character_id <= 0: return
 	if _reconciling.has(character_id): return
 	_pending_saves[character_id] = payload.duplicate(true)
-	_flush_character(character_id)
+	var due := Time.get_ticks_msec() + maxi(0, delay_ms)
+	if not _due.has(character_id) or due < int(_due[character_id]):
+		_due[character_id] = due
+	if delay_ms <= 0:
+		_flush_character(character_id)
 
 func _process(delta: float) -> void:
+	_due_check_elapsed += delta
+	if _due_check_elapsed >= 0.25:
+		_due_check_elapsed = 0.0
+		var now := Time.get_ticks_msec()
+		for cid in _due.keys():
+			if int(_due[cid]) <= now:
+				_flush_character(int(cid))
 	_retry_elapsed += delta
 	if _retry_elapsed < 5.0: return
 	_retry_elapsed = 0.0
 	for cid in _reconciling.keys():
 		if not _saving.has(cid): _reconcile_character(int(cid), _reconciling[cid])
-	for cid in _pending_saves.keys(): _flush_character(int(cid))
 
 func pending_count() -> int:
 	var dirty := _pending_saves.duplicate()
@@ -225,6 +223,7 @@ func _flush_character(character_id: int) -> void:
 	if _saving.has(character_id) or _reconciling.has(character_id) or not _pending_saves.has(character_id): return
 	var body: Dictionary = _pending_saves[character_id]
 	_pending_saves.erase(character_id)
+	_due.erase(character_id)
 	body["base_revision"] = int(revisions.get(character_id, -1))
 	_saving[character_id] = true
 	_post_async("/api/characters/save", body, func(response: Dictionary):
@@ -233,7 +232,9 @@ func _flush_character(character_id: int) -> void:
 		if status == 200:
 			_save_failures.erase(character_id)
 			revisions[character_id] = int(response.get("revision", 0))
-			_flush_character(character_id)
+			# A sheet queued while this one was in flight goes out on its own
+			# due time (_process), not straight away: a fight would otherwise
+			# write back to back.
 		elif status == 409:
 			_save_failures.erase(character_id)
 			# A concurrent writer won. Adopt its inventory; never replay a stale full bag.
@@ -242,7 +243,8 @@ func _flush_character(character_id: int) -> void:
 			last_error = "save_%d" % status
 			var fails: int = int(_save_failures.get(character_id, 0)) + 1
 			_save_failures[character_id] = fails
-			if not _pending_saves.has(character_id): _pending_saves[character_id] = body)
+			if not _pending_saves.has(character_id): _pending_saves[character_id] = body
+			if not _due.has(character_id): _due[character_id] = Time.get_ticks_msec() + 5000)
 
 func _reconcile_character(character_id: int, rejected: Dictionary) -> void:
 	_reconciling[character_id] = rejected
@@ -260,6 +262,7 @@ func _reconcile_character(character_id: int, rejected: Dictionary) -> void:
 		var sheet: Dictionary = response.get("character", {})
 		revisions[character_id] = int(sheet.get("revision", 0))
 		_pending_saves.erase(character_id)
+		_due.erase(character_id)
 		_reconciling.erase(character_id)
 		var node = record.get("node")
 		if is_instance_valid(node):
@@ -301,6 +304,8 @@ func queue_reward(op_id: String, character_id: int, exp: int, galleons: int, ite
 			last_error = "reward_%d" % int(response.get("_status", 0)))
 
 func autosave_all(entities: Dictionary, players_by_peer: Dictionary) -> void:
+	var spread := float(AUTOSAVE_SPREAD_MS) / float(maxi(1, players_by_peer.size()))
+	var index := 0
 	for peer_id in players_by_peer.keys():
 		var uid: int = players_by_peer[peer_id]
 		var record: Dictionary = entities.get(uid, {})
@@ -312,7 +317,8 @@ func autosave_all(entities: Dictionary, players_by_peer: Dictionary) -> void:
 		var node = record.get("node")
 		if node == null or not is_instance_valid(node):
 			continue
-		save_character(character_id, character_payload(node, record))
+		save_character(character_id, character_payload(node, record), int(spread * index))
+		index += 1
 
 func save_player(record: Dictionary) -> void:
 	var character_id := int(record.get("character_id", 0))
@@ -321,11 +327,10 @@ func save_player(record: Dictionary) -> void:
 		return
 	save_character(character_id, character_payload(node, record))
 
-## The last save of a session that is ending (logout, change character, takeover).
-## Written synchronously when nothing else is in flight for this character, so
-## the next session - often the same player one second later - binds against
-## the fresh sheet instead of waiting out "save_pending". If a write is already
-## in flight, the payload stays queued and goes out the moment it answers.
+## The last save of a session that is ending (logout, change character, takeover),
+## sent at once instead of waiting for the autosave. It never blocks the main
+## loop: the next session of the same character (often the same player a
+## second later) waits for it to land in `resolve_character`.
 func save_player_now(record: Dictionary) -> void:
 	var character_id := int(record.get("character_id", 0))
 	var node = record.get("node")
@@ -333,9 +338,7 @@ func save_player_now(record: Dictionary) -> void:
 		return
 	if _reconciling.has(character_id):
 		return
-	_pending_saves[character_id] = character_payload(node, record).duplicate(true)
-	if not _flush_character_sync(character_id):
-		_flush_character(character_id)
+	save_character(character_id, character_payload(node, record), 0)
 
 ## Full character state. `pos` and `inventory` are written wholesale, which is
 ## why the world server is the single writer of a character during its session.
@@ -392,12 +395,10 @@ func character_payload(node: Node, record: Dictionary) -> Dictionary:
 	return payload
 
 func _post_async(path: String, body: Dictionary, callback: Callable) -> void:
-	var request := HTTPRequest.new()
-	request.timeout = REQUEST_TIMEOUT_SEC
+	var request := _new_request()
 	add_child(request)
 	request.request_completed.connect(func(_result: int, code: int, _headers: PackedStringArray, data: PackedByteArray):
-		var parsed: Variant = JSON.parse_string(data.get_string_from_utf8())
-		var response: Dictionary = parsed if parsed is Dictionary else {}
+		var response := _parse_body(data)
 		response["_status"] = code
 		request.queue_free()
 		callback.call(response))

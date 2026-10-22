@@ -147,6 +147,18 @@ var _detour_dir := Vector3.ZERO
 var _detour_time := 0.0
 var _steer_side := 1.0
 var _body_radius := -1.0
+## AI query throttles (see _steer, _sees_target and the zone check in
+## _physics_process): the answers are reused for a fraction of a second.
+const STEER_REFRESH := 0.1
+const SIGHT_REFRESH := 0.2
+const ZONE_CHECK_PERIOD := 0.25
+var _steer_in := Vector3.ZERO
+var _steer_out := Vector3.ZERO
+var _steer_age := 1.0
+var _sight_age := 1.0
+var _sight_ok := false
+var _sight_target: Node3D = null
+var _zone_check_timer := 0.0
 ## Last replicated AI state a client view rendered (puppets only).
 var _puppet_state := -1
 ## Last v14 mob-info revision a client view applied (puppets only).
@@ -499,11 +511,17 @@ func _physics_process(delta: float) -> void:
 		_tick_corpse(delta)
 		return
 	# Enemies displaced inside a protected volume cancel the fight and
-	# walk home instead of attacking through the boundary.
-	if state != State.RETURN and SafeZone.is_protected_point(global_position) and not SafeZone.is_protected_point(spawn_point):
-		_cancel_attack()
-		target_player = null
-		_set_state(State.RETURN)
+	# walk home instead of attacking through the boundary. Four times a second
+	# is plenty for a body walking at a few metres per second.
+	_zone_check_timer -= delta
+	if _zone_check_timer <= 0.0:
+		_zone_check_timer = ZONE_CHECK_PERIOD
+		if state != State.RETURN and SafeZone.is_protected_point(global_position) and not SafeZone.is_protected_point(spawn_point):
+			_cancel_attack()
+			target_player = null
+			_set_state(State.RETURN)
+	_steer_age += delta
+	_sight_age += delta
 	attack_timer = maxf(0, attack_timer - delta * _speed_scale())
 	_weaken_timer = maxf(0, _weaken_timer - delta)
 	_slow_timer = maxf(0, _slow_timer - delta)
@@ -854,7 +872,7 @@ func _fight(delta: float) -> void:
 			return
 	var reach := 15.0 if is_ranged else attack_range
 	var engaged := _has_attack_slot()
-	if distance > reach or not Rules.has_line_of_sight(self, target_player) or not engaged:
+	if distance > reach or not _sees_target() or not engaged:
 		_set_state(State.CHASE)
 		if not engaged and not is_ranged:
 			# Attack slots: a bounded number of pack mates melee the same
@@ -963,13 +981,31 @@ func _move_to(point: Vector3, speed: float, delta: float) -> void:
 ## turned to last is tried first, so it keeps going round one way instead of
 ## flipping left and right in front of a trunk.
 func _steer(direction: Vector3) -> Vector3:
+	# Up to 27 rays per call, and a chasing body steers every physics frame:
+	# the last answer stands for a moment while the wanted heading holds.
+	if _steer_age < STEER_REFRESH and direction.dot(_steer_in) > 0.97:
+		return _steer_out
+	var out := direction
 	for offset in [0.0, 0.5, -0.5, 1.0, -1.0, 1.5, -1.5, 2.1, -2.1]:
 		var probe := direction.rotated(Vector3.UP, float(offset) * _steer_side)
 		if _path_clear(probe):
 			if offset != 0.0:
 				_steer_side *= signf(offset)
-			return probe
-	return direction
+			out = probe
+			break
+	_steer_in = direction
+	_steer_out = out
+	_steer_age = 0.0
+	return out
+
+## Line of sight to the target, re-cast a few times a second rather than on
+## every physics frame of every fighting creature.
+func _sees_target() -> bool:
+	if _sight_age >= SIGHT_REFRESH or _sight_target != target_player:
+		_sight_age = 0.0
+		_sight_target = target_player
+		_sight_ok = is_instance_valid(target_player) and Rules.has_line_of_sight(self, target_player)
+	return _sight_ok
 
 ## Three rays, the body's width apart, low enough to see boulders. A hit on a
 ## walkable slope (the hill it is climbing) does not count as blocked.

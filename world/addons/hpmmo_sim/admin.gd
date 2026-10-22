@@ -680,7 +680,8 @@ func _start_flush() -> void:
 			skipped += 1
 			continue
 		requested += 1
-		bridge.save_player(record)
+		# At once: the barrier waits for these, ordinary saves are debounced.
+		bridge.save_player_now(record)
 	_flush_requested = requested
 	_flush_skipped = skipped
 	if requested == 0:

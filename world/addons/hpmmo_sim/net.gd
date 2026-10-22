@@ -330,6 +330,9 @@ func _on_peer_disconnected(peer_id: int) -> void:
 	_peer_map.erase(peer_id)
 	_replaced_peers.erase(peer_id)
 	_loading_peers.erase(peer_id)
+	_joining.erase(peer_id)
+	_binding.erase(peer_id)
+	_buckets.erase(peer_id)
 	if not is_client:
 		SimAuthority.remove_player(peer_id)
 		emit_signal("client_spawned", peer_id, 0, "")
@@ -368,11 +371,25 @@ func sim_join(token: String, protocol_version: int, client_version: String) -> v
 		return
 	var identity := {}
 	if SimAuthority.persistence != null:
-		var resolved: Dictionary = SimAuthority.persistence.resolve_session(token)
+		# The service round trips are awaited, not blocking: the world keeps
+		# ticking while this join is resolved. One resolution per connection.
+		if _joining.has(peer_id):
+			return
+		_joining[peer_id] = true
+		var resolved: Dictionary = await SimAuthority.persistence.resolve_session(token)
+		if not _join_still_wanted(peer_id):
+			return
 		if not bool(resolved.get("ok", false)):
+			_joining.erase(peer_id)
 			sim_join_result.rpc_id(peer_id, false, String(resolved.get("reason", "auth_failed")), 0, {}, SimAuthority.sim_tick, 0)
 			return
 		identity = resolved
+		# One live session per account: the newest login wins. A crashed or
+		# frozen client keeps its peer alive until ENet times it out (up to
+		# PEER_TIMEOUT_MAX_MS), which used to refuse the player's own relog
+		# with "character in session" for most of a minute. Retired first, so
+		# its last save is the sheet the character load below waits for.
+		_take_over_account(int(identity.get("account_id", 0)), peer_id)
 		# A session may carry a character (a ticket redeemed with one). The server
 		# proves that binding itself through the service - load the sheet and
 		# compare account_id - instead of trusting the token, and refuses the join
@@ -380,18 +397,22 @@ func sim_join(token: String, protocol_version: int, client_version: String) -> v
 		# lose every number it earns (the character-bind fix).
 		var bound_id := int(identity.get("character_id", 0))
 		if bound_id > 0:
-			var checked: Dictionary = SimAuthority.persistence.resolve_character(
+			var checked: Dictionary = await SimAuthority.persistence.resolve_character(
 				bound_id, int(identity.get("account_id", 0)))
+			if not _join_still_wanted(peer_id):
+				return
 			if not bool(checked.get("ok", false)):
+				_joining.erase(peer_id)
 				sim_join_result.rpc_id(peer_id, false,
 					String(checked.get("reason", HPProtocol.BIND_NOT_FOUND)), 0, {}, SimAuthority.sim_tick, 0)
 				return
 			identity["character"] = checked["character"]
-		# One live session per account: the newest login wins. A crashed or
-		# frozen client keeps its peer alive until ENet times it out (up to
-		# PEER_TIMEOUT_MAX_MS), which used to refuse the player's own relog
-		# with "character in session" for most of a minute.
-		_take_over_account(int(identity.get("account_id", 0)), peer_id)
+		_joining.erase(peer_id)
+		if SimAuthority.players_by_peer.has(peer_id):
+			return
+		if not SimAuthority.joins_allowed():
+			sim_join_result.rpc_id(peer_id, false, "maintenance", 0, {}, SimAuthority.sim_tick, 0)
+			return
 	elif OS.get_environment("HPMMO_ALLOW_DEV_JOIN") == "1":
 		# Development/testing only: with no auth backend configured the join token
 		# is taken as a display name. Refused outright when the opt-in is absent.
@@ -421,9 +442,40 @@ func sim_join(token: String, protocol_version: int, client_version: String) -> v
 ## Peers removed by a newer login of the same account, until their transport
 ## actually closes. Nothing they send is acted on.
 var _replaced_peers: Dictionary = {}
+## Peers whose join (or character bind) is waiting on the account service.
+var _joining: Dictionary = {}
+var _binding: Dictionary = {}
+
+## After an awaited service call: is this connection still there to answer?
+## A peer that dropped (or was retired by a newer login) meanwhile is let go.
+func _join_still_wanted(peer_id: int) -> bool:
+	if _replaced_peers.has(peer_id) or not multiplayer.get_peers().has(peer_id):
+		_joining.erase(peer_id)
+		_binding.erase(peer_id)
+		return false
+	return true
+
+## Per-peer intent budgets: requests per second, with one second's worth of
+## burst. Far above what the game client sends; a client flooding the
+## reliable channel is cut off here, before its requests reach the simulation
+## (only chat had a limit before).
+const INTENT_RATES := {"cast": 12.0, "equipment": 10.0, "world": 8.0}
+var _buckets: Dictionary = {}   # peer_id -> {kind: [tokens, last_ms]}
+
+func _allow(peer_id: int, kind: String) -> bool:
+	var rate := float(INTENT_RATES.get(kind, 8.0))
+	var per_peer: Dictionary = _buckets.get_or_add(peer_id, {})
+	var now := Time.get_ticks_msec()
+	var bucket: Array = per_peer.get(kind, [rate, now])
+	var tokens := minf(rate, float(bucket[0]) + float(now - int(bucket[1])) * rate / 1000.0)
+	if tokens < 1.0:
+		per_peer[kind] = [tokens, now]
+		return false
+	per_peer[kind] = [tokens - 1.0, now]
+	return true
 
 ## Retire every other live session of `account_id`: the old client is told why,
-## its body is saved (synchronously, see save_player_now) and removed, and its
+## its body's last save is sent (save_player_now) and it is removed, and its
 ## connection is closed once the notice has been flushed. Dev joins (account 0)
 ## are never matched.
 func _take_over_account(account_id: int, new_peer_id: int) -> void:
@@ -464,10 +516,9 @@ func sim_spawn_player(peer_id: int, identity: Dictionary) -> void:
 	players_container.add_child(node)
 	var character: Dictionary = {}
 	if identity.get("character") is Dictionary and not (identity["character"] as Dictionary).is_empty():
-		# Already loaded and ownership-checked by sim_join: do not fetch it twice.
+		# Loaded and ownership-checked by sim_join (a session with no character
+		# has none here and binds one later through sim_bind_character).
 		character = identity["character"]
-	elif SimAuthority.persistence != null:
-		character = SimAuthority.persistence.load_character(int(identity.get("character_id", 0)))
 	if not character.is_empty():
 		node.restore_character(character)
 		if character.has("pos") and (character["pos"] as Array).size() == 3:
@@ -526,7 +577,11 @@ func sim_spawn_player(peer_id: int, identity: Dictionary) -> void:
 	# arrives, or it would boot the wrong map scene.
 	sim_map_state.rpc_id(peer_id, String(SimAuthority.entities[uid].get("map_id", HPProtocol.DEFAULT_MAP)),
 		node.global_position, "")
-	sim_chat_event.rpc("[Server] %s joined the realm." % node.player_name)
+	# Announced under the character's name: a session that has not chosen
+	# one yet carries the account's login name, which is nobody else's business
+	# (sim_bind_character announces it once the character is bound).
+	if not character.is_empty() or SimAuthority.persistence == null:
+		sim_chat_event.rpc("[Server] %s joined the realm." % node.player_name)
 	emit_signal("client_spawned", peer_id, int(identity.get("character_id", 0)), String(node.player_name))
 
 ## Client -> server: name the character this session wants to play (Release gates
@@ -552,8 +607,22 @@ func sim_bind_character(character_id: int) -> void:
 		# dev join is never persisted anyway.
 		sim_bind_result.rpc_id(peer_id, false, "no_auth_backend", {})
 		return
-	var checked: Dictionary = SimAuthority.persistence.resolve_character(
+	# Awaited (the world keeps ticking); the first request of a connection
+	# answers, a repeat while it resolves is dropped.
+	if _binding.has(peer_id):
+		return
+	_binding[peer_id] = true
+	var uid := int(record.get("uid", 0))
+	var checked: Dictionary = await SimAuthority.persistence.resolve_character(
 		character_id, int(record.get("account_id", 0)))
+	_binding.erase(peer_id)
+	if not _join_still_wanted(peer_id):
+		return
+	# The body may have left (or been replaced) while the service answered.
+	record = SimAuthority.player_record(peer_id)
+	if record.is_empty() or int(record.get("uid", 0)) != uid:
+		sim_bind_result.rpc_id(peer_id, false, HPProtocol.BIND_NOT_JOINED, {})
+		return
 	if not bool(checked.get("ok", false)):
 		sim_bind_result.rpc_id(peer_id, false,
 			String(checked.get("reason", HPProtocol.BIND_NOT_FOUND)), {})
@@ -564,6 +633,7 @@ func sim_bind_character(character_id: int) -> void:
 		sim_bind_result.rpc_id(peer_id, false, refusal, {})
 		return
 	sim_bind_result.rpc_id(peer_id, true, "", character)
+	sim_chat_event.rpc("[Server] %s joined the realm." % String(record.get("name", "Wizard")))
 	_loading_peers[peer_id] = true
 	_set_loading_timeout(_peer_object(peer_id), true)
 	# The bound body's own numbers and map, immediately - exactly as at join.
@@ -590,6 +660,9 @@ func sim_cast_request(spell_id: String, aim: Vector3, cast_seq: int) -> void:
 		return
 	var peer_id := multiplayer.get_remote_sender_id()
 	cast_requests_received += 1
+	if not _allow(peer_id, "cast"):
+		sim_cast_result.rpc_id(peer_id, cast_seq, 0, false, HPProtocol.REJECT_INPUT_BUFFER)
+		return
 	# A NaN aim is not a direction: it compares false against every cone and
 	# range test and would leak NaN into other clients' VFX.
 	if not is_finite(aim.x) or not is_finite(aim.y) or not is_finite(aim.z):
@@ -603,6 +676,8 @@ func sim_cast_request(spell_id: String, aim: Vector3, cast_seq: int) -> void:
 func sim_mount_request(mounted: bool) -> void:
 	if is_client:
 		return
+	if not _allow(multiplayer.get_remote_sender_id(), "world"):
+		return
 	var result := SimAuthority.submit_mount(multiplayer.get_remote_sender_id(), mounted)
 	if not bool(result.get("ok", false)):
 		sim_notice.rpc_id(multiplayer.get_remote_sender_id(), "cannot_mount", String(result.get("reason", "")))
@@ -610,6 +685,8 @@ func sim_mount_request(mounted: bool) -> void:
 @rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
 func sim_respawn_request(mode: int) -> void:
 	if is_client:
+		return
+	if not _allow(multiplayer.get_remote_sender_id(), "world"):
 		return
 	SimAuthority.submit_respawn(multiplayer.get_remote_sender_id(), mode)
 
@@ -621,6 +698,8 @@ func sim_respawn_request(mode: int) -> void:
 func sim_transfer_request(portal_id: String, to_map: String) -> void:
 	if is_client:
 		return
+	if not _allow(multiplayer.get_remote_sender_id(), "world"):
+		return
 	SimAuthority.request_transfer(multiplayer.get_remote_sender_id(),
 		portal_id.strip_edges().substr(0, 64), to_map.strip_edges().substr(0, 64))
 
@@ -629,11 +708,15 @@ func sim_transfer_request(portal_id: String, to_map: String) -> void:
 func sim_portkey_place(dest_id: String) -> void:
 	if is_client:
 		return
+	if not _allow(multiplayer.get_remote_sender_id(), "world"):
+		return
 	SimAuthority.request_portkey_place(multiplayer.get_remote_sender_id(), dest_id.strip_edges().substr(0, 48))
 
 @rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
 func sim_portkey_grab(portkey_id: int, hold: bool) -> void:
 	if is_client:
+		return
+	if not _allow(multiplayer.get_remote_sender_id(), "world"):
 		return
 	SimAuthority.request_portkey_grab(multiplayer.get_remote_sender_id(), portkey_id, hold)
 
@@ -654,6 +737,8 @@ func _send_portkey_state(uid: int, state: Dictionary) -> void:
 func sim_travel_request(node_id: String, dest_id: String) -> void:
 	if is_client:
 		return
+	if not _allow(multiplayer.get_remote_sender_id(), "world"):
+		return
 	SimAuthority.request_travel(multiplayer.get_remote_sender_id(),
 		node_id.strip_edges().substr(0, 48), dest_id.strip_edges().substr(0, 48))
 
@@ -673,6 +758,8 @@ func sim_transfer_abort(token: int) -> void:
 func sim_pickup_request(loot_uid: int, slot: int) -> void:
 	if is_client:
 		return
+	if not _allow(multiplayer.get_remote_sender_id(), "world"):
+		return
 	var result := SimAuthority.request_pickup(multiplayer.get_remote_sender_id(), loot_uid, slot)
 	if not bool(result.get("ok", false)):
 		sim_notice.rpc_id(multiplayer.get_remote_sender_id(), "pickup", String(result.get("reason", "")))
@@ -680,6 +767,8 @@ func sim_pickup_request(loot_uid: int, slot: int) -> void:
 @rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
 func sim_talk_request(npc_name: String) -> void:
 	if is_client:
+		return
+	if not _allow(multiplayer.get_remote_sender_id(), "world"):
 		return
 	var result := SimAuthority.request_talk(multiplayer.get_remote_sender_id(), npc_name.left(64))
 	if not bool(result.get("ok", false)):
@@ -691,6 +780,8 @@ func sim_talk_request(npc_name: String) -> void:
 func sim_skill_request(spell_id: String) -> void:
 	if is_client:
 		return
+	if not _allow(multiplayer.get_remote_sender_id(), "world"):
+		return
 	var result := SimAuthority.request_skill_up(multiplayer.get_remote_sender_id(), spell_id.left(32))
 	if not bool(result.get("ok", false)):
 		sim_notice.rpc_id(multiplayer.get_remote_sender_id(), "skill", String(result.get("reason", "")))
@@ -701,6 +792,8 @@ func sim_skill_request(spell_id: String) -> void:
 func sim_quest_claim(quest_id: String) -> void:
 	if is_client:
 		return
+	if not _allow(multiplayer.get_remote_sender_id(), "world"):
+		return
 	var result := SimAuthority.request_quest_claim(multiplayer.get_remote_sender_id(), quest_id.left(32))
 	if not bool(result.get("ok", false)):
 		sim_notice.rpc_id(multiplayer.get_remote_sender_id(), "quest", String(result.get("reason", "")))
@@ -709,6 +802,8 @@ func sim_quest_claim(quest_id: String) -> void:
 @rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
 func sim_attribute_request(stat: String) -> void:
 	if is_client:
+		return
+	if not _allow(multiplayer.get_remote_sender_id(), "world"):
 		return
 	var result := SimAuthority.request_attribute(multiplayer.get_remote_sender_id(), stat.left(16))
 	if not bool(result.get("ok", false)):
@@ -1385,8 +1480,11 @@ func broadcast_death(uid: int, killer_uid: int) -> void:
 func broadcast_respawn(uid: int) -> void:
 	if not has_peers():
 		return
+	# Those who can see the body; a viewer it respawns away from loses it from
+	# the snapshots, and one near the respawn point gets it on first sight.
 	for peer_id in multiplayer.get_peers():
-		sim_respawn_event.rpc_id(peer_id, uid)
+		if _peer_can_see(peer_id, uid):
+			sim_respawn_event.rpc_id(peer_id, uid)
 
 func broadcast_cast_started(uid: int, cast_id: int, spell_id: String, aim: Vector3, release_tick: int) -> void:
 	if not has_peers():
@@ -1398,19 +1496,27 @@ func broadcast_cast_started(uid: int, cast_id: int, spell_id: String, aim: Vecto
 func broadcast_cast_released(cast_id: int, caster_uid: int, spell_id: String, origin: Vector3, dir: Vector3) -> void:
 	if not has_peers():
 		return
-	# A creature's bolt only matters to the players who can see the creature
-	# (thousands of casters on the grounds); a player's cast stays global.
-	var creature := int(SimAuthority.entities.get(caster_uid, {}).get("kind", -1)) == HPProtocol.Kind.MOB
+	# A bolt only matters to the players who can see its caster. A player's
+	# cast used to go to every peer on every map, and every client built a
+	# projectile view for each of them.
 	for peer_id in multiplayer.get_peers():
-		if creature and not _peer_can_see(peer_id, caster_uid):
-			continue
-		sim_cast_released.rpc_id(peer_id, cast_id, caster_uid, spell_id, origin, dir)
+		if _peer_can_see(peer_id, caster_uid):
+			sim_cast_released.rpc_id(peer_id, cast_id, caster_uid, spell_id, origin, dir)
 
+## The landing reaches whoever saw the bolt leave (its caster is in sight) or
+## can see one of the bodies it hit.
 func broadcast_cast_landed(cast_id: int, caster_uid: int, spell_id: String, hits: Array) -> void:
 	if not has_peers():
 		return
 	for peer_id in multiplayer.get_peers():
-		sim_cast_landed.rpc_id(peer_id, cast_id, caster_uid, spell_id, hits)
+		var sees := _peer_can_see(peer_id, caster_uid)
+		if not sees:
+			for hit in hits:
+				if _peer_can_see(peer_id, int((hit as Dictionary).get("uid", 0))):
+					sees = true
+					break
+		if sees:
+			sim_cast_landed.rpc_id(peer_id, cast_id, caster_uid, spell_id, hits)
 
 ## A stat payload goes whole to the body's owner only. Everyone else who can
 ## see the body gets its public part (SimAuthority.public_stats), and only
@@ -1601,6 +1707,9 @@ func _deliver_equipment(player_node: Node, answer: Dictionary) -> void:
 func sim_equipment_request(request_id: int, revision: int, operation: String, slot: String, item_id: String, tier: int, uid: int) -> void:
 	if not SimAuthority.is_authority(): return
 	var peer_id := multiplayer.get_remote_sender_id()
+	if not _allow(peer_id, "equipment"):
+		sim_equipment_result.rpc_id(peer_id, {"ok": false, "reason": "rate_limited", "request_id": request_id})
+		return
 	if request_id < 0 or operation.length() > 16 or slot.length() > 20 or item_id.length() > 64 or tier < 0 or tier > 9 or uid < 0: return
 	var answer := SimAuthority.request_equipment(peer_id, request_id, revision, operation, slot, item_id, tier, uid)
 	sim_equipment_result.rpc_id(peer_id, answer)

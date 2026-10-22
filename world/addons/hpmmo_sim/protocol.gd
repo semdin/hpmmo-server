@@ -120,7 +120,9 @@ const SNAPSHOT_INTERVAL_TICKS := SIM_HZ / SNAPSHOT_HZ
 
 ## How long a client's movement input stays valid while packets are missing.
 ## Input older than this is discarded (the player simply stops accelerating).
-const INPUT_BUFFER_MS := 120
+## Inputs travel at 20 Hz unreliably, so this rides out a few lost frames; a
+## client that froze or lost its connection stops instead of running on.
+const INPUT_BUFFER_MS := 300
 ## A cast request arriving this close to the end of recovery is queued instead
 ## of refused (bounded input buffer, 100-150 ms).
 const CAST_QUEUE_MS := 120
