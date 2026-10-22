@@ -1,7 +1,7 @@
 {
- "generated": "2026-10-21",
+ "generated": "2026-10-22",
  "source_repository": "hpmmo-client",
- "source_revision": "95ee3201f4672782a0b18984f8ac2394eeb7af6b",
+ "source_revision": "14b65625084878c756dfa112972282350fc2caf9",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/audio/sound_library.json": "4960d9c5111e80c29446024602e6f9165f23c701f50eca81fa57cbea27196d68",
@@ -16,6 +16,8 @@
   "assets/models/characters/barbarian_texture.png": "7329b2ff9709e8d54c886d5ef49c08bd42b12be3bbb2facb1488a6b48b1e8a80",
   "assets/models/characters/dark_wizard.glb": "93e6e25213009952276d9cf34f5d96a243767334c66f280db0433ddfabb91545",
   "assets/models/characters/dark_wizard_rogue_texture.png": "a4032e877c3b91939f5cdbb630349c1998fdbc3211bbd587c111125500fe4cc5",
+  "assets/models/characters/hagrid.glb": "76112e827ac1f0a77e1f4c47652b69cabeb78051b132215baa4225c30889c162",
+  "assets/models/characters/hagrid_Hagrid_Albedo.png": "7db5349410db71ce6198bdac588194ba014c7f1d8016ad9292a36983a54464d5",
   "assets/models/characters/hero_wizard.glb": "3d3516b7eaf713e4c0c6002c6821fbe2cbffc776896cc3df0f9bff0f43096e76",
   "assets/models/characters/hero_wizard_hero_albedo.png": "d563160574bc8110a27562b7bc08aedea7f69354b8f3185bfacdded4d5ac6301",
   "assets/models/characters/hero_wizard_hero_normal.png": "a2cc8dab8313a01f6a7376dc6505ba59c3630e26578f56d190c3963fe6916218",
@@ -627,7 +629,7 @@
   "scripts/world/grounds/pumpkin_mesh.gd": "30c628b44239fbf5aa124554bf00e6f5abdb6ed93c097317dcec5f1acf8ee272",
   "scripts/world/grounds_terrain.gd": "b8de6ea0a7ec9e82d7b8bd713b41fda5a0ec2bc3ca66d560c83aac223e59e72a",
   "scripts/world/map_controller.gd": "0ee3472d61eeb44aa5254ad43d4abd06a1f0469a73738400f00ce051de6d6dca",
-  "scripts/world/npc.gd": "cf2da6d2408fd72bcc61cade8d817ad00ea2bb0ae91804962b76720bc835b668",
+  "scripts/world/npc.gd": "302fc40fce4da3966d4e798a67cf0e9292a427650ec33681238a44c5cbe0d7d4",
   "scripts/world/portkey_views.gd": "60dafcce69c88a92fb694a47ad61ef337bf5b9dde905a49895301c9b2c55cde9",
   "scripts/world/quality_preset.gd": "ed54018af03410f8dc1271d2cb24c63381d6cdec94c2d3a1c25671fee3015aae",
   "scripts/world/safe_zone.gd": "c638ef9a5fc897596043ef8ac9a07167adf8bb0a1ff8a53fb515742651c02cf4",
