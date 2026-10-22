@@ -11,7 +11,8 @@ extends RefCounted
 ## What a preset sets, all presentation only (it can never alter the
 ## simulation: mobs, collision, routes and rewards are identical on every
 ## preset):
-##   * 3D render resolution (FSR 1 upscaling below 100 %), anti-aliasing;
+##   * 3D render resolution (FSR 1 upscaling below 100 %) and its sharpening,
+##     anti-aliasing;
 ##   * sun shadow cascades, reach and atlas size;
 ##   * glow, SSAO;
 ##   * view distance (camera far plane) with fog density matched to it, so the
@@ -33,6 +34,9 @@ const NAMES := ["low", "medium", "high"]
 const PRESETS := {
 	"low": {
 		"render_scale": 0.77,
+		# FSR sharpening off (2.0 = none): without TAA it made stone and
+		# foliage shimmer in motion; off, the shimmer drops by about a third.
+		"fsr_sharpness": 2.0,
 		"msaa": 0,
 		"taa": false,
 		"fxaa": true,
@@ -59,6 +63,7 @@ const PRESETS := {
 	},
 	"medium": {
 		"render_scale": 0.87,
+		"fsr_sharpness": 0.2,
 		"msaa": 0,
 		"taa": true,
 		"fxaa": false,
@@ -85,6 +90,7 @@ const PRESETS := {
 	},
 	"high": {
 		"render_scale": 1.0,
+		"fsr_sharpness": 0.2,
 		"msaa": 2,
 		"taa": true,
 		"fxaa": false,
@@ -186,6 +192,7 @@ static func apply(world: Node3D) -> void:
 		var scale := float(preset["render_scale"])
 		viewport.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR if scale < 1.0 else Viewport.SCALING_3D_MODE_BILINEAR
 		viewport.scaling_3d_scale = scale
+		viewport.fsr_sharpness = float(preset["fsr_sharpness"])
 		apply_camera(viewport.get_camera_3d())
 	RenderingServer.directional_shadow_atlas_set_size(int(preset["shadow_atlas"]), true)
 	var env_node := world.get_node_or_null("WorldEnvironment")

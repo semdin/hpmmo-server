@@ -1,7 +1,7 @@
 {
  "generated": "2026-10-22",
  "source_repository": "hpmmo-client",
- "source_revision": "c3202401c3fe8f0248479387367687552d46bab1",
+ "source_revision": "206a92fb576d8db428ba768f7f5ec0187505e644",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/audio/sound_library.json": "4960d9c5111e80c29446024602e6f9165f23c701f50eca81fa57cbea27196d68",
@@ -634,7 +634,7 @@
   "scripts/world/map_controller.gd": "505e270ff1b63f847ecb8aee8fc43a869c716b9ccf03488a171cf2e27553ca0e",
   "scripts/world/npc.gd": "acc3e02161b0ce6e3c75dd0a5bae472d9550790f364a3844e07ef9ec417c1eac",
   "scripts/world/portkey_views.gd": "567b4264a54e64b60966806576a69c5e4ed2c17c5be68ba6d58ac6080eed80a7",
-  "scripts/world/quality_preset.gd": "724815df1b0e1df5c02406a58a1af957b0d6c7392c0d71db292a2f5657e3a520",
+  "scripts/world/quality_preset.gd": "4133663a54d525974f1cb661ce16b4560cb0f350ba7968a52f9e1166bd6d73da",
   "scripts/world/safe_zone.gd": "c638ef9a5fc897596043ef8ac9a07167adf8bb0a1ff8a53fb515742651c02cf4",
   "scripts/world/shader_warmup.gd": "abfdf0c597d4cff8641e7b609e54dd6b4c947f37b5dc27d0c719826f42a5ae56",
   "scripts/world/static_merge.gd": "fb259f0ff1291601b5b9b15e802584017f11f2ce9b0a2253e39749eded0115c4",
