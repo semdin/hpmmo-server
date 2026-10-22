@@ -46,8 +46,10 @@ PasswordPolicy check_password_policy(const std::string& password) {
     bool has_letter = false;
     bool has_digit = false;
     for (const char c : password) {
-        if (std::isalpha(static_cast<unsigned char>(c))) has_letter = true;
-        if (std::isdigit(static_cast<unsigned char>(c))) has_digit = true;
+        const auto u = static_cast<unsigned char>(c);
+        // Bytes >= 0x80 are UTF-8 letters such as ş/ğ/ı: a Turkish word is letters too.
+        if (std::isalpha(u) || u >= 0x80) has_letter = true;
+        if (std::isdigit(u)) has_digit = true;
     }
     if (!has_letter || !has_digit) return {false, "Password must contain letters and digits."};
     return {true, ""};

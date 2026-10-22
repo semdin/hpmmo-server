@@ -37,6 +37,9 @@ const CARD_WIDTH := 430.0
 const COLOR_ERROR := Color(0.96, 0.47, 0.42)
 const COLOR_WARN := Color(1.0, 0.74, 0.36)
 
+## The account service accepts ASCII names only (auth.cpp check_username_policy).
+const USERNAME_RULE_TEXT := "Kullanıcı adında Türkçe karakter (ç, ğ, ı, İ, ö, ş, ü) ve boşluk olamaz: yalnızca İngilizce harf, rakam, '_' ve '-'."
+
 ## Account-service port. Resolved once, in this order: an explicit
 ## `--api-port=N`; the port of `HPMMO_API_URL`; `api_port` in
 ## client_config.json; 8081.
@@ -70,6 +73,7 @@ var version_label: Label
 
 var _status_timer: Timer
 var _status_in_flight := false
+var _username_re := RegEx.create_from_string("^[A-Za-z0-9_-]+$")
 
 func _ready() -> void:
 	theme = UITheme.get_theme()
@@ -739,6 +743,12 @@ func _do_register(user: String, pass_w: String) -> void:
 	if user.length() < 3 or user.length() > 24:
 		_set_status("Kullanıcı adı 3-24 karakter olmalı.", "error")
 		return
+	# The service takes ASCII only; say so here, since to a Turkish player
+	# "only letters" reads as if Ş or ı were allowed.
+	if not _username_re.search(user):
+		_set_status(USERNAME_RULE_TEXT, "error")
+		username_input.grab_focus()
+		return
 	if pass_w.length() < 8:
 		_set_status("Şifre en az 8 karakter olmalı.", "error")
 		return
@@ -832,7 +842,7 @@ func _error_text(res: Dictionary, fallback: String) -> String:
 				"Password is too long (max 128).": "Şifre çok uzun (en fazla 128 karakter).",
 				"Password must contain letters and digits.": "Şifre hem harf hem rakam içermeli.",
 				"Username must be 3-24 characters.": "Kullanıcı adı 3-24 karakter olmalı.",
-				"Username may contain only letters, digits, '_' and '-'.": "Kullanıcı adı yalnızca harf, rakam, '_' ve '-' içerebilir.",
+				"Username may contain only letters, digits, '_' and '-'.": USERNAME_RULE_TEXT,
 			}
 			if known.has(message):
 				return known[message]

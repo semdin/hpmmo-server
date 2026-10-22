@@ -1,7 +1,7 @@
 {
  "generated": "2026-10-22",
  "source_repository": "hpmmo-client",
- "source_revision": "14b65625084878c756dfa112972282350fc2caf9",
+ "source_revision": "f6c25fe65e4c347a30e90561566ab7a8882b13dc",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/audio/sound_library.json": "4960d9c5111e80c29446024602e6f9165f23c701f50eca81fa57cbea27196d68",
@@ -247,7 +247,7 @@
   "assets/shaders/loot/chest_beam.gdshader": "9aba420b5234c56a3a60779315a5b70f8434b8cf23c78dceb793a1c8ea1e7423",
   "assets/shaders/loot/chest_pool.gdshader": "3389ee99e53151147b458dde257c097d2c8b72f66055a6ec3b869b8091aea721",
   "assets/shaders/loot/chest_rim.gdshader": "3a5a866e05894b93c88a825c2bd20d1f6bf85333a1a51c08982610e8c8a56317",
-  "assets/shaders/safe_ward.gdshader": "5c287237d56691a9417c4cf2906ccce14b1b071c9d695dd5753d09e48799ab6a",
+  "assets/shaders/safe_ward.gdshader": "84a72cdcba9f97e3921be6328c4ddfd321f1aa6cd5b12f60d20ee999a2a276ba",
   "assets/shaders/slime_pool.gdshader": "5b7bae7c185dc8bc87bd0b0f1a784282fbd060f9ab0e3b8fc583ead0e7369ecc",
   "assets/shaders/spell_layer.gdshader": "d7541e5f5879a5317a750a2e51d3c7b3ab4e8d5747f924f3acc409f1450dc4b3",
   "assets/shaders/spell_layer_add.gdshader": "82a18d8367cdd1b7851ed41d5fe5ac913c2cc87fa48827cca26dcd6fb9dab32c",
@@ -584,7 +584,7 @@
   "scripts/ui/inventory_ui.gd": "5c05bb8bc0ed70dd10357d7274326d68418deb967a21fbc6934ebaba2a3f3699",
   "scripts/ui/item_tooltip.gd": "393c8da46f2d62f4156e06be96baf356c7e14b28a8b39698aa975c0db37b6796",
   "scripts/ui/loot_window.gd": "19cb95712865e56e7e2df767068095b3c60ee9784fad23075e2b209c2d4716eb",
-  "scripts/ui/main_menu.gd": "b0a6054bc2c7de72afc0a76518ec34750587eba48eddb0673b47c7e3705bfbfb",
+  "scripts/ui/main_menu.gd": "1bbf91df7a5c95d645d3f2ce4d0f322972a722f78a87860b195a39e88b6a6a01",
   "scripts/ui/maintenance_ui.gd": "1a09608fa886f2e400e7552ce6d453f7ed72c3a9bdf00e349dd4c11c76addbfd",
   "scripts/ui/map_loading_screen.gd": "6ca008c5119d950321c89a079e3d5c6cb134e17af5752d53a8bb61271d040eec",
   "scripts/ui/map_marker.gd": "9d9306f5ac56641f942cd178e899e8a1e51103343d046121a111d022b8e060ac",

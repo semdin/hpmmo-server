@@ -474,10 +474,18 @@ void handle_register(const httplib::Request& req, httplib::Response& res, const 
     if (!body) return;
     const std::string username = body->value("username", "");
     const std::string password = body->value("password", "");
+    // Rejections are logged (never the password) so a player's "it said error"
+    // can be matched to a reason afterwards.
     const auto user_check = auth::check_username_policy(username);
-    if (!user_check.ok) return send_error(res, 400, user_check.message);
+    if (!user_check.ok) {
+        std::printf("[register] rejected username (%zu bytes): %s\n", username.size(), user_check.message.c_str());
+        return send_error(res, 400, user_check.message);
+    }
     const auto pass_check = auth::check_password_policy(password);
-    if (!pass_check.ok) return send_error(res, 400, pass_check.message);
+    if (!pass_check.ok) {
+        std::printf("[register] rejected password for '%s': %s\n", username.c_str(), pass_check.message.c_str());
+        return send_error(res, 400, pass_check.message);
+    }
 
     const std::string phc = auth::hash_password(password, cfg);
     if (phc.empty()) return send_error(res, 500, "Password hashing failed.");
@@ -487,9 +495,13 @@ void handle_register(const httplib::Request& req, httplib::Response& res, const 
         "INSERT INTO accounts (username, password_hash) VALUES ($1,$2) RETURNING id::text",
         {username, phc});
     if (!r.ok) {
-        if (r.kind == ErrorKind::Constraint) return send_error(res, 409, "Username already exists.");
+        if (r.kind == ErrorKind::Constraint) {
+            std::printf("[register] '%s' already exists\n", username.c_str());
+            return send_error(res, 409, "Username already exists.");
+        }
         return send_db_error(res, r, "register");
     }
+    std::printf("[register] created '%s'\n", username.c_str());
     send_json(res, 200, {{"success", true}, {"message", "Account created."},
                          {"account_id", std::stoll(r.rows[0][0].second.value_or("0"))}});
 }

@@ -185,6 +185,9 @@ int main(int argc, char** argv) {
     const Config cfg = Config::from_env();
 
     if (command == "serve") {
+        // Line-buffered: under systemd stdout is a pipe, and block buffering
+        // kept every service line (errors included) out of the journal.
+        std::setvbuf(stdout, nullptr, _IOLBF, BUFSIZ);  // a size of 0 is invalid on the MSVC CRT
         db::Pool pool(cfg.database_url, cfg.db_pool_size);
         return app::serve(cfg, pool);
     }
