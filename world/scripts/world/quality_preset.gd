@@ -237,20 +237,28 @@ static func apply_camera(camera: Camera3D) -> void:
 
 ## Particle budget: presentation only, applied to every particle system in the
 ## tree (spawns included) by scaling `amount_ratio` on GPU particles. Effects
-## created later are caught by the throttled sweep in game_world.gd.
+## created later are tuned one by one as they enter the world (game_world.gd's
+## node_added hook): a once-a-second sweep of the whole tree cost ~37 ms on the
+## grounds' 52k nodes.
 static func tune_particles(root: Node) -> int:
 	if not is_instance_valid(root):
 		return 0
-	var ratio := particle_scale()
 	var count := 0
 	for node in root.find_children("*", "GPUParticles3D", true, false):
-		var particles := node as GPUParticles3D
-		particles.amount_ratio = ratio
+		tune_particle_node(node)
 		count += 1
 	for node in root.find_children("*", "CPUParticles3D", true, false):
+		tune_particle_node(node)
+		count += 1
+	return count
+
+## One particle system: see tune_particles.
+static func tune_particle_node(node: Node) -> void:
+	var ratio := particle_scale()
+	if node is GPUParticles3D:
+		(node as GPUParticles3D).amount_ratio = ratio
+	elif node is CPUParticles3D:
 		var particles := node as CPUParticles3D
 		if not particles.has_meta("base_amount"):
 			particles.set_meta("base_amount", particles.amount)
 		particles.amount = maxi(1, int(round(float(particles.get_meta("base_amount")) * ratio)))
-		count += 1
-	return count

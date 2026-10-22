@@ -507,8 +507,8 @@ func _update_ping() -> void:
 const MAP_CAM_HEIGHT := 120.0
 const INDOOR_SLAB_ABOVE := 2.6
 const INDOOR_SLAB_BELOW := 4.0
-const INDOOR_MAP_HZ := 10.0
-var _indoor_map_wait := 0.0
+const MAP_HZ := 10.0
+var _map_wait := 0.0
 
 ## Park the map camera over the player. It only renders while the overlay is on
 ## screen: the viewport is a second pass over the whole 3D scene, and the perf
@@ -518,8 +518,10 @@ var _indoor_map_wait := 0.0
 ## drawing the whole castle under it cost about four times the main view (2300
 ## draw calls a frame). There the camera's clip planes cut a slab from just over
 ## the player's head to a few metres under the feet - the floor plan of the
-## storey the player stands on. Every map but the grounds is redrawn at
-## INDOOR_MAP_HZ, which a walking pace does not notice.
+## storey the player stands on. Every map is redrawn at MAP_HZ, which a walking
+## pace does not notice: on the grounds a per-frame redraw of the terrain,
+## vegetation and sun shadows was ~2 ms GPU and half the frame's primitives on
+## the Intel iGPU.
 func _follow_minimap(delta: float) -> void:
 	if _map_cam == null:
 		return
@@ -538,12 +540,10 @@ func _follow_minimap(delta: float) -> void:
 	# `is_visible_in_tree`.
 	if not visible:
 		_map_view.render_target_update_mode = SubViewport.UPDATE_DISABLED
-	elif not indoor:
-		_map_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	else:
-		_indoor_map_wait -= delta
-		if _indoor_map_wait <= 0.0:
-			_indoor_map_wait = 1.0 / INDOOR_MAP_HZ
+		_map_wait -= delta
+		if _map_wait <= 0.0:
+			_map_wait = 1.0 / MAP_HZ
 			_map_view.render_target_update_mode = SubViewport.UPDATE_ONCE
 		elif _map_view.render_target_update_mode == SubViewport.UPDATE_ALWAYS:
 			_map_view.render_target_update_mode = SubViewport.UPDATE_DISABLED

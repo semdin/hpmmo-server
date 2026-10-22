@@ -36,7 +36,7 @@ var overlay: CanvasLayer = null
 ## loading UI, loading the castle interior and unloading the outdoor world.
 var map_controller: Node = null
 var _candle_t: float = 0.0
-var _particle_sweep: float = 1.0
+var _camera_sweep: float = 1.0
 var _views: Dictionary = {}          # sim uid -> view node (client role)
 var _view_scenes: Dictionary = {}
 
@@ -54,6 +54,9 @@ func _enter_tree() -> void:
 func _ready() -> void:
 	if not NetworkManager.is_dedicated_server:
 		_request_mob_scenes()
+		# Reduced-quality particle budget for every effect that enters the world
+		# from here on (the build, spawns, map transfers).
+		get_tree().node_added.connect(_on_node_added)
 	GroundsBuilder.build(self)
 	# Heightfield maps with creatures (the Blackweb Caverns) keep their ground
 	# resident in every process: packs live there whether or not it is loaded.
@@ -93,6 +96,16 @@ func _ready() -> void:
 	# the entities already have nodes, so only the effect hooks fire.
 	_setup_replication()
 
+## A particle system entering the world gets the preset's budget, deferred so
+## the effect that spawned it has finished setting its amount.
+func _on_node_added(node: Node) -> void:
+	if (node is GPUParticles3D or node is CPUParticles3D) and QualityPresetScript.particle_scale() != 1.0 and is_ancestor_of(node):
+		_tune_particle.call_deferred(node)
+
+func _tune_particle(node) -> void:
+	if is_instance_valid(node):
+		QualityPresetScript.tune_particle_node(node)
+
 func _exit_tree() -> void:
 	# Views belong to the world that made them.
 	_views.clear()
@@ -100,19 +113,14 @@ func _exit_tree() -> void:
 func _process(delta: float) -> void:
 	_drain_view_queue()
 	if DisplayServer.get_name() == "headless":
-		# Dedicated server / tests: nothing below is gameplay - it is candle,
-		# torch and particle dressing, and the particle sweep walks the whole
-		# tree (thousands of creatures) every second.
+		# Dedicated server / tests: nothing below is gameplay - it is candle and
+		# torch dressing.
 		return
 	_candle_t += delta
-	# Reduced-quality particle budget: effects spawn during play, so the preset
-	# is re-applied on a slow sweep rather than once at build time.
-	_particle_sweep -= delta
-	if _particle_sweep <= 0.0:
-		_particle_sweep = 1.0
-		if QualityPresetScript.particle_scale() != 1.0:
-			QualityPresetScript.tune_particles(self)
-		# The player camera appears after the world is built (and on respawn).
+	# The player camera appears after the world is built (and on respawn).
+	_camera_sweep -= delta
+	if _camera_sweep <= 0.0:
+		_camera_sweep = 1.0
 		QualityPresetScript.apply_camera(get_viewport().get_camera_3d())
 	var candles := get_node_or_null("FloatingCandles")
 	if candles:
