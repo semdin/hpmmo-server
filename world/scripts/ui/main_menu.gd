@@ -25,6 +25,10 @@ extends Control
 const DEFAULT_SERVER_IP := "185.118.141.74"
 const DEFAULT_GAME_PORT := 7777
 const DEFAULT_API_PORT := 8081
+## The account service behind TLS. Logins and session tokens never travel in
+## clear text; `api_url` in client_config.json (or HPMMO_API_URL) overrides it,
+## and an empty one falls back to http://<server_ip>:<api_port> (a LAN server).
+const DEFAULT_API_URL := "https://api.agsilvery.com"
 const STATUS_POLL_SECONDS := 15.0
 const PREFS_PATH := "user://login_prefs.json"
 ## Root-node meta a scene sets before returning here, read once on `_ready`.
@@ -44,6 +48,7 @@ const USERNAME_RULE_TEXT := "Usernames cannot contain Turkish letters (ç, ğ, �
 ## `--api-port=N`; the port of `HPMMO_API_URL`; `api_port` in
 ## client_config.json; 8081.
 var api_port: int = 0
+var api_url: String = ""   # from client_config.json; "" = the default rule below
 var server_ip: String = DEFAULT_SERVER_IP
 var server_port: int = DEFAULT_GAME_PORT
 
@@ -1021,11 +1026,21 @@ func _resolve_api_port() -> int:
 		api_port = DEFAULT_API_PORT
 	return api_port
 
+## The configured `api_url`, else the TLS default for the live host. A config
+## naming another server (local or LAN play) talks to that host directly.
+func _effective_api_url() -> String:
+	var url := api_url.strip_edges().rstrip("/")
+	if url == "" and server_ip == DEFAULT_SERVER_IP:
+		url = DEFAULT_API_URL
+	return url
+
 ## Points the account service at the configured host, unless the environment
 ## (launcher/tests) already chose a URL.
 func _apply_api_url() -> void:
 	if OS.has_environment("HPMMO_API_URL"):
 		DatabaseManager.api_base_url = OS.get_environment("HPMMO_API_URL").strip_edges().rstrip("/")
+	elif _effective_api_url() != "":
+		DatabaseManager.api_base_url = _effective_api_url()
 	else:
 		DatabaseManager.api_base_url = "http://%s:%d" % [server_ip, _resolve_api_port()]
 
@@ -1046,6 +1061,8 @@ func _load_client_config() -> void:
 		server_port = int(parsed.get("server_port", DEFAULT_GAME_PORT))
 		if api_port == 0:
 			api_port = int(parsed.get("api_port", DEFAULT_API_PORT))
+		if parsed.has("api_url"):
+			api_url = str(parsed["api_url"])
 		if parsed.has("last_username"):
 			username_input.text = str(parsed["last_username"])
 		print("[MainMenu] Loaded client configuration from %s" % p)

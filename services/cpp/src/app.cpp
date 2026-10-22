@@ -89,6 +89,23 @@ RateLimiter& limiter() {
     return instance;
 }
 
+// The address a request came from. Behind the local TLS proxy (Caddy) every
+// request arrives from loopback; the proxy's X-Forwarded-For then names the
+// client. The header is trusted only from loopback, and its last entry is
+// used: that is the one the proxy itself appended.
+std::string client_ip(const httplib::Request& req) {
+    const bool via_proxy = req.remote_addr == "127.0.0.1" || req.remote_addr == "::1";
+    if (via_proxy && req.has_header("X-Forwarded-For")) {
+        std::string forwarded = req.get_header_value("X-Forwarded-For");
+        const auto comma = forwarded.rfind(',');
+        if (comma != std::string::npos) forwarded = forwarded.substr(comma + 1);
+        const auto first = forwarded.find_first_not_of(' ');
+        const auto last = forwarded.find_last_not_of(' ');
+        if (first != std::string::npos) return forwarded.substr(first, last - first + 1);
+    }
+    return req.remote_addr;
+}
+
 std::string lowered(std::string text) {
     for (char& ch : text) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
     return text;
@@ -516,8 +533,8 @@ bool refuse_for_maintenance(httplib::Response& res, const Config& cfg, const std
 
 void handle_register(const httplib::Request& req, httplib::Response& res, const Config& cfg,
                      db::Pool& pool) {
-    if (!limiter().allow("register-ip:" + req.remote_addr, 5, std::chrono::hours(1))) {
-        std::printf("[register] rate limited %s\n", req.remote_addr.c_str());
+    if (!limiter().allow("register-ip:" + client_ip(req), 5, std::chrono::hours(1))) {
+        std::printf("[register] rate limited %s\n", client_ip(req).c_str());
         return send_too_many(res, 600);
     }
     auto body = parse_body(req, res);
@@ -564,9 +581,9 @@ void handle_login(const httplib::Request& req, httplib::Response& res, const Con
     const std::string password = body->value("password", "");
     if (refuse_for_maintenance(res, cfg, username)) return;
     // Per address (a flood) and per account (guessing one password).
-    if (!limiter().allow("login-ip:" + req.remote_addr, 20, std::chrono::seconds(60)) ||
+    if (!limiter().allow("login-ip:" + client_ip(req), 20, std::chrono::seconds(60)) ||
         !limiter().allow("login-user:" + lowered(username), 10, std::chrono::seconds(300))) {
-        std::printf("[login] rate limited %s\n", req.remote_addr.c_str());
+        std::printf("[login] rate limited %s\n", client_ip(req).c_str());
         return send_too_many(res, 60);
     }
 

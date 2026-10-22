@@ -89,11 +89,14 @@ if [ -d "$GAME_DIR/services/cpp" ]; then
     ninja -C "$GAME_DIR/services/cpp/build"
 fi
 
-# 4. Firewall (SSH, 7777 UDP game, 8081 TCP API - see B3 before exposing 8081)
+# 4. Firewall (SSH, 7777 UDP game, 80/443 TCP for the TLS proxy in front of the
+#    account service - deploy/caddy/api.caddy). The service itself binds
+#    127.0.0.1:8081 and is never opened.
 echo "[4/5] Configuring Linux UFW Firewall..."
 sudo ufw allow 22/tcp || true
 sudo ufw allow 7777/udp || true
-sudo ufw allow 8081/tcp || true
+sudo ufw allow 80/tcp || true
+sudo ufw allow 443/tcp || true
 sudo ufw --force enable || true
 
 # 5. Release layout + systemd units (Maintenance surface)

@@ -168,6 +168,9 @@ var _info_rev := -1
 var sim_puppet := false
 var sim_target_pos := Vector3.ZERO
 var sim_target_rot := 0.0
+## Buffered snapshot interpolation for this view (game_world pushes every
+## replicated sample; see ReplicaMotion).
+var sim_motion := ReplicaMotion.new()
 @onready var label: Label3D = $Label3D
 @onready var visuals: Node3D = $Visuals
 const Rules = preload("res://scripts/spells/combat_rules.gd")
@@ -1425,6 +1428,7 @@ func _respawn() -> void:
 		if not rec.is_empty():
 			global_position = rec.get("pos", global_position)
 			sim_target_pos = global_position
+			sim_motion.clear()   # the old life's samples would glide it back
 	else:
 		global_position = spawn_point
 	current_hp = max_hp
@@ -1501,9 +1505,16 @@ func pack_mates() -> Array:
 ## A client's view of a server-owned mob: position/rotation interpolation plus
 ## presentation chosen from the replicated state byte. No damage, no AI.
 func _update_puppet(delta: float) -> void:
-	global_position = global_position.lerp(sim_target_pos, minf(1.0, 12.0 * delta))
-	if visuals:
-		visuals.rotation.y = lerp_angle(visuals.rotation.y, sim_target_rot, minf(1.0, 12.0 * delta))
+	if sim_motion.has_samples():
+		var drawn := sim_motion.sample()
+		global_position = drawn.pos
+		sim_motion.snapped = false
+		if visuals:
+			visuals.rotation.y = float(drawn.rot)
+	else:
+		global_position = global_position.lerp(sim_target_pos, minf(1.0, 12.0 * delta))
+		if visuals:
+			visuals.rotation.y = lerp_angle(visuals.rotation.y, sim_target_rot, minf(1.0, 12.0 * delta))
 	var record := SimAuthority.record_for(self)
 	if record.is_empty():
 		return

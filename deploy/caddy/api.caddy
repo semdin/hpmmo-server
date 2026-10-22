@@ -1,0 +1,27 @@
+# HPMMO account service behind TLS (Let's Encrypt, renewed by Caddy).
+#
+# Install: append to /etc/caddy/Caddyfile (or `import` this file), then
+# `systemctl reload caddy`. Needs a DNS A record api.agsilvery.com -> the game
+# host (DNS only, not proxied by Cloudflare), ports 80/443 open in ufw, and
+# HPMMO_BIND=127.0.0.1 in /etc/hpmmo/hpmmo.env so the service itself is never
+# reachable from outside (close 8081 in ufw).
+#
+# The world server talks to the service on 127.0.0.1:8081 directly; the
+# endpoints only it may use are not served through the proxy at all (the
+# service also refuses them without the service token).
+api.agsilvery.com {
+	encode gzip
+	request_body {
+		max_size 1MB
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		-Server
+	}
+	@world_only path /api/session/introspect /api/characters/save /api/reward /api/trade
+	respond @world_only 404
+	# Caddy sets X-Forwarded-For; the service trusts it from loopback only
+	# (app.cpp client_ip) for its login/register rate limits.
+	reverse_proxy 127.0.0.1:8081
+}

@@ -288,6 +288,9 @@ var sim_server_controlled := false
 var sim_puppet := false
 var sim_target_pos := Vector3.ZERO
 var sim_target_rot := 0.0
+## Buffered snapshot interpolation for this view (game_world pushes every
+## replicated sample; see ReplicaMotion).
+var sim_motion := ReplicaMotion.new()
 const CombatRules = preload("res://scripts/spells/combat_rules.gd")
 const ParticleKit = preload("res://scripts/assets/particle_kit.gd")
 const HeroAnimationScript = preload("res://scripts/entities/hero_animation.gd")
@@ -793,9 +796,18 @@ func _physics_process(delta: float) -> void:
 		# code below like any other body.
 		if sim_puppet:
 			var prev_pos := global_position
-			global_position = global_position.lerp(sim_target_pos, minf(1.0, 12.0 * delta))
-			if visuals:
-				visuals.rotation.y = lerp_angle(visuals.rotation.y, sim_target_rot, minf(1.0, 12.0 * delta))
+			if sim_motion.has_samples():
+				var drawn := sim_motion.sample()
+				global_position = drawn.pos
+				if visuals:
+					visuals.rotation.y = float(drawn.rot)
+				if sim_motion.snapped:
+					sim_motion.snapped = false
+					prev_pos = global_position   # a teleport is not a sprint
+			else:
+				global_position = global_position.lerp(sim_target_pos, minf(1.0, 12.0 * delta))
+				if visuals:
+					visuals.rotation.y = lerp_angle(visuals.rotation.y, sim_target_rot, minf(1.0, 12.0 * delta))
 			# Remote riders follow the replicated phase, not a local guess, so
 			# every client shows the same animation phase for the same body.
 			if is_mounted and sim_mount_phase > 0:

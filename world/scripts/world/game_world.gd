@@ -704,6 +704,8 @@ func _on_entity_moved(uid: int, pos: Vector3, rot_y: float, flags: int) -> void:
 	if "sim_target_pos" in view:
 		view.sim_target_pos = pos
 		view.sim_target_rot = rot_y
+		if "sim_motion" in view:
+			(view.sim_motion as ReplicaMotion).push(SimAuthority.snapshot_tick, pos, rot_y)
 		# The replicated flight phase rides in the record's `state` byte,
 		# so a remote rider animates the phase the authority chose, not a guess.
 		if "sim_mount_phase" in view:
