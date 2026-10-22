@@ -66,7 +66,7 @@ func _member_row(m: Dictionary, leader: bool, away: bool) -> Control:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 1)
 	panel.add_child(box)
-	var name_text := "%s%s  Lv %d" % ["* " if leader else "", String(m.get("name", "?")), int(m.get("level", 1))]
+	var name_text := tr("%s%s  Lv %d") % ["* " if leader else "", String(m.get("name", "?")), int(m.get("level", 1))]
 	var colour := HudKit.GOLD_HI if leader else HudKit.PARCHMENT
 	var label := HudKit.label(name_text, 13, colour, HudKit.bold(), 3)
 	box.add_child(label)
@@ -103,17 +103,17 @@ func _build_prompt() -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 	box.add_child(row)
-	var yes := HudKit.button("Accept", 14)
+	var yes := HudKit.button(tr("Accept"), 14)
 	yes.pressed.connect(func(): answer(true))
 	row.add_child(yes)
-	var no := HudKit.button("Decline", 14)
+	var no := HudKit.button(tr("Decline"), 14)
 	no.pressed.connect(func(): answer(false))
 	row.add_child(no)
 
 func _on_party_invited(uid: int, from_name: String) -> void:
 	if not _is_local(uid):
 		return
-	_prompt_text.text = "%s invites you to a party." % from_name
+	_prompt_text.text = tr("%s invites you to a party.") % from_name
 	_prompt.visible = true
 
 func answer(accept: bool) -> void:

@@ -70,8 +70,8 @@ func _ready() -> void:
 
 ## Name shown under the minimap: the floor by height.
 func floor_display(y: float) -> String:
-	var level := "Floor 1 - Webbed Galleries" if y > base_y - 12.0 else "Floor 2 - Egg Caverns"
-	return "Blackweb Caverns - %s" % level
+	var level := tr("Floor 1 - Webbed Galleries") if y > base_y - 12.0 else tr("Floor 2 - Egg Caverns")
+	return tr("Blackweb Caverns - %s") % level
 
 # ----------------------------------------------------------------- ground
 

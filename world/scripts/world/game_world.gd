@@ -313,10 +313,13 @@ func _toggle_ollivander() -> void:
 	else:
 		ollivander_ui.open_for_player(local_player)
 
+## NPC names and lines stay English here (quest credit matches the name); the
+## nameplate and the dialogue panel translate them.
 func _setup_npcs() -> void:
 	var npcs := Node3D.new()
 	npcs.name = "NPCs"
 	add_child(npcs)
+	# i18n-begin
 	_spawn_npc(npcs, "Professor Fig", _on_ground(-12, 72),
 		["Ah, a new student! Hogwarts needs brave wizards.",
 		"Acromantulas infest the Forbidden Forest to the west. Inferi haunt its edge, past Hagrid's hut.",
@@ -339,6 +342,7 @@ func _setup_npcs() -> void:
 		["The library is inside, past the great doors. Mind the books.", "The Great Hall is through the entrance hall. Charms is across the hall."], Color(0.2, 0.15, 0.3))
 	_spawn_npc(npcs, "Professor Flitwick", _on_ground(22, 20),
 		["Welcome! Stupefy interrupts, Incendio burns, and Expelliarmus weakens attacks.", "Practise at the dummies east of the courtyard, then pull a pack together. Watch the boss's warning circle."], Color(0.1, 0.24, 0.4))
+	# i18n-end
 
 ## A point on a non-grounds map's resident collider (a ray down from `at`).
 func _on_map_ground(at: Vector3) -> Vector3:
@@ -379,7 +383,7 @@ func _setup_training_grounds() -> void:
 	# A local hint only: this used to be SENT as chat, so every player saw it as
 	# a line spoken by whoever loaded the world.
 	if hud != null and hud.has_method("add_system_chat"):
-		hud.add_system_chat("Training dummies stand in the courtyard - practise your spells there safely.")
+		hud.add_system_chat(tr("Training dummies stand in the courtyard - practise your spells there safely."))
 
 func _check_external_models() -> void:
 	# Drop-in CC0 model support: put .glb/.gltf in assets/models/ (see README).
@@ -829,7 +833,7 @@ func _on_cast_landed(cast_id: int, _caster_uid: int, spell_id: String, hits: Arr
 		if bool(hit.get("reflected", false)):
 			preload("res://scripts/spells/skill_fx.gd").play_impact(self, (victim as Node3D).global_position + Vector3.UP, "protego")
 			if victim.has_method("_spawn_floating_text"):
-				victim.call("_spawn_floating_text", "REFLECTED!", Color(0.3, 0.8, 1.0), 1.3)
+				victim.call("_spawn_floating_text", I18n.upper(tr("Reflected!")), Color(0.3, 0.8, 1.0), 1.3)
 			continue
 		# The travelling view draws one area blast at its collision point. Drawing
 		# another full-radius blast on every victim duplicates the affected area.
@@ -864,6 +868,7 @@ func _on_world_event(kind: String, data: Dictionary) -> void:
 		hud.show_world_event(kind, data)
 
 func _on_chat(text: String) -> void:
+	text = I18n.from_server(text)   # monolith and boss lines are composed in English
 	if hud != null and hud.has_method("add_system_chat"):
 		hud.add_system_chat(text)
 	else:
@@ -872,6 +877,8 @@ func _on_chat(text: String) -> void:
 ## A routed player line: into the chat log, and - for local speech - over the
 ## speaker's head as a bubble everyone nearby sees.
 func _on_chat_line(channel: String, uid: int, sender: String, house: String, text: String) -> void:
+	if channel == "system":
+		text = I18n.from_server(text)   # the server writes its replies in English
 	if hud != null and hud.has_method("add_chat_line"):
 		hud.add_chat_line(channel, sender, house, text)
 	NetworkManager.chat_message_received.emit(sender, house, text)

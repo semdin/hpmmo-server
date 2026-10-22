@@ -206,7 +206,7 @@ static func _broom_landing(world: Node3D, visuals: bool) -> void:
 	ring.position.y = 0.1
 	pad.add_child(ring)
 	var label := Label3D.new()
-	label.text = "BROOM LANDING"
+	label.text = I18n.upper(I18n.t("Broom landing"))
 	label.font_size = 30
 	label.outline_size = 8
 	label.outline_modulate = Color(0, 0, 0)

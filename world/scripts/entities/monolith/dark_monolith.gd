@@ -75,7 +75,7 @@ func _ready() -> void:
 func _update_label() -> void:
 	if hp_label:
 		var pct := int((float(current_hp) / float(max_hp)) * 100.0)
-		hp_label.text = "%s (Lv.%d)\n%d / %d (%d%%)" % [display_name(), int(_cfg.get("level", 35)), current_hp, max_hp, pct]
+		hp_label.text = "%s (Lv.%d)\n%d / %d (%d%%)" % [I18n.t(display_name()), int(_cfg.get("level", 35)), current_hp, max_hp, pct]
 		if pct > 50:
 			hp_label.modulate = Color(0.45, 1.0, 0.55)
 		elif pct > 25:
@@ -180,7 +180,7 @@ func _destroy_monolith(shatterer: Node3D) -> void:
 	emit_signal("monolith_destroyed")
 	_shatter_fx()
 
-	var shatterer_name := "A brave Wizard"
+	var shatterer_name := "A brave Wizard"  # i18n
 	if is_instance_valid(shatterer) and "player_name" in shatterer:
 		shatterer_name = shatterer.player_name
 	# EXP and the loot shower are granted by the authority (one reward per kill);
@@ -355,7 +355,7 @@ func _land() -> void:
 			SKILL_FX.shake_camera(player, 0.6)
 
 func display_name() -> String:
-	return String(_cfg.get("name", "Dark Monolith"))
+	return String(_cfg.get("name", "Dark Monolith"))  # i18n
 
 ## Ground height under a wave spawn: the grounds terrain outside, a ray onto
 ## the map's collider elsewhere (the caverns' stones).

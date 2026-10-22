@@ -46,7 +46,7 @@ func _physics_process(delta: float) -> void:
 			_enrage_at = float(_boss_data().get("enrage_s", 480.0))
 		if not is_enraged and _fight_time >= _enrage_at:
 			trigger_enrage()
-			dungeon_message.emit("Fluffy is enraged!")
+			dungeon_message.emit("Fluffy is enraged!")  # i18n
 	_update_phase()
 	_tick_harp(delta)
 
@@ -58,7 +58,7 @@ func _update_phase() -> void:
 		next = 3
 	if next != phase:
 		phase = next
-		dungeon_message.emit("Fluffy howls in fury!" if phase == 2 else "Fluffy is frenzied - the harp holds it only briefly!")
+		dungeon_message.emit("Fluffy howls in fury!" if phase == 2 else "Fluffy is frenzied - the harp holds it only briefly!")  # i18n
 
 func _on_reset() -> void:
 	phase = 1
@@ -119,13 +119,13 @@ func _tick_harp(delta: float) -> void:
 		_harp_uid = uid
 		_harp_progress = 0.0
 		_harp_combat_tick = int(player.get("last_combat_tick", 0))
-		dungeon_message.emit("%s begins to play the harp..." % String(player.get("name", "Someone")))
+		dungeon_message.emit("%s begins to play the harp..." % String(player.get("name", "Someone")))  # i18n
 		return
 	# Any hit taken (or dealt) breaks the tune.
 	if int(player.get("last_combat_tick", 0)) != _harp_combat_tick:
 		_harp_uid = 0
 		_harp_progress = 0.0
-		dungeon_message.emit("The music breaks off!")
+		dungeon_message.emit("The music breaks off!")  # i18n
 		return
 	_harp_progress += delta
 	if _harp_progress >= HARP_CHANNEL:
@@ -157,7 +157,7 @@ func lull(seconds: float) -> void:
 	for part in living_parts():
 		SimAuthority.set_mob_vulnerable(part, SLEEP_DAMAGE_MULT, seconds)
 	_publish_state()
-	dungeon_message.emit("The music lulls Fluffy to sleep! Its heads take more damage.")
+	dungeon_message.emit("The music lulls Fluffy to sleep! Its heads take more damage.")  # i18n
 
 func harp_progress() -> float:
 	return _harp_progress / HARP_CHANNEL

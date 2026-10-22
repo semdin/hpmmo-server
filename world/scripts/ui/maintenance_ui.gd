@@ -65,7 +65,7 @@ func _build() -> void:
 	style.set_border_width_all(2)
 	style.set_corner_radius_all(8)
 	_panel.add_theme_stylebox_override("panel", style)
-	_title = _make_label("Bakım", 19, Color(1.0, 0.75, 0.4))
+	_title = _make_label(tr("Maintenance"), 19, Color(1.0, 0.75, 0.4))
 	_title.position = Vector2(50, 6)
 	_panel.add_child(_title)
 	var lock := UITheme.icon_rect("ui_lock", 28.0)
@@ -101,8 +101,8 @@ func _on_maintenance_event(p_state: String, p_reason: String, seconds_remaining:
 		active = false
 		if state == "ABORTED":
 			_panel.show()
-			_title.text = "Bakım iptal edildi"
-			_detail.text = "Sunucu çevrimiçi kalmaya devam ediyor."
+			_title.text = tr("Maintenance cancelled")
+			_detail.text = tr("The server stays online.")
 			_deadline_ms = Time.get_ticks_msec() + 4000
 			active = true
 		elif state == "ONLINE":
@@ -117,7 +117,7 @@ func _on_maintenance_event(p_state: String, p_reason: String, seconds_remaining:
 
 ## The banner can be missed in a fight; the chat log keeps the warning.
 func _post_chat_warning() -> void:
-	var line := "Sunucu bakıma giriyor: %d saniye içinde herkes oyundan çıkarılacak. Güvenli bir yerde dur; ilerlemen kaydedilecek." % announced_seconds
+	var line := tr("The server is going into maintenance: everyone will be logged out in %d seconds. Stand somewhere safe; your progress will be saved.") % announced_seconds
 	var hud := get_parent()
 	var chat: Variant = hud.get("chat") if hud != null else null
 	if chat is Object and (chat as Object).has_method("add_system_line"):
@@ -130,19 +130,19 @@ func _on_disconnected(disconnect_reason: String) -> void:
 	if _return_at_ms != 0:
 		return
 	if String(SimNet.get("session_end_reason")) == "replaced":
-		_title.text = "Hesabına başka bir yerden giriş yapıldı"
-		_detail.text = "Bu oturum kapatıldı; ilerlemen kaydedildi. Giriş ekranına dönülüyor…"
+		_title.text = tr("Your account logged in from somewhere else")
+		_detail.text = tr("This session was closed; your progress is saved. Returning to the login screen…")
 		_login_notice = "replaced"
 	elif active and (TERMINAL_STATES.has(state) or state == "ANNOUNCING" or state == "DRAINING"):
-		_title.text = "Bakım nedeniyle oyundan çıkarıldın"
-		_detail.text = "İlerlemen kaydedildi. Giriş ekranına dönülüyor…"
+		_title.text = tr("You were logged out for maintenance")
+		_detail.text = tr("Your progress is saved. Returning to the login screen…")
 		_login_notice = "maintenance"
 	else:
 		# Any other drop (timeout, server restart): the world left behind has no
 		# authority - no creatures, casts that never resolve, refused portals.
 		# Never leave the player in it; say so and go back to the login screen.
-		_title.text = "Sunucu bağlantısı koptu"
-		_detail.text = "Giriş ekranına dönülüyor…"
+		_title.text = tr("Connection to the server lost")
+		_detail.text = tr("Returning to the login screen…")
 		_login_notice = "disconnected"
 	_panel.show()
 	active = true
@@ -174,24 +174,24 @@ func _refresh_labels() -> void:
 		return
 	match state:
 		"ANNOUNCING", "DRAINING":
-			_title.text = "Sunucu bakımı: %s içinde oyundan çıkarılacaksın" % countdown_text()
-			_detail.text = "Güvenli bir yerde dur ve işlemlerini bitir; ilerlemen otomatik kaydedilecek."
+			_title.text = tr("Server maintenance: you will be logged out in %s") % countdown_text()
+			_detail.text = tr("Stand somewhere safe and finish what you are doing; your progress will be saved automatically.")
 		"SAVING":
-			_title.text = "Bakım - ilerleme kaydediliyor"
-			_detail.text = "Karakterin kaydedilirken oyunu kapatma."
+			_title.text = tr("Maintenance - saving progress")
+			_detail.text = tr("Do not close the game while your character is saved.")
 		"DISCONNECTING":
-			_title.text = "Bakım - bağlantı kapatılıyor"
-			_detail.text = "İlerlemen kaydedildi. Bakım bitince tekrar giriş yapabilirsin."
+			_title.text = tr("Maintenance - closing connections")
+			_detail.text = tr("Your progress is saved. You can log in again once maintenance is over.")
 		"MAINTENANCE":
-			_title.text = "Sunucu bakım için kapatıldı"
-			_detail.text = "Bakım bitince tekrar giriş yapabilirsin."
+			_title.text = tr("The server is closed for maintenance")
+			_detail.text = tr("You can log in again once maintenance is over.")
 		"DISCONNECTED":
 			pass
 		"FAILED":
-			_title.text = "Bakım başarısız oldu"
-			_detail.text = "Sunucu yeniden çevrimiçi oluyor. Birazdan tekrar bağlan."
+			_title.text = tr("Maintenance failed")
+			_detail.text = tr("The server is coming back online. Reconnect in a moment.")
 		_:
-			_title.text = "Bakım"
+			_title.text = tr("Maintenance")
 			_detail.text = reason
 
 func _process(delta: float) -> void:

@@ -122,9 +122,9 @@ func _ready() -> void:
 
 	_setup_panels()
 	_build_mmo_layout()
-	_add_system_chat("Welcome to Hogwarts! Spells on 1-4, Q, E · potions on F1-F4 · Shift mounts the broom.")
-	_add_system_chat("Enter to chat, start a line with ! to shout to everyone. M opens the map, Esc the menu.")
-	_add_system_chat("Party: /invite Name, /leave, /p text for party chat.")
+	_add_system_chat(tr("Welcome to Hogwarts! Spells on 1-4, Q, E · potions on F1-F4 · Shift mounts the broom."))
+	_add_system_chat(tr("Enter to chat, start a line with ! to shout to everyone. M opens the map, Esc the menu."))
+	_add_system_chat(tr("Party: /invite Name, /leave, /p text for party chat."))
 
 ## Interface wiring: the animation layers, the authoritative binder and the
 ## panels. Built at runtime so the scene file keeps its node paths (other
@@ -216,14 +216,15 @@ func _setup_panels() -> void:
 	game_menu = HudGameMenu.new()
 	modal.add_child(game_menu)
 	game_menu.settings_requested.connect(func(): settings.open())
+	settings.language_apply_requested.connect(game_menu.leave_to_characters)
 	game_menu.map_requested.connect(func(): world_map.open())
 
-	_add_quick_button("JournalBtn", _menu_icon("menu_quests", "menu_journal"), "Quests", "[J] Quests - every open quest and reward", open_guide)
-	_add_quick_button("CharacterBtn", _menu_icon("menu_character", "stat_level"), "Character", "[C] Character - stats and status points", func(): character_window.toggle())
-	_add_quick_button("SkillsBtn", _menu_icon("menu_skills", "stupefy"), "Skills", "[V] Skill training", func(): skill_window.toggle())
-	_add_quick_button("MapBtn", "menu_map", "Map", "[M] World map", func(): world_map.toggle())
-	_add_quick_button("BestiaryBtn", _menu_icon("menu_bestiary", "menu_map"), "Bestiary", "[B] Bestiary - where every creature lives", func(): bestiary.toggle())
-	_add_quick_button("MenuBtn", "menu_settings", "Menu", "[Esc] Menu - settings, change character, quit", func(): game_menu.toggle())
+	_add_quick_button("JournalBtn", _menu_icon("menu_quests", "menu_journal"), tr("Quests"), tr("[J] Quests - every open quest and reward"), open_guide)
+	_add_quick_button("CharacterBtn", _menu_icon("menu_character", "stat_level"), tr("Character"), tr("[C] Character - stats and status points"), func(): character_window.toggle())
+	_add_quick_button("SkillsBtn", _menu_icon("menu_skills", "stupefy"), tr("Skills"), tr("[V] Skill training"), func(): skill_window.toggle())
+	_add_quick_button("MapBtn", "menu_map", tr("Map"), tr("[M] World map"), func(): world_map.toggle())
+	_add_quick_button("BestiaryBtn", _menu_icon("menu_bestiary", "menu_map"), tr("Bestiary"), tr("[B] Bestiary - where every creature lives"), func(): bestiary.toggle())
+	_add_quick_button("MenuBtn", "menu_settings", tr("Menu"), tr("[Esc] Menu - settings, change character, quit"), func(): game_menu.toggle())
 	_ensure_ui_action("toggle_onboarding", KEY_J)
 	_ensure_ui_action("toggle_map", KEY_M)
 	_ensure_ui_action("toggle_skills", KEY_V)
@@ -462,7 +463,7 @@ func _on_binder_stats(stats: Dictionary) -> void:
 	_exp_stat.set_value(exp, max_exp)
 	var exp_pct := (float(exp) / maxf(1.0, float(max_exp))) * 100.0
 	_level = int(stats.get("level", _level))
-	exp_label.text = "Level %d   ·   %d / %d EXP   ·   %.1f%%" % [_level, exp, max_exp, exp_pct]
+	exp_label.text = tr("Level %d   ·   %d / %d EXP   ·   %.1f%%") % [_level, exp, max_exp, exp_pct]
 	if unit_frame != null and is_instance_valid(player):
 		unit_frame.set_identity(String(player.player_name), String(player.house), _level)
 	_apply_house_standing(stats)
@@ -502,7 +503,7 @@ func _apply_house_standing(stats: Dictionary) -> void:
 	if unit_frame != null:
 		unit_frame.set_house_standing(rank, rep)
 	if _house_rank > 0 and rank > _house_rank:
-		show_notice("%s Rank %d · %s" % [String(player.house), rank, HPRules.house_rank_title(rank)], "good")
+		show_notice(tr("%s Rank %d · %s") % [String(player.house), rank, I18n.t(HPRules.house_rank_title(rank))], "good")
 		_play_ui("ui_levelup")
 	_house_rank = rank
 
@@ -511,7 +512,7 @@ func _update_currency() -> void:
 		return
 	if unit_frame != null:
 		unit_frame.set_galleons(_last_galleons)
-	_currency.text = "%s · %s\n%d Galleons" % [player.player_name, player.house, _last_galleons]
+	_currency.text = tr("%s · %s\n%d Galleons") % [player.player_name, player.house, _last_galleons]
 	_house_crest.texture = UITheme.chrome("house_" + player.house.to_lower())
 
 func _on_target_health(_uid: int, hp: int, max_hp: int) -> void:
@@ -590,8 +591,8 @@ func _update_slot_cd(slot: Button, spell_id: String, key_hint: String) -> void:
 		cell.set_cooldown(cd, cd / maxf(float(spell.cooldown), 0.01))
 	slot.disabled = player.is_dead
 	slot.modulate = Color(0.62, 0.62, 0.62, 0.85) if player.is_dead else Color.WHITE
-	slot.tooltip_text = "[%s] %s\n%d mana • %.1fs cooldown\n%s" % [
-		key_hint, spell.name, spell.mana_cost, spell.cooldown, spell.desc]
+	slot.tooltip_text = tr("[%s] %s\n%d mana • %.1fs cooldown\n%s") % [
+		key_hint, I18n.t(String(spell.name)), spell.mana_cost, spell.cooldown, I18n.t(String(spell.desc))]
 
 func _update_target_frame() -> void:
 	if not is_instance_valid(current_target) or ("current_hp" in current_target and current_target.current_hp <= 0):
@@ -612,23 +613,23 @@ func _update_target_frame() -> void:
 	if "mob_name" in current_target:
 		var is_boss_target: bool = "is_boss" in current_target and current_target.is_boss
 		var is_enraged_target: bool = "is_enraged" in current_target and current_target.is_enraged
-		title = String(current_target.mob_name)
+		title = I18n.mob_name(String(current_target.mob_name))
 		lvl = int(current_target.level)
 		if is_boss_target:
-			rank = "World Boss"
+			rank = tr("World Boss")
 			tint = Color(1.0, 0.84, 0.36)
 			bar_colour = Color(0.86, 0.10, 0.06)
 			icon = "ui_boss"
 		elif is_enraged_target:
-			rank = "Enraged"
+			rank = tr("Enraged")
 			tint = Color(1.0, 0.52, 0.26)
 			bar_colour = Color(0.92, 0.32, 0.06)
 			icon = "status_enraged"
 		else:
-			rank = "Creature"
+			rank = tr("Creature")
 			tint = Color(1.0, 0.86, 0.80)
 		if "is_commander" in current_target and current_target.is_commander and not is_boss_target:
-			rank = "Pack Leader · Enraged" if is_enraged_target else "Pack Leader"
+			rank = tr("Pack Leader · Enraged") if is_enraged_target else tr("Pack Leader")
 	elif current_target.is_in_group("players"):
 		# Another wizard (yourself is never a target).
 		title = String(current_target.get("player_name"))
@@ -636,20 +637,20 @@ func _update_target_frame() -> void:
 		var their_house := String(current_target.get("house"))
 		rank = their_house
 		if _in_my_party(current_target):
-			rank = "%s · Party" % their_house
+			rank = tr("%s · Party") % their_house
 		tint = Color(0.62, 0.84, 1.0)
 		bar_colour = Color(0.24, 0.62, 0.30)
 		icon = "ui_target"
 	elif current_target.is_in_group("monoliths"):
-		title = "Dark Monolith"
-		rank = "Ancient Monolith"
+		title = tr("Dark Monolith")
+		rank = tr("Ancient Monolith")
 		lvl = 35
 		tint = Color(0.86, 0.62, 1.0)
 		bar_colour = Color(0.58, 0.20, 0.92)
 		icon = "minimap_monolith"
 	elif "current_hp" in current_target and "max_hp" in current_target:
-		title = "Training Dummy"
-		rank = "Practice target"
+		title = tr("Training Dummy")
+		rank = tr("Practice target")
 		tint = Color(0.78, 0.95, 0.78)
 		bar_colour = Color(0.30, 0.66, 0.24)
 	else:
@@ -667,9 +668,9 @@ func _update_target_frame() -> void:
 	if _target_flow != null:
 		_target_flow.set_colour(bar_colour)
 	if _target_level != null:
-		_target_level.text = ("Lv. %d" % lvl) if lvl > 0 else ""
+		_target_level.text = (tr("Lv. %d") % lvl) if lvl > 0 else ""
 	if _target_rank != null:
-		_target_rank.text = rank.to_upper()
+		_target_rank.text = I18n.upper(rank)
 		_target_rank.add_theme_color_override("font_color", tint.darkened(0.12))
 	if _target_hp_text != null:
 		var pct := 100.0 * float(hp) / float(max_hp)
@@ -695,7 +696,7 @@ func _target_max_hp_value() -> int:
 	return 1
 
 func _on_mounted_changed(is_mounted: bool) -> void:
-	mount_button.tooltip_text = "[Shift] Dismount broom" if is_mounted else "[Shift] Mount broom"
+	mount_button.tooltip_text = tr("[Shift] Dismount broom") if is_mounted else tr("[Shift] Mount broom")
 	mount_button.modulate = UITheme.c("gold_hi") if is_mounted else Color.WHITE
 
 
@@ -718,9 +719,9 @@ func _target_is_weakened() -> bool:
 
 func _on_loot_collected(item_id: String, amount: int) -> void:
 	if item_id == "galleons":
-		_add_system_chat("Collected %d Galleons." % amount)
+		_add_system_chat(tr("Collected %d Galleons.") % amount)
 	elif GameData.ITEMS.has(item_id):
-		_add_system_chat("Obtained %s (x%d)." % [GameData.ITEMS[item_id].name, amount])
+		_add_system_chat(tr("Obtained %s (x%d).") % [I18n.t(String(GameData.ITEMS[item_id].name)), amount])
 
 func _on_spell_cast(spell_id: String, cd: float) -> void:
 	pass
@@ -793,6 +794,7 @@ func show_notice(text: String, kind: String = "warn") -> void:
 
 ## Server refusals (`sim_notice`, "kind:reason"). A refused pickup used to be
 ## silent: with a full bag the item simply stayed on the ground.
+# i18n-begin
 const PICKUP_REASONS := {
 	"bag_full": "Your bag is full (40/40). Sell or discard something to take this.",
 	"item_gone": "Someone already took that.",
@@ -800,6 +802,7 @@ const PICKUP_REASONS := {
 	"not_yours": "That loot belongs to someone else.",
 	"transfer_pending": "Wait until the map loads.",
 }
+# i18n-end
 var _notice_last_ms: Dictionary = {}
 
 func _on_authority_notice(text: String, _color: Color) -> void:
@@ -807,7 +810,7 @@ func _on_authority_notice(text: String, _color: Color) -> void:
 	var reason := text.get_slice(":", 1)
 	var line := ""
 	if kind == "pickup":
-		line = String(PICKUP_REASONS.get(reason, ""))
+		line = I18n.t(String(PICKUP_REASONS.get(reason, "")))
 	if line == "":
 		return
 	# Pickup retries twice a second while the player stands on the item.
@@ -820,23 +823,23 @@ func _on_authority_notice(text: String, _color: Color) -> void:
 ## A realm-wide event (v14 `sim_world_event`): a line in the chat log, the
 ## centre band in the boss colour and the boss horn. Returns the text shown.
 static func world_event_text(kind: String, data: Dictionary) -> String:
-	var name := String(data.get("name", "A world boss"))
-	var region := String(data.get("region", "the wilds"))
+	var name := I18n.t(String(data.get("name", "A world boss")))
+	var region := I18n.t(String(data.get("region", "the wilds")))
 	match kind:
 		"boss_soon":
-			return "%s stirs at %s - %d seconds!" % [name, region, int(data.get("seconds", 60))]
+			return I18n.t("%s stirs at %s - %d seconds!") % [name, region, int(data.get("seconds", 60))]
 		"boss_spawned":
-			return "%s has appeared at %s (Lv %d)!" % [name, region, int(data.get("level", 1))]
+			return I18n.t("%s has appeared at %s (Lv %d)!") % [name, region, int(data.get("level", 1))]
 		"boss_slain":
 			var killer := String(data.get("killer", ""))
-			return ("%s has been slain by %s!" % [name, killer]) if killer != "" else ("%s has fallen!" % name)
+			return (I18n.t("%s has been slain by %s!") % [name, killer]) if killer != "" else (I18n.t("%s has fallen!") % name)
 	return ""
 
 func show_world_event(kind: String, data: Dictionary) -> String:
 	var text := world_event_text(kind, data)
 	if text == "":
 		return ""
-	_add_system_chat("[World] " + text)
+	_add_system_chat(tr("[World] ") + text)
 	show_notice(text, "boss")
 	# A musical cue, not a creature roar: the boss itself roars where it stands.
 	# A realm event is far away, so only the spawn and the kill get one (the
@@ -958,9 +961,9 @@ func _apply_theme() -> void:
 	for pair in [[inventory_button, "menu_inventory"], [ollivander_button, "menu_ollivander"], [mount_button, "menu_mount"]]:
 		(pair[0] as Button).set_meta("icon_id", pair[1])
 		UITheme.set_button_icon(pair[0], pair[1])
-	inventory_button.tooltip_text = "[I] Bag - the potions you carry"
-	ollivander_button.tooltip_text = "[O] Ollivander - forge the wand higher"
-	mount_button.tooltip_text = "[Shift] Mount or dismount the broom"
+	inventory_button.tooltip_text = tr("[I] Bag - the potions you carry")
+	ollivander_button.tooltip_text = tr("[O] Ollivander - forge the wand higher")
+	mount_button.tooltip_text = tr("[Shift] Mount or dismount the broom")
 	_target_icon = UITheme.icon_rect("ui_target", 15.0)
 	_target_icon.name = "Icon"
 	_target_icon.set_anchors_preset(Control.PRESET_TOP_LEFT)
@@ -1244,7 +1247,7 @@ func _build_target_card() -> void:
 		_target_status_icon.size = Vector2(14, 14)
 	# Another player targeted: one click sends the party invitation (the same
 	# `/invite Name` the chat accepts).
-	_invite_button = HudKit.button("Invite to Party", 13)
+	_invite_button = HudKit.button(tr("Invite to Party"), 13)
 	_invite_button.name = "InviteToParty"
 	_invite_button.focus_mode = Control.FOCUS_NONE
 	_invite_button.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
@@ -1261,7 +1264,7 @@ func _on_invite_pressed() -> void:
 		return
 	var who := String(current_target.get("player_name"))
 	NetworkManager.send_chat("/invite %s" % who)
-	_add_system_chat("Party invitation sent to %s." % who)
+	_add_system_chat(tr("Party invitation sent to %s.") % who)
 	_invite_button.visible = false
 
 func _in_my_party(target: Node) -> bool:

@@ -113,25 +113,25 @@ func current_quest() -> Dictionary:
 func objective_text(q: Dictionary) -> String:
 	var id := String(q.get("id", ""))
 	if is_ready(id):
-		return "Complete! Click to claim your reward"
+		return tr("Complete! Click to claim your reward")
 	var count := int(q.get("count", 1))
 	if count <= 1:
-		return String(q.get("name", ""))
-	return "%s  %d/%d" % [String(q.get("name", "")), mini(progress_of(id), count), count]
+		return I18n.t(String(q.get("name", "")))
+	return "%s  %d/%d" % [I18n.t(String(q.get("name", ""))), mini(progress_of(id), count), count]
 
 ## "Woolen Traveller's Cloak, Health Potion x5" for a quest's item rewards.
 static func reward_items_text(q: Dictionary) -> String:
 	var parts: Array = []
 	for reward in q.get("reward_items", []):
-		var name := String(HPEquipment.item(String(reward.get("id", ""))).get("name", reward.get("id", "")))
+		var name := I18n.t(String(HPEquipment.item(String(reward.get("id", ""))).get("name", reward.get("id", ""))))
 		parts.append(name if int(reward.get("amount", 1)) <= 1 else "%s x%d" % [name, int(reward.get("amount", 1))])
 	return ", ".join(parts)
 
 func tracker_text() -> String:
 	var q := current_quest()
 	if q.is_empty():
-		return "No open quests - level up to unlock more."
-	return "[%s]\n%s" % [q.get("title", ""), objective_text(q)]
+		return tr("No open quests - level up to unlock more.")
+	return "[%s]\n%s" % [I18n.t(String(q.get("title", ""))), objective_text(q)]
 
 # ------------------------------------------------------------------ actions
 

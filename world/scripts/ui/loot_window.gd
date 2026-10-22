@@ -32,7 +32,7 @@ func _ready() -> void:
 	_layer = CanvasLayer.new()
 	_layer.layer = 11
 	add_child(_layer)
-	_window = ArcaneSkin.window("CHEST", Vector2(COLUMNS * (SLOT_PX + 5) + 44, 214), "ui_inventory")
+	_window = ArcaneSkin.window(I18n.upper(tr("Chest")), Vector2(COLUMNS * (SLOT_PX + 5) + 44, 214), "ui_inventory")
 	_window.closed.connect(close)
 	_layer.add_child(_window)
 	_grid = GridContainer.new()
@@ -45,7 +45,7 @@ func _ready() -> void:
 	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_window.body.add_child(_status)
 	_take_all = Button.new()
-	_take_all.text = "Take all"
+	_take_all.text = tr("Take all")
 	_take_all.focus_mode = Control.FOCUS_NONE
 	_take_all.pressed.connect(func(): _take(-1))
 	_window.body.add_child(_take_all)
@@ -91,7 +91,7 @@ func refresh() -> void:
 	var record: Dictionary = SimAuthority.entities.get(_chest_uid, {})
 	var items: Array = record.get("items", [])
 	var rare := String(record.get("item_id", "chest")) == "chest_rare"
-	_window.title = "ENCHANTED CHEST" if rare else "CHEST"
+	_window.title = I18n.upper(tr("Enchanted Chest") if rare else tr("Chest"))
 	for child in _grid.get_children():
 		_grid.remove_child(child)
 		child.queue_free()
@@ -128,7 +128,7 @@ func _take(slot: int) -> void:
 	if _chest.collect(player, slot):
 		_play("ui_loot")
 	else:
-		_status.text = "Too far away." if player.global_position.distance_to(_chest.global_position) > 7.0 else ""
+		_status.text = tr("Too far away.") if player.global_position.distance_to(_chest.global_position) > 7.0 else ""
 
 
 func _on_loot_spawned(uid: int, _item_id: String, _amount: int, _pos: Vector3, _items: Array) -> void:

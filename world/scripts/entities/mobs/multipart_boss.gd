@@ -109,7 +109,7 @@ func _spawn_parts() -> void:
 	SimAuthority.set_mob_immune(self, true)
 
 func _part_name(key: String, display: String) -> String:
-	var side: String = {"L": "Left", "R": "Right", "M": "Middle", "T": "Upper"}.get(key, key)
+	var side: String = {"L": "Left", "R": "Right", "M": "Middle", "T": "Upper"}.get(key, key)  # i18n
 	# "Fluffy's Head" -> "Fluffy's Left Head"; "Snare Vine" -> "Snare Left Vine".
 	var words := display.split(" ")
 	words.insert(words.size() - 1, side)

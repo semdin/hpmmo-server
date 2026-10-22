@@ -53,7 +53,7 @@ func _ready() -> void:
 	_story = _ink_label(17, ink)
 	col.add_child(_story)
 	var obj_head := _ink_label(14, Color(0.42, 0.25, 0.08))
-	obj_head.text = "OBJECTIVE"
+	obj_head.text = I18n.upper(tr("Objective"))
 	obj_head.autowrap_mode = TextServer.AUTOWRAP_OFF
 	obj_head.add_theme_font_override("font", HudKit.title())
 	col.add_child(obj_head)
@@ -61,7 +61,7 @@ func _ready() -> void:
 	_objective.add_theme_font_override("font", HudKit.bold())
 	col.add_child(_objective)
 	var rew_head := _ink_label(14, Color(0.42, 0.25, 0.08))
-	rew_head.text = "REWARD"
+	rew_head.text = I18n.upper(tr("Reward"))
 	rew_head.autowrap_mode = TextServer.AUTOWRAP_OFF
 	rew_head.add_theme_font_override("font", HudKit.title())
 	col.add_child(rew_head)
@@ -72,7 +72,7 @@ func _ready() -> void:
 	close_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	col.add_child(close_row)
 	var close_btn := Button.new()
-	close_btn.text = "Close"
+	close_btn.text = tr("Close")
 	close_btn.focus_mode = Control.FOCUS_NONE
 	close_btn.custom_minimum_size = Vector2(140, 36)
 	var seal := StyleBoxFlat.new()
@@ -91,7 +91,7 @@ func _ready() -> void:
 	close_btn.pressed.connect(close)
 	close_row.add_child(close_btn)
 	_claim_btn = close_btn.duplicate() as Button
-	_claim_btn.text = "Claim reward"
+	_claim_btn.text = tr("Claim reward")
 	var gold := seal.duplicate() as StyleBoxFlat
 	gold.bg_color = Color(0.62, 0.45, 0.1)
 	gold.border_color = Color(0.35, 0.22, 0.03)
@@ -160,22 +160,22 @@ func refresh() -> void:
 	var q := HPRules.quest_by_id(quest_id)
 	_claim_btn.visible = not q.is_empty() and QuestManager.is_ready(quest_id)
 	if q.is_empty():
-		_title.text = "No Open Quests"
-		_story.text = "Every task open to you is done. Level up to unlock more, hunt the Dark Monoliths and refine your gear."
+		_title.text = tr("No Open Quests")
+		_story.text = tr("Every task open to you is done. Level up to unlock more, hunt the Dark Monoliths and refine your gear.")
 		_objective.text = "—"
 		_reward.text = "—"
 		return
-	_title.text = String(q.get("title", "Quest"))
+	_title.text = I18n.t(String(q.get("title", "Quest")))
 	if String(q.get("chapter", "")) != "":
-		_title.text = "%s  ·  %s" % [String(q.get("chapter", "")), _title.text]
-	_story.text = String(q.get("desc", ""))
+		_title.text = "%s  ·  %s" % [I18n.t(String(q.get("chapter", ""))), _title.text]
+	_story.text = I18n.t(String(q.get("desc", "")))
 	if String(q.get("giver", "")) != "":
-		_story.text += "\n\n- %s" % String(q.get("giver", ""))
+		_story.text += "\n\n- %s" % I18n.t(String(q.get("giver", "")))
 	_objective.text = QuestManager.objective_text(q)
-	_reward.text = "%d experience  ·  %d Galleons" % [int(q.get("reward_exp", 0)), int(q.get("reward_gold", 0))]
+	_reward.text = tr("%d experience  ·  %d Galleons") % [int(q.get("reward_exp", 0)), int(q.get("reward_gold", 0))]
 	var items := QuestManager.reward_items_text(q)
 	if items != "":
 		_reward.text += "  ·  %s" % items
 	if int(q.get("reward_house_rep", 0)) > 0:
 		var house := String(QuestManager.player_ref.house) if is_instance_valid(QuestManager.player_ref) else "House"
-		_reward.text += "  ·  %d %s reputation" % [int(q.get("reward_house_rep", 0)), house]
+		_reward.text += tr("  ·  %d %s reputation") % [int(q.get("reward_house_rep", 0)), house]

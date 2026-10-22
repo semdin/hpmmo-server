@@ -107,7 +107,7 @@ func _build(robe_color: Color) -> void:
 func _update_label() -> void:
 	var label := get_node_or_null("NpcLabel") as Label3D
 	if label:
-		label.text = "%s\n< click to talk >" % npc_name
+		label.text = tr("%s\n< click to talk >") % I18n.t(npc_name)
 		label.modulate = Color(1.0, 0.9, 0.5)
 		WorldLabels.track(label, 16.0)
 

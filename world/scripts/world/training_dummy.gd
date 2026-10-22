@@ -50,7 +50,7 @@ func _process(delta: float) -> void:
 func _update_label() -> void:
 	var label := get_node_or_null("DummyLabel") as Label3D
 	if label:
-		label.text = "Training Dummy\n%d / %d" % [current_hp, max_hp]
+		label.text = tr("Training Dummy\n%d / %d") % [current_hp, max_hp]
 		WorldLabels.track(label, 15.0)
 
 ## Damage is requested from the authority (dummies keep the prototype exemption
@@ -69,7 +69,7 @@ func on_authoritative_damage(_spell: String, _attacker: Node3D, _stun_ms: int, _
 			var ft = ft_scene.instantiate()
 			get_parent().add_child(ft)
 			ft.global_position = global_position + Vector3(0, 2.4, 0)
-			ft.setup("DUMMY RESET!", Color(0.5, 1.0, 0.5), 1.3)
+			ft.setup(I18n.upper(tr("Dummy reset!")), Color(0.5, 1.0, 0.5), 1.3)
 	_update_label()
 	# wobble feedback, never retaliates
 	if _pole:

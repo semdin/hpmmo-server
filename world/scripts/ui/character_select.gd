@@ -115,7 +115,7 @@ func _apply_icons() -> void:
 	}
 	for button in crests:
 		UITheme.set_button_icon(button, crests[button], 18.0)
-	new_char_btn.text = "Yeni Büyücü Oluştur"
+	new_char_btn.text = tr("Create New Wizard")
 	UITheme.set_button_icon(new_char_btn, "minimap_zoom_in", 16.0)
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -164,7 +164,7 @@ func _switch_slot(new_slot: int) -> void:
 	_update_slot_display(true)
 
 func _update_slot_display(_animated: bool = true) -> void:
-	slot_label.text = "YUVA %d / 2" % [current_slot + 1]
+	slot_label.text = tr("SLOT %d / 2") % [current_slot + 1]
 	_refresh_roster()
 
 	var has_character = current_slot < characters.size()
@@ -173,10 +173,10 @@ func _update_slot_display(_animated: bool = true) -> void:
 	# Enforce max 2 characters per account (Section 3.2)
 	if total_chars >= 2:
 		new_char_btn.disabled = true
-		new_char_btn.text = "Maksimum Karakter (2/2)"
+		new_char_btn.text = tr("Character Limit Reached (2/2)")
 	else:
 		new_char_btn.disabled = false
-		new_char_btn.text = "Yeni Büyücü Oluştur"
+		new_char_btn.text = tr("Create New Wizard")
 
 	if has_character:
 		var c = characters[current_slot]
@@ -200,20 +200,20 @@ func _update_slot_display(_animated: bool = true) -> void:
 			_crest.texture = UITheme.chrome("house_" + c_house.to_lower())
 			_crest.visible = true
 
-		char_stats_label.text = "Seviye %d\nCan  %d / %d\nMana  %d / %d" % [c_level, c_hp, c_max_hp, c_mana, c_max_mana]
-		char_wand_label.text = "Asa  +%d" % c_wand
-		char_galleons_label.text = "Galleon  %d" % c_galleons
-		char_location_label.text = "Hogwarts Vadisi"
+		char_stats_label.text = tr("Level %d\nHealth  %d / %d\nMana  %d / %d") % [c_level, c_hp, c_max_hp, c_mana, c_max_mana]
+		char_wand_label.text = tr("Wand  +%d") % c_wand
+		char_galleons_label.text = tr("Galleons  %d") % c_galleons
+		char_location_label.text = tr("Hogwarts Valley")
 
 		enter_world_btn.visible = true
 		enter_world_btn.disabled = false
-		enter_world_btn.text = "DÜNYAYA GİR"
+		enter_world_btn.text = tr("ENTER WORLD")
 		enter_world_btn.icon = null
 
 		_spawn_podium_character(c)
 	else:
-		char_name_label.text = "Boş Yuva"
-		char_house_label.text = "Yeni bir büyücü oluşturun"
+		char_name_label.text = tr("Empty Slot")
+		char_house_label.text = tr("Create a new wizard")
 		char_house_label.modulate = Color(0.7, 0.7, 0.7)
 		if _crest != null:
 			_crest.visible = false
@@ -272,7 +272,7 @@ func _on_enter_world_pressed() -> void:
 	var c = characters[current_slot]
 	var previous_text: String = enter_world_btn.text
 	enter_world_btn.disabled = true
-	enter_world_btn.text = "Dünya Yükleniyor..."
+	enter_world_btn.text = tr("Loading World...")
 
 	# The world session is joined before a character exists (the menu does it),
 	# so the choice made here is what binds it: the server proves the character
@@ -284,7 +284,7 @@ func _on_enter_world_pressed() -> void:
 	var retries := 0
 	while not bool(result.get("ok", false)) and String(result.get("reason", "")) == "save_pending" and retries < 8:
 		retries += 1
-		slot_label.text = "Karakter kaydediliyor, lütfen bekleyin…"
+		slot_label.text = tr("Saving character, please wait…")
 		await get_tree().create_timer(0.75).timeout
 		if not is_inside_tree():
 			return
@@ -293,7 +293,7 @@ func _on_enter_world_pressed() -> void:
 	if not bool(result.get("ok", false)):
 		enter_world_btn.disabled = false
 		enter_world_btn.text = previous_text
-		slot_label.text = "Hata: %s" % _bind_reason_text(String(result.get("reason", "")))
+		slot_label.text = tr("Error: %s") % _bind_reason_text(String(result.get("reason", "")))
 		return
 	WorldLoader.enter_world(get_tree())
 
@@ -301,22 +301,22 @@ func _on_enter_world_pressed() -> void:
 func _bind_reason_text(reason: String) -> String:
 	match reason:
 		"character_not_found":
-			return "Bu karakter bulunamadı veya hesabınıza ait değil."
+			return tr("This character was not found or does not belong to your account.")
 		"character_in_session":
-			return "Bu karakter şu anda başka bir oturumda."
+			return tr("This character is in another session right now.")
 		"already_bound":
-			return "Bu oturum zaten başka bir karaktere bağlı."
+			return tr("This session is already bound to another character.")
 		"save_pending":
-			return "Karakter önceki oturumdan kaydediliyor. Lütfen birkaç saniye sonra tekrar deneyin."
+			return tr("The character is still being saved from the previous session. Please try again in a few seconds.")
 		"not_joined", "timeout", "no_character_selected":
-			return "Dünya sunucusuna ulaşılamadı. Tekrar deneyin."
+			return tr("Could not reach the world server. Try again.")
 		_:
 			return reason
 
 func _on_character_select_result(success: bool, message: String, _char_data: Dictionary) -> void:
 	enter_world_btn.disabled = false
 	if not success:
-		slot_label.text = "Hata: %s" % message
+		slot_label.text = tr("Error: %s") % message
 		return
 	
 	WorldLoader.enter_world(get_tree())
@@ -332,7 +332,7 @@ func _select_modal_house(h_name: String) -> void:
 	selected_house = h_name
 	if GameData.HOUSES.has(h_name):
 		var data = GameData.HOUSES[h_name]
-		modal_house_desc.text = "%s - \"%s\"\n%s" % [data.name, data.motto, data.trait]
+		modal_house_desc.text = "%s - \"%s\"\n%s" % [data.name, data.motto, tr(String(data.trait))]
 		modal_house_desc.modulate = (data.primary_color as Color).lightened(0.45)
 
 	gryf_btn.flat = (h_name != "Gryffindor")
@@ -343,24 +343,24 @@ func _select_modal_house(h_name: String) -> void:
 func _on_confirm_create_pressed() -> void:
 	var c_name = new_name_input.text.strip_edges()
 	if c_name.length() < 2:
-		modal_status_label.text = "Karakter adı en az 2 harften oluşmalıdır!"
+		modal_status_label.text = tr("A character name needs at least 2 letters!")
 		return
 
 	confirm_create_btn.disabled = true
-	modal_status_label.text = "Büyücü oluşturuluyor..."
+	modal_status_label.text = tr("Creating wizard...")
 
 	if DatabaseManager.session_active:
 		DatabaseManager.create_character(DatabaseManager.session_account_id, c_name, selected_house, func(res: Dictionary):
 			confirm_create_btn.disabled = false
 			if bool(res.get("success", false)):
-				modal_status_label.text = "Karakter oluşturuldu!"
+				modal_status_label.text = tr("Character created!")
 				var new_char = res.get("character", {})
 				characters.append(new_char)
 				current_slot = characters.size() - 1
 				create_modal.hide()
 				_update_slot_display(true)
 			else:
-				modal_status_label.text = "Hata: %s" % str(res.get("message", "Oluşturulamadı"))
+				modal_status_label.text = tr("Error: %s") % str(res.get("message", tr("Could not be created")))
 		)
 	else:
 		# Offline create
@@ -486,7 +486,7 @@ func _restyle() -> void:
 	title.add_theme_color_override("font_outline_color", Color(0.1, 0.06, 0.02, 0.9))
 	HudKit.style_label(slot_label, 16, HudKit.PARCHMENT, HudKit.title(), 4)
 	HudKit.style_button(logout_btn, 15)
-	logout_btn.text = "Çıkış Yap"
+	logout_btn.text = tr("Log Out")
 	logout_btn.custom_minimum_size = Vector2(130, 40)
 	top.offset_top = 22
 	# --- roster on the left
@@ -500,7 +500,7 @@ func _restyle() -> void:
 	_roster = VBoxContainer.new()
 	_roster.add_theme_constant_override("separation", 10)
 	roster_panel.add_child(_roster)
-	_roster_title = HudKit.label("BÜYÜCÜLERİN", 15, HudKit.GOLD, HudKit.title(), 3)
+	_roster_title = HudKit.label(tr("YOUR WIZARDS"), 15, HudKit.GOLD, HudKit.title(), 3)
 	_roster.add_child(_roster_title)
 	# --- character sheet on the right
 	var info := $CanvasLayer/InfoCard as PanelContainer
@@ -556,7 +556,7 @@ func _restyle() -> void:
 	create_modal.add_theme_stylebox_override("panel", HudKit.window())
 	var modal_title := create_modal.get_node_or_null("Margin/VBox/ModalTitle") as Label
 	if modal_title != null:
-		modal_title.text = "Yeni Büyücü"
+		modal_title.text = tr("New Wizard")
 		HudKit.style_label(modal_title, 26, HudKit.GOLD_HI, HudKit.deco(), 5)
 		modal_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	var name_lbl := create_modal.get_node_or_null("Margin/VBox/NameRow/NameLbl") as Label
@@ -651,7 +651,7 @@ func _refresh_roster() -> void:
 	for child in _roster.get_children():
 		if child != _roster_title:
 			child.queue_free()
-	_roster_title.text = "BÜYÜCÜLERİN  (%d / 2)" % characters.size()
+	_roster_title.text = tr("YOUR WIZARDS  (%d / 2)") % characters.size()
 	for i in range(2):
 		var card := Button.new()
 		card.focus_mode = Control.FOCUS_NONE
@@ -680,12 +680,12 @@ func _refresh_roster() -> void:
 			var c: Dictionary = characters[i]
 			var house := String(c.get("house", "Gryffindor"))
 			card.icon = UITheme.chrome_at("house_" + house.to_lower(), 46.0)
-			card.text = "%s\nSeviye %d  ·  %s" % [String(c.get("name", "Wizard")), int(c.get("level", 1)), house]
+			card.text = tr("%s\nLevel %d  ·  %s") % [String(c.get("name", "Wizard")), int(c.get("level", 1)), house]
 			var index := i
 			card.pressed.connect(func(): _switch_slot(index))
 		else:
 			card.icon = UITheme.chrome_at("minimap_zoom_in", 30.0)
-			card.text = "Yeni Büyücü Oluştur"
+			card.text = tr("Create New Wizard")
 			card.add_theme_color_override("font_color", HudKit.GOLD_LT)
 			card.pressed.connect(func():
 				if current_slot != i and i < 2:

@@ -142,10 +142,9 @@ var QUESTS: Dictionary = {}
 var SAFE_ZONES: Dictionary = {}
 
 func _ready() -> void:
-	# The game's text is English. On a Turkish system the OS locale made the text
-	# shaper apply the fonts' Turkish `locl` forms, so Cinzel's small-cap "i"
-	# came out as a dotted "İ" ("Dark Monolİth"). Shape everything as English.
-	TranslationServer.set_locale("en")
+	# The locale is the chosen language's (I18n), never the OS one: on a Turkish
+	# system English text shaped with the fonts' Turkish `locl` forms, so Cinzel's
+	# small-cap "i" came out as a dotted "İ" ("Dark Monolİth").
 	_load_json_data()
 	for spec in HPRules.combat().wand_tiers:
 		var tier := int(spec.tier)

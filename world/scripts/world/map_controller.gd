@@ -175,9 +175,9 @@ func _travel_mouth(node_id: String) -> Vector3:
 func _travel_prompt(node_id: String) -> String:
 	var node := HPMaps.travel_node(node_id)
 	if TravelNodes.kind_of(node_id) == "floo":
-		return "Floo Network (%s)" % String(node.get("label", ""))
+		return tr("Floo Network (%s)") % I18n.t(String(node.get("label", "")))
 	var pair := HPMaps.travel_node(String(node.get("pair", "")))
-	return "%s (to %s)" % [String(node.get("prompt", "Use")), String(pair.get("label", ""))]
+	return tr("%s (to %s)") % [I18n.t(String(node.get("prompt", "Use"))), I18n.t(String(pair.get("label", "")))]
 
 ## A Vanishing Cabinet or the witch's passage: no window, the link has one end.
 func _passage_depart(node_id: String) -> void:
@@ -203,7 +203,7 @@ func _learn_hearth(node_id: String) -> void:
 	SimNet.request_travel(local_player, node_id, "")
 	var hud = world.get("hud") if world != null else null
 	if hud != null and hud.has_method("show_notice"):
-		hud.show_notice("%s added to your Floo Network." % String(HPMaps.travel_node(node_id).get("label", "")), "good")
+		hud.show_notice(tr("%s added to your Floo Network.") % I18n.t(String(HPMaps.travel_node(node_id).get("label", ""))), "good")
 
 ## Interact at a fireplace: the authority learns it (an empty destination) and
 ## the Floo window opens.
@@ -373,14 +373,14 @@ func _process(delta: float) -> void:
 		_active_travel = _travel.node_at(local_player.global_position, current_map)
 		_learn_hearth(_active_travel)
 	if found.is_empty() and not _active_portkey.is_empty():
-		_active_label = "Press %s - %s the Portkey (to %s)" % [PROMPT_KEY,
-			"Let go of" if bool(_active_portkey.get("holding", false)) else "Grab hold of", _active_portkey.get("label", "")]
+		_active_label = (tr("Press %s - Let go of the Portkey (to %s)") if bool(_active_portkey.get("holding", false)) \
+			else tr("Press %s - Grab hold of the Portkey (to %s)")) % [PROMPT_KEY, I18n.t(String(_active_portkey.get("label", "")))]
 	elif found.is_empty():
-		_active_label = "" if _active_travel == "" else "Press %s - %s" % [PROMPT_KEY, _travel_prompt(_active_travel)]
+		_active_label = "" if _active_travel == "" else tr("Press %s - %s") % [PROMPT_KEY, _travel_prompt(_active_travel)]
 	elif _mounted():
-		_active_label = "Mounted - the castle door is closed to broom flight. Dismount to enter."
+		_active_label = tr("Mounted - the castle door is closed to broom flight. Dismount to enter.")
 	else:
-		_active_label = "Press %s - %s" % [PROMPT_KEY, _portal_prompt(found)]
+		_active_label = tr("Press %s - %s") % [PROMPT_KEY, _portal_prompt(found)]
 
 func _unhandled_input(event: InputEvent) -> void:
 	if busy or not is_instance_valid(local_player):
@@ -419,8 +419,8 @@ func _refuse_indoor_mount() -> void:
 	if local_player.has_method("_apply_mount_state"):
 		local_player.call("_apply_mount_state", false)
 	if local_player.has_method("show_floating_text"):
-		local_player.call("show_floating_text", "No flying inside the castle!", Color(1.0, 0.8, 0.4))
-	_feedback("The broom cannot fly inside the castle - it stays stowed until you are outside.")
+		local_player.call("show_floating_text", tr("No flying inside the castle!"), Color(1.0, 0.8, 0.4))
+	_feedback(tr("The broom cannot fly inside the castle - it stays stowed until you are outside."))
 
 func _mounted() -> bool:
 	return is_instance_valid(local_player) and bool(local_player.get("is_mounted"))
@@ -436,10 +436,10 @@ func _begin_transfer(portal: Dictionary) -> void:
 	if busy:
 		return
 	if _mounted():
-		_feedback("Dismount before entering - the broom cannot fly inside the castle.")
+		_feedback(tr("Dismount before entering - the broom cannot fly inside the castle."))
 		return
 	if not server_api:
-		_feedback("Map transfers are unavailable: the synced map-transfer API is missing from this build.")
+		_feedback(tr("Map transfers are unavailable: the synced map-transfer API is missing from this build."))
 		return
 	_pending_portal = portal
 	# The client names only the portal it stands at: destination, spawn, token
@@ -480,7 +480,7 @@ func _on_transfer_expired(peer_id: int, _token: int, map_id: String, pos: Vector
 	if peer_id != SimNet.local_peer_id:
 		return
 	_pending_portal = {}
-	_feedback("The transfer timed out; you are back at your last safe spot.")
+	_feedback(tr("The transfer timed out; you are back at your last safe spot."))
 	if busy:
 		# The load outlived the server's window: the body is back on `map_id`
 		# server-side. Follow it as soon as this load finishes, instead of
@@ -514,7 +514,7 @@ func _start_transfer(map_id: String, spawn_id: String, token: int, forced_pos: V
 	if busy or map_id == "":
 		return
 	if not _map_available(map_id):
-		_feedback("That map is not available in this build.")
+		_feedback(tr("That map is not available in this build."))
 		return
 	busy = true
 	_floo_pending = false
@@ -523,19 +523,19 @@ func _start_transfer(map_id: String, spawn_id: String, token: int, forced_pos: V
 	_feedback("")
 	await _loading_screen.open(_loading_title(map_id), _loading_text(map_id))
 
-	_loading_screen.set_progress(10.0, "Leaving %s…" % _place_name(current_map))
+	_loading_screen.set_progress(10.0, tr("Leaving %s…") % _place_name(current_map))
 	await _unload_map(current_map)
 	_loading_screen.set_progress(20.0, _loading_text(map_id))
 	var loaded := await _load_map(map_id)
 	if not loaded:
-		_feedback("The map failed to load; staying where you are.")
+		_feedback(tr("The map failed to load; staying where you are."))
 		await _load_map(current_map)
 		await _loading_screen.close()
 		busy = false
 		# No acknowledgement: the server's reservation expires and returns the
 		# body to its last safe spawn instead of stranding it between maps.
 		return
-	_loading_screen.set_progress(85.0, "Waiting for the server…")
+	_loading_screen.set_progress(85.0, tr("Waiting for the server…"))
 
 	current_map = map_id
 	if _travel != null:
@@ -554,7 +554,7 @@ func _start_transfer(map_id: String, spawn_id: String, token: int, forced_pos: V
 		_place_player(target)
 	# A few frames rendered behind the screen: the new map's first draw (shader
 	# and pipeline compilation) is the hitch, and it happens here, unseen.
-	_loading_screen.set_progress(95.0, "Almost there…")
+	_loading_screen.set_progress(95.0, tr("Almost there…"))
 	for _i in range(4):
 		await get_tree().process_frame
 	if spawn_id.begins_with("portkey:") and is_instance_valid(local_player) and local_player.has_method("portkey_hide"):
@@ -653,7 +653,7 @@ func _load_map(map_id: String) -> bool:
 	var packed := await _load_threaded(INTERIOR_PATH)
 	if packed == null:
 		return false
-	_loading_screen.set_progress(78.0, "Lighting the torches…")
+	_loading_screen.set_progress(78.0, tr("Lighting the torches…"))
 	await get_tree().process_frame
 	_interior = packed.instantiate()
 	_interior.name = "CastleInterior"
@@ -689,7 +689,7 @@ func _dress_portals(map_id: String, parent: Node3D) -> void:
 		if ResourceLoader.exists(DOOR_MODEL):
 			door.add_child((load(DOOR_MODEL) as PackedScene).instantiate())
 		var sign := Label3D.new()
-		sign.text = "OUT OF BOUNDS"
+		sign.text = I18n.upper(tr("Out of bounds"))
 		sign.font = HudKit.deco()
 		sign.font_size = 40
 		sign.outline_size = 8
@@ -815,10 +815,12 @@ func _on_dungeon_state(map_id: String, state: Dictionary) -> void:
 	_apply_dungeon_state(map_id, state)
 	var message := String(state.get("message", ""))
 	if message != "" and message != String(previous.get("message", "")):
+		# The authority words its step messages in English (dungeons.json).
+		var shown := I18n.from_server(message)
 		var hud = world.get("hud") if world != null else null
 		if hud != null and hud.has_method("show_notice"):
-			hud.show_notice(message, "info")
-		_feedback(message)
+			hud.show_notice(shown, "info")
+		_feedback(shown)
 
 func _apply_dungeon_state(map_id: String, state: Dictionary) -> void:
 	if _instance_node != null and is_instance_valid(_instance_node) \
@@ -906,32 +908,32 @@ func _portal_contains(portal: Dictionary, point: Vector3) -> bool:
 	return (dx * dx + dz * dz) <= radius * radius
 
 func _portal_prompt(portal: Dictionary) -> String:
-	var label := String(portal.get("label", "the destination"))
+	var label := I18n.t(String(portal.get("label", ""))) if String(portal.get("label", "")) != "" else tr("the destination")
 	var to_map := String(portal.get("to_map", ""))
 	if to_map == MAP_INTERIOR or HPMaps.is_instanced(to_map) or _scene_map(to_map):
-		return "Enter %s" % label
-	return "Travel to the %s" % label
+		return tr("Enter %s") % label
+	return tr("Travel to the %s") % label
 
 func _loading_text(map_id: String) -> String:
 	if map_id == MAP_INTERIOR:
-		return "Entering Hogwarts Castle..."
+		return tr("Entering Hogwarts Castle...")
 	if _scene_map(map_id):
-		return "Entering %s..." % HPMaps.display_name(map_id)
-	return "Returning to the Grounds..."
+		return tr("Entering %s...") % I18n.t(HPMaps.display_name(map_id))
+	return tr("Returning to the Grounds...")
 
 func _loading_title(map_id: String) -> String:
 	if map_id == MAP_INTERIOR:
-		return "HOGWARTS CASTLE"
+		return I18n.upper(tr("Hogwarts Castle"))
 	if _scene_map(map_id):
-		return HPMaps.display_name(map_id).to_upper()
-	return "HOGWARTS GROUNDS"
+		return I18n.upper(I18n.t(HPMaps.display_name(map_id)))
+	return I18n.upper(tr("Hogwarts Grounds"))
 
 func _place_name(map_id: String) -> String:
 	if map_id == MAP_INTERIOR:
-		return "the castle"
+		return tr("the castle")
 	if _scene_map(map_id):
-		return HPMaps.display_name(map_id)
-	return "the grounds"
+		return I18n.t(HPMaps.display_name(map_id))
+	return tr("the grounds")
 
 func _spawn_point(map_id: String, spawn_id: String) -> Vector3:
 	var maps := _maps_script()
@@ -944,25 +946,25 @@ func _spawn_point(map_id: String, spawn_id: String) -> Vector3:
 		return table[spawn_id]
 	return table.get("default", Vector3(0.0, 57.86, 78.0))
 
-## Floor-aware location label. The shared catalog carries no floor plan yet, so
+## Floor-aware location label, in the player's language. The shared catalog carries no floor plan yet, so
 ## the interior's own floor table answers (castle_interior.gd::FLOORS); when the
 ## interior map is not loaded the level is derived from the same authored
 ## heights.
 func floor_display(map_id: String, y: float) -> String:
 	if _scene_map(map_id):
 		if _instance_node != null and is_instance_valid(_instance_node) and _instance_node.has_method("floor_display"):
-			return String(_instance_node.call("floor_display", y))
-		return HPMaps.display_name(map_id)
+			return I18n.t(String(_instance_node.call("floor_display", y)))
+		return I18n.t(HPMaps.display_name(map_id))
 	if map_id != MAP_INTERIOR:
-		return "Hogwarts Grounds"
+		return tr("Hogwarts Grounds")
 	if _interior != null and is_instance_valid(_interior) and _interior.has_method("floor_display"):
-		return String(_interior.call("floor_display", y))
+		return I18n.t(String(_interior.call("floor_display", y)))
 	var name := "Ground Floor"
-	for level in [[212.0, "Second Floor"], [206.0, "First Floor"], [200.0, "Ground Floor"], [194.0, "Dungeon Level"]]:
+	for level in [[212.0, "Second Floor"], [206.0, "First Floor"], [200.0, "Ground Floor"], [194.0, "Dungeon Level"]]:  # i18n
 		if y >= float(level[0]) - 0.6:
 			name = String(level[1])
 			break
-	return "Hogwarts Castle - %s" % name
+	return tr("Hogwarts Castle - %s") % tr(name)
 
 ## The shared map catalog, when the map transfer sync has landed. Loaded by path so
 ## a build without maps.gd still runs.
@@ -1045,7 +1047,7 @@ func _update_labels() -> void:
 		var flat := Vector2(local_player.global_position.x - LANDING_PAD_CENTRE.x,
 			local_player.global_position.z - LANDING_PAD_CENTRE.z)
 		if flat.length() <= LANDING_PAD_RADIUS and absf(y - LANDING_PAD_CENTRE.y) < 4.0:
-			text += "   |   Broom landing pad"
+			text += tr("   |   Broom landing pad")
 	_location_label.text = text
 	_prompt_label.text = _active_label
 	_notice_label.text = _notice
@@ -1059,51 +1061,51 @@ func _feedback(text: String) -> void:
 func _reason_text(reason: String) -> String:
 	match reason:
 		"no_flight":
-			return "The broom cannot fly inside the castle - dismount on the landing pad first."
+			return tr("The broom cannot fly inside the castle - dismount on the landing pad first.")
 		"no_portal":
-			return "There is no doorway here."
+			return tr("There is no doorway here.")
 		"wrong_map":
-			return "That door does not lead there."
+			return tr("That door does not lead there.")
 		"map_unavailable":
-			return "The destination map is unavailable."
+			return tr("The destination map is unavailable.")
 		"map_full":
-			return "The destination is full right now."
+			return tr("The destination is full right now.")
 		"transfer_pending":
-			return "A transfer is already in progress."
+			return tr("A transfer is already in progress.")
 		"bad_transfer_token":
-			return "The transfer expired; try the door again."
+			return tr("The transfer expired; try the door again.")
 		"aborted":
-			return "The transfer was cancelled."
+			return tr("The transfer was cancelled.")
 		"range":
-			return "Stand closer to the door."
+			return tr("Stand closer to the door.")
 		"level_too_low":
-			return "You are not experienced enough to enter."
+			return tr("You are not experienced enough to enter.")
 		"daily_limit":
-			return "You have entered this place enough times today - come back tomorrow."
+			return tr("You have entered this place enough times today - come back tomorrow.")
 		"no_portkey":
-			return "You have no Portkey boot."
+			return tr("You have no Portkey boot.")
 		"portkey_active":
-			return "Your Portkey is already waiting - grab hold of it."
+			return tr("Your Portkey is already waiting - grab hold of it.")
 		"portkey_gone":
-			return "That Portkey has already gone."
+			return tr("That Portkey has already gone.")
 		"not_in_party":
-			return "That Portkey is not yours - only its owner's party may hold on."
+			return tr("That Portkey is not yours - only its owner's party may hold on.")
 		"in_dungeon":
-			return "A Portkey will not work in here."
+			return tr("A Portkey will not work in here.")
 		"no_floo_powder":
-			return "You have no Floo Powder - buy a pinch at the fireplace."
+			return tr("You have no Floo Powder - buy a pinch at the fireplace.")
 		"floo_unknown":
-			return "You have never visited that fireplace."
+			return tr("You have never visited that fireplace.")
 		"in_combat":
-			return "The flames will not take you while you are fighting."
+			return tr("The flames will not take you while you are fighting.")
 		"mounted":
-			return "Dismount before stepping into the fireplace."
+			return tr("Dismount before stepping into the fireplace.")
 		"out_of_range":
-			return "Move closer and try again."
+			return tr("Move closer and try again.")
 		"transfer_expired":
-			return "The transfer timed out; you are back at your last safe spot."
+			return tr("The transfer timed out; you are back at your last safe spot.")
 		_:
-			return "Transfer refused (%s)." % reason if reason != "" else ""
+			return tr("Transfer refused (%s).") % reason if reason != "" else ""
 
 # ------------------------------------------------------------- evidence
 

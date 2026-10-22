@@ -135,7 +135,7 @@ func _build_ribbon() -> void:
 	_close_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_close_button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
 	_close_button.add_theme_constant_override("h_separation", 0)
-	_close_button.tooltip_text = "Close"
+	_close_button.tooltip_text = tr("Close")
 	_close_button.pressed.connect(close)
 	_close_button.visible = close_button_visible
 	# Pinned to the ribbon's right end.

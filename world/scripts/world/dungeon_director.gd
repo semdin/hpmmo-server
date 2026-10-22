@@ -102,7 +102,7 @@ func _tick_lock(map_id: String, run: Dictionary) -> void:
 			run["open"].erase(String(gate))
 		else:
 			run["open"][String(gate)] = true
-	run["message"] = String(lock["message"]) if inside else "The way back is open. Regroup and try again."
+	run["message"] = String(lock["message"]) if inside else "The way back is open. Regroup and try again."  # i18n
 	_publish(map_id, run)
 
 ## dungeons.json `hazards`: a periodic shove of every player inside a band of

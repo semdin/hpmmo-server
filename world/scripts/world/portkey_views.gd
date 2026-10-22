@@ -47,7 +47,7 @@ func _on_state(uid: int, state: Dictionary) -> void:
 		if not _views.has(id):
 			_views[id] = _build(state)
 			if int(state.get("owner", 0)) != uid:
-				_notice("%s set down a Portkey to %s - hold on to it! (F)" % [state.get("owner_name", "A party member"), state.get("label", "")])
+				_notice(tr("%s set down a Portkey to %s - hold on to it! (F)") % [String(state.get("owner_name", "")) if String(state.get("owner_name", "")) != "" else tr("A party member"), I18n.t(String(state.get("label", "")))])
 		var view: Dictionary = _views[id]
 		view["state"] = state
 		_sync_holders(view, state.get("holders", []), at)
@@ -67,7 +67,7 @@ func _on_state(uid: int, state: Dictionary) -> void:
 		_drop(id)
 	elif phase == "gone":
 		if int(state.get("owner", 0)) == uid:
-			_notice("The Portkey fizzled - nobody was holding on. The boot is back in your bag.")
+			_notice(tr("The Portkey fizzled - nobody was holding on. The boot is back in your bag."))
 		var view: Dictionary = _views.get(id, {})
 		if not view.is_empty():
 			_sync_holders(view, [], at)
@@ -148,7 +148,7 @@ func _process(_delta: float) -> void:
 			continue
 		var left := maxf(0.0, float(int(state.get("ends_tick", 0)) - int(SimAuthority.sim_tick)) * HPProtocol.SIM_DT)
 		var holders: Array = state.get("holders", [])
-		(view.label as Label3D).text = "Portkey to %s\n%d" % [state.get("label", ""), ceili(left)]
+		(view.label as Label3D).text = tr("Portkey to %s\n%d") % [I18n.t(String(state.get("label", ""))), ceili(left)]
 		# Moving away from the boot lets go of it (one request per release).
 		if holders.has(me) and not _letting_go:
 			var player = get_parent().get("local_player")

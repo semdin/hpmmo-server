@@ -28,6 +28,7 @@ const STATE_PATH := "user://onboarding.json"
 const AIRBORNE_HEIGHT := 2.5
 const SAFE_ZONE_POLL := 0.3
 
+# i18n-begin
 const STEPS := [
 	{"id": "dummy", "title": "Practice on a dummy",
 	 "hint": "Cast any spell at a training dummy in the courtyard (Tab to target one)."},
@@ -40,6 +41,7 @@ const STEPS := [
 	{"id": "castle", "title": "Enter the castle",
 	 "hint": "Dismount at the entrance and press F in the doorway to enter Hogwarts."},
 ]
+# i18n-end
 
 var player: Node3D = null
 var binder: UIStateBinder = null
@@ -146,7 +148,7 @@ func _build() -> void:
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	margin.add_child(column)
 
-	_title = UITheme.heading("Getting started", UITheme.FS_HEADER)
+	_title = UITheme.heading(tr("Getting started"), UITheme.FS_HEADER)
 	column.add_child(UITheme.icon_row("ui_interact", _title, 22.0))
 	column.add_child(UITheme.divider())
 
@@ -168,7 +170,7 @@ func _build() -> void:
 
 	_hide_button = Button.new()
 	_hide_button.name = "Hide"
-	_hide_button.text = "Hide (J)"
+	_hide_button.text = tr("Hide (J)")
 	_hide_button.focus_mode = Control.FOCUS_NONE
 	_hide_button.custom_minimum_size = Vector2(84, 26)
 	_hide_button.add_theme_font_size_override("font_size", UITheme.FS_SMALL)
@@ -197,12 +199,12 @@ func _refresh() -> void:
 	var lines: Array[String] = []
 	for index in range(STEPS.size()):
 		var entry: Dictionary = STEPS[index]
-		var mark := "Done" if index < current_index else ("Next" if index == current_index else "Later")
-		lines.append("%s: %s" % [mark, entry.title])
-	if not is_complete(): lines.append("\n" + String(STEPS[current_index].hint))
-	lines.append("\nCONTROLS\nWASD move · Right-drag camera · Wheel zoom\nLMB attack · 1–4 / Q / E spells · F1–F4 potions · Tab target\nShift mount · Space rise · Ctrl descend\nF talk · Z loot · I bag · O forge · M map\nJ guide · Esc menu & settings · Enter chat (!text shouts)\n\nEQUIPMENT\nSelect to compare. Right-click, double-click, or drag to equip. Changes require five seconds out of combat. Dismount to change brooms.")
-	_body.text = "\n".join(lines) if expanded_guide else ("Training complete" if is_complete() else String(STEPS[current_index].title))
-	_title.text = "GUIDE (%d/%d)" % [current_index, STEPS.size()]
+		var mark := tr("Done") if index < current_index else (tr("Next") if index == current_index else tr("Later"))
+		lines.append("%s: %s" % [mark, tr(String(entry.title))])
+	if not is_complete(): lines.append("\n" + tr(String(STEPS[current_index].hint)))
+	lines.append(tr("\nCONTROLS\nWASD move · Right-drag camera · Wheel zoom\nLMB attack · 1–4 / Q / E spells · F1–F4 potions · Tab target\nShift mount · Space rise · Ctrl descend\nF talk · Z loot · I bag · O forge · M map\nJ guide · Esc menu & settings · Enter chat (!text shouts)\n\nEQUIPMENT\nSelect to compare. Right-click, double-click, or drag to equip. Changes require five seconds out of combat. Dismount to change brooms."))
+	_body.text = "\n".join(lines) if expanded_guide else (tr("Training complete") if is_complete() else tr(String(STEPS[current_index].title)))
+	_title.text = I18n.upper(tr("Guide (%d/%d)")) % [current_index, STEPS.size()]
 	var width := minf(420, canvas.x - 32) if expanded_guide else 210.0
 	_body.custom_minimum_size = Vector2(width-32, 0)
 	_body.add_theme_font_size_override("font_size", 15 if expanded_guide else 13)
@@ -214,7 +216,7 @@ func _refresh() -> void:
 	var column := _body_scroll.get_parent()
 	column.get_child(1).visible = expanded_guide or not compact
 	_hide_button.get_parent().visible = expanded_guide or not compact
-	_hide_button.text = "Collapse (J)" if expanded_guide else "Guide (J)"
+	_hide_button.text = tr("Collapse (J)") if expanded_guide else tr("Guide (J)")
 	_panel.theme_type_variation = &"ArcaneCard"
 
 ## --------------------------------------------------------------- progress

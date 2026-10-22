@@ -297,7 +297,7 @@ func _spawn_pack(index: int) -> void:
 			if i == 0 and pack.get("boss", false):
 				_apply_boss(mob, pack)
 			elif pack.get("boss", false):
-				mob.mob_name = "Elite Bodyguard"
+				mob.mob_name = "Elite Bodyguard"  # i18n
 			elif i == 2 and String(pack.get("mob", "")) == "darksnatcher":
 				mob.is_ranged = true
 			mob.died.connect(_on_member_died.bind(index))

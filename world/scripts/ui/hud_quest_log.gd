@@ -38,10 +38,10 @@ func _ready() -> void:
 	_grid.add_theme_constant_override("h_separation", 10)
 	_grid.add_theme_constant_override("v_separation", 10)
 	scroll.add_child(_grid)
-	_empty = HudKit.label("No open quests. Level up to unlock more.", 15, HudKit.TEXT_DIM, HudKit.body(), 0)
+	_empty = HudKit.label(tr("No open quests. Level up to unlock more."), 15, HudKit.TEXT_DIM, HudKit.body(), 0)
 	_empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	body.add_child(_empty)
-	var hint := HudKit.label("Click a card to read it  ·  finished quests pay when you claim them  ·  J / Esc: close", 13, HudKit.TEXT_DIM, HudKit.body(), 0)
+	var hint := HudKit.label(tr("Click a card to read it  ·  finished quests pay when you claim them  ·  J / Esc: close"), 13, HudKit.TEXT_DIM, HudKit.body(), 0)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	body.add_child(hint)
 	if has_node("/root/QuestManager"):
@@ -87,7 +87,7 @@ func _refresh() -> void:
 			ready += 1
 		_grid.add_child(_card(q))
 	_empty.visible = entries.is_empty()
-	_summary.text = "%d open  ·  %d ready to claim  ·  %d completed" % [entries.size() - ready, ready, QuestManager.done_count()]
+	_summary.text = tr("%d open  ·  %d ready to claim  ·  %d completed") % [entries.size() - ready, ready, QuestManager.done_count()]
 
 func _card(q: Dictionary) -> Control:
 	var id := String(q.get("id", ""))
@@ -113,19 +113,19 @@ func _card(q: Dictionary) -> Control:
 	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(col)
 	var ink := Color(0.22, 0.13, 0.05)
-	var tag := "READY" if QuestManager.is_ready(id) else ("NEW" if QuestManager.is_new(id) else "Lv. %d" % int(q.get("level", 1)))
-	var head := _ink(tag + "  ·  " + String(q.get("chapter", "")), 11, Color(0.42, 0.25, 0.08), HudKit.title())
+	var tag := I18n.upper(tr("Ready")) if QuestManager.is_ready(id) else (I18n.upper(tr("New")) if QuestManager.is_new(id) else tr("Lv. %d") % int(q.get("level", 1)))
+	var head := _ink(tag + "  ·  " + I18n.t(String(q.get("chapter", ""))), 11, Color(0.42, 0.25, 0.08), HudKit.title())
 	col.add_child(head)
-	var title := _ink(String(q.get("title", "")), 16, Color(0.36, 0.12, 0.05), HudKit.bold())
+	var title := _ink(I18n.t(String(q.get("title", ""))), 16, Color(0.36, 0.12, 0.05), HudKit.bold())
 	col.add_child(title)
 	col.add_child(_ink(QuestManager.objective_text(q), 13, ink, HudKit.body()))
-	var reward := "%d EXP  ·  %d Galleons" % [int(q.get("reward_exp", 0)), int(q.get("reward_gold", 0))]
+	var reward := tr("%d EXP  ·  %d Galleons") % [int(q.get("reward_exp", 0)), int(q.get("reward_gold", 0))]
 	var items := QuestManager.reward_items_text(q)
 	if items != "":
 		reward += "\n" + items
 	col.add_child(_ink(reward, 12, Color(0.4, 0.28, 0.1), HudKit.body()))
 	if QuestManager.is_ready(id):
-		var claim := HudKit.button("Claim reward", 14)
+		var claim := HudKit.button(tr("Claim reward"), 14)
 		claim.focus_mode = Control.FOCUS_NONE
 		claim.pressed.connect(func(): QuestManager.claim(id))
 		col.add_child(claim)

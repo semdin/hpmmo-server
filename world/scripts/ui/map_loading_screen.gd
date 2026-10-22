@@ -101,7 +101,7 @@ func is_open() -> bool:
 func open(title: String, status: String) -> void:
 	_title.text = title
 	_status.text = status
-	_tip.text = "Tip: " + String(TIPS[randi() % TIPS.size()])
+	_tip.text = tr("Tip: %s") % tr(String(TIPS[randi() % TIPS.size()]))
 	_target = 5.0
 	_bar.value = 0.0
 	_root.visible = true

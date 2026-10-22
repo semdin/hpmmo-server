@@ -8,7 +8,7 @@ class_name HudCharacterWindow
 ## authority fights with). The attribute block is where attribute points (two
 ## per level) will be spent; it shows the four attributes already.
 
-const ATTRIBUTES := [["vit", "Vitality"], ["int", "Intellect"], ["str", "Strength"], ["dex", "Agility"]]
+const ATTRIBUTES := [["vit", "Vitality"], ["int", "Intellect"], ["str", "Strength"], ["dex", "Agility"]]  # i18n
 
 var player: Node3D = null
 var _crest: TextureRect
@@ -51,47 +51,47 @@ func _ready() -> void:
 	_sub = HudKit.label("", 14, HudKit.PARCHMENT, HudKit.body(), 2)
 	names.add_child(_sub)
 	var top := _grid(_content, 3)
-	_cell(top, "level", "Level")
-	_cell(top, "exp", "Experience")
-	_cell(top, "exp_next", "Next level")
-	_section("STATUS")
+	_cell(top, "level", tr("Level"))
+	_cell(top, "exp", tr("Experience"))
+	_cell(top, "exp_next", tr("Next level"))
+	_section(tr("Status"))
 	var status := _grid(_content, 2)
-	_cell(status, "hp", "Health")
-	_cell(status, "mana", "Mana")
-	_cell(status, "attack", "Attack value")
-	_cell(status, "magic", "Magic attack value")
-	_cell(status, "armour", "Armour")
-	_cell(status, "crit", "Critical chance")
-	_cell(status, "spell_power", "Spell power")
-	_cell(status, "skill", "Skill power")
-	_section("ATTRIBUTES")
+	_cell(status, "hp", tr("Health"))
+	_cell(status, "mana", tr("Mana"))
+	_cell(status, "attack", tr("Attack value"))
+	_cell(status, "magic", tr("Magic attack value"))
+	_cell(status, "armour", tr("Armour"))
+	_cell(status, "crit", tr("Critical chance"))
+	_cell(status, "spell_power", tr("Spell power"))
+	_cell(status, "skill", tr("Skill power"))
+	_section(tr("Attributes"))
 	var attrs := _grid(_content, 2)
 	for pair in ATTRIBUTES:
-		_attribute(attrs, String(pair[0]), String(pair[1]))
+		_attribute(attrs, String(pair[0]), tr(String(pair[1])))
 	_attr_points = HudKit.label("", 13, HudKit.TEXT_DIM, HudKit.body(), 0)
 	_attr_points.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_content.add_child(_attr_points)
-	_section("PROPERTIES")
+	_section(tr("Properties"))
 	var props := _grid(_content, 2)
-	_prop(props, "attack_speed", "Attack speed")
-	_prop(props, "cast_speed", "Casting speed")
-	_prop(props, "move_speed", "Movement speed")
-	_prop(props, "pierce", "Piercing hit")
-	_prop(props, "melee_res", "Melee resist")
-	_prop(props, "projectile_res", "Projectile resist")
-	_prop(props, "spell_res", "Spell resist")
-	_prop(props, "block", "Block")
-	_prop(props, "life_steal", "Life drain")
-	_prop(props, "reflect", "Reflect")
-	_prop(props, "hp_regen", "Health regen")
-	_prop(props, "mana_regen", "Mana regen")
-	_prop(props, "broom", "Broom speed")
-	_prop(props, "exp_bonus", "Experience")
-	_prop(props, "gold_bonus", "Galleons found")
-	_prop(props, "galleons", "Galleons")
+	_prop(props, "attack_speed", tr("Attack speed"))
+	_prop(props, "cast_speed", tr("Casting speed"))
+	_prop(props, "move_speed", tr("Movement speed"))
+	_prop(props, "pierce", tr("Piercing hit"))
+	_prop(props, "melee_res", tr("Melee resist"))
+	_prop(props, "projectile_res", tr("Projectile resist"))
+	_prop(props, "spell_res", tr("Spell resist"))
+	_prop(props, "block", tr("Block"))
+	_prop(props, "life_steal", tr("Life drain"))
+	_prop(props, "reflect", tr("Reflect"))
+	_prop(props, "hp_regen", tr("Health regen"))
+	_prop(props, "mana_regen", tr("Mana regen"))
+	_prop(props, "broom", tr("Broom speed"))
+	_prop(props, "exp_bonus", tr("Experience"))
+	_prop(props, "gold_bonus", tr("Galleons found"))
+	_prop(props, "galleons", tr("Galleons"))
 
 func _section(text: String) -> void:
-	var label := HudKit.label(text, 13, HudKit.GOLD_LT, HudKit.title(), 2)
+	var label := HudKit.label(I18n.upper(text), 13, HudKit.GOLD_LT, HudKit.title(), 2)
 	_content.add_child(UITheme.divider())
 	_content.add_child(label)
 
@@ -157,7 +157,7 @@ func _attribute(grid: GridContainer, key: String, caption: String) -> void:
 	plus.text = "+"
 	plus.focus_mode = Control.FOCUS_NONE
 	plus.custom_minimum_size = Vector2(26, 24)
-	plus.tooltip_text = String((HPRules.attribute_rules().get("stats", {}) as Dictionary).get(key, {}).get("desc", ""))
+	plus.tooltip_text = I18n.t(String((HPRules.attribute_rules().get("stats", {}) as Dictionary).get(key, {}).get("desc", "")))
 	plus.pressed.connect(func():
 		if is_instance_valid(player):
 			SimNet.submit_attribute(player, key))
@@ -234,7 +234,7 @@ func _refresh() -> void:
 			(_values[k] as Label).text = String(text[k])
 	var free := int(player.attribute_points)
 	if _attr_points != null:
-		_attr_points.text = "Status points: %d  ·  %d per level" % [free, int(HPRules.attribute_rules().get("points_per_level", 2))]
+		_attr_points.text = tr("Status points: %d  ·  %d per level") % [free, int(HPRules.attribute_rules().get("points_per_level", 2))]
 		_attr_points.add_theme_color_override("font_color", HudKit.GOLD_HI if free > 0 else HudKit.TEXT_DIM)
 	for id in _plus:
 		var plus := _plus[id] as Button
@@ -242,5 +242,5 @@ func _refresh() -> void:
 		plus.modulate.a = 0.35 if plus.disabled else 1.0
 	_name.text = String(player.player_name)
 	var rank := HPRules.house_rank_for(int(player.get("house_rep") if player.get("house_rep") != null else 0))
-	_sub.text = "%s  ·  %s" % [String(player.house), HPRules.house_rank_title(rank)]
+	_sub.text = "%s  ·  %s" % [String(player.house), I18n.t(HPRules.house_rank_title(rank))]
 	_crest.texture = UITheme.icon_for("house_" + String(player.house).to_lower())

@@ -8,8 +8,10 @@ extends Control
 ## question). Every change is a request to the authority
 ## (`SimNet.submit_equipment`); the window only shows what it answers.
 
+# i18n-begin
 const SLOT_LABELS := {"head":"Head", "chest":"Robes", "hands":"Hands", "feet":"Feet", "main_hand":"Wand", "off_hand":"Focus", "neck":"Neck", "ring_left":"Ring I", "ring_right":"Ring II", "broom":"Broom"}
 const REASONS := {"in_combat":"Wait five seconds after combat.", "casting":"Finish casting first.", "dead":"You are defeated.", "mounted":"Dismount before changing your broom.", "level_too_low":"Your level is too low for that item.", "bag_full":"No room for the replaced item.", "wrong_slot":"That item does not fit.", "item_missing":"That item is no longer available.", "stale_inventory":"Inventory changed. Please try again.", "stale_request":"Action already handled.", "no_gold":"Not enough Galleons.", "no_material":"Missing refinement material.", "no_wand":"Equip a wand first.", "max_tier":"Already fully refined.", "refined":"Refined!", "enchanted":"The enchantment holds!", "enchant_failed":"The weave slipped - the scroll is spent.", "no_scroll":"You have no such scroll.", "bonus_full":"This item cannot hold more enchantments.", "no_bonus":"There is nothing to reweave yet.", "not_enchantable":"That item cannot be enchanted.", "nothing_equipped":"Equip an item in that slot first.", "not_refinable":"That item cannot be refined.", "refinement_failed":"Refinement failed.", "save_conflict":"Inventory refreshed from your saved character.", "transfer_pending":"Wait until the map loads.", "invalid_state":"Equipment temporarily unavailable.", "resource_full":"That resource is already full.", "consumed":"", "sold":"", "not_sellable":"No merchant wants that.", "destroyed":"", "not_destroyable":"Take it off before destroying it."}
+# i18n-end
 const COLUMNS := 5
 const ROWS := 8
 const DOLL_LEFT := ["head", "chest", "hands", "feet", "main_hand"]
@@ -64,8 +66,8 @@ func _ready() -> void:
 	_tooltip = ItemTooltip.new()
 	_presentation_layer.add_child(_tooltip)
 	_ring_menu = PopupMenu.new()
-	_ring_menu.add_item("Replace left ring", 0)
-	_ring_menu.add_item("Replace right ring", 1)
+	_ring_menu.add_item(tr("Replace left ring"), 0)
+	_ring_menu.add_item(tr("Replace right ring"), 1)
 	_ring_menu.id_pressed.connect(func(id): _request("equip", "ring_left" if id == 0 else "ring_right", _ring_entry))
 	add_child(_ring_menu)
 	visibility_changed.connect(_on_visibility_changed)
@@ -74,12 +76,12 @@ func _ready() -> void:
 	hide()
 
 func _make_window(title: String, icon: String, size: Vector2) -> UIWindow:
-	var window := ArcaneSkin.window(title, size, icon)
+	var window := ArcaneSkin.window(I18n.upper(title), size, icon)
 	_presentation_layer.add_child(window)
 	return window
 
 func _build_inventory() -> void:
-	_window = _make_window("INVENTORY", "ui_inventory", Vector2(272, 700))
+	_window = _make_window(tr("Inventory"), "ui_inventory", Vector2(272, 700))
 	_window.name = "Window"
 	_window.closed.connect(hide)
 	close_button = _window._close_button
@@ -99,7 +101,7 @@ func _build_inventory() -> void:
 	for slot_id in DOLL_LEFT + DOLL_RIGHT:
 		var slot := _make_slot(Vector2(_doll_px, _doll_px))
 		slot.equipment_slot = slot_id
-		slot.caption = SLOT_LABELS[slot_id]
+		slot.caption = tr(String(SLOT_LABELS[slot_id]))
 		(left if slot_id in DOLL_LEFT else right).add_child(slot)
 		_doll_slots.append(slot)
 	_window.body.add_child(UITheme.divider())
@@ -118,10 +120,10 @@ func _build_inventory() -> void:
 	footer.add_theme_constant_override("separation", 6)
 	_window.body.add_child(footer)
 	_merchant_button = Button.new()
-	_merchant_button.text = "Merchant"
+	_merchant_button.text = tr("Merchant")
 	_merchant_button.toggle_mode = true
 	_merchant_button.focus_mode = Control.FOCUS_NONE
-	_merchant_button.tooltip_text = "Open the merchant to sell items"
+	_merchant_button.tooltip_text = tr("Open the merchant to sell items")
 	_merchant_button.toggled.connect(func(on: bool): _set_merchant_open(on))
 	footer.add_child(_merchant_button)
 	var spacer := Control.new()
@@ -129,19 +131,19 @@ func _build_inventory() -> void:
 	footer.add_child(spacer)
 	footer.add_child(_coin_icon(18))
 	galleons_label = UITheme.body("0", UITheme.FS_LABEL, UITheme.c("gold_hi"))
-	galleons_label.tooltip_text = "Galleons"
+	galleons_label.tooltip_text = tr("Galleons")
 	galleons_label.mouse_filter = Control.MOUSE_FILTER_PASS
 	footer.add_child(galleons_label)
-	footer.add_child(UITheme.body("Galleons", UITheme.FS_SMALL, UITheme.c("gold_lt")))
+	footer.add_child(UITheme.body(tr("Galleons"), UITheme.FS_SMALL, UITheme.c("gold_lt")))
 
 func _build_merchant() -> void:
-	_merchant = _make_window("MERCHANT", "currency_galleons", Vector2(MERCHANT_W, 262))
+	_merchant = _make_window(tr("Merchant"), "currency_galleons", Vector2(MERCHANT_W, 262))
 	_merchant.name = "Merchant"
 	_merchant.closed.connect(func():
 		_merchant_button.set_pressed_no_signal(false)
 		_clear_offer())
 	_merchant.hide()
-	_offer_hint = UITheme.body("Drag an item here, or right-click it in your bag.", UITheme.FS_SMALL, UITheme.c("text_dim"))
+	_offer_hint = UITheme.body(tr("Drag an item here, or right-click it in your bag."), UITheme.FS_SMALL, UITheme.c("text_dim"))
 	_offer_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_offer_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_merchant.body.add_child(_offer_hint)
@@ -184,13 +186,13 @@ func _build_merchant() -> void:
 	buttons.add_theme_constant_override("separation", 6)
 	_merchant.body.add_child(buttons)
 	_sell_button = Button.new()
-	_sell_button.text = "Sell"
+	_sell_button.text = tr("Sell")
 	_sell_button.focus_mode = Control.FOCUS_NONE
 	_sell_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_sell_button.pressed.connect(_sell_offer)
 	buttons.add_child(_sell_button)
 	var cancel := Button.new()
-	cancel.text = "Cancel"
+	cancel.text = tr("Cancel")
 	cancel.focus_mode = Control.FOCUS_NONE
 	cancel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	cancel.pressed.connect(_clear_offer)
@@ -293,16 +295,16 @@ func _comparison(slot: UISlot, destination_override := "") -> String:
 	var after := HPEquipment.stats(player.base_max_hp, player.base_max_mana, gear)
 	var parts: Array = []
 	var magic := _mid_attack(after, "magic_attack") - _mid_attack(before, "magic_attack")
-	if absf(magic) >= 0.5: parts.append("Magic Attack %+.0f" % magic)
+	if absf(magic) >= 0.5: parts.append(tr("Magic Attack %+.0f") % magic)
 	var spell := float(after.spell_power) - float(before.spell_power)
-	if absf(spell) >= 0.5: parts.append("Spell Power %+.0f%%" % spell)
-	if after.max_hp != before.max_hp: parts.append("Health %+d" % (after.max_hp - before.max_hp))
-	if after.max_mana != before.max_mana: parts.append("Mana %+d" % (after.max_mana - before.max_mana))
-	if int(after.armor) != int(before.armor): parts.append("Armour %+d" % (int(after.armor) - int(before.armor)))
-	if not is_equal_approx(after.move_speed, before.move_speed): parts.append("Move %+.0f%%" % (after.move_speed - before.move_speed))
-	if not is_equal_approx(after.mount_speed, before.mount_speed): parts.append("Speed %+.0f" % (after.mount_speed - before.mount_speed))
+	if absf(spell) >= 0.5: parts.append(tr("Spell Power %+.0f%%") % spell)
+	if after.max_hp != before.max_hp: parts.append(tr("Health %+d") % (after.max_hp - before.max_hp))
+	if after.max_mana != before.max_mana: parts.append(tr("Mana %+d") % (after.max_mana - before.max_mana))
+	if int(after.armor) != int(before.armor): parts.append(tr("Armour %+d") % (int(after.armor) - int(before.armor)))
+	if not is_equal_approx(after.move_speed, before.move_speed): parts.append(tr("Move %+.0f%%") % (after.move_speed - before.move_speed))
+	if not is_equal_approx(after.mount_speed, before.mount_speed): parts.append(tr("Speed %+.0f") % (after.mount_speed - before.mount_speed))
 	if parts.is_empty(): return ""
-	return "%s: %s" % [SLOT_LABELS[destination], " · ".join(parts)]
+	return "%s: %s" % [tr(String(SLOT_LABELS[destination])), " · ".join(parts)]
 
 ## The middle of a wand range at its worn +N (derived stats keep the +0 range).
 static func _mid_attack(stats: Dictionary, key: String) -> float:
@@ -316,7 +318,7 @@ func _on_slot_entered(slot: UISlot) -> void:
 	if slot != _offer_slot and is_instance_valid(player):
 		if _merchant.visible and slot.equipment_slot == "":
 			var price := _price_of(slot.entry)
-			if price > 0: _tooltip._add_lore("Sells for %s Galleons" % galleon_text(price))
+			if price > 0: _tooltip._add_lore(tr("Sells for %s Galleons") % galleon_text(price))
 	_tooltip.follow_cursor()
 
 func _on_slot_exited(slot: UISlot) -> void:
@@ -359,7 +361,7 @@ func _activate(slot: UISlot) -> void:
 		for index in 2:
 			var destination: String = ["ring_left","ring_right"][index]
 			var worn: Dictionary = player.equipment[destination]
-			_ring_menu.set_item_text(index, "%s: replace %s" % [SLOT_LABELS[destination],HPEquipment.item(worn.id).get("name",worn.id)])
+			_ring_menu.set_item_text(index, tr("%s: replace %s") % [tr(String(SLOT_LABELS[destination])), I18n.t(String(HPEquipment.item(worn.id).get("name",worn.id)))])
 			_ring_menu.set_item_tooltip(index, _comparison(slot,destination))
 		_ring_menu.position = DisplayServer.mouse_get_position()
 		_ring_menu.popup()
@@ -423,17 +425,17 @@ func _offer(entry: Dictionary) -> void:
 	if held.is_empty(): return
 	var price := _price_of(held)
 	if price <= 0:
-		_notify(REASONS["not_sellable"], "warn")
+		_notify(tr(REASONS["not_sellable"]), "warn")
 		return
 	_sell_entry = held.duplicate(true)
 	_offer_slot.set_item(String(held.id), held)
-	var name := String(HPEquipment.item(held.id).get("name", held.id))
+	var name := I18n.t(String(HPEquipment.item(held.id).get("name", held.id)))
 	if int(held.get("tier", 0)) > 0: name += " +%d" % int(held.tier)
 	if int(held.get("amount", 1)) > 1: name += "  x%d" % int(held.amount)
 	_offer_name.text = name
 	_offer_price.text = galleon_text(price)
 	_offer_box.get_child(2).visible = true
-	_offer_hint.text = "Sell this item?"
+	_offer_hint.text = tr("Sell this item?")
 	_sell_button.disabled = _pending
 
 func _clear_offer() -> void:
@@ -443,7 +445,7 @@ func _clear_offer() -> void:
 	_offer_name.text = ""
 	_offer_price.text = ""
 	_offer_box.get_child(2).visible = false
-	_offer_hint.text = "Drag an item here, or right-click it in your bag."
+	_offer_hint.text = tr("Drag an item here, or right-click it in your bag.")
 	_sell_button.disabled = true
 
 func _sell_offer() -> void:
@@ -454,7 +456,7 @@ func _sell_offer() -> void:
 # ------------------------------------------------------------------ destroy
 
 func _build_destroy_confirm() -> void:
-	_destroy_window = _make_window("DESTROY ITEM", "ui_inventory", Vector2(340, 190))
+	_destroy_window = _make_window(tr("Destroy Item"), "ui_inventory", Vector2(340, 190))
 	_destroy_window.name = "DestroyConfirm"
 	_destroy_window.closed.connect(func(): _destroy_entry = {})
 	_destroy_window.hide()
@@ -466,7 +468,7 @@ func _build_destroy_confirm() -> void:
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 8)
 	_destroy_window.body.add_child(buttons)
-	for spec in [["Yes", _confirm_destroy], ["No", func(): _destroy_window.close()]]:
+	for spec in [[tr("Yes"), _confirm_destroy], [tr("No"), func(): _destroy_window.close()]]:
 		var b := Button.new()
 		b.text = spec[0]
 		b.focus_mode = Control.FOCUS_NONE
@@ -498,7 +500,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		slot = _hover_slot
 	get_viewport().set_input_as_handled()
 	if slot == null or slot.item_id == "":
-		_notify("Select an item in your bag first.", "warn")
+		_notify(tr("Select an item in your bag first."), "warn")
 		return
 	if _pending or _locked(slot.entry):
 		return
@@ -506,15 +508,14 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 func _ask_destroy(entry: Dictionary) -> void:
 	_destroy_entry = entry.duplicate(true)
-	var name := String(HPEquipment.item(String(entry.get("id", ""))).get("name", entry.get("id", "")))
+	var name := I18n.t(String(HPEquipment.item(String(entry.get("id", ""))).get("name", entry.get("id", ""))))
 	var tier := int(entry.get("tier", 0))
 	if tier > 0:
 		name += " +%d" % tier
 	var amount := int(entry.get("amount", 1))
 	if amount > 1:
 		name += " x%d" % amount
-	_destroy_text.text = "Destroy %s?
-It is gone for good." % name
+	_destroy_text.text = tr("Destroy %s?\nIt is gone for good.") % name
 	var canvas := get_viewport().get_visible_rect().size
 	ArcaneSkin.place(_destroy_window, ((canvas - Vector2(340, 190)) * 0.5).floor(), Vector2(340, 190))
 	_destroy_window.open()
@@ -546,13 +547,13 @@ func _answer(answer: Dictionary) -> void:
 	var reason := String(answer.get("reason", ""))
 	if ok and reason == "sold":
 		_clear_offer()
-		_notify("Sold for %s Galleons." % galleon_text(_sold_price), "good")
+		_notify(tr("Sold for %s Galleons.") % galleon_text(_sold_price), "good")
 	elif ok and reason == "destroyed":
-		_notify("Item destroyed.", "info")
+		_notify(tr("Item destroyed."), "info")
 	elif not ok:
-		_notify(String(REASONS.get(reason, "Unable to change equipment.")), "warn")
+		_notify(I18n.t(String(REASONS.get(reason, tr("Unable to change equipment.")))), "warn")
 	elif String(REASONS.get(reason, "")) != "":
-		_notify(String(REASONS[reason]), "good")
+		_notify(I18n.t(String(REASONS[reason])), "good")
 	if ok:
 		_play_feedback_sound(_last_operation)
 	refresh()

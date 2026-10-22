@@ -99,7 +99,7 @@ var attribute_points: int = 0
 ## Titles earned (dungeons.json first_clear_title ids, `quests.titles`); the
 ## newest is shown above the name.
 var titles: Array = []
-const TITLE_NAMES := {"fc_explorer": "Forbidden Corridor Explorer"}
+const TITLE_NAMES := {"fc_explorer": "Forbidden Corridor Explorer"}  # i18n
 ## An authority shove (knockback, a pixie's lift, Fluffy's breath): a velocity
 ## of its own that rides on top of the input-driven one and fades out.
 var _shove := Vector3.ZERO
@@ -563,7 +563,7 @@ func _update_nameplate() -> void:
 		# A child of the name, so hiding the nameplate hides both lines.
 		nameplate.add_child(_nameplate_sub)
 	_nameplate_sub.position = Vector3(0, -0.13, 0)
-	_nameplate_sub.text = "Lv. %d  ·  %s" % [level, house]
+	_nameplate_sub.text = tr("Lv. %d  ·  %s") % [level, house]
 	_nameplate_sub.font_size = 30
 	_nameplate_sub.outline_size = 9
 	_nameplate_sub.pixel_size = 0.0034
@@ -765,7 +765,7 @@ func _physics_process(delta: float) -> void:
 		global_position = HPRules.respawn_position()
 		velocity = Vector3.ZERO
 		current_hp = max_hp
-		_spawn_floating_text("Kadim Koruma Kalkanı Seni Kurtardı!", Color(0.3, 0.8, 1.0), 1.6)
+		_spawn_floating_text(tr("The Ancient Ward saved you!"), Color(0.3, 0.8, 1.0), 1.6)
 		emit_stats()
 
 	# Black Lake swim state: inside the lake rect and at/below water level.
@@ -1255,25 +1255,25 @@ func toggle_broom_mount() -> void:
 ## decider; this is the feedback path so a refusal is explainable.
 func mount_block_reason() -> String:
 	if is_dead:
-		return "You are defeated!"
+		return tr("You are defeated!")
 	if not equipment.has("broom"):
-		return "You have no mount - equip a broom first."
+		return tr("You have no mount - equip a broom first.")
 	if _hit_recovery > 0.0:
-		return "You are stunned!"
+		return tr("You are stunned!")
 	if _combat_until > 0.0:
-		return "Not while in combat!"
+		return tr("Not while in combat!")
 	var record := SimAuthority.record_for(self)
 	if not record.is_empty() and int(record.get("pending_transfer", 0)) != 0:
-		return "The map is still loading!"
+		return tr("The map is still loading!")
 	if not is_on_floor():
-		return "Take off from the ground!"
+		return tr("Take off from the ground!")
 	var ground := _ground_below(1.2)
 	if ground.is_empty() or ground.normal.dot(Vector3.UP) <= 0.7:
-		return "The ground is too unstable to take off!"
+		return tr("The ground is too unstable to take off!")
 	if not _flight_clearance_ok():
-		return "Not enough room to take off here!"
+		return tr("Not enough room to take off here!")
 	if not HPMaps.flight_allowed(current_map_id()):
-		return "Flight is not allowed on this map!"
+		return tr("Flight is not allowed on this map!")
 	return ""
 
 ## The map this body is on. The authority owns the field; the client reads it.
@@ -1288,13 +1288,13 @@ func current_map_id() -> String:
 func dismount_block_reason() -> String:
 	var ground := _ground_below(3.0)
 	if ground.is_empty() or ground.normal.dot(Vector3.UP) <= 0.7:
-		return "Descend near level ground first (Ctrl)"
+		return tr("Descend near level ground first (Ctrl)")
 	var landing: Vector3 = ground.position
 	var standing := _capsule_clear(landing + Vector3.UP * (CAPSULE_HEIGHT * 0.5 + 0.06))
 	if not standing:
-		return "No room to stand up here!"
+		return tr("No room to stand up here!")
 	if not _ceiling_clear(landing, DISMOUNT_CEILING):
-		return "The ceiling is too low to dismount!"
+		return tr("The ceiling is too low to dismount!")
 	return ""
 
 func can_dismount_safely() -> bool:
@@ -1342,7 +1342,7 @@ func _apply_mount_state(mounted: bool) -> void:
 		broom.set_flying(mounted)
 	_align_broom_to_hips()
 	if mounted:
-		add_buff("broom", 0.0, "broom_nimbus2000", "Broom Flight", "Space rises · Ctrl descends · Shift dismounts on level ground.")
+		add_buff("broom", 0.0, "broom_nimbus2000", "Broom Flight", "Space rises · Ctrl descends · Shift dismounts on level ground.")  # i18n
 	else:
 		remove_buff("broom")
 	if mounted:
@@ -1848,19 +1848,19 @@ func cast_spell(spell_id: String) -> void:
 		_basic_held = false
 		if _mount_notice_cd <= 0.0:
 			_mount_notice_cd = 1.0
-			show_notice("Not while mounted!")
+			show_notice(tr("Not while mounted!"))
 		return
 
 	var s_data: Dictionary = GameData.SPELLS[spell_id]
 	if level < int(s_data.get("requires_level", 1)):
 		if _mount_notice_cd <= 0.0:
 			_mount_notice_cd = 0.8
-			show_notice("%s unlocks at level %d" % [String(s_data.get("name", spell_id)), int(s_data.get("requires_level", 1))])
+			show_notice(tr("%s unlocks at level %d") % [I18n.t(String(s_data.get("name", spell_id))), int(s_data.get("requires_level", 1))])
 		return
 	if skill_level(spell_id) <= 0:
 		if _mount_notice_cd <= 0.0:
 			_mount_notice_cd = 0.8
-			show_notice("Learn %s first - press V and spend a skill point" % String(s_data.get("name", spell_id)))
+			show_notice(tr("Learn %s first - press V and spend a skill point") % I18n.t(String(s_data.get("name", spell_id))))
 		return
 	var remaining := maxf(_cast_lock, float(spell_cooldowns.get(spell_id, 0.0)))
 	if remaining > 0:
@@ -1874,7 +1874,7 @@ func cast_spell(spell_id: String) -> void:
 	if current_mana < cost:
 		if _mount_notice_cd <= 0.0:
 			_mount_notice_cd = 0.6
-			show_notice("Not enough mana", "mana")
+			show_notice(tr("Not enough mana"), "mana")
 		return
 
 	# --- predicted feedback. The world server decides; everything below is the
@@ -1956,18 +1956,18 @@ func _reject_feedback(reason: String) -> void:
 		return
 	match reason:
 		"no_mana":
-			_spawn_floating_text("Not enough Mana!", Color(0.3, 0.6, 1.0))
+			_spawn_floating_text(tr("Not enough Mana!"), Color(0.3, 0.6, 1.0))
 		"cooldown":
 			pass
 		"mounted":
-			_spawn_floating_text("Not while mounted!", Color(1.0, 0.8, 0.4))
+			_spawn_floating_text(tr("Not while mounted!"), Color(1.0, 0.8, 0.4))
 		"protected":
-			_spawn_floating_text("Protected ground!", Color(0.4, 0.8, 1.0))
+			_spawn_floating_text(tr("Protected ground!"), Color(0.4, 0.8, 1.0))
 		"dead":
 			pass
 		_:
 			if reason != "" and reason != "queued" and reason != "sent":
-				_spawn_floating_text("Cast refused", Color(1.0, 0.6, 0.4))
+				_spawn_floating_text(tr("Cast refused"), Color(1.0, 0.6, 0.4))
 
 ## Cast presentation. The upper-body clip is blended OVER locomotion (so a
 ## moving caster keeps their footwork), the clip is seeked so its extension pose
@@ -2072,8 +2072,8 @@ func _activate_protego_preview() -> void:
 	p_shield.tree_exited.connect(_on_protego_shield_gone)
 	var spell: Dictionary = GameData.SPELLS.get("protego", {})
 	var seconds := float(spell.get("duration_ms", 3500)) / 1000.0
-	add_buff("protego", seconds, "protego", "Protego", "Reflects projectiles; other damage reduced by 60%.")
-	_spawn_floating_text("PROTEGO!", Color(0.2, 0.8, 1.0), 1.2)
+	add_buff("protego", seconds, "protego", "Protego", "Reflects projectiles; other damage reduced by 60%.")  # i18n
+	_spawn_floating_text(I18n.upper(tr("Protego!")), Color(0.2, 0.8, 1.0), 1.2)
 
 func _on_protego_shield_gone() -> void:
 	if not is_inside_tree():
@@ -2280,7 +2280,7 @@ func on_authoritative_death(_killer: Node3D) -> void:
 		hero_anim.set_locomotion("dead", "Death_A", true)
 	elif is_instance_valid(anim_player):
 		anim_player.play("Death_A", 0.1)
-	_spawn_floating_text("DEFEATED!", Color(1.0, 0.0, 0.0), 2.0)
+	_spawn_floating_text(I18n.upper(tr("Defeated!")), Color(1.0, 0.0, 0.0), 2.0)
 	emit_stats()
 
 ## The body is not moved here: the authority places it (town or where it fell,
@@ -2307,7 +2307,7 @@ func apply_level(new_level: int, new_max_hp: int, new_max_mana: int) -> void:
 	current_hp = max_hp
 	current_mana = max_mana
 	_update_nameplate()
-	_spawn_floating_text("LEVEL UP! (Lv.%d)" % level, Color(1.0, 0.85, 0.2), 1.8)
+	_spawn_floating_text(tr("LEVEL UP! (Lv.%d)") % level, Color(1.0, 0.85, 0.2), 1.8)
 	emit_stats()
 
 ## Authority stat mirror: the engine owns these numbers, the node displays them.
@@ -2343,21 +2343,21 @@ func apply_authoritative_stats(stats: Dictionary) -> void:
 		_update_nameplate()
 		if is_local_player and _skills_seen:
 			for t in fresh:
-				_spawn_floating_text("New title: %s" % TITLE_NAMES.get(t, t), Color(1.0, 0.82, 0.4), 1.6)
+				_spawn_floating_text(tr("New title: %s") % tr(String(TITLE_NAMES.get(t, t))), Color(1.0, 0.82, 0.4), 1.6)
 	if stats.get("skills") is Dictionary:
 		var trained := HPRules.clean_skill_levels(stats["skills"])
 		if is_local_player and _skills_seen:
 			for spell_id in trained.keys():
 				var now := int(trained[spell_id])
 				if now > HPRules.skill_level_of(skill_levels, spell_id):
-					var spell_name := String(HPRules.spell(spell_id).get("name", spell_id))
-					var text := "%s mastered!" % spell_name if HPRules.skill_is_master(now) else "%s Lv.%d" % [spell_name, now]
+					var spell_name := I18n.t(String(HPRules.spell(spell_id).get("name", spell_id)))
+					var text := tr("%s mastered!") % spell_name if HPRules.skill_is_master(now) else tr("%s Lv.%d") % [spell_name, now]
 					_spawn_floating_text(text, Color(0.55, 0.85, 1.0), 1.3)
 		skill_levels = trained
 		_skills_seen = true
 	skill_points = int(stats.get("skill_points", HPRules.skill_points_available(level, skill_levels, skill_bonus)))
 	if _shown_house_rep >= 0 and house_rep > _shown_house_rep and is_local_player:
-		_spawn_floating_text("+%d %s Reputation" % [house_rep - _shown_house_rep, house], Color(1.0, 0.78, 0.35), 1.1)
+		_spawn_floating_text(tr("+%d %s Reputation") % [house_rep - _shown_house_rep, house], Color(1.0, 0.78, 0.35), 1.1)
 	_shown_house_rep = house_rep
 	var was_mounted := is_mounted
 	var now_mounted := bool(stats.get("mounted", is_mounted))
@@ -2377,7 +2377,7 @@ func add_exp(amount: int) -> void:
 	if not SimAuthority.is_authority():
 		return
 	SimAuthority.grant_exp(self, amount)
-	_spawn_floating_text("+%d EXP" % amount, Color(0.3, 1.0, 0.5), 1.2)
+	_spawn_floating_text(tr("+%d EXP") % amount, Color(0.3, 1.0, 0.5), 1.2)
 
 ## House reputation, granted by the authority like EXP (quests are the source;
 ## the floating text comes with the stats payload in every role).

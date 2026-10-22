@@ -33,7 +33,7 @@ func _ready() -> void:
 	super._ready()
 	var head := HBoxContainer.new()
 	body.add_child(head)
-	var caption := HudKit.label("Spells", 15, HudKit.GOLD_LT, HudKit.bold(), 2)
+	var caption := HudKit.label(tr("Spells"), 15, HudKit.GOLD_LT, HudKit.bold(), 2)
 	caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(caption)
 	_points = HudKit.label("", 15, HudKit.GOLD_HI, HudKit.bold(), 3)
@@ -42,12 +42,12 @@ func _ready() -> void:
 	body.add_child(_grid(HPRules.upgradeable_skills()))
 	var other: Array = OTHER.filter(func(id): return GameData.SPELLS.has(id) and not HPRules.skill_upgradeable(id))
 	if not other.is_empty():
-		body.add_child(HudKit.label("Other spells", 13, HudKit.TEXT_DIM, HudKit.bold(), 2))
+		body.add_child(HudKit.label(tr("Other spells"), 13, HudKit.TEXT_DIM, HudKit.bold(), 2))
 		body.add_child(_grid(other))
 	var spacer := Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body.add_child(spacer)
-	var hint := HudKit.label("Drag a spell onto the bar  ·  + spends a point", 12, HudKit.TEXT_DIM, HudKit.body(), 0)
+	var hint := HudKit.label(tr("Drag a spell onto the bar  ·  + spends a point"), 12, HudKit.TEXT_DIM, HudKit.body(), 0)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	body.add_child(hint)
 
@@ -96,7 +96,7 @@ func _cell(spell_id: String) -> Control:
 	plus.position = Vector2(ICON - 15, -2)
 	plus.pressed.connect(train.bind(spell_id))
 	slot.add_child(plus)
-	var label := HudKit.label(String(HPRules.spell(spell_id).get("name", spell_id)), 12, HudKit.PARCHMENT, HudKit.body(), 2)
+	var label := HudKit.label(I18n.t(String(HPRules.spell(spell_id).get("name", spell_id))), 12, HudKit.PARCHMENT, HudKit.body(), 2)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	label.custom_minimum_size = Vector2(106, 0)
@@ -112,11 +112,11 @@ func train(spell_id: String) -> Dictionary:
 	var result: Dictionary = SimNet.submit_skill_up(player, spell_id)
 	if not bool(result.get("ok", false)):
 		var words := {
-			HPProtocol.REJECT_NO_SKILL_POINTS: "No skill points left - gain a level",
-			HPProtocol.REJECT_SKILL_MAX: "Already mastered",
+			HPProtocol.REJECT_NO_SKILL_POINTS: tr("No skill points left - gain a level"),
+			HPProtocol.REJECT_SKILL_MAX: tr("Already mastered"),
 		}
 		if hud != null and hud.has_method("show_notice"):
-			hud.show_notice(String(words.get(String(result.get("reason", "")), "Cannot train that now")), "error")
+			hud.show_notice(String(words.get(String(result.get("reason", "")), tr("Cannot train that now"))), "error")
 	_refresh()
 	return result
 
@@ -138,7 +138,7 @@ func _refresh() -> void:
 	if key == _shown:
 		return
 	_shown = key
-	_points.text = "Points  %d" % points
+	_points.text = tr("Points  %d") % points
 	_points.add_theme_color_override("font_color", HudKit.GOLD_HI if points > 0 else HudKit.TEXT_DIM)
 	for spell_id in _cells.keys():
 		var cell: Dictionary = _cells[spell_id]
@@ -172,12 +172,12 @@ func tooltip_for(spell_id: String) -> Control:
 		l.custom_minimum_size.x = 250
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		box.add_child(l)
-	add.call(String(spell.get("name", spell_id)), 16, HudKit.GOLD_HI, HudKit.bold())
+	add.call(I18n.t(String(spell.get("name", spell_id))), 16, HudKit.GOLD_HI, HudKit.bold())
 	var trainable := HPRules.skill_upgradeable(spell_id)
 	var lv := _level(spell_id) if player != null and is_instance_valid(player) else 0
 	if trainable:
-		add.call("Master" if HPRules.skill_is_master(lv) else ("Not learned" if lv <= 0 else "Level %d" % lv), 13, HudKit.GOLD_LT, HudKit.body())
-	add.call(String(spell.get("desc", "")), 13, HudKit.TEXT, HudKit.body())
+		add.call(tr("Master") if HPRules.skill_is_master(lv) else (tr("Not learned") if lv <= 0 else tr("Level %d") % lv), 13, HudKit.GOLD_LT, HudKit.body())
+	add.call(I18n.t(String(spell.get("desc", ""))), 13, HudKit.TEXT, HudKit.body())
 	var shown_lv := maxi(1, lv)
 	box.add_child(HSeparator.new())
 	if lv > 0 or not trainable:
@@ -185,10 +185,10 @@ func tooltip_for(spell_id: String) -> Control:
 			add.call(line, 13, HudKit.PARCHMENT, HudKit.body())
 	var required := HPRules.spell_required_level(spell_id)
 	if required > 1 and player != null and int(player.level) < required:
-		add.call("Requires level %d" % required, 13, HudKit.RED, HudKit.body())
+		add.call(tr("Requires level %d") % required, 13, HudKit.RED, HudKit.body())
 	if trainable and lv < HPRules.skill_max_level():
 		var next := lv + 1
-		add.call(("Master" if HPRules.skill_is_master(next) else "Next level: %d" % next), 13, Color(0.55, 0.75, 1.0), HudKit.bold())
+		add.call((tr("Master") if HPRules.skill_is_master(next) else tr("Next level: %d") % next), 13, Color(0.55, 0.75, 1.0), HudKit.bold())
 		for line in _numbers(spell_id, next):
 			add.call(line, 13, Color(0.78, 0.62, 1.0), HudKit.body())
 	return card
@@ -199,10 +199,10 @@ func _numbers(spell_id: String, lv: int) -> Array:
 	var stats: Dictionary = player.derived_stats if player != null and is_instance_valid(player) else {}
 	var out: Array = []
 	if int(spell.get("damage", 0)) > 0:
-		out.append("Damage %d%%" % roundi(HPRules.skill_damage_multiplier(lv) * 100.0))
+		out.append(tr("Damage %d%%") % roundi(HPRules.skill_damage_multiplier(lv) * 100.0))
 	if spell.has("duration_ms") or spell.has("stun_ms") or spell.has("weaken_ms"):
-		out.append("Effect %d%%" % roundi(HPRules.skill_effect_multiplier(lv) * 100.0))
-	out.append("Mana %d  ·  Cooldown %.1fs" % [int(spell.get("mana_cost", 0)), HPRules.cooldown_for(spell_id, house, lv, stats)])
+		out.append(tr("Effect %d%%") % roundi(HPRules.skill_effect_multiplier(lv) * 100.0))
+	out.append(tr("Mana %d  ·  Cooldown %.1fs") % [int(spell.get("mana_cost", 0)), HPRules.cooldown_for(spell_id, house, lv, stats)])
 	return out
 
 

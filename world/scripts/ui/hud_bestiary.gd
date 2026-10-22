@@ -9,6 +9,7 @@ class_name HudBestiary
 ## about where a creature lives.
 
 const PORTRAITS := "res://assets/ui/bestiary/%s.png"
+# i18n-begin
 const LORE := {
 	"inferi": "Corpses bewitched to serve a dark wizard. Slow, relentless and terrified of fire.",
 	"acromantula": "Giant spiders of the Forbidden Forest, bred from Aragog's line. They hunt in packs.",
@@ -31,6 +32,9 @@ const DUNGEON_WHERE := {
 	"trial": ["Trial Hall", "beside the courtyard", Vector2(18, 93)],
 	"forbidden_corridor": ["The Forbidden Corridor", "Hogwarts Castle, third-floor east corridor", Vector2(65, -11)],
 }
+const FAMILY_NAMES := {"troll": "Troll", "undead": "Undead", "dark_wizard": "Dark wizard", "dementor": "Dementor",
+	"beast": "Beast", "pixie": "Pixie", "snare": "Plant", "armour": "Enchanted armour", "hound": "Hound", "spider": "Spider"}
+# i18n-end
 
 var world_map: HudWorldMap = null
 var _entries: Array = []
@@ -83,11 +87,11 @@ static func build_entries() -> Array:
 			var key := String(pack.get("boss_key", ""))
 			var name := String((tables.get("boss_overrides", {}) as Dictionary).get(key, {}).get("name", ""))
 			if name == "":
-				name = "Acromantula Matriarch" if species == "acromantula" else "Dark Snatcher Commander"
+				name = "Acromantula Matriarch" if species == "acromantula" else "Dark Snatcher Commander"  # i18n
 			var region := HPRules.region_by_id(String(pack.get("zone", "")))
 			var area: Array = pack.get("area", [0, 0, 0, 0])
-			e["bosses"].append({"name": name, "level": level, "world": bool(pack.get("world_boss", false)),
-				"region": String(region.get("display", pack.get("zone", ""))),
+			e["bosses"].append({"name": I18n.t(name), "level": level, "world": bool(pack.get("world_boss", false)),
+				"region": I18n.t(String(region.get("display", pack.get("zone", "")))),
 				"at": Vector2(float(area[0]) + float(area[2]) * 0.5, float(area[1]) + float(area[3]) * 0.5)})
 		else:
 			var zone := String(pack.get("zone", ""))
@@ -125,7 +129,7 @@ static func build_entries() -> Array:
 		if def.is_empty() or String(species) in ["snare_vine", "fluffy_head"]:
 			continue
 		var e: Dictionary = by_species[species]
-		e["display"] = String(def.get("display", species))
+		e["display"] = I18n.t(String(def.get("display", species)))
 		e["family"] = String(def.get("family", ""))
 		e["role"] = String(def.get("role", ""))
 		e["resist"] = def.get("resist", {})
@@ -172,7 +176,7 @@ func _list_row(entry: Dictionary) -> Button:
 	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	title.tooltip_text = String(entry["display"])
 	col.add_child(title)
-	var sub := HudKit.label(_level_text(entry) + ("  ·  dungeon" if entry["regions"].is_empty() else ""), 12, HudKit.TEXT_DIM, HudKit.body(), 2)
+	var sub := HudKit.label(_level_text(entry) + (tr("  ·  dungeon") if entry["regions"].is_empty() else ""), 12, HudKit.TEXT_DIM, HudKit.body(), 2)
 	sub.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	col.add_child(sub)
 	b.pressed.connect(func(): _show(String(entry["species"])))
@@ -183,7 +187,7 @@ func _level_text(entry: Dictionary) -> String:
 	var hi := int(entry["level_max"])
 	if lo > hi:
 		return ""
-	return "Lv %d" % lo if lo == hi else "Lv %d–%d" % [lo, hi]
+	return tr("Lv %d") % lo if lo == hi else tr("Lv %d–%d") % [lo, hi]
 
 func _entry(species: String) -> Dictionary:
 	for e in _entries:
@@ -209,14 +213,14 @@ func _show(species: String) -> void:
 	id_col.alignment = BoxContainer.ALIGNMENT_CENTER
 	head.add_child(id_col)
 	id_col.add_child(HudKit.label(String(e["display"]), 24, HudKit.GOLD_HI, HudKit.title(), 4))
-	id_col.add_child(HudKit.label("%s  ·  %s" % [_level_text(e), String(e["family"]).capitalize()],
+	id_col.add_child(HudKit.label("%s  ·  %s" % [_level_text(e), tr(String(FAMILY_NAMES.get(String(e["family"]), String(e["family"]).capitalize())))],
 		14, HudKit.TEXT_DIM, HudKit.body(), 2))
-	var lore := HudKit.label(String(LORE.get(species, "")), 14, HudKit.TEXT, HudKit.body(), 2)
+	var lore := HudKit.label(I18n.t(String(LORE.get(species, ""))), 14, HudKit.TEXT, HudKit.body(), 2)
 	lore.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	lore.custom_minimum_size = Vector2(300, 0)
 	id_col.add_child(lore)
 	if not (e["regions"] as Dictionary).is_empty() or not (e["bosses"] as Array).is_empty():
-		var show := HudKit.button("Show on map", 14)
+		var show := HudKit.button(tr("Show on map"), 14)
 		show.focus_mode = Control.FOCUS_NONE
 		show.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		show.pressed.connect(_show_on_map)
@@ -225,37 +229,37 @@ func _show(species: String) -> void:
 	# Short and scannable: where (region names only), the boss, weak / strong.
 	var regions: Array = (e["regions"] as Dictionary).values()
 	regions.sort_custom(func(a, b): return int(a["lo"]) < int(b["lo"]))
-	var names: Array = regions.map(func(r): return String(HPRules.region_by_id(String(r["zone"])).get("display", r["zone"])))
+	var names: Array = regions.map(func(r): return I18n.t(String(HPRules.region_by_id(String(r["zone"])).get("display", r["zone"]))))
 	if names.size() > 3:
-		names = names.slice(0, 3) + ["+%d more" % (names.size() - 3)]
+		names = names.slice(0, 3) + [tr("+%d more") % (names.size() - 3)]
 	for d in e["dungeons"]:
-		names.append(String((DUNGEON_WHERE.get(String(d["id"]), [String(d["id"])]) as Array)[0]) + " (dungeon)")
+		names.append(tr("%s (dungeon)") % I18n.t(String((DUNGEON_WHERE.get(String(d["id"]), [String(d["id"])]) as Array)[0])))
 	if not names.is_empty():
-		_fact("Found", ", ".join(names))
+		_fact(tr("Found"), ", ".join(names))
 	for boss in e["bosses"]:
-		_fact("Boss", "%s  ·  Lv %d" % [String(boss["name"]), int(boss["level"])], HudKit.GOLD_LT)
+		_fact(tr("Boss"), tr("%s  ·  Lv %d") % [String(boss["name"]), int(boss["level"])], HudKit.GOLD_LT)
 	var weak: Array = []
 	var strong: Array = []
 	var resist: Dictionary = e["resist"]
 	for k in resist.keys():
 		var v := float(resist[k])
-		var label := String(RESIST_NAMES.get(k, String(k).capitalize()))
+		var label := tr(String(RESIST_NAMES.get(k, String(k).capitalize())))
 		if v < 0.0:
 			weak.append(label)
 		elif v >= 0.3:
 			strong.append(label)
 	if not weak.is_empty():
-		_fact("Weak", ", ".join(weak), Color(0.6, 1.0, 0.6))
+		_fact(tr("Weak"), ", ".join(weak), Color(0.6, 1.0, 0.6))
 	if not strong.is_empty():
-		_fact("Resists", ", ".join(strong), Color(1.0, 0.75, 0.55))
+		_fact(tr("Resists"), ", ".join(strong), Color(1.0, 0.75, 0.55))
 	if int(e["aggressive_from"]) > 0:
-		_fact("Aggressive", "from Lv %d" % int(e["aggressive_from"]), Color(1.0, 0.6, 0.5))
+		_fact(tr("Aggressive"), tr("from Lv %d") % int(e["aggressive_from"]), Color(1.0, 0.6, 0.5))
 
 ## One short labelled line: "Found   Village Outskirts, Pitch Woods".
 func _fact(caption: String, text: String, colour: Color = HudKit.TEXT) -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
-	var c := HudKit.label(caption.to_upper(), 12, HudKit.GOLD, HudKit.bold(), 2)
+	var c := HudKit.label(I18n.upper(caption), 12, HudKit.GOLD, HudKit.bold(), 2)
 	c.custom_minimum_size = Vector2(86, 0)
 	row.add_child(c)
 	var l := HudKit.label(text, 14, colour, HudKit.body(), 2)

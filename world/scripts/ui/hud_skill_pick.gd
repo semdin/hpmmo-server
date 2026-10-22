@@ -23,7 +23,7 @@ func _init() -> void:
 
 func _ready() -> void:
 	super._ready()
-	var intro := HudKit.label("Every wizard starts with one spell of their own. Pick it now - every level after this earns a skill point to learn or train more (V).",
+	var intro := HudKit.label(tr("Every wizard starts with one spell of their own. Pick it now - every level after this earns a skill point to learn or train more (V)."),
 		15, HudKit.PARCHMENT, HudKit.body(), 0)
 	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	intro.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -60,16 +60,16 @@ func _card(spell_id: String) -> Control:
 	icon.icon_texture = UITheme.spell_icon(spell_id)
 	icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	col.add_child(icon)
-	var name_label := HudKit.label(String(spell.get("name", spell_id)), 16, HudKit.GOLD_LT, HudKit.bold(), 3)
+	var name_label := HudKit.label(I18n.t(String(spell.get("name", spell_id))), 16, HudKit.GOLD_LT, HudKit.bold(), 3)
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(name_label)
-	var desc := HudKit.label(String(spell.get("desc", "")), 12, HudKit.TEXT_DIM, HudKit.body(), 0)
+	var desc := HudKit.label(I18n.t(String(spell.get("desc", ""))), 12, HudKit.TEXT_DIM, HudKit.body(), 0)
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	desc.custom_minimum_size = Vector2(CARD_W - 16, 0)
 	# Fills the card so every Learn button sits on the same line.
 	desc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	col.add_child(desc)
-	var learn := HudKit.button("Learn", 15)
+	var learn := HudKit.button(tr("Learn"), 15)
 	learn.focus_mode = Control.FOCUS_NONE
 	learn.pressed.connect(_learn.bind(spell_id))
 	col.add_child(learn)
@@ -82,7 +82,7 @@ func _learn(spell_id: String) -> void:
 	if bool(result.get("ok", false)):
 		close()
 		if hud != null and hud.has_method("show_notice"):
-			hud.show_notice("You learned %s! Train it further with V." % String(HPRules.spell(spell_id).get("name", spell_id)), "good")
+			hud.show_notice(tr("You learned %s! Train it further with V.") % I18n.t(String(HPRules.spell(spell_id).get("name", spell_id))), "good")
 
 ## Open once per session while the character still has to pick.
 func _process(_delta: float) -> void:

@@ -104,7 +104,7 @@ func _on_entity_hit(uid: int, amount: int, _hp: int, _spell_id: String, attacker
 		return
 	if attacker_uid == local and local != 0:
 		if crit:
-			_spawn_number(anchor, "%d!" % amount, COLOR_CRIT, 58.0 if not finisher else 64.0, true, "CRITICAL", COLOR_CRIT_EDGE)
+			_spawn_number(anchor, "%d!" % amount, COLOR_CRIT, 58.0 if not finisher else 64.0, true, I18n.upper(tr("Critical")), COLOR_CRIT_EDGE)
 			crits_shown += 1
 		elif finisher:
 			_spawn_number(anchor, str(amount), COLOR_FINISHER, 44.0, true)
@@ -125,7 +125,7 @@ func _on_entity_hit(uid: int, amount: int, _hp: int, _spell_id: String, attacker
 ## Crowd-control efsun procs the server rolled with the local player's hit.
 func _show_procs(anchor: Vector3, flags: int) -> void:
 	var lift := 0.5
-	for proc in [[HPProtocol.HIT_STUN, "Stunned", COLOR_PROC], [HPProtocol.HIT_SLOW, "Slowed", COLOR_PROC], [HPProtocol.HIT_BURN, "Ignited", COLOR_BURN]]:
+	for proc in [[HPProtocol.HIT_STUN, tr("Stunned"), COLOR_PROC], [HPProtocol.HIT_SLOW, tr("Slowed"), COLOR_PROC], [HPProtocol.HIT_BURN, tr("Ignited"), COLOR_BURN]]:
 		if flags & int(proc[0]) != 0:
 			_spawn_number(anchor + Vector3.UP * lift, String(proc[1]), proc[2], 26.0, true)
 			lift += 0.4

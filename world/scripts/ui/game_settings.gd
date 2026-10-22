@@ -318,9 +318,9 @@ func binding_keycode(action: String) -> int:
 ## creating a double-bound action.
 func set_binding(action: String, keycode: int) -> String:
 	if not BINDABLE_ACTIONS.has(action):
-		return "unknown action"
+		return "unknown action"  # i18n
 	if keycode <= 0:
-		return "invalid key"
+		return "invalid key"  # i18n
 	for other in BINDABLE_ACTIONS:
 		if other != action and binding_keycode(other) == keycode:
 			return "already bound to %s" % other

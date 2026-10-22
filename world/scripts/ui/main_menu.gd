@@ -38,7 +38,7 @@ const COLOR_ERROR := Color(0.96, 0.47, 0.42)
 const COLOR_WARN := Color(1.0, 0.74, 0.36)
 
 ## The account service accepts ASCII names only (auth.cpp check_username_policy).
-const USERNAME_RULE_TEXT := "Kullanıcı adında Türkçe karakter (ç, ğ, ı, İ, ö, ş, ü) ve boşluk olamaz: yalnızca İngilizce harf, rakam, '_' ve '-'."
+const USERNAME_RULE_TEXT := "Usernames cannot contain Turkish letters (ç, ğ, ı, İ, ö, ş, ü) or spaces: only English letters, digits, '_' and '-'."  # i18n
 
 ## Account-service port. Resolved once, in this order: an explicit
 ## `--api-port=N`; the port of `HPMMO_API_URL`; `api_port` in
@@ -120,6 +120,7 @@ func _build() -> void:
 	column.add_child(_build_card())
 
 	_build_server_pill()
+	_build_language_picker()
 	_build_footer()
 
 func _build_backdrop() -> void:
@@ -223,7 +224,7 @@ func _build_crest() -> Control:
 
 	var subtitle := Label.new()
 	subtitle.name = "SubtitleLabel"
-	subtitle.text = "BÜYÜCÜLÜK DİYARI"
+	subtitle.text = tr("REALM OF WIZARDRY")
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	subtitle.add_theme_font_override("font", UITheme.font_title())
 	subtitle.add_theme_font_size_override("font_size", 15)
@@ -291,26 +292,26 @@ func _build_card() -> Control:
 	# Mode tabs.
 	var tabs := HBoxContainer.new()
 	tabs.add_theme_constant_override("separation", 0)
-	login_tab = _tab_button("GİRİŞ YAP")
-	register_tab = _tab_button("HESAP OLUŞTUR")
+	login_tab = _tab_button(tr("LOG IN"))
+	register_tab = _tab_button(tr("NEW ACCOUNT"))
 	login_tab.pressed.connect(func(): _set_mode(false))
 	register_tab.pressed.connect(func(): _set_mode(true))
 	tabs.add_child(login_tab)
 	tabs.add_child(register_tab)
 	v.add_child(tabs)
 
-	username_input = _line_edit("Kullanıcı adın")
+	username_input = _line_edit(tr("Your username"))
 	username_input.name = "UsernameInput"
 	username_input.max_length = 24
-	v.add_child(_field("KULLANICI ADI", username_input))
+	v.add_child(_field(tr("USERNAME"), username_input))
 
-	password_input = _line_edit("Şifren")
+	password_input = _line_edit(tr("Your password"))
 	password_input.name = "PasswordInput"
 	password_input.secret = true
 	password_input.max_length = 128
 	reveal_btn = Button.new()
 	reveal_btn.name = "RevealButton"
-	reveal_btn.text = "Göster"
+	reveal_btn.text = tr("Show")
 	reveal_btn.flat = true
 	reveal_btn.focus_mode = Control.FOCUS_NONE
 	reveal_btn.add_theme_font_size_override("font_size", 13)
@@ -322,18 +323,18 @@ func _build_card() -> Control:
 	password_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	pass_row.add_child(password_input)
 	pass_row.add_child(reveal_btn)
-	v.add_child(_field("ŞİFRE", pass_row))
+	v.add_child(_field(tr("PASSWORD"), pass_row))
 
-	confirm_input = _line_edit("Şifreni tekrar yaz")
+	confirm_input = _line_edit(tr("Type your password again"))
 	confirm_input.name = "ConfirmInput"
 	confirm_input.secret = true
 	confirm_input.max_length = 128
-	confirm_block = _field("ŞİFRE (TEKRAR)", confirm_input)
+	confirm_block = _field(tr("PASSWORD (AGAIN)"), confirm_input)
 	v.add_child(confirm_block)
 
 	remember_check = CheckBox.new()
 	remember_check.name = "RememberCheck"
-	remember_check.text = "Kullanıcı adımı hatırla"
+	remember_check.text = tr("Remember my username")
 	remember_check.button_pressed = true
 	remember_check.focus_mode = Control.FOCUS_NONE
 	remember_check.add_theme_font_size_override("font_size", 14)
@@ -349,7 +350,7 @@ func _build_card() -> Control:
 	notice_panel = _build_notice()
 	v.add_child(notice_panel)
 
-	submit_btn = _primary_button("OYUNA GİR")
+	submit_btn = _primary_button(tr("ENTER GAME"))
 	submit_btn.name = "SubmitButton"
 	submit_btn.pressed.connect(_on_submit)
 	v.add_child(submit_btn)
@@ -552,6 +553,50 @@ func _build_server_pill() -> void:
 	add_child(server_pill)
 	_render_server_state()
 
+## The language, under the server pill. A change rebuilds the screen in the
+## new language (nothing typed here is worth more than a remembered username).
+func _build_language_picker() -> void:
+	var picker := OptionButton.new()
+	picker.name = "LanguagePicker"
+	picker.focus_mode = Control.FOCUS_NONE
+	# Each language is listed under its own name, never translated.
+	picker.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	picker.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	picker.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	picker.offset_left = -180.0
+	picker.offset_right = -28.0
+	picker.offset_top = 70.0
+	picker.offset_bottom = 102.0
+	picker.tooltip_text = tr("Language")
+	picker.add_theme_font_size_override("font_size", 14)
+	picker.add_theme_color_override("font_color", UITheme.c("text"))
+	picker.add_theme_color_override("font_hover_color", UITheme.c("gold_hi"))
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.03, 0.04, 0.06, 0.78)
+	sb.border_color = UITheme.alpha("gold_dk", 0.9)
+	sb.set_border_width_all(1)
+	sb.set_corner_radius_all(16)
+	sb.content_margin_left = 16
+	sb.content_margin_right = 12
+	var hover := sb.duplicate() as StyleBoxFlat
+	hover.border_color = UITheme.c("gold_lt")
+	for state in ["normal", "pressed", "focus", "disabled"]:
+		picker.add_theme_stylebox_override(state, sb)
+	picker.add_theme_stylebox_override("hover", hover)
+	var languages: Array = I18n.languages()
+	for i in languages.size():
+		picker.add_item(String(languages[i].name), i)
+		picker.set_item_metadata(i, String(languages[i].code))
+		if String(languages[i].code) == I18n.current:
+			picker.select(i)
+	picker.item_selected.connect(func(index: int):
+		var code := String(picker.get_item_metadata(index))
+		if code == I18n.current or busy:
+			return
+		I18n.set_language(code)
+		get_tree().reload_current_scene())
+	add_child(picker)
+
 func _build_footer() -> void:
 	version_label = Label.new()
 	version_label.name = "VersionLabel"
@@ -567,7 +612,7 @@ func _build_footer() -> void:
 
 	var quit := Button.new()
 	quit.name = "QuitButton"
-	quit.text = "Oyundan Çık"
+	quit.text = tr("Quit Game")
 	quit.flat = true
 	quit.focus_mode = Control.FOCUS_NONE
 	quit.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
@@ -588,7 +633,7 @@ func _client_version() -> String:
 	var v := OS.get_environment("HPMMO_CLIENT_VERSION").strip_edges()
 	if v.is_empty():
 		v = str(ProjectSettings.get_setting("application/config/version", ""))
-	return ("v" + v) if not v.is_empty() else "geliştirme sürümü"
+	return ("v" + v) if not v.is_empty() else tr("development build")
 
 ## ================================================================ state
 
@@ -597,15 +642,15 @@ func _set_mode(p_register: bool) -> void:
 	login_tab.set_pressed_no_signal(not register_mode)
 	register_tab.set_pressed_no_signal(register_mode)
 	confirm_block.visible = register_mode
-	submit_btn.text = "HESABI OLUŞTUR" if register_mode else "OYUNA GİR"
-	password_input.placeholder_text = "En az 8 karakter, harf ve rakam" if register_mode else "Şifren"
+	submit_btn.text = tr("CREATE ACCOUNT") if register_mode else tr("ENTER GAME")
+	password_input.placeholder_text = tr("8+ characters, letters and digits") if register_mode else tr("Your password")
 	confirm_input.text = ""
 	_set_status("")
 
 func _toggle_reveal() -> void:
 	password_input.secret = not password_input.secret
 	confirm_input.secret = password_input.secret
-	reveal_btn.text = "Gizle" if not password_input.secret else "Göster"
+	reveal_btn.text = tr("Hide") if not password_input.secret else tr("Show")
 
 func _set_busy(value: bool, message: String = "") -> void:
 	busy = value
@@ -636,9 +681,9 @@ func _show_maintenance_notice(show_it: bool, detail: String = "") -> void:
 		return
 	notice_panel.visible = show_it
 	if show_it:
-		notice_title.text = "Sunucu bakımda"
+		notice_title.text = tr("Server under maintenance")
 		notice_body.text = detail if not detail.is_empty() else \
-			"Oyun şu anda güncelleniyor. Birkaç dakika sonra tekrar giriş yapabilirsin."
+			tr("The game is being updated right now. You can log in again in a few minutes.")
 
 ## ================================================================ server status
 
@@ -668,23 +713,23 @@ func _on_status(status: Dictionary) -> void:
 	elif notice_panel.visible and server_state == "ONLINE":
 		_show_maintenance_notice(false)
 		if not busy:
-			_set_status("Sunucu yeniden çevrimiçi. Giriş yapabilirsin.", "ok")
+			_set_status(tr("The server is back online. You can log in."), "ok")
 
 func _render_server_state() -> void:
 	if server_label == null:
 		return
 	var colour := UITheme.c("text_dim")
-	var text := "Sunucu durumu kontrol ediliyor…"
+	var text := tr("Checking server status…")
 	match server_state:
 		"ONLINE":
 			colour = UITheme.c("good")
-			text = "Sunucu çevrimiçi"
+			text = tr("Server online")
 		"MAINTENANCE":
 			colour = COLOR_WARN
-			text = "Sunucu bakımda"
+			text = tr("Server under maintenance")
 		"OFFLINE":
 			colour = COLOR_ERROR
-			text = "Sunucuya ulaşılamıyor"
+			text = tr("Server unreachable")
 	server_label.text = text
 	var dot := StyleBoxFlat.new()
 	dot.bg_color = colour
@@ -715,12 +760,12 @@ func _consume_login_notice() -> void:
 	root.remove_meta(LOGIN_NOTICE_META)
 	if notice == "maintenance":
 		_show_maintenance_notice(true,
-			"Sunucu bakıma alındı ve oyundan çıkarıldın. İlerlemen kaydedildi; bakım bitince tekrar giriş yapabilirsin.")
-		_set_status("Bakım tamamlanınca giriş yapabilirsin.", "warn")
+			tr("The server went into maintenance and you were logged out. Your progress is saved; you can log in again once maintenance is over."))
+		_set_status(tr("You can log in once maintenance is complete."), "warn")
 	elif notice == "disconnected":
-		_set_status("Sunucu bağlantısı koptu. Lütfen tekrar giriş yap.", "warn")
+		_set_status(tr("The connection to the server was lost. Please log in again."), "warn")
 	elif notice == "replaced":
-		_set_status("Hesabına başka bir yerden giriş yapıldığı için bu oturum kapatıldı.", "warn")
+		_set_status(tr("This session was closed because your account logged in from somewhere else."), "warn")
 
 ## ================================================================ auth
 
@@ -730,7 +775,7 @@ func _on_submit() -> void:
 	var user := username_input.text.strip_edges()
 	var pass_w := password_input.text
 	if user.is_empty() or pass_w.is_empty():
-		_set_status("Lütfen kullanıcı adını ve şifreni gir.", "error")
+		_set_status(tr("Please enter your username and password."), "error")
 		(username_input if user.is_empty() else password_input).grab_focus()
 		return
 	_apply_api_url()
@@ -741,22 +786,22 @@ func _on_submit() -> void:
 
 func _do_register(user: String, pass_w: String) -> void:
 	if user.length() < 3 or user.length() > 24:
-		_set_status("Kullanıcı adı 3-24 karakter olmalı.", "error")
+		_set_status(tr("Username must be 3-24 characters."), "error")
 		return
 	# The service takes ASCII only; say so here, since to a Turkish player
 	# "only letters" reads as if Ş or ı were allowed.
 	if not _username_re.search(user):
-		_set_status(USERNAME_RULE_TEXT, "error")
+		_set_status(tr(USERNAME_RULE_TEXT), "error")
 		username_input.grab_focus()
 		return
 	if pass_w.length() < 8:
-		_set_status("Şifre en az 8 karakter olmalı.", "error")
+		_set_status(tr("Password must be at least 8 characters."), "error")
 		return
 	if pass_w != confirm_input.text:
-		_set_status("Şifreler eşleşmiyor.", "error")
+		_set_status(tr("The passwords do not match."), "error")
 		confirm_input.grab_focus()
 		return
-	_set_busy(true, "Hesap oluşturuluyor…")
+	_set_busy(true, tr("Creating account…"))
 	DatabaseManager.register_account(user, pass_w, func(res: Dictionary):
 		if not is_inside_tree():
 			return
@@ -764,17 +809,17 @@ func _do_register(user: String, pass_w: String) -> void:
 			# Straight in: nobody wants to type the password they just chose twice more.
 			_set_busy(false)
 			_set_mode(false)
-			_set_status("Hesabın oluşturuldu! Giriş yapılıyor…", "ok")
+			_set_status(tr("Your account was created! Logging in…"), "ok")
 			_do_login(user, pass_w)
 			return
 		_set_busy(false)
-		_set_status(_error_text(res, "Hesap oluşturulamadı."), "error")
+		_set_status(_error_text(res, tr("Could not create the account.")), "error")
 		if str(res.get("code", "")) == "maintenance":
 			_show_maintenance_notice(true)
 	)
 
 func _do_login(user: String, pass_w: String) -> void:
-	_set_busy(true, "Giriş yapılıyor…")
+	_set_busy(true, tr("Logging in…"))
 	DatabaseManager.login_account(user, pass_w, func(res: Dictionary):
 		if not is_inside_tree():
 			return
@@ -784,9 +829,9 @@ func _do_login(user: String, pass_w: String) -> void:
 				server_state = "MAINTENANCE"
 				_render_server_state()
 				_show_maintenance_notice(true)
-				_set_status("Sunucu şu an bakımda. Lütfen biraz sonra tekrar dene.", "warn")
+				_set_status(tr("The server is under maintenance. Please try again a little later."), "warn")
 			else:
-				_set_status(_error_text(res, "Giriş başarısız."), "error")
+				_set_status(_error_text(res, tr("Login failed.")), "error")
 				password_input.select_all()
 				password_input.grab_focus()
 			return
@@ -805,13 +850,13 @@ func _do_login(user: String, pass_w: String) -> void:
 ## join: after "Change character" the one cached at login is stale (a wizard
 ## created since then was missing until the client restarted).
 func _load_characters_and_enter(account_id: int) -> void:
-	_set_busy(true, "Karakterlerin yükleniyor…")
+	_set_busy(true, tr("Loading your characters…"))
 	DatabaseManager.get_characters(account_id, func(char_res: Dictionary):
 		if not is_inside_tree():
 			return
 		if not bool(char_res.get("success", false)):
 			_set_busy(false)
-			_set_status(_error_text(char_res, "Karakterler alınamadı."), "error")
+			_set_status(_error_text(char_res, tr("Could not load your characters.")), "error")
 			return
 		characters_cache = char_res.get("characters", [])
 		NetworkManager.local_character_data = {"characters": characters_cache}
@@ -824,25 +869,25 @@ func _error_text(res: Dictionary, fallback: String) -> String:
 	var status := int(res.get("http_status", 0))
 	var message := str(res.get("message", ""))
 	if code == "unreachable":
-		return "Sunucuya ulaşılamadı. Sunucu güncelleniyor olabilir ya da bağlantın kopmuş olabilir; biraz sonra tekrar dene."
+		return tr("Could not reach the server. It may be updating or your connection may have dropped; try again a little later.")
 	if code == "maintenance":
-		return "Sunucu şu an bakımda. Lütfen biraz sonra tekrar dene."
+		return tr("The server is under maintenance. Please try again a little later.")
 	match status:
 		401:
-			return "Kullanıcı adı veya şifre hatalı."
+			return tr("Wrong username or password.")
 		409:
-			return "Bu kullanıcı adı zaten alınmış."
+			return tr("This username is already taken.")
 		429:
-			return "Çok fazla deneme yaptın. Biraz bekleyip tekrar dene."
+			return tr("Too many attempts. Wait a little and try again.")
 		503:
-			return "Sunucu şu an hizmet veremiyor. Biraz sonra tekrar dene."
+			return tr("The server cannot serve requests right now. Try again a little later.")
 		400:
 			var known := {
-				"Password must be at least 8 characters.": "Şifre en az 8 karakter olmalı.",
-				"Password is too long (max 128).": "Şifre çok uzun (en fazla 128 karakter).",
-				"Password must contain letters and digits.": "Şifre hem harf hem rakam içermeli.",
-				"Username must be 3-24 characters.": "Kullanıcı adı 3-24 karakter olmalı.",
-				"Username may contain only letters, digits, '_' and '-'.": USERNAME_RULE_TEXT,
+				"Password must be at least 8 characters.": tr("Password must be at least 8 characters."),
+				"Password is too long (max 128).": tr("Password is too long (at most 128 characters)."),
+				"Password must contain letters and digits.": tr("Password must contain both letters and digits."),
+				"Username must be 3-24 characters.": tr("Username must be 3-24 characters."),
+				"Username may contain only letters, digits, '_' and '-'.": tr(USERNAME_RULE_TEXT),
 			}
 			if known.has(message):
 				return known[message]
@@ -853,7 +898,7 @@ func _error_text(res: Dictionary, fallback: String) -> String:
 ## ================================================================ world entry
 
 func _enter_world_with_session() -> void:
-	_set_busy(true, "Dünyaya bağlanılıyor…")
+	_set_busy(true, tr("Connecting to the world…"))
 	# A join from the menu is a fresh choice: the character of the previous
 	# session must not be re-bound automatically (that bound the new session to
 	# the old wizard, so entering with another one said "already bound").
@@ -861,7 +906,7 @@ func _enter_world_with_session() -> void:
 	var err := NetworkManager.join_game(server_ip, server_port)
 	if err != OK:
 		_set_busy(false)
-		_set_status("Oyun sunucusuna bağlanılamadı (hata %d)." % err, "error")
+		_set_status(tr("Could not connect to the game server (error %d).") % err, "error")
 		return
 
 	# The world refuses a join during a maintenance cycle with reason
@@ -884,9 +929,9 @@ func _enter_world_with_session() -> void:
 			server_state = "MAINTENANCE"
 			_render_server_state()
 			_show_maintenance_notice(true)
-			_set_status("Sunucu şu an bakımda. Lütfen biraz sonra tekrar dene.", "warn")
+			_set_status(tr("The server is under maintenance. Please try again a little later."), "warn")
 		else:
-			_set_status("Oyun sunucusu yanıt vermedi. Biraz sonra tekrar dene.", "error")
+			_set_status(tr("The game server did not respond. Try again a little later."), "error")
 		_poll_status()
 		return
 
@@ -1077,7 +1122,7 @@ func _handle_cmdline_args() -> void:
 
 ## A session handed over by an older launcher (HPMMO_TICKET).
 func _begin_launcher_session() -> void:
-	_set_busy(true, "Oturum doğrulanıyor…")
+	_set_busy(true, tr("Verifying session…"))
 	if DatabaseManager.session_active:
 		_on_launcher_session_ready(true, DatabaseManager.session_account_id)
 	elif DatabaseManager.is_session_pending():
@@ -1088,6 +1133,6 @@ func _begin_launcher_session() -> void:
 func _on_launcher_session_ready(success: bool, _account_id: int) -> void:
 	if not success:
 		_set_busy(false)
-		_set_status("Lütfen giriş yap.")
+		_set_status(tr("Please log in."))
 		return
 	_load_characters_and_enter(0)

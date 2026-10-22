@@ -13,6 +13,7 @@ class_name ItemTooltip
 ## sit on one line, the stats are green, and the flavour text is a dim italic
 ## block at the bottom.
 
+# i18n-begin
 const KIND_LABEL := {
 	"weapon": "One-Handed Wand",
 	"armor": "Body Armour",
@@ -36,6 +37,7 @@ const RARITY_NAME := {
 	"epic": "Epic",
 	"legendary": "Legendary",
 }
+# i18n-end
 
 var _column: VBoxContainer = null
 var _last_id := ""
@@ -67,7 +69,7 @@ static func rarity_of(item_id: String) -> String:
 
 ## The rarity name for the top-right corner, e.g. "Unique" in the reference.
 static func rarity_label(item_id: String) -> String:
-	return RARITY_NAME.get(rarity_of(item_id), "Common")
+	return I18n.t(String(RARITY_NAME.get(rarity_of(item_id), "Common")))
 
 
 ## Build the card for `item_id`. `entry` is the player's inventory record, so a
@@ -85,7 +87,7 @@ func show_item(item_id: String, entry: Dictionary = {}) -> void:
 	var data: Dictionary = GameData.ITEMS[item_id]
 	var tint: Color = RARITY_COLOUR.get(rarity_of(item_id), RARITY_COLOUR["common"])
 	var tier := int(entry.get("tier", 0))
-	var title := String(data.get("name", item_id))
+	var title := I18n.t(String(data.get("name", item_id)))
 	if HPEquipment.refinable(item_id):
 		title += " +%d" % tier
 	_add_line(title, tint, UITheme.FS_LABEL, true)
@@ -93,23 +95,23 @@ func show_item(item_id: String, entry: Dictionary = {}) -> void:
 	var needed := HPEquipment.required_level(item_id)
 	var level := _local_level()
 	if wearable:
-		_add_line("Level: %d" % needed, UITheme.c("parchment"))
+		_add_line(tr("Level: %d") % needed, UITheme.c("parchment"))
 	_add_gap()
 	for line in _stat_rows(item_id, data, entry):
 		var colour: Color = ENCHANT_COLOUR if int(line[1]) == 2 else (Color(1.0, 0.45, 0.4) if int(line[1]) == 3 else STAT_COLOUR)
 		_add_line(String(line[0]), colour, UITheme.FS_SMALL, int(line[1]) == 2)
 	var amount := int(entry.get("amount", 0))
 	if amount > 1:
-		_add_line("Quantity: %d" % amount, UITheme.c("parchment"))
+		_add_line(tr("Quantity: %d") % amount, UITheme.c("parchment"))
 	if wearable:
 		_add_gap()
 		# Red when the viewer cannot wear it yet - the server refuses the equip
 		# with "level_too_low" (HPEquipment.level_ok) either way.
 		if level > 0 and level < needed:
-			_add_line("[ Requires level %d ]" % needed, Color(1.0, 0.36, 0.32))
+			_add_line(tr("[ Requires level %d ]") % needed, Color(1.0, 0.36, 0.32))
 		else:
-			_add_line("[ Wearable ]", Color(0.62, 0.86, 1.0))
-	var desc := String(data.get("desc", ""))
+			_add_line(tr("[ Wearable ]"), Color(0.62, 0.86, 1.0))
+	var desc := I18n.t(String(data.get("desc", "")))
 	if desc != "" and not wearable:
 		_add_gap()
 		_add_lore(desc)
@@ -187,9 +189,9 @@ func _stat_rows(item_id: String, data: Dictionary, entry: Dictionary) -> Array:
 	for line in HPEquipment.fixed_lines(item_id, tier):
 		rows.append([String(line.text), 3 if bool(line.negative) else 1])
 	if data.has("heal_hp"):
-		rows.append(["Restores %d Health" % int(data["heal_hp"]), 1])
+		rows.append([tr("Restores %d Health") % int(data["heal_hp"]), 1])
 	if data.has("heal_mana"):
-		rows.append(["Restores %d Mana" % int(data["heal_mana"]), 1])
+		rows.append([tr("Restores %d Mana") % int(data["heal_mana"]), 1])
 	for bonus in entry.get("bonuses", []):
 		rows.append([HPEquipment.bonus_text(bonus), 2])
 	return rows
@@ -235,10 +237,10 @@ func _add_name_row(text: String, colour: Color, right: String, icon_id: String =
 
 func _add_kind_row(item_id: String, data: Dictionary) -> void:
 	var kind := String(data.get("type", ""))
-	var text: String = KIND_LABEL.get(kind, kind.capitalize())
+	var text: String = tr(String(KIND_LABEL.get(kind, kind.capitalize())))
 	if kind == "armor":
-		text = String(data.get("slots",["armor"])[0]).replace("_", " ").capitalize()
-	_add_kv(kind.capitalize(), text, UITheme.c("text_dim"))
+		text = tr(String(data.get("slots",["armor"])[0]).replace("_", " ").capitalize())
+	_add_kv(tr(kind.capitalize()), text, UITheme.c("text_dim"))
 
 
 func _local_level() -> int:

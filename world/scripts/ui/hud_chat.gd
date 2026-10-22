@@ -47,7 +47,7 @@ func setup(p_container: PanelContainer, p_history: RichTextLabel, p_input: LineE
 	history.add_theme_constant_override("shadow_offset_y", 1)
 	history.add_theme_constant_override("line_separation", 2)
 	history.add_theme_stylebox_override("normal", HudKit.empty())
-	input.placeholder_text = "Say something…   (start with ! to shout to everyone)"
+	input.placeholder_text = tr("Say something…   (start with ! to shout to everyone)")
 	input.max_length = 200
 	input.add_theme_font_override("font", HudKit.body())
 	input.add_theme_font_size_override("font_size", FONT_SIZE)
@@ -108,9 +108,9 @@ func add_player_line(channel: String, sender: String, house: String, text: Strin
 		add_system_line(text)
 		return
 	if channel == "shout":
-		bb = "[color=#%s{a}][b]%s[/b] shouts: %s[/color]" % [HudKit.SHOUT.to_html(false), _escape(sender), safe]
+		bb = "[color=#%s{a}]%s[/color]" % [HudKit.SHOUT.to_html(false), tr("%s shouts: %s") % ["[b]%s[/b]" % _escape(sender), safe]]
 	elif channel == "party":
-		bb = "[color=#%s{a}][Party] [b]%s[/b]: %s[/color]" % [Color(0.55, 0.8, 1.0).to_html(false), _escape(sender), safe]
+		bb = "[color=#%s{a}]%s [b]%s[/b]: %s[/color]" % [Color(0.55, 0.8, 1.0).to_html(false), tr("[Party]"), _escape(sender), safe]
 	else:
 		bb = "[color=#%s{a}][b]%s[/b][/color][color=#%s{a}]: %s[/color]" % [name_col.to_html(false), _escape(sender), HudKit.TEXT.to_html(false), safe]
 	_push(bb)

@@ -18,7 +18,7 @@ const LEAVE_SECONDS := 3
 const LEAVE_SECONDS_COMBAT := 5
 ## Damage dealt or taken this recently counts as "in combat".
 const COMBAT_WINDOW_MS := 10000
-const NOTE_IDLE := "Progress is saved when you leave."
+const NOTE_IDLE := "Progress is saved when you leave."  # i18n
 
 var _buttons: Dictionary = {}
 var _note: Label
@@ -38,6 +38,7 @@ func _ready() -> void:
 	super._ready()
 	body.add_theme_constant_override("separation", 7)
 	body.alignment = BoxContainer.ALIGNMENT_CENTER
+	# i18n-begin
 	for spec in [
 		["resume", "Resume"],
 		["settings", "Settings"],
@@ -45,12 +46,13 @@ func _ready() -> void:
 		["character", "Change Character"],
 		["quit", "Quit Game"],
 	]:
-		var b := HudKit.button(String(spec[1]), 15)
+	# i18n-end
+		var b := HudKit.button(tr(String(spec[1])), 15)
 		b.custom_minimum_size = Vector2(0, 34)
 		b.pressed.connect(_on_pressed.bind(String(spec[0])))
 		body.add_child(b)
 		_buttons[String(spec[0])] = b
-	_note = HudKit.label(NOTE_IDLE, 12, HudKit.TEXT_DIM, HudKit.body(), 0)
+	_note = HudKit.label(tr(NOTE_IDLE), 12, HudKit.TEXT_DIM, HudKit.body(), 0)
 	_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	body.add_child(_note)
 	SimAuthority.entity_damaged.connect(_on_entity_damaged)
@@ -72,6 +74,12 @@ func _on_pressed(id: String) -> void:
 		"character", "quit":
 			_begin_leave(id)
 
+## Back to the character screen (the settings' language switch), through the
+## same countdown the menu button uses.
+func leave_to_characters() -> void:
+	open()
+	_begin_leave("character")
+
 ## Start the countdown (or leave at once offline, where nothing can hit you
 ## while the menu is open and the save is local).
 func _begin_leave(kind: String) -> void:
@@ -82,7 +90,7 @@ func _begin_leave(kind: String) -> void:
 		return
 	var player := SimAuthority.local_player_node()
 	if player != null and bool(player.get("is_dead")):
-		_note.text = "You cannot leave while defeated."
+		_note.text = tr("You cannot leave while defeated.")
 		return
 	var in_combat := Time.get_ticks_msec() - _last_combat_ms < COMBAT_WINDOW_MS
 	var seconds := LEAVE_SECONDS_COMBAT if in_combat else LEAVE_SECONDS
@@ -90,7 +98,7 @@ func _begin_leave(kind: String) -> void:
 	_leave_at_ms = Time.get_ticks_msec() + seconds * 1000
 	for id in _buttons:
 		(_buttons[id] as Button).disabled = id != "resume"
-	(_buttons["resume"] as Button).text = "Cancel"
+	(_buttons["resume"] as Button).text = tr("Cancel")
 	_refresh_countdown()
 
 func _cancel_leave(reason: String) -> void:
@@ -99,13 +107,13 @@ func _cancel_leave(reason: String) -> void:
 	_leaving = ""
 	for b in _buttons.values():
 		(b as Button).disabled = false
-	(_buttons["resume"] as Button).text = "Resume"
-	_note.text = reason if reason != "" else NOTE_IDLE
+	(_buttons["resume"] as Button).text = tr("Resume")
+	_note.text = reason if reason != "" else tr(NOTE_IDLE)
 
 func _refresh_countdown() -> void:
 	var left := maxi(0, int(ceil(float(_leave_at_ms - Time.get_ticks_msec()) / 1000.0)))
-	var what := "Quitting" if _leaving == "quit" else "Changing character"
-	_note.text = "%s in %d…  (taking damage cancels)" % [what, left]
+	var what := tr("Quitting") if _leaving == "quit" else tr("Changing character")
+	_note.text = tr("%s in %d…  (taking damage cancels)") % [what, left]
 
 func _process(_delta: float) -> void:
 	if _leaving == "":
@@ -123,13 +131,13 @@ func _on_entity_damaged(uid: int, amount: int, _hp: int, _spell_id: String, atta
 		return
 	if uid == me:
 		_last_combat_ms = Time.get_ticks_msec()
-		_cancel_leave("Interrupted: you took damage.")
+		_cancel_leave(tr("Interrupted: you took damage."))
 	elif attacker_uid == me:
 		_last_combat_ms = Time.get_ticks_msec()
 
 func _on_entity_died(uid: int, _killer_uid: int) -> void:
 	if uid == SimAuthority.local_uid:
-		_cancel_leave("Interrupted: you were defeated.")
+		_cancel_leave(tr("Interrupted: you were defeated."))
 
 ## Save, leave the session and either quit or return to the character screen.
 ## The server saves a character when its session ends; offline play writes the
@@ -137,7 +145,7 @@ func _on_entity_died(uid: int, _killer_uid: int) -> void:
 func _leave_world(quit: bool) -> void:
 	for b in _buttons.values():
 		(b as Button).disabled = true
-	_note.text = "Saving…"
+	_note.text = tr("Saving…")
 	var world := get_tree().current_scene
 	if world != null and world.has_method("_save_offline_state"):
 		world.call("_save_offline_state")

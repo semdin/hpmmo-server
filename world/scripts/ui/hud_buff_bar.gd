@@ -48,6 +48,7 @@ func current_effects() -> Dictionary:
 	var tick := int(SimAuthority.sim_tick)
 	var dt := float(HPProtocol.SIM_DT)
 	if not record.is_empty():
+		# i18n-begin
 		var ward := int(record.get("ward_until_tick", 0))
 		if ward > tick and not out.has("protego"):
 			var spell: Dictionary = GameData.SPELLS.get("protego", {})
@@ -73,6 +74,7 @@ func current_effects() -> Dictionary:
 		if webbed > tick:
 			out["webbed"] = {"icon": "status_stun", "title": "Webbed", "desc": "Sticky silk: you move at half speed.",
 				"remaining": float(webbed - tick) * dt, "duration": maxf(1.0, float(webbed - tick) * dt), "debuff": true}
+		# i18n-end
 	return out
 
 func _refresh() -> void:
@@ -90,9 +92,9 @@ func _refresh() -> void:
 			add_child(icon)
 			_icons[id] = icon
 		icon.texture = UITheme.icon_for(String(e.icon))
-		icon.title = String(e.title)
-		icon.tooltip_text = String(e.title)
-		icon.desc = String(e.desc)
+		icon.title = I18n.t(String(e.title))
+		icon.tooltip_text = icon.title
+		icon.desc = I18n.t(String(e.desc))
 		icon.debuff = bool(e.debuff)
 		# A duration is fixed at the moment the effect began; keep the largest
 		# seen so the sweep never jumps backwards when the server corrects it.

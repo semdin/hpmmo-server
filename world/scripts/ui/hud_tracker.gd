@@ -41,7 +41,7 @@ func _ready() -> void:
 	_more = Button.new()
 	_more.flat = true
 	_more.focus_mode = Control.FOCUS_NONE
-	_more.text = "More quests (J)"
+	_more.text = tr("More quests (J)")
 	_more.add_theme_font_override("font", HudKit.bold())
 	_more.add_theme_font_size_override("font_size", 13)
 	_more.add_theme_color_override("font_color", HudKit.GOLD_LT)
@@ -160,14 +160,14 @@ func refresh() -> void:
 			row.visible = i == 0
 			_row_ids[i] = ""
 			if i == 0:
-				_set_row(row, "No open quests", "Level up to unlock more")
+				_set_row(row, tr("No open quests"), tr("Level up to unlock more"))
 				row.tooltip_text = ""
 			continue
 		var q: Dictionary = entries[i]
 		var id := String(q.get("id", ""))
 		_row_ids[i] = id
 		row.visible = true
-		_set_row(row, String(q.get("title", "")), QuestManager.objective_text(q))
-		row.tooltip_text = "Click to claim the reward" if QuestManager.is_ready(id) else "Click to read the quest scroll"
+		_set_row(row, I18n.t(String(q.get("title", ""))), QuestManager.objective_text(q))
+		row.tooltip_text = tr("Click to claim the reward") if QuestManager.is_ready(id) else tr("Click to read the quest scroll")
 	_more.visible = entries.size() > MAX_ROWS
-	_more.text = "More quests (%d)  ·  J" % (entries.size() - MAX_ROWS)
+	_more.text = tr("More quests (%d)  ·  J") % (entries.size() - MAX_ROWS)

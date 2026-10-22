@@ -248,22 +248,24 @@ static func fixed_lines(id: String, tier: int) -> Array:
 	var n := item_stats(id, tier)
 	var lines: Array = []
 	if not (n.attack_value as Array).is_empty():
-		lines.append({"text": "Attack Value %d - %d" % [n.attack_value[0], n.attack_value[1]], "negative": false})
+		lines.append({"text": _t("Attack Value %d - %d") % [n.attack_value[0], n.attack_value[1]], "negative": false})
 	if not (n.magic_attack as Array).is_empty():
-		lines.append({"text": "Magic Attack Value %d - %d" % [n.magic_attack[0], n.magic_attack[1]], "negative": false})
+		lines.append({"text": _t("Magic Attack Value %d - %d") % [n.magic_attack[0], n.magic_attack[1]], "negative": false})
 	if int(n.armor) > 0:
-		lines.append({"text": "Armour %d" % int(n.armor), "negative": false})
+		lines.append({"text": _t("Armour %d") % int(n.armor), "negative": false})
 	if int(n.bonus_hp) > 0:
-		lines.append({"text": "Max Health +%d" % int(n.bonus_hp), "negative": false})
+		lines.append({"text": _t("Max Health +%d") % int(n.bonus_hp), "negative": false})
 	if int(n.bonus_mana) > 0:
-		lines.append({"text": "Max Mana +%d" % int(n.bonus_mana), "negative": false})
+		lines.append({"text": _t("Max Mana +%d") % int(n.bonus_mana), "negative": false})
+	# i18n-begin
 	var labels := {"attack_speed": "Attack Speed %+d%%", "move_speed": "Movement Speed %+d%%", "spell_power": "Spell Power %+d%%",
 		"hp_regen": "Health Regeneration %+d/s", "mana_regen": "Mana Regeneration %+d/s"}
+	# i18n-end
 	for key in FIXED_PERCENT:
 		if not is_zero_approx(float(n[key])):
-			lines.append({"text": labels[key] % int(n[key]), "negative": float(n[key]) < 0.0})
+			lines.append({"text": _t(labels[key]) % int(n[key]), "negative": float(n[key]) < 0.0})
 	if data.has("mount_speed"):
-		lines.append({"text": "Mount Speed %.1f" % float(n.mount_speed), "negative": false})
+		lines.append({"text": _t("Mount Speed %.1f") % float(n.mount_speed), "negative": false})
 	return lines
 
 ## The stat names an item already carries as fixed stats (never rolled as efsun).
@@ -299,8 +301,13 @@ static func enchantable(id: String) -> bool:
 static func bonus_text(bonus: Dictionary) -> String:
 	var spec: Dictionary = (enchant_rules().get("stats", {}) as Dictionary).get(String(bonus.get("stat", "")), {})
 	if bool(spec.get("flag", false)):
-		return String(spec.get("label", bonus.get("stat", "?")))
-	return "%s +%d%s" % [String(spec.get("label", bonus.get("stat", "?"))), int(bonus.get("value", 0)), String(spec.get("unit", ""))]
+		return _t(String(spec.get("label", bonus.get("stat", "?"))))
+	return "%s +%d%s" % [_t(String(spec.get("label", bonus.get("stat", "?")))), int(bonus.get("value", 0)), String(spec.get("unit", ""))]
+
+## Player-facing text in the viewer's language (the client's catalogue). The
+## world server runs in English, so its own copies of these lines stay English.
+static func _t(text: String) -> String:
+	return String(TranslationServer.translate(text)) if text != "" else text
 
 ## One new bonus for `id`: a stat from its pool the item does not hold yet (nor
 ## as a fixed stat), skipping stats whose mechanic is not live (`disabled`) or

@@ -17,6 +17,7 @@ const WORLD_MIN := Vector2(-1024, -1024)
 const WORLD_SIZE := 2048.0
 const CASTLE_MIN := Vector2(-118, -98)
 const CASTLE_SIZE := 222.0
+# i18n-begin
 const PLACES := [
 	["Hogwarts Castle", Vector2(30, -70), 1.25],
 	["Black Lake", Vector2(0, 360), 1.15],
@@ -28,6 +29,7 @@ const PLACES := [
 	["Courtyard", Vector2(0, 92), 0.75],
 ]
 const FLOOR_NAMES := {-1: "Dungeons", 0: "Ground", 1: "1st", 2: "2nd", 3: "3rd", 4: "4th", 5: "5th", 6: "6th", 7: "7th"}
+# i18n-end
 const PARCHMENT := Color(0.89, 0.81, 0.64)
 const INK := Color(0.29, 0.18, 0.09)
 
@@ -59,7 +61,7 @@ func _ready() -> void:
 	_floors.alignment = BoxContainer.ALIGNMENT_CENTER
 	_floors.add_theme_constant_override("separation", 4)
 	for lv in range(-1, 8):
-		var b := HudKit.button(FLOOR_NAMES[lv], 13)
+		var b := HudKit.button(tr(String(FLOOR_NAMES[lv])), 13)
 		b.toggle_mode = true
 		b.custom_minimum_size = Vector2(54, 26)
 		b.pressed.connect(func(): _show_level(lv))
@@ -84,11 +86,11 @@ func _ready() -> void:
 func _update_hint() -> void:
 	if _hint == null:
 		return
-	_hint.text = "Right-click: set / clear waypoint  ·  Wheel: zoom  ·  Drag: move  ·  M / Esc: close"
+	_hint.text = tr("Right-click: set / clear waypoint  ·  Wheel: zoom  ·  Drag: move  ·  M / Esc: close")
 	if mode == "grounds":
-		_hint.text += "  ·  B: bestiary"
+		_hint.text += tr("  ·  B: bestiary")
 	if focus_name != "":
-		_hint.text = "Showing %s (red marks)  ·  " % focus_name + _hint.text
+		_hint.text = tr("Showing %s (red marks)  ·  ") % focus_name + _hint.text
 
 func _detect_mode() -> String:
 	if guide != null and is_instance_valid(guide):
@@ -100,7 +102,7 @@ func _detect_mode() -> String:
 func _apply_mode() -> void:
 	mode = _detect_mode()
 	if _title != null:
-		_title.text = "Hogwarts Castle" if mode == "castle" else "World Map"
+		set_title("Hogwarts Castle" if mode == "castle" else "World Map")  # i18n
 	if _floors != null:
 		_floors.visible = mode == "castle"
 	_update_hint()
@@ -136,8 +138,8 @@ func focus_species(species: String, display: String) -> void:
 		var region := HPRules.region_by_id(String(zone))
 		var c: Array = region.get("center", [0, 0])
 		var band: Vector2i = bands[zone]
-		focus_regions.append([String(region.get("display", zone)), Vector2(float(c[0]), float(c[1])),
-			"Lv %d" % band.x if band.x == band.y else "Lv %d–%d" % [band.x, band.y]])
+		focus_regions.append([I18n.t(String(region.get("display", zone))), Vector2(float(c[0]), float(c[1])),
+			tr("Lv %d") % band.x if band.x == band.y else tr("Lv %d–%d") % [band.x, band.y]])
 	super.open()
 	_apply_mode()
 	if view == null or mode != "grounds":
@@ -192,11 +194,11 @@ func _update_coords() -> void:
 		return
 	var parts: Array = []
 	if player != null and is_instance_valid(player):
-		parts.append("You  " + coords_text(Vector2(player.global_position.x, player.global_position.z)))
+		parts.append(tr("You") + "  " + coords_text(Vector2(player.global_position.x, player.global_position.z)))
 	if view.hovering:
-		parts.append("Cursor  " + coords_text(view.hover))
+		parts.append(tr("Cursor") + "  " + coords_text(view.hover))
 	if guide != null and is_instance_valid(guide) and guide.has_target():
-		var mark := "Waypoint  " + coords_text(Vector2(guide.target.x, guide.target.z))
+		var mark := tr("Waypoint") + "  " + coords_text(Vector2(guide.target.x, guide.target.z))
 		if player != null and is_instance_valid(player):
 			mark += "  (%d m)" % roundi(Vector2(player.global_position.x, player.global_position.z).distance_to(Vector2(guide.target.x, guide.target.z)))
 		parts.append(mark)
@@ -359,7 +361,7 @@ class MapView extends Control:
 			var p := world_to_screen(spec[1])
 			var fs := int(clampf(15.0 * float(spec[2]) * (0.75 + zoom * 0.6), 11.0, 30.0))
 			var f := HudKit.deco()
-			var txt := String(spec[0])
+			var txt := I18n.t(String(spec[0]))
 			var w := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 			var at := p - Vector2(w * 0.5, 0)
 			draw_string_outline(f, at, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 5, Color(0.98, 0.94, 0.84, 0.85))
@@ -458,13 +460,13 @@ class MapView extends Control:
 			var e := float(ms.get("edge", 10))
 			var c := world_to_screen(Vector2(float(ax[0]), float(ax[1])))
 			draw_arc(c, e * zoom, 0.0, TAU, 48, Color(ink, 0.5), thin, true)
-			_text("moving stairs", c, 11, Color(ink, 0.6), HudKit.body())
+			_text(I18n.t("moving stairs"), c, 11, Color(ink, 0.6), HudKit.body())
 		for r in labels:
 			var rect: Array = r["rect"]
 			var c := world_to_screen(Vector2((float(rect[0]) + float(rect[1])) * 0.5, (float(rect[2]) + float(rect[3])) * 0.5))
 			var fs := int(clampf(6.0 + zoom * 2.2, 10.0, 22.0))
-			_text(String(r.get("label", r["id"])), c, fs, ink, HudKit.deco())
-		var title := "%s floor" % HudWorldMap.FLOOR_NAMES[host.castle_level] if host.castle_level >= 0 else "The Dungeons"
+			_text(I18n.t(String(r.get("label", r["id"]))), c, fs, ink, HudKit.deco())
+		var title := I18n.t("%s floor") % I18n.t(String(HudWorldMap.FLOOR_NAMES[host.castle_level])) if host.castle_level >= 0 else I18n.t("The Dungeons")
 		var tf := HudKit.deco()
 		var tw := tf.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, 17).x
 		draw_rect(Rect2(Vector2(8, 8), Vector2(tw + 20, 28)), Color(HudWorldMap.PARCHMENT, 0.92))

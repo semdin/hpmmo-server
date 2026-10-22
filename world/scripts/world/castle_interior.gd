@@ -28,12 +28,13 @@ const Decor = preload("res://scripts/world/castle/castle_decor.gd")
 var collision_only := false
 
 const MAP_ID := "castle_interior"
-const DISPLAY_NAME := "Hogwarts Castle"
+const DISPLAY_NAME := "Hogwarts Castle"  # i18n
 ## Layout L0 in world space.
 const MAP_Y := 200.0
 
 ## Floor plan (layout levels, storey 10 m).
 const FLOORS := [
+	# i18n-begin
 	{"id": "dungeons", "name": "Dungeons", "y": 190.0},
 	{"id": "ground", "name": "Ground Floor", "y": 200.0},
 	{"id": "first", "name": "First Floor", "y": 210.0},
@@ -43,6 +44,7 @@ const FLOORS := [
 	{"id": "fifth", "name": "Fifth Floor", "y": 250.0},
 	{"id": "sixth", "name": "Sixth Floor", "y": 260.0},
 	{"id": "seventh", "name": "Seventh Floor", "y": 270.0},
+	# i18n-end
 ]
 
 ## Authored arrival points (maps.json "spawn_points.castle_interior").
@@ -107,8 +109,8 @@ func floor_display(y: float) -> String:
 	var entry := floor_for_y(y)
 	var name := String(entry.get("name", ""))
 	if name == "":
-		return DISPLAY_NAME
-	return "%s - %s" % [DISPLAY_NAME, name]
+		return tr(DISPLAY_NAME)
+	return tr("%s - %s") % [tr(DISPLAY_NAME), tr(name)]
 
 func _local_floor_for_y(y: float) -> Dictionary:
 	var best: Dictionary = {}

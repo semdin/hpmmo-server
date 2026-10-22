@@ -131,7 +131,7 @@ func _build() -> void:
 	_portal_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_portal_panel.theme = UITheme.get_theme()
 	_portal_panel.theme_type_variation = UITheme.V_CARD
-	_portal_label = _make_label("Loading...", UITheme.FS_BODY, UITheme.c("parchment"))
+	_portal_label = _make_label(tr("Loading..."), UITheme.FS_BODY, UITheme.c("parchment"))
 	_portal_label.position = Vector2(36, 6)
 	_portal_panel.add_child(_portal_label)
 	var portal_icon := UITheme.icon_rect("ui_portal", 20.0)
@@ -224,7 +224,7 @@ func location_text() -> String:
 			if map_id == "castle_interior":
 				return floor_text
 	if map_id == "castle_interior":
-		return "Hogwarts Castle"
+		return "Hogwarts Castle"  # i18n
 	return _outdoor_place_name(map_id)
 
 ## The place the player is standing in, outside the castle.
@@ -242,7 +242,7 @@ func _outdoor_place_name(map_id: String) -> String:
 				return named
 	var region := HPRules.zone_id_for_map(map_id, player.global_position)
 	if region == "":
-		return "Hogwarts Grounds"
+		return "Hogwarts Grounds"  # i18n
 	return region.capitalize()
 
 func _update_location() -> void:
@@ -250,7 +250,7 @@ func _update_location() -> void:
 	if text != last_floor_text:
 		last_floor_text = text
 		floor_updates += 1
-	_location_label.text = text
+	_location_label.text = I18n.t(text)   # place names are English message ids
 
 ## ------------------------------------------------------------ portal progress
 
@@ -267,7 +267,7 @@ func _update_portal(delta: float) -> void:
 			_portal_hide_at = 0.0
 			portals_seen += 1
 			var target := String(controller.get("current_map"))
-			_portal_label.text = "Travelling..." if target == "" else "Loading %s..." % target
+			_portal_label.text = tr("Travelling...") if target == "" else tr("Loading %s...") % I18n.t(HPMaps.display_name(target))
 			_play_ui("map_transition")
 		_portal_progress = minf(0.92, _portal_progress + delta * 0.7)
 	elif _portal_busy_seen:

@@ -469,7 +469,7 @@ static func house_rank_title(rank: int) -> String:
 	ensure_loaded()
 	var titles: Array = (_combat.get("house_ranks", {}) as Dictionary).get("titles", [])
 	var i := clampi(rank, 1, max_house_rank()) - 1
-	return String(titles[i]) if i < titles.size() else "Rank %d" % (i + 1)
+	return String(titles[i]) if i < titles.size() else "Rank %d" % (i + 1)  # i18n
 
 static func house_rank_meets(rep: int, required_rank: int) -> bool:
 	return house_rank_for(rep) >= required_rank

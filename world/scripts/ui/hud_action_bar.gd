@@ -67,7 +67,7 @@ func _ready() -> void:
 		var q := HudSlot.new(SLOT)
 		q.name = "Quick%d" % (i + 1)
 		q.key_text = QUICK_KEYS[i]
-		q.empty_hint = "drop"
+		q.empty_hint = tr("drop")
 		q.accept_drop = _accept_quick_drop
 		q.item_dropped.connect(_on_quick_drop.bind(i))
 		q.cleared.connect(func(_s): _assign(i, ""))
@@ -221,23 +221,23 @@ func use_quick(index: int) -> void:
 		return
 	var id := String(quick_items[index])
 	if id == "":
-		_notice("Drag a potion from your bag onto %s" % QUICK_KEYS[index], "info")
+		_notice(tr("Drag a potion from your bag onto %s") % QUICK_KEYS[index], "info")
 		return
 	if float(_quick_cd[index]) > 0.0:
 		return
 	var entry := _entry_of(id)
 	if entry.is_empty():
-		_notice("No %s left" % _item_name(id), "error")
+		_notice(tr("No %s left") % _item_name(id), "error")
 		return
 	var data: Dictionary = HPEquipment.item(id)
 	if String(data.get("type", "")) != "consumable":
 		return
 	var hp_potion := data.has("heal_hp")
 	if hp_potion and int(player.current_hp) >= int(player.max_hp):
-		_notice("Health is already full", "info")
+		_notice(tr("Health is already full"), "info")
 		return
 	if data.has("heal_mana") and int(player.current_mana) >= int(player.max_mana):
-		_notice("Mana is already full", "info")
+		_notice(tr("Mana is already full"), "info")
 		return
 	_quick_cd[index] = QUICK_COOLDOWN
 	_pending_slot = index
@@ -256,9 +256,11 @@ func _on_answer(answer: Dictionary) -> void:
 			else:
 				audio.play_sound_at("ui_potion", Vector3.ZERO, null, true)
 		return
+	# i18n-begin
 	var words := {"resource_full": "Already full", "item_missing": "None left", "casting": "Finish casting first",
 		"dead": "You are defeated", "stale_inventory": "", "stale_request": "", "transfer_pending": "Wait until the map loads"}
-	var text := String(words.get(reason, "Cannot use that now"))
+	# i18n-end
+	var text := I18n.t(String(words.get(reason, tr("Cannot use that now"))))
 	if text != "":
 		_notice(text, "error")
 
@@ -311,7 +313,7 @@ func _entry_of(id: String) -> Dictionary:
 	return {}
 
 func _item_name(id: String) -> String:
-	return String(HPEquipment.item(id).get("name", id))
+	return I18n.t(String(HPEquipment.item(id).get("name", id)))
 
 func _notice(text: String, kind: String) -> void:
 	if hud != null and hud.has_method("show_notice"):
@@ -320,15 +322,15 @@ func _notice(text: String, kind: String) -> void:
 func _spell_tooltip(key: String, spell: Dictionary, trained: int = 1, cooldown: float = -1.0) -> String:
 	if spell.is_empty():
 		return ""
-	var grade := "Master" if HPRules.skill_is_master(trained) else "Level %d" % trained
-	return "[%s] %s  ·  %s\n%d mana · %.1fs cooldown\n%s\nDrag onto another slot to swap  ·  [V] Skills" % [key, spell.get("name", ""), grade,
-		int(spell.get("mana_cost", 0)), cooldown if cooldown >= 0.0 else float(spell.get("cooldown", 0.0)), spell.get("desc", "")]
+	var grade := tr("Master") if HPRules.skill_is_master(trained) else tr("Level %d") % trained
+	return tr("[%s] %s  ·  %s\n%d mana · %.1fs cooldown\n%s\nDrag onto another slot to swap  ·  [V] Skills") % [key, I18n.t(String(spell.get("name", ""))), grade,
+		int(spell.get("mana_cost", 0)), cooldown if cooldown >= 0.0 else float(spell.get("cooldown", 0.0)), I18n.t(String(spell.get("desc", "")))]
 
 func _item_tooltip(key: String, id: String) -> String:
 	if id == "":
-		return "[%s] Quick slot\nDrag a potion here from your bag (I).\nDrag a slot onto another to swap, or off the bar to clear it." % key
+		return tr("[%s] Quick slot\nDrag a potion here from your bag (I).\nDrag a slot onto another to swap, or off the bar to clear it.") % key
 	var data: Dictionary = HPEquipment.item(id)
-	return "[%s] %s\n%s\nDrag to move or swap; drag off the bar or right-click to clear." % [key, data.get("name", id), data.get("desc", "")]
+	return tr("[%s] %s\n%s\nDrag to move or swap; drag off the bar or right-click to clear.") % [key, I18n.t(String(data.get("name", id))), I18n.t(String(data.get("desc", "")))]
 
 func _ensure_action(action: String, keycode: int) -> void:
 	if not InputMap.has_action(action):

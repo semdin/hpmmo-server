@@ -12,6 +12,7 @@ class_name WorldLoader
 const WORLD_SCENE := "res://scenes/world/game_world.tscn"
 const ART := "res://assets/branding/hpmmo_banner.jpg"
 const MIN_SHOW := 1.2
+# i18n-begin
 const TIPS := [
 	"Start a chat line with ! to shout to every wizard in the realm.",
 	"Drag a potion from your bag onto F1-F4 to drink it with one key.",
@@ -23,6 +24,7 @@ const TIPS := [
 	"Ollivander can refine your wand. Higher tiers glow brighter.",
 	"Press M for the map of the valley, Esc for the menu.",
 ]
+# i18n-end
 
 var _path := WORLD_SCENE
 var _phase := "load"      # load -> switch -> settle -> (warm, macOS) -> fade
@@ -89,7 +91,7 @@ func _ready() -> void:
 	_bar.max_value = 100
 	HudKit.style_gauge(_bar, Color(0.9, 0.68, 0.2))
 	_root.add_child(_bar)
-	_status = HudKit.label("Opening the gates…", 16, HudKit.PARCHMENT, HudKit.title(), 4)
+	_status = HudKit.label(tr("Opening the gates…"), 16, HudKit.PARCHMENT, HudKit.title(), 4)
 	_status.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	_status.offset_left = -360
 	_status.offset_right = 360
@@ -104,7 +106,7 @@ func _ready() -> void:
 	_tip.offset_top = -70
 	_tip.offset_bottom = -40
 	_tip.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_tip.text = "Tip: " + String(TIPS[randi() % TIPS.size()])
+	_tip.text = tr("Tip: %s") % tr(String(TIPS[randi() % TIPS.size()]))
 	_root.add_child(_tip)
 	_rune = Spinner.new()
 	_rune.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
@@ -135,7 +137,7 @@ func _process(delta: float) -> void:
 		"load":
 			_progress = minf(30.0, _progress + delta * 60.0)
 			if _shown >= LOAD_AFTER:
-				_status.text = "Raising the castle…"
+				_status.text = tr("Raising the castle…")
 				_bar.value = 35.0
 				_phase = "switch"
 		"switch":
@@ -156,10 +158,10 @@ func _process(delta: float) -> void:
 			var world := get_tree().current_scene
 			var ready_world := world != null and "local_player" in world and is_instance_valid(world.get("local_player"))
 			if ready_world:
-				_status.text = "Entering the valley…"
+				_status.text = tr("Entering the valley…")
 			if (ready_world and _settle > 0.6 and _shown >= MIN_SHOW) or _settle > 12.0:
 				if ready_world and ShaderWarmup.wanted():
-					_status.text = "Preparing spells and creatures…"
+					_status.text = tr("Preparing spells and creatures…")
 					_warmup = ShaderWarmup.start(world)
 					_phase = "warm"
 					return

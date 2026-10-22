@@ -41,7 +41,7 @@ func _ready() -> void:
 	_layer = CanvasLayer.new()
 	_layer.layer = 10
 	add_child(_layer)
-	_window = ArcaneSkin.window("OLLIVANDER", Vector2(WIDTH, HEIGHT), "ui_ollivander")
+	_window = ArcaneSkin.window(I18n.upper(tr("Ollivander")), Vector2(WIDTH, HEIGHT), "ui_ollivander")
 	_window.closed.connect(hide)
 	_layer.add_child(_window)
 	_build()
@@ -96,9 +96,9 @@ func _build() -> void:
 	buttons.add_theme_constant_override("separation", 8)
 	body.add_child(buttons)
 	_refine_button = Button.new()
-	_refine_button.text = "OK"
+	_refine_button.text = tr("OK")
 	_clear_button = Button.new()
-	_clear_button.text = "Cancel"
+	_clear_button.text = tr("Cancel")
 	for b in [_refine_button, _clear_button]:
 		b.focus_mode = Control.FOCUS_NONE
 		b.custom_minimum_size = Vector2(100, 30)
@@ -159,9 +159,9 @@ func _material_row(id: String, need: int) -> void:
 	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(bar)
-	var text := UITheme.body("%s x %02d" % [String(HPEquipment.item(id).get("name", id)), need], UITheme.FS_SMALL,
+	var text := UITheme.body("%s x %02d" % [I18n.t(String(HPEquipment.item(id).get("name", id))), need], UITheme.FS_SMALL,
 		UITheme.c("parchment") if have >= need else Color(1.0, 0.5, 0.45))
-	text.tooltip_text = "You have %d" % have
+	text.tooltip_text = tr("You have %d") % have
 	text.mouse_filter = Control.MOUSE_FILTER_PASS
 	bar.add_child(text)
 	_materials.add_child(row)
@@ -264,35 +264,35 @@ func _refresh() -> void:
 	_clear_button.disabled = item.is_empty()
 	if item.is_empty():
 		target_uid = 0
-		_card_line("Drag an item here", UITheme.c("text_dim"))
-		_card_line("or right-click it in your bag", UITheme.c("text_dim"))
+		_card_line(tr("Drag an item here"), UITheme.c("text_dim"))
+		_card_line(tr("or right-click it in your bag"), UITheme.c("text_dim"))
 		_bonus_label.text = ""
 		_imbue_button.disabled = true
 		_reweave_button.disabled = true
-		_imbue_button.text = "Imbue"
-		_reweave_button.text = "Reweave"
+		_imbue_button.text = tr("Imbue")
+		_reweave_button.text = tr("Reweave")
 		return
 	var tier := int(item.get("tier", 0))
 	var tint: Color = ItemTooltip.RARITY_COLOUR.get(ItemTooltip.rarity_of(id), Color.WHITE)
-	var name := String(HPEquipment.item(id).get("name", id))
+	var name := I18n.t(String(HPEquipment.item(id).get("name", id)))
 	if not HPEquipment.refinable(id):
 		_card_line(name, tint, UITheme.FS_BODY)
-		_card_line("Cannot be refined", UITheme.c("text_dim"))
+		_card_line(tr("Cannot be refined"), UITheme.c("text_dim"))
 	elif tier >= 9:
 		_card_line("%s +9" % name, tint, UITheme.FS_BODY)
-		_card_line("From Level: %d" % HPEquipment.required_level(id), UITheme.c("parchment"))
+		_card_line(tr("From Level: %d") % HPEquipment.required_level(id), UITheme.c("parchment"))
 		for line in stat_lines(id, 9): _card_line(line, ItemTooltip.STAT_COLOUR)
-		_chance.text = "Fully refined"
+		_chance.text = tr("Fully refined")
 	else:
 		# The card shows the item as it will be after a successful upgrade.
 		var step: Dictionary = HPRules.combat().wand_tiers[tier]
 		_card_line("%s +%d" % [name, tier + 1], tint, UITheme.FS_BODY)
-		_card_line("From Level: %d" % HPEquipment.required_level(id), UITheme.c("parchment"))
+		_card_line(tr("From Level: %d") % HPEquipment.required_level(id), UITheme.c("parchment"))
 		for line in stat_lines(id, tier + 1): _card_line(line, ItemTooltip.STAT_COLOUR)
 		_material_row(String(step.material_id), int(step.material_amount))
 		var floor_tier := int(HPRules.combat().get("upgrade_curves", {}).get("fail_downgrade_from", 4))
-		_chance.text = "Chance of upgrade %d%%%s" % [int(step.chance), "  (failure: +%d)" % (tier - 1) if tier >= floor_tier else ""]
-		_cost.text = "Cost of the upgrade: %s Galleons" % preload("res://scripts/ui/inventory_arcane.gd").galleon_text(int(step.cost))
+		_chance.text = tr("Chance of upgrade %d%%%s") % [int(step.chance), tr("  (failure: +%d)") % (tier - 1) if tier >= floor_tier else ""]
+		_cost.text = tr("Cost of the upgrade: %s Galleons") % preload("res://scripts/ui/inventory_arcane.gd").galleon_text(int(step.cost))
 		_cost.add_theme_color_override("font_color", UITheme.c("gold_hi") if player.galleons >= int(step.cost) else Color(1.0, 0.45, 0.4))
 		_refine_button.disabled = busy or player.galleons < int(step.cost) or _count(String(step.material_id)) < int(step.material_amount)
 	# Enchantments.
@@ -303,17 +303,17 @@ func _refresh() -> void:
 	var cap := int(rules.get("max_bonuses", 5))
 	var enchantable := HPEquipment.enchantable(id)
 	if not enchantable:
-		_bonus_label.text = "Cannot be enchanted"
+		_bonus_label.text = tr("Cannot be enchanted")
 	elif held.is_empty():
-		_bonus_label.text = "No enchantments (0/%d)" % cap
+		_bonus_label.text = tr("No enchantments (0/%d)") % cap
 	else:
 		_bonus_label.text = "\n".join(held.map(func(b): return HPEquipment.bonus_text(b)))
 	var chances: Array = rules.get("imbue_chance", [100])
 	var imbue_chance := int(chances[clampi(held.size(), 0, chances.size() - 1)])
-	_imbue_button.text = "Imbue %d%%  ·  %d" % [imbue_chance, _count(imbue_id)]
-	_reweave_button.text = "Reweave  ·  %d" % _count(reweave_id)
-	_imbue_button.tooltip_text = String(HPEquipment.item(imbue_id).get("desc", ""))
-	_reweave_button.tooltip_text = String(HPEquipment.item(reweave_id).get("desc", ""))
+	_imbue_button.text = tr("Imbue %d%%  ·  %d") % [imbue_chance, _count(imbue_id)]
+	_reweave_button.text = tr("Reweave  ·  %d") % _count(reweave_id)
+	_imbue_button.tooltip_text = I18n.t(String(HPEquipment.item(imbue_id).get("desc", "")))
+	_reweave_button.tooltip_text = I18n.t(String(HPEquipment.item(reweave_id).get("desc", "")))
 	_imbue_button.disabled = busy or not enchantable or held.size() >= cap or _count(imbue_id) == 0
 	_reweave_button.disabled = busy or not enchantable or held.is_empty() or _count(reweave_id) == 0
 
@@ -333,7 +333,7 @@ func _equipment_answer(result: Dictionary) -> void:
 	if int(result.get("request_id", -1)) != _pending_id: return
 	_pending_id = -1
 	var reason := String(result.get("reason", ""))
-	var text := String(preload("res://scripts/ui/inventory_arcane.gd").REASONS.get(reason, "Equipment updated."))
+	var text := I18n.t(String(preload("res://scripts/ui/inventory_arcane.gd").REASONS.get(reason, tr("Equipment updated."))))
 	var good := reason in ["refined", "enchanted"]
 	var hud := get_parent().get_node_or_null("HUD") if get_parent() != null else null
 	if hud != null and hud.has_method("show_notice") and text != "":

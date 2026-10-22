@@ -24,4 +24,4 @@ func _on_part_down(_key: String) -> void:
 
 func _all_parts_down() -> void:
 	SimAuthority.set_mob_immune(self, false)
-	dungeon_message.emit("The vines are gone - the Snare's heart is exposed!")
+	dungeon_message.emit("The vines are gone - the Snare's heart is exposed!")  # i18n

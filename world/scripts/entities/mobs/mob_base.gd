@@ -431,7 +431,7 @@ func _update_label() -> void:
 		label = get_node_or_null("Label3D")
 	if label == null:
 		return
-	label.text = "[Lv.%d] %s%s\n%d / %d" % [level, mob_name, " • ENRAGED" if is_enraged else "", current_hp, max_hp]
+	label.text = "[Lv.%d] %s%s\n%d / %d" % [level, I18n.mob_name(mob_name), tr(" • ENRAGED") if is_enraged else "", current_hp, max_hp]
 	if is_boss:
 		label.modulate = Color(1, 0.72, 0.25)
 	elif is_elite:

@@ -72,7 +72,7 @@ func open_window(local_player: Node3D) -> void:
 		return
 	if global_position.distance_to(local_player.global_position) > PICK_RANGE:
 		if local_player.has_method("_spawn_floating_text"):
-			local_player.call("_spawn_floating_text", "Too far", Color(1.0, 0.85, 0.5), 1.0)
+			local_player.call("_spawn_floating_text", tr("Too far"), Color(1.0, 0.85, 0.5), 1.0)
 		return
 	get_tree().call_group("loot_window", "open_chest", self)
 
@@ -82,14 +82,14 @@ func setup(p_item_id: String, p_amount: int = 1, p_items: Array = []) -> void:
 	item_id = p_item_id if GLOW.has(p_item_id) else "chest"
 	amount = p_amount
 	items = p_items
-	item_name = "Enchanted Chest" if item_id == "chest_rare" else "Chest"
+	item_name = "Enchanted Chest" if item_id == "chest_rare" else "Chest"  # i18n
 	_update_display()
 
 func _update_display() -> void:
 	if not label:
 		return
 	var glow: Color = GLOW[item_id]
-	label.text = item_name
+	label.text = tr(item_name)
 	label.modulate = glow.lightened(0.35)
 	var look: Dictionary = LOOK[item_id]
 	light.light_color = glow

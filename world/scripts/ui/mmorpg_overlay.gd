@@ -150,7 +150,7 @@ func _build() -> void:
 
 	# Where you are, under the disc: the place name in the map's own lettering.
 	# (It replaces the fixed "HOGWARTS VALLEY" caption and the top-centre line.)
-	_map_title = HudKit.label("Hogwarts Valley", 15, HudKit.GOLD_HI, HudKit.deco(), 5)
+	_map_title = HudKit.label(tr("Hogwarts Valley"), 15, HudKit.GOLD_HI, HudKit.deco(), 5)
 	_map_title.name = "PlaceName"
 	_map_title.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	_map_title.offset_left = -130.0
@@ -206,7 +206,7 @@ func _build() -> void:
 	quest_margin.add_child(quest_column)
 	# The caption is a caption, not the first line of the body: it gets the
 	# title face while the objective keeps the reading face.
-	_quest_title = UITheme.heading("QUEST", UITheme.FS_SMALL)
+	_quest_title = UITheme.heading(I18n.upper(tr("Quest")), UITheme.FS_SMALL)
 	quest_column.add_child(UITheme.icon_row("ui_quest", _quest_title, 18.0))
 	quest_column.add_child(UITheme.divider())
 	_quest_label = UITheme.body("", UITheme.FS_SMALL, UITheme.c("parchment"))
@@ -254,7 +254,7 @@ func _build() -> void:
 	_boss_panel.theme = UITheme.get_theme()
 	_boss_panel.theme_type_variation = UITheme.V_WINDOW
 	_boss_name = Label.new()
-	_boss_name.text = "Dark Monolith"
+	_boss_name.text = tr("Dark Monolith")
 	_boss_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_boss_name.add_theme_font_override("font", UITheme.font_title())
 	_boss_name.add_theme_font_size_override("font_size", UITheme.FS_BODY)
@@ -313,7 +313,7 @@ func _build() -> void:
 	_dialog_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_dialog_text.custom_minimum_size = Vector2(DIALOG_W - 40, 0)
 	dialog_column.add_child(_dialog_text)
-	var dialog_hint := UITheme.body("Click or Esc to close", UITheme.FS_TINY, UITheme.c("text_dim"))
+	var dialog_hint := UITheme.body(tr("Click or Esc to close"), UITheme.FS_TINY, UITheme.c("text_dim"))
 	dialog_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	dialog_column.add_child(dialog_hint)
 
@@ -338,10 +338,7 @@ func _build() -> void:
 	_help_panel.theme = UITheme.get_theme()
 	_help_panel.theme_type_variation = UITheme.V_CARD
 	var help_label := UITheme.body(
-		"WASD move · right-drag camera · wheel zoom\n"
-		+ "LMB attack · 1–4 / Q / E skills · Tab target\n"
-		+ "Shift mount · Space rise · Ctrl descend · F talk\n"
-		+ "Z loot · I bag · O Ollivander · J guide · F1 settings",
+		tr("WASD move · right-drag camera · wheel zoom\nLMB attack · 1–4 / Q / E skills · Tab target\nShift mount · Space rise · Ctrl descend · F talk\nZ loot · I bag · O Ollivander · J guide · F1 settings"),
 		UITheme.FS_SMALL,
 		UITheme.c("text"))
 	help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -391,13 +388,13 @@ func _build_map_buttons() -> void:
 	# The three round buttons under the reference's map: zoom out, recentre, zoom in.
 	# Each is its icon - the round chrome button has no room for a caption, and an
 	# arrow says "zoom" better than a minus sign does.
-	for spec in [["minimap_zoom_out", -1, "Zoom out"], ["minimap_player", 0, "Recentre on me"], ["minimap_zoom_in", 1, "Zoom in"]]:
+	for spec in [["minimap_zoom_out", -1, "Zoom out"], ["minimap_player", 0, "Recentre on me"], ["minimap_zoom_in", 1, "Zoom in"]]:  # i18n
 		# The painted brass glyphs carry their own frame, so the button itself
 		# draws nothing but the icon (brighter on hover).
 		var b := Button.new()
 		b.icon = UITheme.chrome_at(String(spec[0]), 26.0)
 		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		b.tooltip_text = String(spec[2])
+		b.tooltip_text = tr(String(spec[2]))
 		b.custom_minimum_size = Vector2(30, 30)
 		b.focus_mode = Control.FOCUS_NONE
 		for state in ["normal", "hover", "pressed", "focus", "disabled"]:
@@ -424,8 +421,9 @@ const DIALOG_W := 560.0
 func show_dialogue(speaker: String, lines: Array) -> void:
 	_dialog_serial += 1
 	var serial := _dialog_serial
-	_dialog_speaker.text = speaker
-	_dialog_text.text = "\n\n".join(lines)
+	# NPCs speak in English message ids; the panel shows them translated.
+	_dialog_speaker.text = I18n.t(speaker)
+	_dialog_text.text = "\n\n".join(lines.map(func(line): return I18n.t(String(line))))
 	_dialog_panel.show()
 	_place_dialogue()
 	# Long enough to read; a newer line resets the clock.
@@ -717,20 +715,20 @@ func zone_at(pos: Vector3) -> String:
 		return place
 	var layout := _grounds_layout()
 	if xz.distance_to(Vector2(0, 65)) < 34.0:
-		return "Hogwarts Courtyard"
+		return "Hogwarts Courtyard"  # i18n
 	var lake: Dictionary = layout.get("lake", {})
 	if not lake.is_empty():
 		var c := Vector2(float(lake.center[0]), float(lake.center[1]))
 		var r := Vector2(float(lake.radii[0]), float(lake.radii[1]))
 		var d := (xz - c) / r
 		if d.length() < 1.0:
-			return "Black Lake"
-	var feature_names := {"castle_promontory": "Hogwarts Castle", "greenhouse_terrace": "Greenhouses", "hagrid_glade": "Hagrid's Hut"}
+			return "Black Lake"  # i18n
+	var feature_names := {"castle_promontory": "Hogwarts Castle", "greenhouse_terrace": "Greenhouses", "hagrid_glade": "Hagrid's Hut"}  # i18n
 	for f in layout.get("features", []):
 		var id := String(f.get("id", ""))
 		if feature_names.has(id) and xz.distance_to(Vector2(float(f.center[0]), float(f.center[1]))) < float(f.get("radius", 0.0)):
 			return String(feature_names[id])
-	var region_names := {"forbidden_forest": "Forbidden Forest", "north_moor": "Northern Moors", "hogsmeade": "Hogsmeade Village"}
+	var region_names := {"forbidden_forest": "Forbidden Forest", "north_moor": "Northern Moors", "hogsmeade": "Hogsmeade Village"}  # i18n
 	for region in layout.get("regions", []):
 		var poly := PackedVector2Array()
 		for p in region.get("polygon", []):
@@ -738,8 +736,8 @@ func zone_at(pos: Vector3) -> String:
 		if poly.size() >= 3 and Geometry2D.is_point_in_polygon(xz, poly):
 			return String(region_names.get(String(region.get("id", "")), String(region.get("name", ""))))
 	if xz.length() > 760.0:
-		return "Mountain Pass"
-	return "Hogwarts Valley"
+		return "Mountain Pass"  # i18n
+	return "Hogwarts Valley"  # i18n
 
 func _grounds_layout() -> Dictionary:
 	if not _layout.is_empty():
@@ -790,7 +788,7 @@ static func band_color(player_level: int, band_min: int, band_max: int) -> Color
 func _update_zone() -> void:
 	var z := location_for_banner()
 	var hunt := hunting_region()
-	var title := String(hunt.get("display", z)) if not hunt.is_empty() else z
+	var title := I18n.t(String(hunt.get("display", z)) if not hunt.is_empty() else z)
 	var key := title + "|" + String(hunt.get("id", ""))
 	if key != _last_zone:
 		var first := _last_zone == ""
@@ -804,7 +802,7 @@ func _update_zone() -> void:
 			if not hunt.is_empty():
 				var lo := int(hunt.get("level_min", 1))
 				var hi := int(hunt.get("level_max", lo))
-				_zone_banner_sub.text = "Hunting grounds  ·  Lv %d-%d" % [lo, hi]
+				_zone_banner_sub.text = tr("Hunting grounds  ·  Lv %d-%d") % [lo, hi]
 				var player_level := int(_player.get("level")) if _player.get("level") != null else 1
 				_zone_banner_sub.add_theme_color_override("font_color", band_color(player_level, lo, hi))
 		# Announce crossings, not the place you logged in at.
@@ -829,7 +827,7 @@ func _update_boss() -> void:
 	var t: Node = _player.get("current_target") as Node
 	if is_instance_valid(t) and (t.is_in_group("monoliths") or ("is_boss" in t and t.is_boss)) and t.current_hp > 0:
 		_boss_panel.hide()
-		_boss_name.text = "DARK MONOLITH — Lv.35" if t.is_in_group("monoliths") else "%s • Lv.%d" % [t.mob_name, t.level]
+		_boss_name.text = I18n.upper(tr("Dark Monolith")) + " — Lv.35" if t.is_in_group("monoliths") else "%s • Lv.%d" % [I18n.mob_name(String(t.mob_name)), t.level]
 		# The authority's health delta for the target wins over the
 		# node's own copy (which is the snapshot mirror when the boss is a
 		# replicated view).

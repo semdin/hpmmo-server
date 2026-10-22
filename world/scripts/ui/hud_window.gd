@@ -11,7 +11,8 @@ class_name HudWindow
 ## input (settings: key rebinding) sets `modal = true`, which dims the world
 ## and blocks the game's keys while it is open.
 ##
-## Content goes into `body`; `card` is the framed window itself.
+## Content goes into `body`; `card` is the framed window itself. The title is
+## given in English and translated here (the node keeps the English name).
 
 signal closed
 
@@ -40,7 +41,7 @@ func _ready() -> void:
 	_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP if modal else Control.MOUSE_FILTER_IGNORE
 	_backdrop.visible = modal
 	add_child(_backdrop)
-	card = ArcaneSkin.window(title_text.to_upper(), _wanted)
+	card = ArcaneSkin.window(I18n.upper(tr(title_text)), _wanted)
 	card.name = "Card"
 	add_child(card)
 	card.closed.connect(close)
@@ -54,7 +55,7 @@ func _ready() -> void:
 func set_title(text: String) -> void:
 	title_text = text
 	if _title != null:
-		_title.text = text.to_upper()
+		_title.text = I18n.upper(tr(text))
 
 ## Clamp the card to the screen; centre it the first time (afterwards it stays
 ## where the player dragged it).

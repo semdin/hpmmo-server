@@ -13,7 +13,7 @@ func _init() -> void:
 
 func _ready() -> void:
 	super._ready()
-	var hint := HudKit.label("Set the boot down and choose where it goes. For ten seconds your party may grab hold; then everyone holding on is carried there together.", 13, HudKit.PARCHMENT)
+	var hint := HudKit.label(tr("Set the boot down and choose where it goes. For ten seconds your party may grab hold; then everyone holding on is carried there together."), 13, HudKit.PARCHMENT)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_child(hint)
 	_list = VBoxContainer.new()
@@ -31,7 +31,7 @@ func open_for(who: Node) -> void:
 			continue
 		var row := HBoxContainer.new()
 		_list.add_child(row)
-		var name_label := HudKit.label(String(dest.get("label", id)), 16, HudKit.GOLD_HI)
+		var name_label := HudKit.label(I18n.t(String(dest.get("label", id))), 16, HudKit.GOLD_HI)
 		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(name_label)
 		var go := Button.new()
@@ -39,10 +39,10 @@ func open_for(who: Node) -> void:
 		go.custom_minimum_size = Vector2(110, 0)
 		var need := int(dest.get("level_min", 1))
 		if level < need:
-			go.text = "Level %d" % need
+			go.text = tr("Level %d") % need
 			go.disabled = true
 		else:
-			go.text = "Set down"
+			go.text = tr("Set down")
 			go.pressed.connect(_place.bind(String(id)))
 		row.add_child(go)
 	open()

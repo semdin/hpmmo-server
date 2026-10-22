@@ -16,9 +16,13 @@ const QualityPreset = preload("res://scripts/world/quality_preset.gd")
 ## only after its button is pressed, and the very next key (or Escape to cancel)
 ## is consumed and never reaches gameplay.
 
-const WINDOW_SIZE := Vector2(660, 540)
+const WINDOW_SIZE := Vector2(660, 600)
 
-## Player-facing names for the bindable actions.
+## The player picked another language and wants the HUD rebuilt in it now.
+signal language_apply_requested
+
+## Player-facing names for the bindable actions (English; shown through tr()).
+# i18n-begin
 const ACTION_NAMES := {
 	"move_forward": "Move forward", "move_backward": "Move backward",
 	"move_left": "Move left", "move_right": "Move right",
@@ -32,6 +36,8 @@ const ACTION_NAMES := {
 	"quickslot_1": "Quick slot 1", "quickslot_2": "Quick slot 2",
 	"quickslot_3": "Quick slot 3", "quickslot_4": "Quick slot 4",
 }
+const QUALITY_NAMES := {"low": "Low", "medium": "Medium", "high": "High"}
+# i18n-end
 
 ## `panel` is the window card (kept under this name for the layout reports).
 var panel: Control = null
@@ -96,7 +102,7 @@ func _build() -> void:
 	var pages := MarginContainer.new()
 	pages.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_window.body.add_child(pages)
-	for spec in [["graphics", "Graphics"], ["audio", "Audio"], ["controls", "Controls"]]:
+	for spec in [["graphics", tr("General")], ["audio", tr("Audio")], ["controls", tr("Controls")]]:
 		var key := String(spec[0])
 		var b := HudKit.button(String(spec[1]), 15)
 		b.toggle_mode = true
@@ -112,8 +118,10 @@ func _build() -> void:
 
 	# --- graphics & interface ---
 	var g: VBoxContainer = _pages["graphics"]
-	g.add_child(_section("Display"))
-	var row := _row("Graphics quality")
+	g.add_child(_section(tr("Language")))
+	g.add_child(_language_row())
+	g.add_child(_section(tr("Display")))
+	var row := _row(tr("Graphics quality"))
 	_graphics = OptionButton.new()
 	_graphics.name = "GraphicsQuality"
 	_graphics.focus_mode = Control.FOCUS_NONE
@@ -122,29 +130,29 @@ func _build() -> void:
 	HudKit.style_button(_graphics, 14)
 	for choice in GameSettings.GRAPHICS_CHOICES:
 		_graphics.add_item(_graphics_label(choice))
-	_graphics.tooltip_text = "Auto picks Low on integrated graphics and High on a dedicated GPU"
+	_graphics.tooltip_text = tr("Auto picks Low on integrated graphics and High on a dedicated GPU")
 	_graphics.item_selected.connect(_on_graphics_selected)
 	row.add_child(_graphics)
 	g.add_child(row)
-	g.add_child(_slider_row("ui_scale", "Interface scale", GameSettings.UI_SCALE_MIN, GameSettings.UI_SCALE_MAX, 0.05))
-	g.add_child(_section("Camera & effects"))
-	g.add_child(_slider_row("mouse_sensitivity", "Mouse sensitivity", GameSettings.SENSITIVITY_MIN, GameSettings.SENSITIVITY_MAX, 0.05))
-	g.add_child(_slider_row("shake", "Screen shake", GameSettings.INTENSITY_MIN, GameSettings.INTENSITY_MAX, 0.05))
-	g.add_child(_slider_row("flash", "Screen flash", GameSettings.INTENSITY_MIN, GameSettings.INTENSITY_MAX, 0.05))
+	g.add_child(_slider_row("ui_scale", tr("Interface scale"), GameSettings.UI_SCALE_MIN, GameSettings.UI_SCALE_MAX, 0.05))
+	g.add_child(_section(tr("Camera & effects")))
+	g.add_child(_slider_row("mouse_sensitivity", tr("Mouse sensitivity"), GameSettings.SENSITIVITY_MIN, GameSettings.SENSITIVITY_MAX, 0.05))
+	g.add_child(_slider_row("shake", tr("Screen shake"), GameSettings.INTENSITY_MIN, GameSettings.INTENSITY_MAX, 0.05))
+	g.add_child(_slider_row("flash", tr("Screen flash"), GameSettings.INTENSITY_MIN, GameSettings.INTENSITY_MAX, 0.05))
 
 	# --- audio ---
 	var a: VBoxContainer = _pages["audio"]
-	a.add_child(_section("Volume"))
+	a.add_child(_section(tr("Volume")))
 	for bus_name in GameSettings.BUSES:
 		a.add_child(_slider_row("vol_%s" % bus_name, "%s" % _bus_title(String(bus_name)), 0.0, 1.0, 0.05, "audio_%s" % String(bus_name).to_lower()))
 
 	# --- controls ---
 	var c: VBoxContainer = _pages["controls"]
 	var head := HBoxContainer.new()
-	var caption := _section("Key bindings")
+	var caption := _section(tr("Key bindings"))
 	caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(caption)
-	var reset := HudKit.button("Reset keys", 14)
+	var reset := HudKit.button(tr("Reset keys"), 14)
 	reset.pressed.connect(_on_reset_pressed)
 	head.add_child(reset)
 	c.add_child(head)
@@ -169,7 +177,7 @@ func _build() -> void:
 		stripe.add_theme_stylebox_override("panel", sb)
 		stripe.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		stripe.add_child(r)
-		var name_label := HudKit.label(String(ACTION_NAMES.get(action, String(action).replace("_", " ").capitalize())), 15, HudKit.TEXT, HudKit.body(), 0)
+		var name_label := HudKit.label(_action_name(action), 15, HudKit.TEXT, HudKit.body(), 0)
 		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		r.add_child(name_label)
@@ -188,12 +196,60 @@ func _build() -> void:
 	_status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_status.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	footer.add_child(_status)
-	var close_button := HudKit.button("Close", 15)
+	var close_button := HudKit.button(tr("Close"), 15)
 	close_button.custom_minimum_size = Vector2(120, 34)
-	close_button.tooltip_text = "Close the settings (Esc)"
+	close_button.tooltip_text = tr("Close the settings (Esc)")
 	close_button.pressed.connect(_on_close_pressed)
 	footer.add_child(close_button)
 	_show_page("graphics")
+
+## The language picker. Labels built from now on use the new language at once;
+## what is already on screen switches when the HUD is built again, so the row
+## offers the character screen (the usual leave countdown applies).
+func _language_row() -> VBoxContainer:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 6)
+	var row := _row(tr("Game language"))
+	var picker := OptionButton.new()
+	picker.name = "LanguagePicker"
+	picker.focus_mode = Control.FOCUS_NONE
+	picker.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	picker.custom_minimum_size = Vector2(280, 32)
+	picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	HudKit.style_button(picker, 14)
+	var languages: Array = I18n.languages()
+	for i in languages.size():
+		picker.add_item(String(languages[i].name), i)
+		picker.set_item_metadata(i, String(languages[i].code))
+		if String(languages[i].code) == I18n.current:
+			picker.select(i)
+	row.add_child(picker)
+	box.add_child(row)
+	var apply_row := HBoxContainer.new()
+	apply_row.add_theme_constant_override("separation", 10)
+	apply_row.visible = false
+	var note := HudKit.label(tr("Open windows switch language when the interface is rebuilt."), 13, HudKit.TEXT_DIM, HudKit.body(), 0)
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	apply_row.add_child(note)
+	var apply := HudKit.button(tr("Change character now"), 13)
+	apply.custom_minimum_size = Vector2(190, 30)
+	apply.pressed.connect(func():
+		close()
+		language_apply_requested.emit())
+	apply_row.add_child(apply)
+	box.add_child(apply_row)
+	picker.item_selected.connect(func(index: int):
+		var code := String(picker.get_item_metadata(index))
+		if code == I18n.current:
+			return
+		I18n.set_language(code)
+		settings_written += 1
+		apply_row.visible = true
+		note.text = tr("Open windows switch language when the interface is rebuilt.")
+		apply.text = tr("Change character now")
+		_status.text = tr("Language: %s") % I18n.native_name(code))
+	return box
 
 func _show_page(key: String) -> void:
 	for k in _pages:
@@ -201,7 +257,7 @@ func _show_page(key: String) -> void:
 		(_tab_buttons[k] as Button).set_pressed_no_signal(k == key)
 
 func _section(text: String) -> Label:
-	var l := HudKit.label(text.to_upper(), 14, HudKit.GOLD, HudKit.title(), 2)
+	var l := HudKit.label(I18n.upper(text), 14, HudKit.GOLD, HudKit.title(), 2)
 	return l
 
 func _row(title: String, icon_id: String = "") -> HBoxContainer:
@@ -262,9 +318,13 @@ func _slider_row(key: String, title: String, minimum: float, maximum: float, ste
 static func _bus_title(bus: String) -> String:
 	match bus:
 		"SFX":
-			return "Effects"
+			return I18n.t("Effects")
 		"UI":
-			return "Interface"
+			return I18n.t("Interface")
+		"Music":
+			return I18n.t("Music")
+		"Ambience":
+			return I18n.t("Ambience")
 	return bus
 
 ## ---------------------------------------------------------------- controls
@@ -293,8 +353,14 @@ func _on_slider_changed(value: float, key: String) -> void:
 
 func _graphics_label(choice: String) -> String:
 	if choice == "auto":
-		return "Auto (%s)" % QualityPreset.detect().capitalize()
-	return choice.capitalize()
+		return tr("Auto (%s)") % _quality_name(QualityPreset.detect())
+	return _quality_name(choice)
+
+func _quality_name(preset: String) -> String:
+	return tr(String(QUALITY_NAMES.get(preset, preset.capitalize())))
+
+func _action_name(action: String) -> String:
+	return tr(String(ACTION_NAMES.get(action, String(action).replace("_", " ").capitalize())))
 
 func _on_graphics_selected(index: int) -> void:
 	var choice: String = GameSettings.GRAPHICS_CHOICES[index]
@@ -302,7 +368,7 @@ func _on_graphics_selected(index: int) -> void:
 	var world: Node3D = terrain.get_parent() as Node3D if terrain != null else get_tree().current_scene as Node3D
 	QualityPreset.choose(choice, world)
 	settings_written += 1
-	_status.text = "Graphics: %s" % QualityPreset.current().capitalize()
+	_status.text = tr("Graphics: %s") % _quality_name(QualityPreset.current())
 	_refresh_all()
 
 func _refresh_all() -> void:
@@ -316,7 +382,7 @@ func _refresh_all() -> void:
 	for action in _bind_buttons:
 		var button: Button = _bind_buttons[action]
 		if action == _listening_action:
-			button.text = "press a key…"
+			button.text = tr("press a key…")
 		else:
 			button.text = OS.get_keycode_string(settings.binding_keycode(action))
 
@@ -346,7 +412,7 @@ func _format_value(key: String, value: float) -> String:
 
 func _on_bind_pressed(action: String) -> void:
 	_listening_action = action
-	_status.text = "Press a key for '%s' (Esc cancels)" % String(ACTION_NAMES.get(action, action))
+	_status.text = tr("Press a key for '%s' (Esc cancels)") % _action_name(action)
 	_refresh_all()
 
 func _on_close_pressed() -> void:
@@ -355,7 +421,7 @@ func _on_close_pressed() -> void:
 func _on_reset_pressed() -> void:
 	GameSettings.instance().reset_bindings()
 	_listening_action = ""
-	_status.text = "Key bindings reset to defaults."
+	_status.text = tr("Key bindings reset to defaults.")
 	_refresh_all()
 
 ## Consume the key while a row is listening: it never reaches gameplay, and the
@@ -370,16 +436,18 @@ func _input(event: InputEvent) -> void:
 	var action := _listening_action
 	if key_event.keycode == KEY_ESCAPE:
 		_listening_action = ""
-		_status.text = "Rebinding cancelled."
+		_status.text = tr("Rebinding cancelled.")
 		_refresh_all()
 		return
 	var error := GameSettings.instance().set_binding(action, key_event.physical_keycode)
 	_listening_action = ""
 	if error == "":
 		rebinds_applied += 1
-		_status.text = "'%s' is now %s." % [String(ACTION_NAMES.get(action, action)), OS.get_keycode_string(key_event.physical_keycode)]
+		_status.text = tr("'%s' is now %s.") % [_action_name(action), OS.get_keycode_string(key_event.physical_keycode)]
+	elif error.begins_with("already bound to "):
+		_status.text = tr("Refused: that key already drives '%s'.") % _action_name(error.trim_prefix("already bound to "))
 	else:
-		_status.text = "Refused: %s." % error
+		_status.text = tr("Refused: %s.") % tr(error)
 	_refresh_all()
 
 func describe() -> Dictionary:

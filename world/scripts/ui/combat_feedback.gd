@@ -23,6 +23,7 @@ const STATUS_POLL := 0.2
 const TOAST_H := 120.0
 
 ## The authority's refusal vocabulary -> the words the player reads.
+# i18n-begin
 const REASONS := {
 	"no_wand": "Equip a wand first",
 	"no_broom": "Equip a broom first",
@@ -43,6 +44,7 @@ const REASONS := {
 	HPProtocol.REJECT_TRANSFER_PENDING: "The map is still loading",
 	HPProtocol.REJECT_NO_FLIGHT: "The broom cannot fly here",
 }
+# i18n-end
 
 var binder: UIStateBinder = null
 var player: Node3D = null
@@ -139,7 +141,7 @@ func _build() -> void:
 	_cast_icon.name = "CastIcon"
 	_cast_icon.position = Vector2(7, 3)
 	_cast_panel.add_child(_cast_icon)
-	_cast_label = _make_label("Casting", UITheme.FS_SMALL, UITheme.c("parchment"))
+	_cast_label = _make_label(tr("Casting"), UITheme.FS_SMALL, UITheme.c("parchment"))
 	_cast_label.position = Vector2(27, 4)
 	_cast_panel.add_child(_cast_label)
 	_cast_bar = ProgressBar.new()
@@ -271,16 +273,16 @@ func _build() -> void:
 	choices.set_anchors_preset(Control.PRESET_CENTER)
 	UILayout.place_centred(choices, Vector2(460, 44), Vector2(0, 96))
 	_death_panel.add_child(choices)
-	_revive_here = HudKit.button("Revive Here", 16)
+	_revive_here = HudKit.button(tr("Revive Here"), 16)
 	_revive_here.name = "ReviveHere"
 	_revive_here.custom_minimum_size = Vector2(210, 44)
-	_revive_here.tooltip_text = "Get up where you fell with half health"
+	_revive_here.tooltip_text = tr("Get up where you fell with half health")
 	_revive_here.pressed.connect(_request_respawn.bind(HPProtocol.RESPAWN_HERE))
 	choices.add_child(_revive_here)
-	_revive_town = HudKit.button("Return to Town", 16)
+	_revive_town = HudKit.button(tr("Return to Town"), 16)
 	_revive_town.name = "ReviveTown"
 	_revive_town.custom_minimum_size = Vector2(210, 44)
-	_revive_town.tooltip_text = "Wake at this map's respawn point with full health"
+	_revive_town.tooltip_text = tr("Wake at this map's respawn point with full health")
 	_revive_town.pressed.connect(_request_respawn.bind(HPProtocol.RESPAWN_TOWN))
 	choices.add_child(_revive_town)
 	# Its own layer, above every HUD window (a window left open must not hide
@@ -316,7 +318,7 @@ func _on_cast_started(p_cast_id: int, spell_id: String, release_tick: int) -> vo
 	casts_shown += 1
 	# The windup/recovery bar is not shown to players: the action bar's own
 	# cooldown sweep already says when a skill is ready again.
-	_cast_label.text = "%s - casting... (%s)" % [_spell_name(spell_id), _dummy_countdown(SimAuthority.TICK_MS * maxi(1, _cast_release_tick - _cast_start_tick))]
+	_cast_label.text = tr("%s - casting... (%s)") % [_spell_name(spell_id), _dummy_countdown(SimAuthority.TICK_MS * maxi(1, _cast_release_tick - _cast_start_tick))]
 
 ## The server decides the windup. The bar fills on the simulation clock; if the
 ## release tick has passed and no release arrived yet (network gap), the bar
@@ -355,14 +357,14 @@ func _on_cast_rejected(_cast_seq: int, spell_id: String, reason: String) -> void
 ## Player-facing words for one REJECT_* code.
 static func reason_text(reason: String) -> String:
 	if REASONS.has(reason):
-		return String(REASONS[reason])
+		return I18n.t(String(REASONS[reason]))
 	if reason == "":
-		return "Refused"
-	return "Refused (%s)" % reason
+		return I18n.t("Refused")
+	return I18n.t("Refused (%s)") % reason
 
 func _spell_name(spell_id: String) -> String:
 	if GameData.SPELLS.has(spell_id):
-		return String(GameData.SPELLS[spell_id].name)
+		return I18n.t(String(GameData.SPELLS[spell_id].name))
 	return spell_id
 
 func _dummy_countdown(ms: int) -> String:
@@ -389,11 +391,11 @@ func _on_death_changed(is_dead: bool) -> void:
 		_respawn_sent = false
 		_death_panel.show()
 		_update_death_panel()
-		show_feedback("You were defeated.", Color(1.0, 0.4, 0.4))
+		show_feedback(tr("You were defeated."), Color(1.0, 0.4, 0.4))
 	else:
 		_death_panel.hide()
-		show_feedback("Back on your feet.", Color(0.5, 1.0, 0.6))
-		_toast("Respawned", Color(0.5, 1.0, 0.6), "stat_health")
+		show_feedback(tr("Back on your feet."), Color(0.5, 1.0, 0.6))
+		_toast(tr("Respawned"), Color(0.5, 1.0, 0.6), "stat_health")
 
 ## Seconds until the automatic return to town (the authority's schedule).
 func _respawn_seconds() -> float:
@@ -416,10 +418,10 @@ func _update_death_panel() -> void:
 	_revive_here.disabled = not ready
 	_revive_town.disabled = not ready
 	if wait > 0.0:
-		_death_label.text = "DEFEATED\nYou can rise in %ds" % int(ceil(wait))
+		_death_label.text = tr("DEFEATED\nYou can rise in %ds") % int(ceil(wait))
 	else:
 		var left := int(ceil(_respawn_seconds()))
-		_death_label.text = "DEFEATED\nReturning to town in %d:%02d" % [left / 60, left % 60]
+		_death_label.text = tr("DEFEATED\nReturning to town in %d:%02d") % [left / 60, left % 60]
 
 func _request_respawn(mode: int) -> void:
 	if _respawn_sent or not is_instance_valid(player):
@@ -434,23 +436,23 @@ func _request_respawn(mode: int) -> void:
 
 func _on_loot_taken(item_id: String, amount: int) -> void:
 	if item_id == "galleons":
-		_toast("+%d Galleons" % amount, Color(1.0, 0.85, 0.35), "galleons")
+		_toast(tr("+%d Galleons") % amount, Color(1.0, 0.85, 0.35), "galleons")
 	elif GameData.ITEMS.has(item_id):
-		_toast("+%s x%d" % [GameData.ITEMS[item_id].name, amount], Color(0.75, 0.95, 0.75), item_id)
+		_toast("+%s x%d" % [I18n.t(String(GameData.ITEMS[item_id].name)), amount], Color(0.75, 0.95, 0.75), item_id)
 	else:
 		_toast("+%s x%d" % [item_id, amount], Color(0.75, 0.95, 0.75), "ui_pickup")
 	_play_ui("ui_loot")
 
 func _on_reward_granted(exp: int, galleons: int, items: Array) -> void:
 	if exp > 0:
-		_toast("+%d EXP" % exp, Color(0.5, 1.0, 0.6), "stat_exp")
+		_toast(tr("+%d EXP") % exp, Color(0.5, 1.0, 0.6), "stat_exp")
 	if galleons > 0:
-		_toast("+%d Galleons" % galleons, Color(1.0, 0.85, 0.35), "galleons")
+		_toast(tr("+%d Galleons") % galleons, Color(1.0, 0.85, 0.35), "galleons")
 		_play_ui("ui_coin")
 	for entry in items:
 		if entry is Dictionary:
 			var item_id := String(entry.get("id", "item"))
-			_toast("+%s x%d" % [GameData.ITEMS.get(item_id,{}).get("name",item_id), int(entry.get("amount", 1))], Color(0.75, 0.95, 0.75), item_id)
+			_toast("+%s x%d" % [I18n.t(String(GameData.ITEMS.get(item_id,{}).get("name",item_id))), int(entry.get("amount", 1))], Color(0.75, 0.95, 0.75), item_id)
 
 func _on_level_changed(level: int) -> void:
 	_toast("LEVEL %d!" % level, Color(1.0, 0.9, 0.3), "stat_level")
@@ -564,15 +566,15 @@ func safe_area_text() -> String:
 	var lines: Array = []
 	if here:
 		var zone := HPRules.protection_id(player.global_position)
-		lines.append("Protected ground - combat is disabled here%s" % (" (%s)" % zone if zone != "" else ""))
+		lines.append(tr("Protected ground - combat is disabled here%s") % (" (%s)" % zone if zone != "" else ""))
 	var target = binder.target if binder != null else null
 	if target is Node3D and is_instance_valid(target) and HPRules.is_protected_node(target):
-		lines.append("Target is on protected ground - attacks will be refused")
+		lines.append(tr("Target is on protected ground - attacks will be refused"))
 	return "\n".join(lines)
 
 func _update_status() -> void:
 	_status_label.text = _status_fallback_text()
-	_safe_label.text = "Safe area · Combat disabled" if safe_area_text() != "" else ""
+	_safe_label.text = tr("Safe area · Combat disabled") if safe_area_text() != "" else ""
 	_safe_icon.visible = _safe_label.text != ""
 
 ## ------------------------------------------------------------------ process
@@ -585,13 +587,13 @@ func _process(delta: float) -> void:
 		var progress := cast_progress()
 		_cast_bar.value = progress * 100.0
 		if progress < 1.0:
-			_cast_label.text = "%s - casting... %.0f%%" % [_spell_name(cast_spell), progress * 100.0]
+			_cast_label.text = tr("%s - casting... %.0f%%") % [_spell_name(cast_spell), progress * 100.0]
 		else:
-			_cast_label.text = "%s - releasing..." % _spell_name(cast_spell)
+			_cast_label.text = tr("%s - releasing...") % _spell_name(cast_spell)
 	elif _recovery_until > now and _recovery_total > 0.0:
 		var remaining := _recovery_until - now
 		var ratio := clampf(remaining / _recovery_total, 0.0, 1.0)
-		_cast_label.text = "%s - recovering... %.1fs" % [_spell_name(_recovery_spell), remaining]
+		_cast_label.text = tr("%s - recovering... %.1fs") % [_spell_name(_recovery_spell), remaining]
 		_cast_bar.value = (1.0 - ratio) * 100.0
 	else:
 		if _recovery_spell != "":

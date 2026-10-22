@@ -38,7 +38,7 @@ func _ready() -> void:
 	_here_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	body.add_child(_here_label)
 	body.add_child(_powder_card())
-	body.add_child(_section("Destinations"))
+	body.add_child(_section(tr("Destinations")))
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -69,7 +69,7 @@ func _powder_card() -> PanelContainer:
 	_price_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	text.add_child(_price_label)
 	for amount in [1, 5]:
-		var buy := HudKit.button("Buy %d" % amount, 14)
+		var buy := HudKit.button(tr("Buy %d") % amount, 14)
 		buy.custom_minimum_size = Vector2(64, 34)
 		buy.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		buy.pressed.connect(_buy.bind(amount))
@@ -88,7 +88,7 @@ func _section(text: String) -> HBoxContainer:
 		rule.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row.add_child(rule)
 		if i == 0:
-			row.add_child(HudKit.label(text.to_upper(), 13, HudKit.GOLD_LT, HudKit.title(), 3))
+			row.add_child(HudKit.label(I18n.upper(text), 13, HudKit.GOLD_LT, HudKit.title(), 3))
 	return row
 
 ## The keeper's other ware, quiet at the foot of the window.
@@ -103,11 +103,11 @@ func _boot_row() -> PanelContainer:
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	text.add_theme_constant_override("separation", 0)
 	row.add_child(text)
-	text.add_child(HudKit.label("Old Boot (Portkey)", 14, HudKit.PARCHMENT, HudKit.bold(), 3))
-	var boot_note := HudKit.label("%s Galleons - carries your party anywhere" % _galleons(int(HPEquipment.item(BOOT).get("buy_price", 0))), 12, HudKit.TEXT_DIM, HudKit.body(), 2)
+	text.add_child(HudKit.label(tr("Old Boot (Portkey)"), 14, HudKit.PARCHMENT, HudKit.bold(), 3))
+	var boot_note := HudKit.label(tr("%s Galleons - carries your party anywhere") % _galleons(int(HPEquipment.item(BOOT).get("buy_price", 0))), 12, HudKit.TEXT_DIM, HudKit.body(), 2)
 	boot_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	text.add_child(boot_note)
-	var buy := HudKit.button("Buy", 14)
+	var buy := HudKit.button(tr("Buy"), 14)
 	buy.custom_minimum_size = Vector2(70, 30)
 	buy.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	buy.pressed.connect(_buy_item.bind(BOOT, 1))
@@ -131,9 +131,9 @@ static func _card_box(bg: Color, rim: Color, alpha: float) -> StyleBoxFlat:
 func open_at(who: Node, at_node: String) -> void:
 	player = who
 	node_id = at_node
-	set_title("Floo Network")
+	set_title("Floo Network")  # i18n
 	if _here_label != null:
-		_here_label.text = "You stand at the hearth of %s" % String(HPMaps.travel_node(at_node).get("label", ""))
+		_here_label.text = tr("You stand at the hearth of %s") % I18n.t(String(HPMaps.travel_node(at_node).get("label", "")))
 	if is_instance_valid(player) and player.has_signal("equipment_answer") \
 			and not player.equipment_answer.is_connected(_answer):
 		player.equipment_answer.connect(_answer)
@@ -157,8 +157,8 @@ func _refresh_powder() -> void:
 		return
 	var price := int(HPEquipment.item(POWDER).get("buy_price", 0))
 	var count := _powder_count()
-	_powder_label.text = "Floo Powder: %d %s" % [count, "pinch" if count == 1 else "pinches"]
-	_price_label.text = "%s Galleons a pinch, one per journey" % _galleons(price)
+	_powder_label.text = (tr("Floo Powder: %d pinch") if count == 1 else tr("Floo Powder: %d pinches")) % count
+	_price_label.text = tr("%s Galleons a pinch, one per journey") % _galleons(price)
 	var cost := int(HPMaps.floo_rules().get("cost", 1))
 	for button in _travel_buttons:
 		if is_instance_valid(button):
@@ -216,23 +216,23 @@ func _destination(id: String, level: int) -> PanelContainer:
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	text.add_theme_constant_override("separation", 0)
 	row.add_child(text)
-	var name_label := HudKit.label(String(dest.get("label", id)), 16,
+	var name_label := HudKit.label(I18n.t(String(dest.get("label", id))), 16,
 		HudKit.GOLD_HI if open_to_travel else HudKit.TEXT_DIM, HudKit.bold(), 3)
 	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	name_label.clip_text = true
 	text.add_child(name_label)
-	var note := "1 pinch of Floo Powder"
+	var note := tr("1 pinch of Floo Powder")
 	if level < need:
-		note = "Requires level %d (you are %d)" % [need, level]
+		note = tr("Requires level %d (you are %d)") % [need, level]
 	var note_label := HudKit.label(note, 12, EMERALD.darkened(0.1) if open_to_travel else HudKit.TEXT_DIM.darkened(0.15), HudKit.body(), 2)
 	note_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	text.add_child(note_label)
 	if not open_to_travel:
-		var badge := HudKit.label("Lv %d" % need, 14, Color(0.9, 0.45, 0.35), HudKit.bold(), 3)
+		var badge := HudKit.label(tr("Lv %d") % need, 14, Color(0.9, 0.45, 0.35), HudKit.bold(), 3)
 		badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row.add_child(badge)
 	else:
-		var go := HudKit.button("Travel", 14)
+		var go := HudKit.button(tr("Travel"), 14)
 		go.custom_minimum_size = Vector2(92, 34)
 		go.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		go.pressed.connect(_travel.bind(id))
@@ -264,10 +264,10 @@ func _answer(answer: Dictionary) -> void:
 	_buy_id = -1
 	var hud: Node = get_parent().get_parent() if get_parent() != null else null
 	var reason := String(answer.get("reason", ""))
-	var fails := {"no_gold": "Not enough Galleons.", "bag_full": "Your bag is full."}
-	var text := "%s bought." % String(HPEquipment.item(_bought).get("name", _bought))
+	var fails := {"no_gold": tr("Not enough Galleons."), "bag_full": tr("Your bag is full.")}
+	var text := tr("%s bought.") % I18n.t(String(HPEquipment.item(_bought).get("name", _bought)))
 	if not bool(answer.get("ok", false)):
-		text = String(fails.get(reason, "The fireplace keeper shakes his head."))
+		text = String(fails.get(reason, tr("The fireplace keeper shakes his head.")))
 	if hud != null and hud.has_method("show_notice"):
 		hud.show_notice(text, "good" if bool(answer.get("ok", false)) else "warn")
 	var audio := get_node_or_null("/root/AudioManager")

@@ -125,7 +125,7 @@ func _draw() -> void:
 
 ## Rank title and a thin reputation bar, right-aligned on the purse line.
 func _draw_house_standing(hcol: Color) -> void:
-	var text := "Rank %d · %s" % [house_rank, HPRules.house_rank_title(house_rank)]
+	var text := tr("Rank %d · %s") % [house_rank, I18n.t(HPRules.house_rank_title(house_rank))]
 	var f := HudKit.bold()
 	var w := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
 	var right := size.x - 14
