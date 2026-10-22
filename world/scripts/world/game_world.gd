@@ -651,6 +651,8 @@ func _apply_player_info(view: Node, record: Dictionary) -> void:
 	if String(record.get("house", "")) != "":
 		view.house = String(record["house"])
 	view.level = int(record.get("level", view.level))
+	if record.get("gear") is Dictionary and view.has_method("apply_appearance"):
+		view.apply_appearance(record["gear"])
 	if view.is_inside_tree() and view.has_method("_update_nameplate"):
 		view._update_nameplate()
 

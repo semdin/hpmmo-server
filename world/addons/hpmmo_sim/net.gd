@@ -1334,6 +1334,11 @@ func _broadcast_snapshots() -> void:
 				current[int(uid)] = int(info["rev"])
 				if known.get(int(uid)) != int(info["rev"]):
 					sim_player_info.rpc_id(peer_id, int(uid), info)
+					# Public stats are only re-sent when they change, so a body
+					# coming into sight brings its current ones (life state).
+					if not known.has(int(uid)):
+						sim_stats_event.rpc_id(peer_id, int(uid),
+							SimAuthority.public_stats(SimAuthority.build_vitals(mob)))
 		for uid in SimAuthority.loot_uids():
 			var loot: Dictionary = SimAuthority.entities.get(uid, {})
 			if int(loot.get("kind", 0)) != HPProtocol.Kind.LOOT:
@@ -1407,12 +1412,25 @@ func broadcast_cast_landed(cast_id: int, caster_uid: int, spell_id: String, hits
 	for peer_id in multiplayer.get_peers():
 		sim_cast_landed.rpc_id(peer_id, cast_id, caster_uid, spell_id, hits)
 
+## A stat payload goes whole to the body's owner only. Everyone else who can
+## see the body gets its public part (SimAuthority.public_stats), and only
+## when that changed: another player's bag, purse and quests are not theirs
+## to read, and a full sheet is ~20 KB on the reliable event channel.
 func broadcast_stats(uid: int, stats: Dictionary) -> void:
 	if not has_peers():
 		return
-	for peer_id in multiplayer.get_peers():
-		if _peer_can_see(peer_id, uid):
-			sim_stats_event.rpc_id(peer_id, uid, stats)
+	var record := SimAuthority.record_by_uid(uid)
+	var owner_peer := int(record.get("peer_id", 0))
+	var peers := multiplayer.get_peers()
+	if owner_peer != 0 and owner_peer != local_peer_id and peers.has(owner_peer):
+		sim_stats_event.rpc_id(owner_peer, uid, stats)
+	var public := SimAuthority.public_stats(stats)
+	if record.is_empty() or public == record.get("__public_sent"):
+		return
+	record["__public_sent"] = public
+	for peer_id in peers:
+		if peer_id != owner_peer and _peer_can_see(peer_id, uid):
+			sim_stats_event.rpc_id(peer_id, uid, public)
 
 func broadcast_loot(uid: int, item_id: String, amount: int, pos: Vector3, items: Array) -> void:
 	if not has_peers():

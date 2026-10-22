@@ -1,7 +1,7 @@
 {
  "generated": "2026-10-22",
  "source_repository": "hpmmo-client",
- "source_revision": "44de00941bf9d7ca3eb650e6bffe093d699c5472",
+ "source_revision": "e0a8e59d9dc2823ef552d033e70c6db3f0f2b165",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/audio/sound_library.json": "4960d9c5111e80c29446024602e6f9165f23c701f50eca81fa57cbea27196d68",
@@ -529,7 +529,7 @@
   "scripts/entities/mobs/part_droop.gd": "17f6a86a00f75a8e945ac4777de86460a383726dd9e58386e333139e83f02410",
   "scripts/entities/mobs/snare_boss.gd": "5949b22f59e6f4a0b8944c3898de8c1e8081971ab6341d61acb6d4127cb9e81d",
   "scripts/entities/monolith/dark_monolith.gd": "f09ea1a6a02749698e60f1646eb1ae6db5e075d2f5fb6b218746e66b5054c53b",
-  "scripts/entities/player.gd": "19b67aa60706c5fe497b2fc1218730dc8b9d43dfefe7248681fc6c93456c5280",
+  "scripts/entities/player.gd": "0a7ba5731f58e399505356c9362639b9a77753dcf467cea5b96cdd5035278b81",
   "scripts/entities/prediction_history.gd": "abfde25d332e9a2c97f9aaaa6af8b0c62c712d280d0cbeba24581d52228f4df4",
   "scripts/entities/rig_follower.gd": "d514f42422830babf483b21eab4f801d163862f97a2e603f74318518a481615f",
   "scripts/entities/rig_ik.gd": "bbc3cc4e81697655ecc3c99dfde49f562a19636a1c12c527d0627b6160e7ed9f",
@@ -618,7 +618,7 @@
   "scripts/world/dungeons/dungeon_greybox.gd": "94501c2539e0b08ca2522a820188fab9f8036ac9c2f3954e1af81c0d369ca61d",
   "scripts/world/dungeons/dungeon_trial.gd": "074e2cf213d9d3e96672f4250ab5d8dd071bb70b8f94e2cf6dd3a370033a45f2",
   "scripts/world/encounter_director.gd": "ed0d22ca4e622ea1aaa64ebca2ab9e5d8a7c11762025b8dfd982f2bcbc1476a8",
-  "scripts/world/game_world.gd": "f1fc42f28fa5a2f3914c3d833e2abfdf4384c656f0083dab6fdbaa0c8023e2b6",
+  "scripts/world/game_world.gd": "61fdd8281199d512f43090a1007a1de4fef27463f1e1cc89786ae1ff934d3958",
   "scripts/world/grounds/arch_kit.gd": "34e4aa046d3c8171931789fd564b0ea20ae9111ebe1d1ab8cfc0b4ef3540ec1d",
   "scripts/world/grounds/castle_exterior.gd": "7fe57fa1efd4ab8bc9c0793c65df539a25a41633094126de7f248dfcecc8fe1c",
   "scripts/world/grounds/grounds_builder.gd": "663ad00eafb09d5ffeb5945dc5f84994cff029c49339be48cf76cff6b14cf605",

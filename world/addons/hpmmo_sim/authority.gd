@@ -893,7 +893,7 @@ func cast_for_record(record: Dictionary, spell_id: String, aim: Vector3, cast_se
 		combo_mult = float(multipliers[step])
 		finisher = step > 0 and step == multipliers.size() - 1
 	var cast_id := _begin_cast(record, spell_id, aim, combo_mult, finisher)
-	_push_stats(record)
+	_push_vitals(record)
 	return {"ok": true, "reason": HPProtocol.REJECT_OK, "cast_id": cast_id}
 
 func _reject_cast(record: Dictionary, cast_seq: int, reason: String) -> Dictionary:
@@ -1030,7 +1030,7 @@ func submit_mount(peer_id: int, mounted: bool) -> Dictionary:
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
 	record["mounted"] = mounted
 	touch(record)
-	_push_stats(record)
+	_push_vitals(record)
 	return HPProtocol.accept()
 
 ## The dead player's choice: RESPAWN_TOWN (the map's respawn point, full
@@ -1861,7 +1861,7 @@ func _apply_self_cast(caster: Dictionary, spell_id: String) -> void:
 	caster["ward_until_tick"] = sim_tick + ticks
 	_ticking[int(caster.get("uid", 0))] = true
 	touch(caster)
-	_push_stats(caster)
+	_push_vitals(caster)
 
 func _resolve_cone(caster: Dictionary, cast: Dictionary, origin: Vector3, dir: Vector3) -> void:
 	var spell_id := String(cast["spell_id"])
@@ -2406,6 +2406,10 @@ func _apply_damage(target: Dictionary, raw: int, spell_id: String, attacker: Dic
 	emit_signal("entity_damaged", int(target["uid"]), amount, int(target["hp"]), spell_id, int(attacker.get("uid", 0)))
 	emit_signal("entity_hit", int(target["uid"]), amount, int(target["hp"]), spell_id, int(attacker.get("uid", 0)), hit_flags)
 	emit_signal("entity_health", int(target["uid"]), int(target["hp"]), int(target.get("max_hp", 0)), flags_for(target))
+	# The owner's own bars follow the hit at once (they used to wait for the
+	# next regeneration push, which sent the whole sheet five times a second).
+	if int(target.get("kind", -1)) == HPProtocol.Kind.PLAYER and int(target["hp"]) > 0:
+		_push_vitals(target)
 	if int(target["hp"]) <= 0:
 		_kill(target, attacker)
 	if amount > 0 and player_hits_mob:
@@ -2474,7 +2478,7 @@ func _attacker_drain(attacker: Dictionary, amount: int) -> void:
 		node.current_mana = int(attacker["mana"])
 	_sync_node_health(attacker)
 	touch(attacker)
-	_push_stats(attacker)
+	_push_vitals(attacker)
 	emit_signal("entity_health", int(attacker["uid"]), int(attacker["hp"]), int(attacker.get("max_hp", 0)), flags_for(attacker))
 
 ## One roll of the caster's wand range for `spell_id` (Attack Value for the
@@ -2624,7 +2628,7 @@ func _advance_effects() -> void:
 		if int(record.get("ward_until_tick", 0)) != 0 and sim_tick >= int(record["ward_until_tick"]):
 			record["ward_until_tick"] = 0
 			touch(record)
-			_push_stats(record)
+			_push_vitals(record)
 		if sim_tick - int(record.get("spawned_tick", sim_tick)) > int(LOOT_LIFETIME_MS / TICK_MS) \
 				and int(record.get("kind", 0)) == HPProtocol.Kind.LOOT:
 			entities.erase(uid)
@@ -2762,6 +2766,7 @@ func _grant_exp(player: Dictionary, exp: int) -> void:
 	var node = player.get("node")
 	var live := node != null and is_instance_valid(node)
 	var level := int(node.get("level")) if live else int(player.get("level", 1))
+	var start_level := level
 	var current := (int(node.get("current_exp")) if live else int(player.get("exp", 0))) + exp
 	var gains: Dictionary = HPRules.combat().get("base_stats", {})
 	while level < HPRules.max_level() and current >= HPRules.exp_threshold(level):
@@ -2786,7 +2791,12 @@ func _grant_exp(player: Dictionary, exp: int) -> void:
 		node.set("current_exp", current)
 		node.set("max_exp", HPRules.exp_threshold(level))
 	touch(player)
-	_push_stats(player)
+	# A level-up changes the sheet (base maxima, skill and status points); a
+	# plain kill only moves the experience bar.
+	if level != start_level:
+		_push_stats(player)
+	else:
+		_push_vitals(player)
 
 func _drop_loot(target: Dictionary, eligible: Array = []) -> void:
 	var node = target.get("node")
@@ -2835,7 +2845,7 @@ func _grant_galleons(player: Dictionary, amount: int) -> void:
 	pnode.set("galleons", int(pnode.get("galleons")) + amount)
 	player["galleons"] = int(pnode.get("galleons"))
 	touch(player)
-	_push_stats(player)
+	_push_vitals(player)
 	var character_id := int(player.get("character_id", 0))
 	emit_signal("reward_granted", int(player.get("uid", 0)), character_id, 0, amount, [], "loot:galleons:%d:%d" % [character_id, sim_tick])
 
@@ -3138,7 +3148,7 @@ func _schedule_player_respawn(record: Dictionary) -> void:
 	# returns to town at `respawn_tick`. Nothing depends on client timing.
 	record["respawn_ready_tick"] = sim_tick + int(ceil(float(HPRules.respawn_ms()) / TICK_MS))
 	record["respawn_tick"] = sim_tick + int(ceil(float(HPRules.auto_respawn_ms()) / TICK_MS))
-	_push_stats(record)
+	_push_vitals(record)
 
 func _respawn_player(record: Dictionary, here: bool = false) -> void:
 	var node = record.get("node")
@@ -3172,7 +3182,7 @@ func _respawn_player(record: Dictionary, here: bool = false) -> void:
 			record["safe_spawn"] = respawn_pos
 		node.set("velocity", Vector3.ZERO)
 	touch(record)
-	_push_stats(record)
+	_push_vitals(record)
 	emit_signal("entity_respawned", int(record["uid"]))
 
 # --------------------------------------------------------------- regeneration
@@ -3193,10 +3203,13 @@ func _tick_regeneration() -> void:
 			# The node holds the live values in every role, so the engine asks it
 			# to tick (one arithmetic path, no duplicate implementation).
 			node.call("_tick_regeneration", float(REGEN_INTERVAL_MS) / 1000.0)
-			record["hp"] = int(node.get("current_hp"))
-			record["mana"] = int(node.get("current_mana"))
-			touch(record)
-			_push_stats(record)
+			var hp_now := int(node.get("current_hp"))
+			var mana_now := int(node.get("current_mana"))
+			if hp_now != int(record.get("hp", 0)) or mana_now != int(record.get("mana", 0)):
+				record["hp"] = hp_now
+				record["mana"] = mana_now
+				touch(record)
+				_push_vitals(record)
 			continue
 		var seconds := float(REGEN_INTERVAL_MS) / 1000.0
 		var hp := mini(int(record.get("max_hp", 0)), int(record.get("hp", 0)) + int(HPRules.regen_hp_per_second() * seconds))
@@ -3205,7 +3218,7 @@ func _tick_regeneration() -> void:
 			record["hp"] = hp
 			record["mana"] = mana
 			touch(record)
-			_push_stats(record)
+			_push_vitals(record)
 
 # ------------------------------------------------------- creature riders
 
@@ -3221,7 +3234,7 @@ func apply_despair(uid: int, seconds: float) -> void:
 		return
 	record["despair_until_tick"] = until
 	touch(record)
-	_push_stats(record)
+	_push_vitals(record)
 
 ## A spider's venom (mobs.json ability `poison`): damage over time on the burn
 ## clock, credited to the creature. A stronger poison replaces a weaker one.
@@ -3234,7 +3247,7 @@ func apply_poison(uid: int, damage: int, ticks: int, interval_ms: int, source: N
 	_start_burn(record, {"damage": damage, "ticks": ticks, "interval_ms": interval_ms}, record_for(source) if source != null else {})
 	record["burn_kind"] = "poison"
 	touch(record)
-	_push_stats(record)
+	_push_vitals(record)
 
 ## A web shot (mobs.json ability `web`): the victim moves at `webbed_factor`
 ## speed on foot until the tick (player.gd reads it from its record on both
@@ -3248,7 +3261,7 @@ func apply_web(uid: int, seconds: float) -> void:
 		return
 	record["webbed_until_tick"] = until
 	touch(record)
-	_push_stats(record)
+	_push_vitals(record)
 
 ## A mob drinks back `amount` health (the kiss drains what it deals).
 func heal_mob(node: Node, amount: int) -> void:
@@ -3344,7 +3357,7 @@ func _check_fall_protection() -> void:
 		node.set("velocity", Vector3.ZERO)
 		record["hp"] = int(record.get("max_hp", 1))
 		touch(record)
-		_push_stats(record)
+		_push_vitals(record)
 		# Rate-limited: a floorless greybox map (before its scene ships) bounces
 		# its bodies at the spawn point and must not flood the server log.
 		if sim_tick - int(record.get("last_fall_warn_tick", -1000)) > 10 * HPProtocol.SIM_HZ:
@@ -3695,14 +3708,35 @@ func _sync_node_health(record: Dictionary) -> void:
 	if "current_hp" in node:
 		node.current_hp = int(record["hp"])
 
+## The full payload: vitals plus the character sheet (bag, gear, quests,
+## skills, attributes). A full bag makes it ~20 KB, so it is pushed only when
+## the sheet changed (loot, equipment, quests, a level) and the network sends
+## it to its owner alone (SimNet.broadcast_stats). Fights and regeneration
+## push `_push_vitals` instead.
 func _push_stats(record: Dictionary) -> void:
 	var stats := build_stats(record)
+	record["__vitals_sent"] = build_vitals(record)
 	var node = record.get("node")
 	if node != null and is_instance_valid(node) and node.has_method("apply_authoritative_stats"):
 		node.call("apply_authoritative_stats", stats)
 	emit_signal("stats_changed", int(record["uid"]), stats)
 
-func build_stats(record: Dictionary) -> Dictionary:
+## Health, mana, progression numbers and status clocks (~120 bytes), and
+## nothing at all when they are what was pushed last. Regeneration ticks
+## every player five times a second; it used to send the whole sheet each time.
+func _push_vitals(record: Dictionary) -> void:
+	var vitals := build_vitals(record)
+	if vitals == record.get("__vitals_sent"):
+		return
+	record["__vitals_sent"] = vitals
+	var node = record.get("node")
+	if node != null and is_instance_valid(node) and node.has_method("apply_authoritative_stats"):
+		node.call("apply_authoritative_stats", vitals)
+	# A copy: listeners annotate the payload they receive (state_binder adds
+	# "source"), which must not alter the one kept for the comparison.
+	emit_signal("stats_changed", int(record["uid"]), vitals.duplicate())
+
+func build_vitals(record: Dictionary) -> Dictionary:
 	var result := {
 		"uid": int(record.get("uid", 0)),
 		"hp": int(record.get("hp", 0)),
@@ -3721,6 +3755,26 @@ func build_stats(record: Dictionary) -> Dictionary:
 			# v18: when the death choice opens and when town is automatic.
 			result["respawn_ready_tick"] = int(record.get("respawn_ready_tick", 0))
 			result["respawn_tick"] = int(record.get("respawn_tick", 0))
+		result["despair_until_tick"] = int(record.get("despair_until_tick", 0))
+		# Cavern spider riders (mobs.json abilities `poison` / `web`): the poison
+		# runs on the burn clock; the web slows the body the owner predicts.
+		result["webbed_until_tick"] = int(record.get("webbed_until_tick", 0))
+		result["burn_until_tick"] = int(record.get("burn_until_tick", 0))
+		result["burn_kind"] = String(record.get("burn_kind", "burn"))
+	return result
+
+## What other players may know of a body (v22): the rest of a stat payload -
+## bag, purse, experience, quests - is its owner's alone.
+static func public_stats(stats: Dictionary) -> Dictionary:
+	var out := {}
+	for key in ["uid", "hp", "max_hp", "level", "dead", "mounted"]:
+		if stats.has(key):
+			out[key] = stats[key]
+	return out
+
+func build_stats(record: Dictionary) -> Dictionary:
+	var result := build_vitals(record)
+	if int(record.get("kind", -1)) == HPProtocol.Kind.PLAYER:
 		var rep := int(record.get("house_rep", 0))
 		var rank := HPRules.house_rank_for(rep)
 		result["house_rep"] = rep
@@ -3732,15 +3786,9 @@ func build_stats(record: Dictionary) -> Dictionary:
 			"done": (record.get("quest_done", []) as Array).duplicate()}
 		var skills: Dictionary = record.get("skill_levels", {})
 		result["skills"] = skills.duplicate()
-		result["despair_until_tick"] = int(record.get("despair_until_tick", 0))
-		# Cavern spider riders (mobs.json abilities `poison` / `web`): the poison
-		# runs on the burn clock; the web slows the body the owner predicts.
-		result["webbed_until_tick"] = int(record.get("webbed_until_tick", 0))
 		var body_node = record.get("node")
 		if body_node != null and is_instance_valid(body_node) and body_node.has_method("floo_known"):
 			result["floo_known"] = body_node.call("floo_known")
-		result["burn_until_tick"] = int(record.get("burn_until_tick", 0))
-		result["burn_kind"] = String(record.get("burn_kind", "burn"))
 		result["skill_points"] = HPRules.skill_points_available(int(record.get("level", 1)), skills, int(record.get("skill_bonus", 0)))
 		var node = record.get("node")
 		if node != null and is_instance_valid(node) and "attributes" in node:
@@ -4211,8 +4259,8 @@ static func mob_info_of(record: Dictionary) -> Dictionary:
 ## What a client needs to label another player (v18 `sim_player_info`).
 static func player_info_of(record: Dictionary) -> Dictionary:
 	var info := {"name": String(record.get("name", "")), "house": String(record.get("house", "")),
-		"level": int(record.get("level", 1))}
-	info["rev"] = ("%s|%s|%d" % [info["name"], info["house"], info["level"]]).hash()
+		"level": int(record.get("level", 1)), "gear": record.get("gear", {})}
+	info["rev"] = ("%s|%s|%d|%d" % [info["name"], info["house"], info["level"], int(record.get("gear_sig", 0))]).hash()
 	return info
 
 var _pending_player_info: Dictionary = {}
@@ -4230,6 +4278,8 @@ func _merge_player_info(record: Dictionary, info: Dictionary) -> void:
 	record["name"] = String(info.get("name", record.get("name", "")))
 	record["house"] = String(info.get("house", record.get("house", "")))
 	record["level"] = int(info.get("level", record.get("level", 1)))
+	if info.get("gear") is Dictionary:
+		record["gear"] = (info["gear"] as Dictionary).duplicate(true)
 	emit_signal("player_info", int(record.get("uid", 0)), info)
 
 ## Client side of `sim_mob_info`. The reliable event can overtake the first
@@ -4366,6 +4416,14 @@ func refresh_equipment(record: Dictionary) -> void:
 		record[key] = node.get(key)
 	record["hp"] = node.current_hp
 	record["mana"] = node.current_mana
+	# What other players see of the gear (v22 sim_player_info): the worn item
+	# and its refinement per slot, never the bonuses or the bag.
+	var gear := {}
+	for slot in node.equipment:
+		var entry: Dictionary = node.equipment[slot]
+		gear[String(slot)] = {"id": String(entry.get("id", "")), "tier": int(entry.get("tier", 0))}
+	record["gear"] = gear
+	record["gear_sig"] = str(gear).hash()
 	# Item stats the authority applies itself (damage, armour, speeds, procs,
 	# regen, rewards): every derived number except the ones mirrored above.
 	for key in node.derived_stats:

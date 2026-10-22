@@ -2363,8 +2363,8 @@ func apply_authoritative_stats(stats: Dictionary) -> void:
 	var now_mounted := bool(stats.get("mounted", is_mounted))
 	if was_mounted != now_mounted:
 		_apply_mount_state(now_mounted)
-	if bool(stats.get("dead", false)) != is_dead:
-		if bool(stats.get("dead", false)):
+	if bool(stats.get("dead", is_dead)) != is_dead:
+		if bool(stats.get("dead", is_dead)):
 			on_authoritative_death(null)
 		else:
 			on_authoritative_respawn()
@@ -2539,6 +2539,23 @@ func _recalculate_equipment() -> void:
 	mounted_speed = maxf(0.1, float(derived_stats.mount_speed))
 	_apply_wand_aura()
 	_apply_broom_model()
+
+## Another player's worn gear as the server announces it (v22 sim_player_info
+## `gear`: slot -> {id, tier}). A remote view draws the wand, cloak and broom
+## from it; its bag and bonuses never reach this client.
+var _appearance: Dictionary = {}
+
+func apply_appearance(gear: Dictionary) -> void:
+	if is_local_player or gear == _appearance:
+		return
+	if not is_node_ready():
+		# _ready dresses a fresh body with the starter kit; the announced gear
+		# goes on after it, not under it.
+		ready.connect(apply_appearance.bind(gear.duplicate(true)), CONNECT_ONE_SHOT)
+		return
+	_appearance = gear.duplicate(true)
+	equipment = gear.duplicate(true)
+	_recalculate_equipment()
 
 func apply_equipment_snapshot(snapshot: Dictionary) -> void:
 	var revision := int(snapshot.get("inventory_revision", -1))

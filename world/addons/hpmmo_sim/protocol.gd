@@ -91,7 +91,13 @@ class_name HPProtocol
 ##     the boot is doing (phase placed / fired / gone, holders, fire tick).
 ##     A fired Portkey grants each holder an ordinary transfer (spawn id
 ##     `portkey:<dest>`).
-const PROTOCOL_VERSION := 21
+## v22: lean stats. `sim_stats_event` carries the full sheet (bag, gear,
+##     quests, skills) only to the body's owner and only when it changed; a
+##     fight or regeneration sends the vitals alone, and other players get the
+##     public part (uid, hp, max_hp, level, dead, mounted) when it changes.
+##     Another player's worn gear (slot -> {id, tier}) rides `sim_player_info`
+##     as `gear`. A v21 client would draw every other player bare-handed.
+const PROTOCOL_VERSION := 22
 
 ## Death choice (v18 `sim_respawn_request`).
 const RESPAWN_TOWN := 0
