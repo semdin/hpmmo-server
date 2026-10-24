@@ -3459,6 +3459,9 @@ func skill_up_for_record(record: Dictionary, spell_id: String) -> Dictionary:
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
 	if not HPRules.skill_upgradeable(spell_id):
 		return HPProtocol.reject(HPProtocol.REJECT_SKILL_UNKNOWN)
+	# A point spent below the spell's unlock level would sit unusable until then.
+	if int(record.get("level", 1)) < HPRules.spell_required_level(spell_id):
+		return HPProtocol.reject(HPProtocol.REJECT_LEVEL)
 	var levels: Dictionary = HPRules.clean_skill_levels(record.get("skill_levels", {}))
 	var current := HPRules.skill_level_of(levels, spell_id)
 	if current >= HPRules.skill_max_level():

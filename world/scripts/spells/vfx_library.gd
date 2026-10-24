@@ -48,6 +48,8 @@ const ASSETS := {
 	"vfx_burst_green": {"path": ATLAS_DIR + "burst_green_8x8_2k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 27, "loop": false, "colour": true},
 	"vfx_burst_starfall": {"path": ATLAS_DIR + "burst_starfall_8x8_2k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 40, "loop": false, "colour": true},
 	"vfx_starfall_orb": {"path": ATLAS_DIR + "starfall_orb_8x8_1k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 22, "loop": true, "colour": true},
+	"vfx_burst_glacius": {"path": ATLAS_DIR + "burst_glacius_8x8_2k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 40, "loop": false, "colour": true},
+	"vfx_glacius_orb": {"path": ATLAS_DIR + "glacius_orb_8x8_1k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 22, "loop": true, "colour": true},
 	"vfx_ripple_blue": {"path": ATLAS_DIR + "ripple_blue_8x8_1k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 25, "loop": false, "colour": true},
 	"vfx_shockwave": {"path": ATLAS_DIR + "shockwave_8x8_1k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 23, "loop": false, "colour": true},
 	"vfx_wand_flash": {"path": ATLAS_DIR + "wand_flash_8x8_1k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 48, "loop": false, "colour": true},
@@ -324,6 +326,46 @@ const SPELLS := {
 				{"kind": "flipbook", "atlas": "vfx_spark_burst", "blend": "add", "colour": true, "optional": true,
 					"size": 2.4, "life": 0.45, "fit": true, "roll": true},
 			], "length": 0.5, "audio": "spell_protego_end", "core": "protego_end"},
+		},
+	},
+	# Glacius: a spinning ice crystal that bursts into a frost nova. The impact
+	# clip starts at its peak; the flash, spark spray and ground ring give the
+	# burst its punch on the hit frame.
+	"glacius": {
+		"colour": Color(0.62, 0.9, 1.0),
+		"stages": {
+			"cast": {"layers": [
+				{"kind": "flipbook", "atlas": "vfx_wand_flash", "blend": "add", "core": true, "colour": true,
+					"size": 1.4, "life": 0.3, "fit": true, "roll": true, "grow": [0.6, 1.4]},
+				{"kind": "particles", "tex": "vfx_star_flare", "blend": "add", "colour": true, "optional": true,
+					"amount": 14, "life": 0.35, "speed": 1.6, "size": 0.07, "spread": 180.0, "gravity": -1.0},
+				{"kind": "light", "colour": true, "energy": 2.6, "range": 4.5, "life": 0.35},
+			], "length": 0.4, "audio": "spell_glacius_cast", "core": "glacius_cast"},
+			"travel": {"layers": [
+				{"kind": "flipbook", "atlas": "vfx_glacius_orb", "blend": "add", "core": true,
+					"size": 1.9, "life": 0.0, "loop": true},
+				{"kind": "ribbon", "tex": "vfx_energy_streak", "blend": "add", "core": true, "colour": true,
+					"width": 0.35, "length": 4.0, "life": 0.0, "follow": true},
+				{"kind": "particles", "tex": "vfx_star_flare", "blend": "add", "colour": true, "optional": true,
+					"amount": 30, "life": 0.45, "speed": 0.6, "size": 0.06, "spread": 180.0, "gravity": -1.2, "continuous": true},
+			], "length": 0.0, "audio": "spell_glacius_travel", "core": "glacius_travel", "loop_audio": true},
+			"impact": {"layers": [
+				{"kind": "flipbook", "atlas": "vfx_wand_flash", "blend": "add", "core": true, "colour": true,
+					"forward": -1.5, "size": 4.5, "life": 0.28, "fit": true, "grow": [0.7, 1.6]},
+				{"kind": "flipbook", "atlas": "vfx_burst_glacius", "blend": "add", "core": true,
+					"forward": -1.5, "size": 6.5, "life": 1.4, "fit": true},
+				{"kind": "flipbook", "atlas": "vfx_shockwave", "blend": "add", "core": true, "colour": true,
+					"flat": true, "lift": 0.08, "size": 2.0, "life": 0.6, "fit": true},
+				{"kind": "flipbook", "atlas": "vfx_spark_burst", "blend": "add", "colour": true, "optional": true,
+					"forward": -1.5, "size": 3.2, "life": 0.45, "fit": true, "roll": true},
+				{"kind": "light", "colour": true, "energy": 3.5, "range": 9.0, "life": 0.6},
+			], "length": 1.4, "audio": "spell_glacius_impact", "core": "glacius_impact", "aoe_radius": 7.0},
+			"end": {"layers": [
+				{"kind": "particles", "tex": "vfx_star_flare", "blend": "add", "core": true, "colour": true,
+					"amount": 22, "life": 1.0, "speed": 0.9, "size": 0.08, "spread": 180.0, "gravity": -0.8},
+				{"kind": "flipbook", "atlas": "vfx_smoke_puff", "blend": "alpha", "colour": true, "optional": true,
+					"size": 4.0, "life": 1.0, "fit": true, "roll": true, "opacity": 0.3},
+			], "length": 1.0, "audio": "spell_glacius_end", "core": "glacius_end"},
 		},
 	},
 	# Stella Ruina: a falling star (violet ring, white-gold core, stardust).

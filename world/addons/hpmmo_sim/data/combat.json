@@ -858,7 +858,8 @@
       "bombarda",
       "expelliarmus",
       "protego",
-      "ultimate"
+      "ultimate",
+      "glacius"
     ],
     "damage_per_level": 0.06,
     "master_damage_bonus": 0.1,

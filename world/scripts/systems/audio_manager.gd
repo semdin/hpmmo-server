@@ -128,7 +128,7 @@ const AFTER_COMBAT_GAP := [6.0, 14.0]
 const COMBAT_LINGER := 9.0
 const BOSS_LINGER := 14.0
 const COMBAT_TARGET_RANGE := 45.0
-const COMBAT_SPELLS := ["basic_cast", "stupefy", "incendio", "bombarda", "expelliarmus", "ultimate", "protego", "patronum"]
+const COMBAT_SPELLS := ["basic_cast", "stupefy", "incendio", "bombarda", "expelliarmus", "ultimate", "protego", "patronum", "glacius"]
 
 ## Flight: the rider is "flying" for the soundtrack once this high above the
 ## ground for this long; the high wind layer fades in between these heights.

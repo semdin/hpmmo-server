@@ -19,9 +19,10 @@ const GROUP_GAP := 18.0
 const SPELLS := [
 	["stupefy", "1"], ["incendio", "2"], ["bombarda", "3"],
 	["expelliarmus", "4"], ["protego", "Q"], ["ultimate", "E"], ["patronum", "5"],
+	["glacius", "6"],
 ]
 ## The input action of each spell slot, in bar order.
-const SPELL_ACTIONS := ["spell_1", "spell_2", "spell_3", "spell_4", "spell_q", "spell_e", "spell_5"]
+const SPELL_ACTIONS := ["spell_1", "spell_2", "spell_3", "spell_4", "spell_q", "spell_e", "spell_5", "spell_6"]
 const QUICK_KEYS := ["F1", "F2", "F3", "F4"]
 const QUICK_ACTIONS := ["quickslot_1", "quickslot_2", "quickslot_3", "quickslot_4"]
 const QUICK_DEFAULTS := ["potion_health", "potion_mana", "", ""]
@@ -204,15 +205,20 @@ func _load_spells() -> void:
 	if cfg.load(SAVE_PATH) != OK:
 		return
 	var saved = cfg.get_value("spells", "order", [])
-	# Only a full permutation of today's spells is trusted (a new spell or a
-	# removed one falls back to the default layout).
-	if saved is Array and saved.size() == defaults.size():
-		var sorted_saved: Array = (saved as Array).duplicate()
-		var sorted_defaults: Array = defaults.duplicate()
-		sorted_saved.sort()
-		sorted_defaults.sort()
-		if sorted_saved == sorted_defaults:
-			spell_order = (saved as Array).duplicate()
+	# A saved layout is kept when it is a permutation of today's spells; spells
+	# added since are appended in default order (a removed or unknown spell
+	# falls back to the default layout).
+	if not saved is Array:
+		return
+	var order: Array = []
+	for id in saved:
+		if not defaults.has(id) or order.has(id):
+			return
+		order.append(id)
+	for id in defaults:
+		if not order.has(id):
+			order.append(id)
+	spell_order = order
 
 ## ------------------------------------------------------------- quick slots
 

@@ -60,16 +60,18 @@ var gesture_duration := 0.42
 var gesture_strength := 0.0
 var gesture_side := 1.0
 var gesture_spell := ""
+## Spells that reuse another spell's arm gesture (same cast clip).
+const GESTURE_ALIAS := {"glacius": "bombarda"}
 ## Basic-attack chain step: 0 forehand flick, 1 backhand, 2 overhead finisher.
 var gesture_combo := 0
 
 func set_gesture(spell: String, combo: int, duration: float) -> void:
 	gesture_time = 0.0
 	gesture_duration = duration
-	gesture_spell = spell
+	gesture_spell = GESTURE_ALIAS.get(spell, spell)
 	gesture_combo = clampi(combo, 0, 2)
 	gesture_strength = float({"stupefy": 1.0, "incendio": 0.8, "bombarda": 1.2,
-		"expelliarmus": 0.75, "protego": 0.55, "ultimate": 1.4}.get(spell, [0.6, 0.7, 1.15][gesture_combo] if spell == "basic_cast" else 0.0))
+		"expelliarmus": 0.75, "protego": 0.55, "ultimate": 1.4}.get(gesture_spell, [0.6, 0.7, 1.15][gesture_combo] if spell == "basic_cast" else 0.0))
 	gesture_side = -1.0 if combo == 1 else 1.0
 
 func _bone_of(path: NodePath) -> String:

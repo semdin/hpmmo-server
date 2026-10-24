@@ -33,6 +33,7 @@ const ACTION_NAMES := {
 	"toggle_chat": "Chat", "toggle_map": "World map", "toggle_character": "Character", "toggle_onboarding": "Guide",
 	"spell_1": "Spell slot 1", "spell_2": "Spell slot 2", "spell_3": "Spell slot 3",
 	"spell_4": "Spell slot 4", "spell_q": "Spell slot Q", "spell_e": "Spell slot E",
+	"spell_5": "Spell slot 5", "spell_6": "Spell slot 6",
 	"quickslot_1": "Quick slot 1", "quickslot_2": "Quick slot 2",
 	"quickslot_3": "Quick slot 3", "quickslot_4": "Quick slot 4",
 }

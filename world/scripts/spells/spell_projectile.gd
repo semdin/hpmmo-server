@@ -75,7 +75,7 @@ func _physics_process(delta: float) -> void:
 	lifetime += delta
 	_reflection_grace = maxf(0, _reflection_grace - delta)
 	if lifetime >= max_lifetime:
-		if spell_id in ["bombarda", "ultimate"]:
+		if HPRules.delivery(spell_id) == "projectile_aoe":
 			_handle_hit(null)
 		else:
 			# out of range: the travel stage is cancelled, never left running
@@ -176,7 +176,7 @@ func _handle_hit(target: Node) -> void:
 		return
 	spent = true
 	if not visual_only and SimAuthority.is_authority():
-		if spell_id in ["bombarda", "ultimate"]:
+		if HPRules.delivery(spell_id) == "projectile_aoe":
 			var radius := float(GameData.SPELLS[spell_id].get("radius", 9))
 			SimAuthority.spell_area_impact(caster, global_position, radius, spell_id, damage)
 		elif Rules.can_damage(caster, target):
@@ -184,7 +184,7 @@ func _handle_hit(target: Node) -> void:
 	# A view that reached a damageable body leaves the impact to the authority's
 	# `cast_landed` (game_world draws it on each victim); drawing it here too put
 	# two bursts on every hit. Ground, walls and area blasts are drawn here.
-	var victim_hit := visual_only and target != null and is_instance_valid(target) 		and target.has_method("take_damage") and spell_id not in ["bombarda", "ultimate"]
+	var victim_hit := visual_only and target != null and is_instance_valid(target) 		and target.has_method("take_damage") and HPRules.delivery(spell_id) != "projectile_aoe"
 	if not victim_hit:
 		SkillFX.play_impact(get_parent(), global_position, spell_id, target, direction)
 	if travel_effect != null and is_instance_valid(travel_effect):
@@ -203,7 +203,7 @@ func end_on_landed() -> void:
 
 
 func _end_travel(reason: String) -> void:
-	if spell_id in ["basic_cast", "stupefy", "bombarda", "expelliarmus", "ultimate"]:
+	if HPRules.delivery(spell_id) in ["projectile", "projectile_aoe"]:
 		# Keep the last quarter-second of filaments in world space at impact.
 		travel_effect.reparent(get_parent(), true)
 		travel_effect.call("retire_travel")

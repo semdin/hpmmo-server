@@ -144,5 +144,27 @@
     "requires_level": 40,
     "color": "#d6ecff",
     "hotkey": "5"
+  },
+  "glacius": {
+    "id": "glacius",
+    "element": "frost",
+    "name": "Glacius",
+    "desc": "Frost nova. Hurls a spinning ice crystal that bursts into shards and freezing mist, freezing every enemy in the blast for up to 1.6 seconds. Requires level 20.",
+    "delivery": "projectile_aoe",
+    "damage": 110,
+    "magic_attack_coef": 0.85,
+    "radius": 7.0,
+    "falloff_floor": 0.5,
+    "knockback": 0.0,
+    "cooldown": 12.0,
+    "mana_cost": 50,
+    "cast_lock": 0.26,
+    "range": 28.0,
+    "projectile_speed": 36.0,
+    "stun_ms": 1600,
+    "stun_ms_boss": 400,
+    "requires_level": 20,
+    "color": "#9fe8ff",
+    "hotkey": "6"
   }
 }

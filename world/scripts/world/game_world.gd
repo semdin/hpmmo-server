@@ -839,7 +839,7 @@ func _on_cast_landed(cast_id: int, _caster_uid: int, spell_id: String, hits: Arr
 	_bolt_views.erase(cast_id)
 	# A single-target bolt that the authority says hit ends now, even if its view
 	# has not reached the body yet; area blasts and misses draw their own end.
-	if not hits.is_empty() and spell_id not in ["bombarda", "ultimate"] 			and view != null and is_instance_valid(view) and view.has_method("end_on_landed"):
+	if not hits.is_empty() and HPRules.delivery(spell_id) != "projectile_aoe" 			and view != null and is_instance_valid(view) and view.has_method("end_on_landed"):
 		view.end_on_landed()
 	if _bolt_views.size() > 64:
 		for key in _bolt_views.keys():
@@ -856,7 +856,7 @@ func _on_cast_landed(cast_id: int, _caster_uid: int, spell_id: String, hits: Arr
 			continue
 		# The travelling view draws one area blast at its collision point. Drawing
 		# another full-radius blast on every victim duplicates the affected area.
-		if spell_id in ["bombarda", "ultimate"]:
+		if HPRules.delivery(spell_id) == "projectile_aoe":
 			continue
 		preload("res://scripts/spells/skill_fx.gd").play_impact(self, (victim as Node3D).global_position + Vector3.UP, spell_id)
 

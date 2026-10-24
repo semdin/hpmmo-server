@@ -146,7 +146,7 @@ static func play_cast(world: Node3D, caster: Node3D, spell_id: String, spawn_pos
 static func _cast_options(caster: Node3D, spell_id: String) -> Dictionary:
 	if spell_id == "protego" and is_instance_valid(caster):
 		return {"follow_target": caster}
-	if spell_id in ["stupefy", "bombarda", "expelliarmus", "ultimate"] and is_instance_valid(caster):
+	if spell_id in ["stupefy", "bombarda", "expelliarmus", "ultimate", "glacius"] and is_instance_valid(caster):
 		var tip := HeroAppearance.wand_tip(caster)
 		if is_instance_valid(tip):
 			return {"follow_target": tip}
@@ -164,7 +164,7 @@ static func play_impact(world: Node3D, pos: Vector3, spell_id: String, victim: N
 	# half a metre back toward where the spell came from. Ground blasts keep
 	# their centre (their ring lies on the floor).
 	var at := pos
-	if not spell_id in ["bombarda", "ultimate"]:
+	if HPRules.delivery(spell_id) != "projectile_aoe":
 		at = pos - safe_direction(incoming) * 0.5
 	var effect := spawn_stage(world, spell_id, "impact", at, safe_direction(incoming), null, opts)
 	if effect == null:

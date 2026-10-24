@@ -237,9 +237,9 @@ var _committed_until := 0.0
 var _facing_target_yaw := 0.0
 var _auto_facing := false
 ## Spells whose recovery commits the caster in place.
-const COMMITTED_SPELLS := {"bombarda": 0.35, "ultimate": 0.5}
+const COMMITTED_SPELLS := {"bombarda": 0.35, "glacius": 0.3, "ultimate": 0.5}
 ## Spells cast with both hands (Spellcast_Heavy); every other cast is one-handed.
-const HEAVY_CAST_SPELLS := ["bombarda", "ultimate"]
+const HEAVY_CAST_SPELLS := ["bombarda", "glacius", "ultimate"]
 ## Spells with their own retargeted clip (tools/blender/retarget_clip.py ->
 ## assets/animations/hero/, merged by HeroAnimation.merge_extra_clips).
 ## `release` is the clip fraction where the wand hand is furthest forward
@@ -253,6 +253,8 @@ const SPELL_CLIPS := {
 	# The stag leaves the wand like Incendio's cone: same thrust, silver.
 	"patronum": {"clip": "Cast_Incendio", "release": 0.25, "hold": 0.7, "aim": false},
 	"bombarda": {"clip": "Cast_Bombarda", "release": 0.182, "hold": 0.7},
+	# Glacius hurls its crystal with Bombarda's overhead throw.
+	"glacius": {"clip": "Cast_Bombarda", "release": 0.182, "hold": 0.7},
 	"expelliarmus": {"clip": "Cast_Expelliarmus", "release": 0.128, "hold": 0.6},
 	"protego": {"clip": "Cast_Protego", "release": 0.128, "hold": 0.9, "aim": false},
 	"ultimate": {"clip": "Cast_Ultimate", "release": 0.158, "hold": 0.85},
@@ -2037,7 +2039,7 @@ func _play_cast_animation(anim_name: String = "Spellcast_Shoot", aim: Variant = 
 	elif spell == "stupefy":
 		hold = 0.48
 	else:
-		hold = float({"incendio": 0.65, "bombarda": 0.55, "expelliarmus": 0.42, "protego": 0.62, "ultimate": 0.72}.get(spell, hold))
+		hold = float({"incendio": 0.65, "bombarda": 0.55, "glacius": 0.55, "expelliarmus": 0.42, "protego": 0.62, "ultimate": 0.72}.get(spell, hold))
 	# Use the same tick-rounded windup as SimAuthority. Gesture recovery can be
 	# longer than the gameplay lock, but extension must meet the actual release.
 	var release := release_delay

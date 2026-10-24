@@ -114,6 +114,7 @@ func train(spell_id: String) -> Dictionary:
 		var words := {
 			HPProtocol.REJECT_NO_SKILL_POINTS: tr("No skill points left - gain a level"),
 			HPProtocol.REJECT_SKILL_MAX: tr("Already mastered"),
+			HPProtocol.REJECT_LEVEL: tr("Your level is too low for this spell"),
 		}
 		if hud != null and hud.has_method("show_notice"):
 			hud.show_notice(String(words.get(String(result.get("reason", "")), tr("Cannot train that now"))), "error")
@@ -148,7 +149,8 @@ func _refresh() -> void:
 		var lv := _level(spell_id)
 		slot.badge_text = HPRules.skill_level_label(lv) if trainable and lv > 0 else ""
 		slot.unusable = lv <= 0
-		plus.visible = trainable and points > 0 and lv < HPRules.skill_max_level()
+		plus.visible = trainable and points > 0 and lv < HPRules.skill_max_level() \
+				and int(player.level) >= HPRules.spell_required_level(spell_id)
 
 func _level(spell_id: String) -> int:
 	if not HPRules.skill_upgradeable(spell_id):

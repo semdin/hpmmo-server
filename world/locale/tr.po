@@ -1484,6 +1484,10 @@ msgid "Already mastered"
 msgstr "Zaten ustalaşıldı"
 
 #: scripts/ui/hud_skill_window.gd
+msgid "Your level is too low for this spell"
+msgstr "Bu büyü için seviyen çok düşük"
+
+#: scripts/ui/hud_skill_window.gd
 msgid "Cannot train that now"
 msgstr "Bu şu an geliştirilemez"
 
@@ -2514,6 +2518,14 @@ msgstr "Büyü yuvası Q"
 #: scripts/ui/settings_ui.gd
 msgid "Spell slot E"
 msgstr "Büyü yuvası E"
+
+#: scripts/ui/settings_ui.gd
+msgid "Spell slot 5"
+msgstr "Büyü yuvası 5"
+
+#: scripts/ui/settings_ui.gd
+msgid "Spell slot 6"
+msgstr "Büyü yuvası 6"
 
 #: scripts/ui/settings_ui.gd
 msgid "Quick slot 1"
@@ -4018,6 +4030,14 @@ msgstr "Expecto Patronum"
 #: addons/hpmmo_sim/data/spells.json
 msgid "Conjures a silver stag that charges through a wide cone. Dementors take triple damage and the stag breaks a dementor's attack, kiss included. Requires level 40."
 msgstr "Geniş bir koni boyunca saldıran gümüş bir geyik çağırır. Ruh Emiciler üç kat hasar alır ve geyik bir Ruh Emici'nin saldırısını, öpücüğü dahil, bozar. Seviye 40 gerekir."
+
+#: addons/hpmmo_sim/data/spells.json
+msgid "Glacius"
+msgstr "Glacius"
+
+#: addons/hpmmo_sim/data/spells.json
+msgid "Frost nova. Hurls a spinning ice crystal that bursts into shards and freezing mist, freezing every enemy in the blast for up to 1.6 seconds. Requires level 20."
+msgstr "Buz patlaması. Dönen bir buz kristali fırlatır; kristal parçalara ve dondurucu bir sise dönüşerek patlar, patlamadaki her düşmanı 1,6 saniyeye kadar dondurur. 20. seviye gerekir."
 
 #: addons/hpmmo_sim/data/dungeons.json
 msgid "The hall stirs - clear the corridor."

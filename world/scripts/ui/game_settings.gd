@@ -78,6 +78,8 @@ const BINDABLE_ACTIONS := {
 	"spell_4": KEY_4,
 	"spell_q": KEY_Q,
 	"spell_e": KEY_E,
+	"spell_5": KEY_5,
+	"spell_6": KEY_6,
 	"quickslot_1": KEY_F1,
 	"quickslot_2": KEY_F2,
 	"quickslot_3": KEY_F3,

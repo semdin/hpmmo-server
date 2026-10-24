@@ -2871,6 +2871,58 @@
    "seconds": 2.56,
    "purpose": "The One-Eyed Witch passage: stone grinding aside, trickling dust",
    "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (Blackweb Caverns S7, art/spider_caverns/audio)"
+  },
+  "spell_glacius_cast": {
+   "path": "assets/audio/spells/glacius/cast.wav",
+   "bus": "sfx",
+   "gain_db": -2.5,
+   "pitch_variation": 0.02,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 1.36,
+   "purpose": "Ice magic spell charge: a quick rising crystalline shimmer with frosty crackling and a cold airy hiss, then a sharp glassy release, fantasy",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_glacius_cast.wav"
+  },
+  "spell_glacius_travel": {
+   "path": "assets/audio/spells/glacius/travel.wav",
+   "bus": "sfx",
+   "gain_db": -5.0,
+   "pitch_variation": 0.03,
+   "loop": true,
+   "loop_mode": "forward",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 1.8,
+   "purpose": "A spinning magical ice crystal flying through the air: a cold whistling whoosh with a soft glassy ringing hum and tiny tinkling ice chimes, seamless loop",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_glacius_travel.wav"
+  },
+  "spell_glacius_impact": {
+   "path": "assets/audio/spells/glacius/impact.wav",
+   "bus": "sfx",
+   "gain_db": 0.0,
+   "pitch_variation": 0.02,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 2.0,
+   "purpose": "Frost nova explosion: a powerful icy burst with ice shattering like breaking glass, sharp crystalline cracks, a deep cold whoosh and freezing crackle spreading outward, fantasy magic impact",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_glacius_impact.wav"
+  },
+  "spell_glacius_end": {
+   "path": "assets/audio/spells/glacius/end.wav",
+   "bus": "sfx",
+   "gain_db": -6.5,
+   "pitch_variation": 0.03,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 1.313,
+   "purpose": "Ice slowly cracking and melting after a frost blast: soft crackles, tiny ice fragments tinkling and a gentle cold hiss fading away",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_glacius_end.wav"
   }
  }
 }

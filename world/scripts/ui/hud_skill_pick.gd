@@ -9,8 +9,9 @@ class_name HudSkillPick
 ## basic attack needs no pick.
 
 const CARD_W := 170.0
-## The ultimate is not a first spell; it is learned later with a skill point.
-const STARTER_EXCLUDED := ["ultimate"]
+## The ultimate and Glacius (level 20) are not first spells; they are learned
+## later with a skill point.
+const STARTER_EXCLUDED := ["ultimate", "glacius"]
 
 var player: Node3D = null
 var hud: Control = null
