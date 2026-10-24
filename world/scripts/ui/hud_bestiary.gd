@@ -11,7 +11,10 @@ class_name HudBestiary
 const PORTRAITS := "res://assets/ui/bestiary/%s.png"
 # i18n-begin
 const LORE := {
-	"inferi": "Corpses bewitched to serve a dark wizard. Slow, relentless and terrified of fire.",
+	"inferi": "Drowned corpses bewitched to serve a dark wizard. Slow, relentless and terrified of fire.",
+	"inferi_warden": "Inferi raised from a cursed lake to guard what lies beneath. Their cold grip drags you down; fire still breaks them.",
+	"goblin_teller": "Goblin clerks of the wizarding bank, out collecting debts. They count every Knut and carry a heavy purse.",
+	"goblin_guard": "Vault guards in goblin-wrought silver. Shoving, stubborn and well paid; what they carry is rarely ordinary.",
 	"acromantula": "Giant spiders of the Forbidden Forest, bred from Aragog's line. They hunt in packs.",
 	"darksnatcher": "Wizards turned bounty hunters, roaming the roads in gangs. Some cast from range.",
 	"troll_forest": "Hulking forest trolls with crude clubs. Slow to anger, slower to fall.",
@@ -33,7 +36,7 @@ const DUNGEON_WHERE := {
 	"forbidden_corridor": ["The Forbidden Corridor", "Hogwarts Castle, third-floor east corridor", Vector2(65, -11)],
 }
 const FAMILY_NAMES := {"troll": "Troll", "undead": "Undead", "dark_wizard": "Dark wizard", "dementor": "Dementor",
-	"beast": "Beast", "pixie": "Pixie", "snare": "Plant", "armour": "Enchanted armour", "hound": "Hound", "spider": "Spider"}
+	"beast": "Beast", "pixie": "Pixie", "snare": "Plant", "armour": "Enchanted armour", "hound": "Hound", "spider": "Spider", "goblin": "Goblin"}
 # i18n-end
 
 var world_map: HudWorldMap = null

@@ -1496,7 +1496,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 23,
       "count": 3,
       "max_alive": 3,
@@ -1534,7 +1534,7 @@
         10.0,
         10.0
       ],
-      "mob": "darksnatcher",
+      "mob": "goblin_guard",
       "level": 32,
       "count": 4,
       "max_alive": 4,
@@ -1648,7 +1648,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 18,
       "count": 5,
       "max_alive": 5,
@@ -1933,7 +1933,7 @@
         10.0,
         10.0
       ],
-      "mob": "darksnatcher",
+      "mob": "goblin_teller",
       "level": 11,
       "count": 4,
       "max_alive": 4,
@@ -2180,7 +2180,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 19,
       "count": 4,
       "max_alive": 4,
@@ -2750,7 +2750,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 22,
       "count": 3,
       "max_alive": 3,
@@ -3092,7 +3092,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 21,
       "count": 5,
       "max_alive": 5,
@@ -3719,7 +3719,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 25,
       "count": 4,
       "max_alive": 4,
@@ -3814,7 +3814,7 @@
         10.0,
         10.0
       ],
-      "mob": "darksnatcher",
+      "mob": "goblin_teller",
       "level": 8,
       "count": 3,
       "max_alive": 3,
@@ -3833,7 +3833,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 28,
       "count": 3,
       "max_alive": 3,
@@ -4042,7 +4042,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 23,
       "count": 4,
       "max_alive": 4,
@@ -4251,7 +4251,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 19,
       "count": 4,
       "max_alive": 4,
@@ -4365,7 +4365,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 25,
       "count": 3,
       "max_alive": 3,
@@ -4479,7 +4479,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 23,
       "count": 4,
       "max_alive": 4,
@@ -4840,7 +4840,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 20,
       "count": 4,
       "max_alive": 4,
@@ -5277,7 +5277,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 21,
       "count": 4,
       "max_alive": 4,
@@ -5410,7 +5410,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 22,
       "count": 4,
       "max_alive": 4,
@@ -5733,7 +5733,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 22,
       "count": 4,
       "max_alive": 4,
@@ -5866,7 +5866,7 @@
         10.0,
         10.0
       ],
-      "mob": "darksnatcher",
+      "mob": "goblin_teller",
       "level": 12,
       "count": 3,
       "max_alive": 3,
@@ -6379,7 +6379,7 @@
         10.0,
         10.0
       ],
-      "mob": "darksnatcher",
+      "mob": "goblin_guard",
       "level": 32,
       "count": 5,
       "max_alive": 5,
@@ -7082,7 +7082,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 27,
       "count": 4,
       "max_alive": 4,
@@ -7424,7 +7424,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 24,
       "count": 4,
       "max_alive": 4,
@@ -7823,7 +7823,7 @@
         10.0,
         10.0
       ],
-      "mob": "darksnatcher",
+      "mob": "goblin_teller",
       "level": 10,
       "count": 4,
       "max_alive": 4,
@@ -7937,7 +7937,7 @@
         10.0,
         10.0
       ],
-      "mob": "darksnatcher",
+      "mob": "goblin_guard",
       "level": 29,
       "count": 3,
       "max_alive": 3,
@@ -8032,7 +8032,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 22,
       "count": 5,
       "max_alive": 5,
@@ -8222,7 +8222,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 24,
       "count": 4,
       "max_alive": 4,
@@ -8583,7 +8583,7 @@
         10.0,
         10.0
       ],
-      "mob": "darksnatcher",
+      "mob": "goblin_teller",
       "level": 12,
       "count": 4,
       "max_alive": 4,
@@ -8773,7 +8773,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 18,
       "count": 4,
       "max_alive": 4,
@@ -9077,7 +9077,7 @@
         10.0,
         10.0
       ],
-      "mob": "darksnatcher",
+      "mob": "goblin_guard",
       "level": 30,
       "count": 3,
       "max_alive": 3,
@@ -9229,7 +9229,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 22,
       "count": 4,
       "max_alive": 4,
@@ -9476,7 +9476,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 24,
       "count": 5,
       "max_alive": 5,
@@ -9609,7 +9609,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 20,
       "count": 4,
       "max_alive": 4,
@@ -9761,7 +9761,7 @@
         10.0,
         10.0
       ],
-      "mob": "darksnatcher",
+      "mob": "goblin_guard",
       "level": 30,
       "count": 4,
       "max_alive": 4,
@@ -10065,7 +10065,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 21,
       "count": 5,
       "max_alive": 5,
@@ -10084,7 +10084,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 25,
       "count": 4,
       "max_alive": 4,
@@ -10198,7 +10198,7 @@
         10.0,
         10.0
       ],
-      "mob": "darksnatcher",
+      "mob": "goblin_teller",
       "level": 8,
       "count": 3,
       "max_alive": 3,
@@ -10559,7 +10559,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 24,
       "count": 4,
       "max_alive": 4,
@@ -10711,7 +10711,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 21,
       "count": 4,
       "max_alive": 4,
@@ -11167,7 +11167,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 18,
       "count": 4,
       "max_alive": 4,
@@ -11509,7 +11509,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 20,
       "count": 5,
       "max_alive": 5,
@@ -11528,7 +11528,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 24,
       "count": 4,
       "max_alive": 4,
@@ -11946,7 +11946,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 25,
       "count": 5,
       "max_alive": 5,
@@ -12250,7 +12250,7 @@
         10.0,
         10.0
       ],
-      "mob": "darksnatcher",
+      "mob": "goblin_teller",
       "level": 10,
       "count": 4,
       "max_alive": 4,
@@ -12364,7 +12364,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 28,
       "count": 4,
       "max_alive": 4,
@@ -12383,7 +12383,7 @@
         10.0,
         10.0
       ],
-      "mob": "darksnatcher",
+      "mob": "goblin_guard",
       "level": 29,
       "count": 4,
       "max_alive": 4,
@@ -12573,7 +12573,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 26,
       "count": 4,
       "max_alive": 4,
@@ -12858,7 +12858,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 21,
       "count": 3,
       "max_alive": 3,
@@ -13010,7 +13010,7 @@
         10.0,
         10.0
       ],
-      "mob": "darksnatcher",
+      "mob": "goblin_guard",
       "level": 33,
       "count": 4,
       "max_alive": 4,
@@ -13200,7 +13200,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 27,
       "count": 5,
       "max_alive": 5,
@@ -13580,7 +13580,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 23,
       "count": 4,
       "max_alive": 4,
@@ -13637,7 +13637,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 21,
       "count": 5,
       "max_alive": 5,
@@ -13770,7 +13770,7 @@
         10.0,
         10.0
       ],
-      "mob": "darksnatcher",
+      "mob": "goblin_teller",
       "level": 12,
       "count": 3,
       "max_alive": 3,
@@ -14302,7 +14302,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 22,
       "count": 4,
       "max_alive": 4,
@@ -15138,7 +15138,7 @@
         10.0,
         10.0
       ],
-      "mob": "darksnatcher",
+      "mob": "goblin_guard",
       "level": 34,
       "count": 4,
       "max_alive": 4,
@@ -15252,7 +15252,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 24,
       "count": 5,
       "max_alive": 5,
@@ -15423,7 +15423,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 26,
       "count": 5,
       "max_alive": 5,
@@ -15651,7 +15651,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 25,
       "count": 4,
       "max_alive": 4,
@@ -16107,7 +16107,7 @@
         10.0,
         10.0
       ],
-      "mob": "darksnatcher",
+      "mob": "goblin_guard",
       "level": 29,
       "count": 5,
       "max_alive": 5,
@@ -16411,7 +16411,7 @@
         10.0,
         10.0
       ],
-      "mob": "darksnatcher",
+      "mob": "goblin_guard",
       "level": 29,
       "count": 4,
       "max_alive": 4,
@@ -16772,7 +16772,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 22,
       "count": 3,
       "max_alive": 3,
@@ -17266,7 +17266,7 @@
         10.0,
         10.0
       ],
-      "mob": "darksnatcher",
+      "mob": "goblin_teller",
       "level": 11,
       "count": 6,
       "max_alive": 6,
@@ -17285,7 +17285,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 26,
       "count": 4,
       "max_alive": 4,
@@ -17779,7 +17779,7 @@
         10.0,
         10.0
       ],
-      "mob": "darksnatcher",
+      "mob": "goblin_guard",
       "level": 31,
       "count": 4,
       "max_alive": 4,
@@ -17950,7 +17950,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 20,
       "count": 4,
       "max_alive": 4,
@@ -18349,7 +18349,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 22,
       "count": 4,
       "max_alive": 4,
@@ -18406,7 +18406,7 @@
         10.0,
         10.0
       ],
-      "mob": "darksnatcher",
+      "mob": "goblin_guard",
       "level": 29,
       "count": 5,
       "max_alive": 5,
@@ -18520,7 +18520,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 19,
       "count": 4,
       "max_alive": 4,
@@ -18634,7 +18634,7 @@
         10.0,
         10.0
       ],
-      "mob": "darksnatcher",
+      "mob": "goblin_teller",
       "level": 10,
       "count": 4,
       "max_alive": 4,
@@ -19014,7 +19014,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 26,
       "count": 4,
       "max_alive": 4,
@@ -19603,7 +19603,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 27,
       "count": 4,
       "max_alive": 4,
@@ -19622,7 +19622,7 @@
         10.0,
         10.0
       ],
-      "mob": "darksnatcher",
+      "mob": "goblin_teller",
       "level": 10,
       "count": 5,
       "max_alive": 5,
@@ -20401,7 +20401,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 26,
       "count": 5,
       "max_alive": 5,
@@ -20705,7 +20705,7 @@
         10.0,
         10.0
       ],
-      "mob": "darksnatcher",
+      "mob": "goblin_guard",
       "level": 33,
       "count": 3,
       "max_alive": 3,
@@ -20933,7 +20933,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 24,
       "count": 5,
       "max_alive": 5,
@@ -21009,7 +21009,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 26,
       "count": 4,
       "max_alive": 4,
@@ -21104,7 +21104,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 19,
       "count": 4,
       "max_alive": 4,
@@ -21503,7 +21503,7 @@
         10.0,
         10.0
       ],
-      "mob": "inferi",
+      "mob": "inferi_warden",
       "level": 23,
       "count": 4,
       "max_alive": 4,
@@ -23069,7 +23069,10 @@
     "acromantula": "res://scenes/entities/mobs/mob_acromantula.tscn",
     "darksnatcher": "res://scenes/entities/mobs/mob_darksnatcher.tscn",
     "acromantula_venomfang": "res://scenes/entities/mobs/mob_acromantula_venomfang.tscn",
-    "acromantula_broodguard": "res://scenes/entities/mobs/mob_acromantula_broodguard.tscn"
+    "acromantula_broodguard": "res://scenes/entities/mobs/mob_acromantula_broodguard.tscn",
+    "inferi_warden": "res://scenes/entities/mobs/mob_inferi_warden.tscn",
+    "goblin_teller": "res://scenes/entities/mobs/mob_goblin_teller.tscn",
+    "goblin_guard": "res://scenes/entities/mobs/mob_goblin_guard.tscn"
   },
   "_density_note": "Metin2-style density v2 (2026-10-17): packs on a ~40 m jittered grid over the whole grounds (terrain-filtered: no lake, cliffs or safe zones); each belongs to its nearest hunting region. Generated by a one-off script, edit freely.",
   "_monolith_types_note": "Metin stones by type. Each monoliths[] entry names its `type` (default dark). A type: name, level, max_hp, exp_reward, respawn_ms, loot_table (loot_tables.json key), scene, spawn distances and the HP-threshold waves. monolith_config is the dark type's legacy block (kept for older readers).",

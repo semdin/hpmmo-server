@@ -198,6 +198,15 @@ const ANIM_SETS := {
 	"caster": {"idle": "Idle", "walk": "Walk", "run": "Run", "turn": "Walk",
 		"anticipation": "Charge2_Anticipation", "attack": "Charge2_Attack", "hit": "Hit",
 		"stun": "Hit", "death": "Death"},
+	# Meshy-rigged Inferi (art/creatures/inferius): mummy stagger, two-handed
+	# lunge, Roar = Zombie_Scream.
+	"undead": {"idle": "Idle", "walk": "Walk", "run": "Run", "turn": "Walk",
+		"anticipation": "Swing_Anticipation", "attack": "Swing_Attack", "hit": "Hit",
+		"stun": "Hit", "death": "Death"},
+	# Meshy-rigged Gringotts goblins (art/creatures/goblin): claw slash.
+	"goblin": {"idle": "Idle", "walk": "Walk", "run": "Run", "turn": "Walk",
+		"anticipation": "Swing_Anticipation", "attack": "Swing_Attack", "hit": "Hit",
+		"stun": "Hit", "death": "Death"},
 	# Floating wraiths (art/pipeline/scripts/wraith_rig.py).
 	"wraith": {"idle": "Idle", "walk": "Float", "run": "Float", "turn": "Float",
 		"anticipation": "Reach_Anticipation", "attack": "Reach_Attack", "hit": "Hit",
@@ -234,6 +243,7 @@ const VOICE_SETS := {
 	"spider": {"move": "spider_move_%d", "alert": "spider_alert", "attack": "spider_bite", "death": "spider_death"},
 	"snatcher": {"move": "snatcher_move_%d", "alert": "snatcher_alert", "attack": "snatcher_attack", "death": "snatcher_death"},
 	"inferi": {"move": "inferi_move_%d", "alert": "inferi_alert", "attack": "inferi_attack", "death": "inferi_death"},
+	"goblin": {"move": "goblin_move_%d", "alert": "goblin_alert", "attack": "goblin_attack", "death": "goblin_death"},
 }
 
 ## Ordinary attack timing (data-driven patterns replace this for bosses).

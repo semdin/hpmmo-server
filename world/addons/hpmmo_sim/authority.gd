@@ -2887,6 +2887,12 @@ func _roll_drops(target: Dictionary) -> Array:
 		drops = HPRules.mob_loot(is_boss, rng, String(target.get("loot_table", "")),
 			bool(target.get("is_elite", false)), drop_factor)
 	var gear_rules: Dictionary = HPRules.loot_tables().get("gear", {})
+	# A species table may override the gear roll (goblins: rare, always enchanted).
+	var species_gear = (HPRules.loot_tables().get("tables", {}) as Dictionary) \
+		.get(String(target.get("loot_table", "")), {}).get("gear", {})
+	if species_gear is Dictionary and not (species_gear as Dictionary).is_empty():
+		gear_rules = gear_rules.duplicate()
+		gear_rules.merge(species_gear, true)
 	var band := int(gear_rules.get("level_band", 15))
 	if int(target.get("kind", 0)) == HPProtocol.Kind.MONOLITH:
 		if rng.randf() < 0.25: drops.append({"id": _accessory_for(maxi(int(target.get("level", 1)), 10), band, "ring"), "amount": 1})

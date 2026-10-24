@@ -3,7 +3,7 @@
   "_resist_note": "resist[element] is a damage reduction fraction: 0.5 takes half, -1.0 takes double. Elements come from spells.json `element`. Absent = 0 (normal damage).",
   "mobs": {
     "inferi": {
-      "display": "Inferi Ghoul",
+      "display": "Drowned Inferius",
       "family": "undead",
       "role": "brute",
       "scene": "res://scenes/entities/mobs/mob_inferi.tscn",
@@ -482,6 +482,93 @@
         "stun": 1.0
       },
       "loot_table": ""
+    },
+    "inferi_warden": {
+      "display": "Inferius Lake Warden",
+      "family": "undead",
+      "role": "brute",
+      "scene": "res://scenes/entities/mobs/mob_inferi_warden.tscn",
+      "base": {
+        "max_hp": 520,
+        "attack_power": 46,
+        "move_speed": 6.0,
+        "attack_range": 2.4,
+        "attack_cooldown": 1.5
+      },
+      "exp_mult": 1.4,
+      "resist": {
+        "fire": -1.0,
+        "stun": 0.2,
+        "patronus": 0.5
+      },
+      "loot_table": "undead",
+      "abilities": [
+        {
+          "id": "drowning_grasp",
+          "kind": "area",
+          "clip": "Swing",
+          "anticipation": 0.9,
+          "recovery": 0.8,
+          "radius": 2.2,
+          "offset": 1.2,
+          "damage_multiplier": 1.4,
+          "every": 3,
+          "web_s": 2.5
+        }
+      ]
+    },
+    "goblin_teller": {
+      "display": "Goblin Teller",
+      "family": "goblin",
+      "role": "skirmisher",
+      "scene": "res://scenes/entities/mobs/mob_goblin_teller.tscn",
+      "base": {
+        "max_hp": 300,
+        "attack_power": 28,
+        "move_speed": 6.8,
+        "attack_range": 2.0,
+        "attack_cooldown": 1.2
+      },
+      "resist": {
+        "arcane": 0.15,
+        "patronus": 0.5
+      },
+      "loot_table": "goblin_teller"
+    },
+    "goblin_guard": {
+      "display": "Goblin Vault Guard",
+      "family": "goblin",
+      "role": "brute",
+      "scene": "res://scenes/entities/mobs/mob_goblin_guard.tscn",
+      "base": {
+        "max_hp": 680,
+        "attack_power": 52,
+        "move_speed": 6.2,
+        "attack_range": 2.3,
+        "attack_cooldown": 1.6
+      },
+      "exp_mult": 1.3,
+      "resist": {
+        "stun": 0.3,
+        "arcane": 0.25,
+        "force": 0.15,
+        "patronus": 0.5
+      },
+      "loot_table": "goblin_guard",
+      "abilities": [
+        {
+          "id": "guard_shove",
+          "kind": "area",
+          "clip": "Swing",
+          "anticipation": 0.8,
+          "recovery": 0.7,
+          "radius": 2.4,
+          "offset": 1.1,
+          "damage_multiplier": 1.4,
+          "every": 3,
+          "push": 6.0
+        }
+      ]
     }
   },
   "_elite_note": "Any ordinary (non-boss) pack member may roll elite on each spawn. An elite is a stronger copy of the same species with its own label colour, more experience and an extra guaranteed loot roll.",

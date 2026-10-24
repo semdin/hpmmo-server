@@ -1110,8 +1110,11 @@ static func roll_loot(table: Dictionary, rng: RandomNumberGenerator) -> Array:
 static func mob_loot(is_boss: bool, rng: RandomNumberGenerator, table_id: String = "", elite: bool = false, drop_factor: float = 1.0) -> Array:
 	ensure_loaded()
 	var table: Dictionary = _loot.get("mob", {})
-	var drops := roll_loot(_scaled_table(table, drop_factor), rng)
 	var species_table: Dictionary = (_loot.get("tables", {}) as Dictionary).get(table_id, {})
+	# `no_base_rolls`: the species keeps the base galleons but none of the base
+	# item rolls (goblins: gold, and items only from their own rare rolls).
+	var base_table := {"always": table.get("always", [])} if bool(species_table.get("no_base_rolls", false)) else table
+	var drops := roll_loot(_scaled_table(base_table, drop_factor), rng)
 	if not species_table.is_empty():
 		drops.append_array(roll_loot(_scaled_table(species_table, drop_factor), rng))
 	if elite:

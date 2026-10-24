@@ -2923,6 +2923,84 @@
    "seconds": 1.313,
    "purpose": "Ice slowly cracking and melting after a frost blast: soft crackles, tiny ice fragments tinkling and a gentle cold hiss fading away",
    "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_glacius_end.wav"
+  },
+  "goblin_alert": {
+   "path": "assets/audio/monsters/goblin_alert.wav",
+   "bus": "sfx",
+   "gain_db": -6.0,
+   "pitch_variation": 0.06,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 1.48,
+   "purpose": "Fantasy game monster: a small sly goblin bank guard, sharp nasal hiss of outrage, no words",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+  },
+  "goblin_attack": {
+   "path": "assets/audio/monsters/goblin_attack.wav",
+   "bus": "sfx",
+   "gain_db": -6.0,
+   "pitch_variation": 0.06,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 0.8,
+   "purpose": "Fantasy game monster: a small sly goblin bank guard, quick claw swipe with a vicious little snarl, short",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+  },
+  "goblin_death": {
+   "path": "assets/audio/monsters/goblin_death.wav",
+   "bus": "sfx",
+   "gain_db": -6.0,
+   "pitch_variation": 0.06,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 2.0,
+   "purpose": "Fantasy game monster death: a small sly goblin bank guard, strangled shriek and a jingle of spilled gold coins",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+  },
+  "goblin_move_1": {
+   "path": "assets/audio/monsters/goblin_move_01.wav",
+   "bus": "sfx",
+   "gain_db": -14.0,
+   "pitch_variation": 0.08,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 0.8,
+   "purpose": "Fantasy game monster: a small sly goblin bank guard, quick light footsteps and jingling keys, very short",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+  },
+  "goblin_move_2": {
+   "path": "assets/audio/monsters/goblin_move_02.wav",
+   "bus": "sfx",
+   "gain_db": -14.0,
+   "pitch_variation": 0.08,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 0.8,
+   "purpose": "Fantasy game monster: a small sly goblin bank guard, a wordless muttering hiss and soft footsteps, very short",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+  },
+  "goblin_move_3": {
+   "path": "assets/audio/monsters/goblin_move_03.wav",
+   "bus": "sfx",
+   "gain_db": -14.0,
+   "pitch_variation": 0.08,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 0.478,
+   "purpose": "Fantasy game monster: a small sly goblin bank guard, fast pattering little feet with coins clinking, very short",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
   }
  }
 }

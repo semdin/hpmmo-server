@@ -291,6 +291,71 @@
           "max": 1
         }
       ]
+    },
+    "goblin_teller": {
+      "_comment": "Goblins carry gold, not junk: no base item rolls, lots of galleons, and gear only rarely but always enchanted (efsun).",
+      "no_base_rolls": true,
+      "always": [
+        {
+          "id": "galleons",
+          "min": 140,
+          "max": 320
+        }
+      ],
+      "rolls": [
+        {
+          "id": "galleons",
+          "chance": 0.15,
+          "min": 300,
+          "max": 700
+        }
+      ],
+      "gear": {
+        "chance": 0.006,
+        "elite_chance": 0.05,
+        "enchanted_chance": 1.0,
+        "bonus_count_weights": [
+          25,
+          45,
+          30
+        ],
+        "accessory_chance": 0.008
+      }
+    },
+    "goblin_guard": {
+      "no_base_rolls": true,
+      "always": [
+        {
+          "id": "galleons",
+          "min": 260,
+          "max": 600
+        }
+      ],
+      "rolls": [
+        {
+          "id": "galleons",
+          "chance": 0.18,
+          "min": 600,
+          "max": 1400
+        },
+        {
+          "id": "scroll_imbue",
+          "chance": 0.006,
+          "min": 1,
+          "max": 1
+        }
+      ],
+      "gear": {
+        "chance": 0.01,
+        "elite_chance": 0.07,
+        "enchanted_chance": 1.0,
+        "bonus_count_weights": [
+          10,
+          45,
+          45
+        ],
+        "accessory_chance": 0.012
+      }
     }
   },
   "elite": {

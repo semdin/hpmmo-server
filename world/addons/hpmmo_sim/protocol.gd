@@ -97,7 +97,9 @@ class_name HPProtocol
 ##     public part (uid, hp, max_hp, level, dead, mounted) when it changes.
 ##     Another player's worn gear (slot -> {id, tier}) rides `sim_player_info`
 ##     as `gear`. A v21 client would draw every other player bare-handed.
-const PROTOCOL_VERSION := 22
+## v23: mob variants 17-19 (Inferius Lake Warden, Goblin Teller, Goblin Vault
+##     Guard). A v22 client would draw them as the variant-1 Inferius.
+const PROTOCOL_VERSION := 23
 
 ## Death choice (v18 `sim_respawn_request`).
 const RESPAWN_TOWN := 0
@@ -321,6 +323,10 @@ const MOB_VARIANT_FLUFFY_HEAD := 13
 const MOB_VARIANT_VENOMFANG := 14
 const MOB_VARIANT_BROODGUARD := 15
 const MOB_VARIANT_SPIDER_STONE := 16
+# v23 Inferius Lake Warden + Gringotts goblins.
+const MOB_VARIANT_INFERI_WARDEN := 17
+const MOB_VARIANT_GOBLIN_TELLER := 18
+const MOB_VARIANT_GOBLIN_GUARD := 19
 
 const MOB_SCENES := {
 	MOB_VARIANT_INFERI: "res://scenes/entities/mobs/mob_inferi.tscn",
@@ -339,6 +345,9 @@ const MOB_SCENES := {
 	MOB_VARIANT_VENOMFANG: "res://scenes/entities/mobs/mob_acromantula_venomfang.tscn",
 	MOB_VARIANT_BROODGUARD: "res://scenes/entities/mobs/mob_acromantula_broodguard.tscn",
 	MOB_VARIANT_SPIDER_STONE: "res://scenes/entities/monolith/spider_stone.tscn",
+	MOB_VARIANT_INFERI_WARDEN: "res://scenes/entities/mobs/mob_inferi_warden.tscn",
+	MOB_VARIANT_GOBLIN_TELLER: "res://scenes/entities/mobs/mob_goblin_teller.tscn",
+	MOB_VARIANT_GOBLIN_GUARD: "res://scenes/entities/mobs/mob_goblin_guard.tscn",
 }
 
 static func mob_variant(scene_path: String) -> int:

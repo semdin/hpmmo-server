@@ -868,8 +868,20 @@ msgid "[%s] %s\n%s\nDrag to move or swap; drag off the bar or right-click to cle
 msgstr "[%s] %s\n%s\nTaşımak ya da yer değiştirmek için sürükle; boşaltmak için çubuğun dışına çek ya da sağ tıkla."
 
 #: scripts/ui/hud_bestiary.gd
-msgid "Corpses bewitched to serve a dark wizard. Slow, relentless and terrified of fire."
-msgstr "Kara bir büyücüye hizmet etmek için büyülenmiş cesetler. Yavaş, amansız ve ateşten ödleri kopar."
+msgid "Drowned corpses bewitched to serve a dark wizard. Slow, relentless and terrified of fire."
+msgstr "Kara bir büyücüye hizmet etsin diye büyülenmiş boğulmuş cesetler. Yavaş, amansız ve ateşten ödleri kopar."
+
+#: scripts/ui/hud_bestiary.gd
+msgid "Inferi raised from a cursed lake to guard what lies beneath. Their cold grip drags you down; fire still breaks them."
+msgstr "Lanetli bir gölden, derinde yatanı korumak için kaldırılmış Inferius'lar. Soğuk pençeleri seni aşağı çeker; ateş yine de onları kırar."
+
+#: scripts/ui/hud_bestiary.gd
+msgid "Goblin clerks of the wizarding bank, out collecting debts. They count every Knut and carry a heavy purse."
+msgstr "Büyücü bankasının goblin memurları, borç tahsilatına çıkmış. Her Knut'u sayarlar ve keseleri ağırdır."
+
+#: scripts/ui/hud_bestiary.gd
+msgid "Vault guards in goblin-wrought silver. Shoving, stubborn and well paid; what they carry is rarely ordinary."
+msgstr "Goblin işi gümüş zırhlı kasa muhafızları. İtip kakarlar, inatçıdırlar ve iyi para alırlar; taşıdıkları şey nadiren sıradandır."
 
 #: scripts/ui/hud_bestiary.gd
 msgid "Giant spiders of the Forbidden Forest, bred from Aragog's line. They hunt in packs."
@@ -994,6 +1006,10 @@ msgstr "Tazı"
 #: scripts/ui/hud_bestiary.gd
 msgid "Spider"
 msgstr "Örümcek"
+
+#: scripts/ui/hud_bestiary.gd
+msgid "Goblin"
+msgstr "Goblin"
 
 #: scripts/ui/hud_bestiary.gd addons/hpmmo_sim/data/spawn_tables.json
 msgid "Acromantula Matriarch"
@@ -3748,8 +3764,8 @@ msgid "A battered boot enchanted as a Portkey. Right-click to set it down and ch
 msgstr "Portkey olarak büyülenmiş hırpalanmış bir çizme. Yere koymak ve nereye gideceğini seçmek için sağ tıkla: on saniye boyunca partin ona tutunabilir, sonra tutunan herkes birlikte oraya taşınır."
 
 #: addons/hpmmo_sim/data/mobs.json
-msgid "Inferi Ghoul"
-msgstr "Inferius Hortlak"
+msgid "Drowned Inferius"
+msgstr "Boğulmuş Inferius"
 
 #: addons/hpmmo_sim/data/mobs.json
 msgid "Acromantula"
@@ -3802,6 +3818,18 @@ msgstr "Fluffy"
 #: addons/hpmmo_sim/data/mobs.json
 msgid "Fluffy's Head"
 msgstr "Fluffy'nin Başı"
+
+#: addons/hpmmo_sim/data/mobs.json
+msgid "Inferius Lake Warden"
+msgstr "Göl Muhafızı Inferius"
+
+#: addons/hpmmo_sim/data/mobs.json
+msgid "Goblin Teller"
+msgstr "Goblin Veznedar"
+
+#: addons/hpmmo_sim/data/mobs.json
+msgid "Goblin Vault Guard"
+msgstr "Goblin Kasa Muhafızı"
 
 #: addons/hpmmo_sim/data/mobs.json
 msgid "Elite "
@@ -5580,6 +5608,9 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "Avada Arcana"
 #~ msgstr "Avada Arcana"
 
+#~ msgid "Corpses bewitched to serve a dark wizard. Slow, relentless and terrified of fire."
+#~ msgstr "Kara bir büyücüye hizmet etmek için büyülenmiş cesetler. Yavaş, amansız ve ateşten ödleri kopar."
+
 #~ msgid "Hagrid"
 #~ msgstr "Hagrid"
 
@@ -5594,6 +5625,9 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 
 #~ msgid "Hagrid's three-headed dog, guarding the trapdoor. Music sends it to sleep."
 #~ msgstr "Hagrid'in kapağı koruyan üç başlı köpeği. Müzik onu uyutur."
+
+#~ msgid "Inferi Ghoul"
+#~ msgstr "Inferius Hortlak"
 
 #~ msgid "Inferi stalk the Forest Edge past Hagrid's hut. Fire (Incendio) hurts them twice as much."
 #~ msgstr "Inferius'lar Hagrid'in kulübesinin ötesinde, Orman Kıyısı'nda dolaşıyor. Ateş (Incendio) onlara iki kat zarar verir."
