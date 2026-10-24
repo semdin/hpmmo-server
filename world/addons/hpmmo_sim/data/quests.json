@@ -313,7 +313,7 @@
       "level": 1,
       "title": "First-Year Orientation",
       "name": "Speak with Professor Fig by the fountain",
-      "desc": "Professor Fig waits beside the courtyard fountain (gold ! marker). Walk up and click to talk.",
+      "desc": "Professor Fig waits beside the courtyard fountain (the bobbing gold arrow). Walk up and click him or press F to talk.",
       "giver": "Professor Fig",
       "type": "talk",
       "target": "Professor Fig",

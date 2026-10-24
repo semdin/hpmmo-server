@@ -3,7 +3,8 @@ extends StaticBody3D
 const MaterialKitScript = preload("res://scripts/assets/material_kit.gd")
 
 ## Quest NPC — robed professor / shopkeeper with nameplate, idle bob,
-## click-to-talk (E or left-click), dialogue panel, and ! marker.
+## click-to-talk (F or a click), dialogue panel, and a bobbing quest arrow while
+## a talk quest points at them.
 
 ## NPCs with a body of their own (generated mesh on the hero's GameRig, built by
 ## art/characters/<name>/scripts; see art/pipeline/CHARACTER_PIPELINE.md);
@@ -19,7 +20,7 @@ const TALK_SECONDS := 4.0
 var npc_name: String = "Professor Fig"
 var dialogue: Array = ["Welcome to Hogwarts, young wizard."]
 var shop_items: Array = []
-var _marker: MeshInstance3D = null
+var _marker: Node3D = null
 var _t: float = 0.0
 var _rig: Node3D = null
 var _marker_height: float = 3.1
@@ -86,23 +87,45 @@ func _build(robe_color: Color) -> void:
 	label.position = Vector3(0, crown + 0.45, 0)
 	add_child(label)
 
-	# golden ! quest marker
-	_marker = MeshInstance3D.new()
-	var sm := SphereMesh.new()
-	sm.radius = 0.12
-	sm.height = 0.24
-	var gm := 	MaterialKitScript.gold_material()
-	sm.material = gm
-	_marker.mesh = sm
-	_marker_height = crown + 0.85
+	# Golden arrow pointing down at the NPC while a quest asks the player to
+	# talk to them; it bobs so it reads from across the grounds.
+	_marker = Node3D.new()
+	_marker.name = "QuestArrow"
+	var gold := MaterialKitScript.gold_material()
+	var shaft := MeshInstance3D.new()
+	var shaft_mesh := CylinderMesh.new()
+	shaft_mesh.top_radius = 0.07
+	shaft_mesh.bottom_radius = 0.07
+	shaft_mesh.height = 0.34
+	shaft_mesh.material = gold
+	shaft.mesh = shaft_mesh
+	shaft.position.y = 0.37
+	_marker.add_child(shaft)
+	var head := MeshInstance3D.new()
+	var head_mesh := CylinderMesh.new()
+	head_mesh.top_radius = 0.22
+	head_mesh.bottom_radius = 0.0
+	head_mesh.height = 0.3
+	head_mesh.material = gold
+	head.mesh = head_mesh
+	head.position.y = 0.05
+	_marker.add_child(head)
+	var glow := OmniLight3D.new()
+	glow.light_color = Color(1.0, 0.85, 0.3)
+	glow.light_energy = 0.8
+	glow.omni_range = 5.0
+	glow.position.y = 0.25
+	_marker.add_child(glow)
+	_marker_height = crown + 0.8
 	_marker.position = Vector3(0, _marker_height, 0)
 	add_child(_marker)
-	var ml := OmniLight3D.new()
-	ml.light_color = Color(1.0, 0.85, 0.3)
-	ml.light_energy = 0.8
-	ml.omni_range = 5.0
-	ml.position = Vector3(0, _marker_height, 0)
-	add_child(ml)
+	if not NetworkManager.is_dedicated_server:
+		QuestManager.quest_updated.connect(_update_quest_arrow)
+	_update_quest_arrow()
+
+func _update_quest_arrow() -> void:
+	if _marker:
+		_marker.visible = QuestManager.npc_wants_talk(npc_name)
 
 func _update_label() -> void:
 	var label := get_node_or_null("NpcLabel") as Label3D
@@ -122,9 +145,9 @@ func _process(delta: float) -> void:
 		_talk_left -= delta
 		if _talk_left <= 0.0 and _anim and _anim.has_animation("Idle"):
 			_anim.play("Idle", 0.4)
-	if _marker:
-		_marker.position.y = _marker_height + sin(_t * 3.0) * 0.12
-		_marker.rotation.y += delta * 2.0
+	if _marker and _marker.visible:
+		_marker.position.y = _marker_height + sin(_t * 4.0) * 0.18
+		_marker.rotation.y += delta * 1.5
 
 ## The dialogue is presentation; the quest credit for talking is the
 ## authority's decision (range-checked against this NPC on the server).

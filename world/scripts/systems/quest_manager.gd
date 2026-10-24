@@ -98,6 +98,15 @@ func needs_attention() -> bool:
 			return true
 	return false
 
+## True while an open talk quest asks the player to speak with this NPC (the
+## bobbing arrow over its head).
+func npc_wants_talk(npc_name: String) -> bool:
+	for q in open_quests():
+		if String(q.get("type", "")) == "talk" and String(q.get("target", "")) == npc_name \
+				and progress_of(String(q.get("id", ""))) < int(q.get("count", 1)):
+			return true
+	return false
+
 func done_count() -> int:
 	return player_ref.quest_done.size() if is_instance_valid(player_ref) else 0
 

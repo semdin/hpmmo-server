@@ -48,7 +48,7 @@ CHAPTERS = [
 CHAIN = [
     # ---------------------------------------------------------------- 1-5 First Year
     (1, 's', 'talk', 'Professor Fig', 1, 'First-Year Orientation', 'Speak with Professor Fig by the fountain',
-     'Professor Fig waits beside the courtyard fountain (gold ! marker). Walk up and click to talk.', 'Professor Fig',
+     'Professor Fig waits beside the courtyard fountain (the bobbing gold arrow). Walk up and click him or press F to talk.', 'Professor Fig',
      {'items': [('cloak_wool', 1)]}),
     (1, 's', 'equip', 'chest', 1, 'Dressed for the Grounds', "Wear the Woolen Traveller's Cloak",
      'Open your bag with I and right-click the cloak Professor Fig gave you. It costs a little speed and buys a lot of armour.', 'Professor Fig',

@@ -212,6 +212,8 @@ func _spawn_local_player() -> void:
 		local_player.inventory_changed.connect(_save_offline_state)
 	if local_player.has_signal("equipment_changed") and not local_player.equipment_changed.is_connected(_save_offline_state):
 		local_player.equipment_changed.connect(_save_offline_state)
+	if not local_player.talk_requested.is_connected(_talk_to_npc):
+		local_player.talk_requested.connect(_talk_to_npc)
 	_check_external_models()
 
 func _notification(what: int) -> void:
@@ -295,8 +297,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			if candidate < distance:
 				distance = candidate
 				nearest = npc
-		if nearest and not local_player.is_dead:
-			overlay.show_dialogue(nearest.npc_name, nearest.talk(local_player))
+		if nearest:
+			_talk_to_npc(nearest)
 	elif event.is_action_pressed("ui_cancel"):
 		# One Esc chain for the whole HUD: close the top-most open thing, or
 		# open the game menu when nothing is open.
@@ -308,6 +310,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			if overlay:
 				overlay._dialog_panel.hide()
 		get_viewport().set_input_as_handled()
+
+## Open an NPC's dialogue (the interact key, or a click on the NPC).
+func _talk_to_npc(npc: Node3D) -> void:
+	if is_instance_valid(npc) and is_instance_valid(local_player) and not local_player.is_dead:
+		overlay.show_dialogue(npc.npc_name, npc.talk(local_player))
 
 func _toggle_inventory() -> void:
 	if inventory_ui.visible:

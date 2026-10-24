@@ -20,6 +20,9 @@ signal animation_event(event_name: String)
 signal notice(text: String, kind: String)
 ## The timed effects on this body changed (a buff started, ended or refreshed).
 signal buffs_changed
+## A click landed on an NPC close enough to talk to (the world opens the dialogue,
+## the same path as the interact key).
+signal talk_requested(npc: Node3D)
 
 ## --------------------------------------------------------------- the rig body
 ## Measured from hero_wizard.glb (the Rigify hero, 1.75 m crown; art/hero). Every
@@ -624,14 +627,18 @@ func _unhandled_input(event: InputEvent) -> void:
 				_rmb_travel = 0.0
 				_rmb_down_ms = Time.get_ticks_msec()
 			elif _rmb_travel < RMB_CLICK_SLOP and Time.get_ticks_msec() - _rmb_down_ms < RMB_CLICK_MS:
-				# A right CLICK (not an orbit drag) inspects whatever is under the
-				# cursor: it becomes the target, so its card shows, without a cast.
-				_inspect_click_target()
+				# A right CLICK (not an orbit drag) talks to an NPC under the cursor,
+				# or inspects whatever else is there: it becomes the target, so its
+				# card shows, without a cast.
+				if not _click_npc():
+					_inspect_click_target()
 		elif event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			camera_distance = clamp(camera_distance - 0.8, 3.0, 16.0)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			camera_distance = clamp(camera_distance + 0.8, 3.0, 16.0)
 		elif event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+			if _click_npc():
+				return   # NPCs are talked to, never shot at
 			_basic_held = true
 			_try_click_target()
 			cast_spell("basic_cast")
@@ -2482,6 +2489,28 @@ func _try_click_target() -> bool:
 			return true
 	set_target(null)
 	return false
+
+## A click on an NPC: in talking range (the authority's quest_talk_radius, less
+## a little for latency) it asks the world to open the dialogue; farther away the
+## NPC only becomes the target and a notice says to come closer. True when the
+## cursor was on an NPC, so the click casts nothing.
+func _click_npc() -> bool:
+	if camera == null:
+		return false
+	var mouse_pos := get_viewport().get_mouse_position()
+	var from := camera.project_ray_origin(mouse_pos)
+	var query := PhysicsRayQueryParameters3D.create(from, from + camera.project_ray_normal(mouse_pos) * 80.0)
+	query.collision_mask = 2
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	if hit.is_empty() or not (hit.collider is Node3D) or not (hit.collider as Node3D).is_in_group("npcs"):
+		return false
+	var npc := hit.collider as Node3D
+	if npc.global_position.distance_to(global_position) <= HPRules.quest_talk_radius() - 0.5:
+		talk_requested.emit(npc)
+	else:
+		set_target(npc)
+		show_notice(tr("Come closer to talk."), "info")
+	return true
 
 ## Right-click selection: anything targetable under the cursor - a mob, a boss, a
 ## monolith, a dummy - becomes the target so its card shows, hostile or not, and

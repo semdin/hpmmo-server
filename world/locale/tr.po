@@ -315,6 +315,10 @@ msgstr "+%d %s İtibarı"
 msgid "+%d EXP"
 msgstr "+%d EXP"
 
+#: scripts/entities/player.gd
+msgid "Come closer to talk."
+msgstr "Konuşmak için yaklaş."
+
 #: scripts/fx/level_up_fx.gd scripts/ui/hud_action_bar.gd scripts/ui/hud_portkey.gd scripts/ui/hud_skill_window.gd
 msgid "Level %d"
 msgstr "Seviye %d"
@@ -4200,8 +4204,8 @@ msgid "Speak with Professor Fig by the fountain"
 msgstr "Çeşmenin yanında Profesör Fig ile konuş"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Professor Fig waits beside the courtyard fountain (gold ! marker). Walk up and click to talk."
-msgstr "Profesör Fig avludaki çeşmenin yanında bekliyor (altın ! işareti). Yanına git ve konuşmak için tıkla."
+msgid "Professor Fig waits beside the courtyard fountain (the bobbing gold arrow). Walk up and click him or press F to talk."
+msgstr "Profesör Fig avludaki çeşmenin yanında bekliyor (inip kalkan altın ok). Yanına git, konuşmak için ona tıkla ya da F'ye bas."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Dressed for the Grounds"
@@ -5570,6 +5574,9 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 
 #~ msgid "Inferi stalk the Forest Edge past Hagrid's hut. Fire (Incendio) hurts them twice as much."
 #~ msgstr "Inferius'lar Hagrid'in kulübesinin ötesinde, Orman Kıyısı'nda dolaşıyor. Ateş (Incendio) onlara iki kat zarar verir."
+
+#~ msgid "Professor Fig waits beside the courtyard fountain (gold ! marker). Walk up and click to talk."
+#~ msgstr "Profesör Fig avludaki çeşmenin yanında bekliyor (altın ! işareti). Yanına git ve konuşmak için tıkla."
 
 #~ msgid "Report to Hagrid at his hut"
 #~ msgstr "Kulübesinde Hagrid'e rapor ver"
