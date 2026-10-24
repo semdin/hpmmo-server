@@ -39,6 +39,8 @@ const TRAIL_SCENE := "res://scenes/spells/fx_broom_trail.tscn"
 ## removes its entry; nothing else is ever removed.
 static var _predicted: Dictionary = {}
 static var _active: Array = []
+## Spells whose later-stage textures were already queued for loading.
+static var _warmed: Dictionary = {}
 
 
 static func quality() -> String:
@@ -104,6 +106,23 @@ static func spawn_stage(world: Node3D, spell_id: String, stage: String, origin: 
 	return effect
 
 
+## Start loading a spell's later stages (bolt, impact, end) in the background the
+## moment it is cast: a 2048 impact sheet read from disk on the impact frame
+## shows up late, after the damage numbers.
+static func warm_spell(spell_id: String) -> void:
+	if DisplayServer.get_name() == "headless" or _warmed.has(spell_id):
+		return
+	_warmed[spell_id] = true
+	for stage in ["travel", "impact", "end"]:
+		for raw in (VFX.stages_for(spell_id).get(stage, {}) as Dictionary).get("layers", []):
+			if not raw is Dictionary:
+				continue
+			for key in ["atlas", "tex", "mesh"]:
+				var path := VFX.asset_path(String(raw.get(key, "")))
+				if path != "" and not ResourceLoader.has_cached(path):
+					ResourceLoader.load_threaded_request(path)
+
+
 static func _track(effect: Node3D) -> void:
 	_active.append(effect)
 	if _active.size() > 128:
@@ -114,6 +133,7 @@ static func _track(effect: Node3D) -> void:
 static func play_cast(world: Node3D, caster: Node3D, spell_id: String, spawn_pos: Vector3, dir: Vector3) -> void:
 	if not VFX.SPELLS.has(spell_id):
 		return
+	warm_spell(spell_id)
 	var aim := safe_direction(dir, Vector3.FORWARD)
 	var origin := emission_origin(caster, spawn_pos, aim)
 	if spell_id == "protego" and is_instance_valid(caster):
@@ -190,6 +210,7 @@ static func play_stun_stars(world: Node3D, target: Node3D) -> void:
 static func play_predicted_cast(caster: Node3D, spell_id: String, cast_seq: int) -> Node3D:
 	if not is_instance_valid(caster) or not VFX.SPELLS.has(spell_id):
 		return null
+	warm_spell(spell_id)
 	var world := caster.get_parent()
 	if world == null:
 		return null

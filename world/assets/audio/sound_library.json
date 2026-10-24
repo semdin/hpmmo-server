@@ -2037,7 +2037,7 @@
    "spatial": true,
    "sample_rate": 44100,
    "seconds": 1.48,
-   "purpose": "Ultimate dark spell cast: a deep ominous charge of green crackling lightning energy rising, then a powerful release blast, dramatic",
+   "purpose": "Magic spell charge: a bright shimmering celestial chime swell with glittering high sparkles rising quickly, then a crisp radiant release whoosh, magical fantasy",
    "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_ultimate_cast.wav"
   },
   "spell_ultimate_end": {
@@ -2049,8 +2049,8 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 1.274,
-   "purpose": "Residual green electricity crackling and fizzling out after a huge blast, fading rumble",
+   "seconds": 1.36,
+   "purpose": "Glittering magical stardust slowly settling and fading: soft high twinkles and a gentle shimmering decay",
    "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_ultimate_end.wav"
   },
   "spell_ultimate_impact": {
@@ -2062,8 +2062,8 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 2.0,
-   "purpose": "Huge green lightning explosion: a thunderous boom with crackling electric arcs, deep sub rumble and long rolling tail",
+   "seconds": 2.2,
+   "purpose": "A falling star crashes and explodes: a deep powerful magical boom with a bright crystalline shimmer burst, glittering stardust scattering, a resonant chime ring and a long sparkling tail, epic fantasy",
    "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_ultimate_impact.wav"
   },
   "spell_ultimate_travel": {
@@ -2075,8 +2075,8 @@
    "loop_mode": "forward",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 1.59,
-   "purpose": "A massive green lightning orb flying, intense electric crackling roar and buzzing, steady seamless loop",
+   "seconds": 1.8,
+   "purpose": "A blazing magical star flying through the air: a steady shimmering hum with soft twinkling sparkles and a gentle airy whoosh, seamless loop",
    "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_ultimate_travel.wav"
   },
   "spider_alert": {

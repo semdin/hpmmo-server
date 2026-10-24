@@ -4004,12 +4004,12 @@ msgid "Shimmering forcefield. Projectiles that strike it are reflected at their 
 msgstr "Işıldayan bir güç kalkanı. Ona çarpan mermiler atana geri yansıtılır; diğer tüm hasarlar %60 azalır."
 
 #: addons/hpmmo_sim/data/spells.json
-msgid "Avada Arcana"
-msgstr "Avada Arcana"
+msgid "Stella Ruina"
+msgstr "Stella Ruina"
 
 #: addons/hpmmo_sim/data/spells.json
-msgid "Ultimate forbidden sorcery. Calls forth blinding emerald lightning that disintegrates targets in a wide blast radius."
-msgstr "Nihai yasak büyücülük. Geniş bir patlama alanındaki hedefleri parçalayan kör edici zümrüt şimşekler çağırır."
+msgid "Ultimate star sorcery. Calls down a falling star that bursts into a violet ring of starlight, scorching everything in a wide blast radius."
+msgstr "Nihai yıldız büyüsü. Gökten bir yıldız indirir; yıldız, mor bir yıldız ışığı halkasına dönüşerek patlar ve geniş bir alandaki her şeyi kavurur."
 
 #: addons/hpmmo_sim/data/spells.json addons/hpmmo_sim/data/quests.json
 msgid "Expecto Patronum"
@@ -5557,6 +5557,9 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "At least 8 characters, letters and digits"
 #~ msgstr "En az 8 karakter, harf ve rakam"
 
+#~ msgid "Avada Arcana"
+#~ msgstr "Avada Arcana"
+
 #~ msgid "Hagrid"
 #~ msgstr "Hagrid"
 
@@ -5580,6 +5583,9 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 
 #~ msgid "Report to Hagrid at his hut"
 #~ msgstr "Kulübesinde Hagrid'e rapor ver"
+
+#~ msgid "Ultimate forbidden sorcery. Calls forth blinding emerald lightning that disintegrates targets in a wide blast radius."
+#~ msgstr "Nihai yasak büyücülük. Geniş bir patlama alanındaki hedefleri parçalayan kör edici zümrüt şimşekler çağırır."
 
 #~ msgid "Yeh shouldn' go into the forest alone... brave though!"
 #~ msgstr "Ormana yalnız girmemelisin... gerçi cesursun ha!"

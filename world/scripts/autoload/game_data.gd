@@ -116,7 +116,7 @@ var SPELLS: Dictionary = {
 	"ultimate": {
 		"id": "ultimate",
 		"name": "House Ultimate",
-		"desc": "Signature high-tier spell (Avada Kedavra / Expecto Patronum).",
+		"desc": "Signature high-tier spell (Stella Ruina).",
 		"damage": 350,
 		"cooldown": 25.0,
 		"mana_cost": 100,

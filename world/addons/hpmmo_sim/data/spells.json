@@ -111,8 +111,8 @@
   "ultimate": {
     "id": "ultimate",
     "element": "arcane",
-    "name": "Avada Arcana",
-    "desc": "Ultimate forbidden sorcery. Calls forth blinding emerald lightning that disintegrates targets in a wide blast radius.",
+    "name": "Stella Ruina",
+    "desc": "Ultimate star sorcery. Calls down a falling star that bursts into a violet ring of starlight, scorching everything in a wide blast radius.",
     "delivery": "projectile_aoe",
     "damage": 296,
     "magic_attack_coef": 1.56,
