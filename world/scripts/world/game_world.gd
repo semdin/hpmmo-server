@@ -330,7 +330,7 @@ func _setup_npcs() -> void:
 	# i18n-begin
 	_spawn_npc(npcs, "Professor Fig", _on_ground(-12, 72),
 		["Ah, a new student! Hogwarts needs brave wizards.",
-		"Acromantulas infest the Forbidden Forest to the west. Inferi haunt its edge, past Hagrid's hut.",
+		"Acromantulas infest the Forbidden Forest to the west. Inferi haunt its edge, past Borin's hut.",
 		"Break a Dark Monolith (follow the purple beams), refine your wand (O), then fly to the Quidditch Pitch (Shift to mount)."],
 		Color(0.2, 0.25, 0.5))
 	_spawn_npc(npcs, "Ollivander", _on_ground(16, 68.6),
@@ -342,8 +342,8 @@ func _setup_npcs() -> void:
 		["Welcome to Hogsmeade, dearie! Rest here - the village square is safe.",
 		"Buy Wiggenweld before heading to the Forbidden Forest. Trust me."],
 		Color(0.5, 0.15, 0.2))
-	_spawn_npc(npcs, "Hagrid", _on_ground(-278, -11),
-		["Yeh shouldn' go into the forest alone... brave though!",
+	_spawn_npc(npcs, "Borin", _on_ground(-278, -11),
+		["Don't go into that forest alone, friend... brave, though!",
 		"Inferi fear fire - hit 'em with Incendio (2). Stupefy (1) stuns 'em cold."],
 		Color(0.25, 0.3, 0.15))
 	_spawn_npc(npcs, "Madam Pince", _on_ground(-22, 20),

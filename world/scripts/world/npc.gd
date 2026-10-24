@@ -10,7 +10,7 @@ const MaterialKitScript = preload("res://scripts/assets/material_kit.gd")
 ## everyone else wears the tinted KayKit wizard. Height and radius are metres at
 ## scale 1 and size the capsule, nameplate and marker.
 const BODIES := {
-	"Hagrid": {"model": "res://assets/models/characters/hagrid.glb", "scale": 1.0, "height": 2.75, "radius": 0.55},
+	"Borin": {"model": "res://assets/models/characters/borin.glb", "scale": 1.0, "height": 2.72, "radius": 0.55},
 }
 const LOOPING_CLIPS := ["Idle", "Talk", "Walk_A"]
 ## How long a custom body keeps gesturing after the player talks to it.

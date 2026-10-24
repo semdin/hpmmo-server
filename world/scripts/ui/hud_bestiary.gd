@@ -21,7 +21,7 @@ const LORE := {
 	"armour_guard": "Suits of armour enchanted to defend the forbidden third floor.",
 	"armour_commander": "A cursed suit that commands the others. Its shield turns aside blows from the front.",
 	"devils_snare": "A creeping plant that strangles whatever struggles. Burn its vines to reach the heart.",
-	"fluffy": "Hagrid's three-headed dog, guarding the trapdoor. Music sends it to sleep.",
+	"fluffy": "Borin's three-headed dog, guarding the trapdoor. Music sends it to sleep.",
 	"acromantula_venomfang": "Lean, long-legged hunters of the Blackweb Caverns. Their emerald venom burns for seconds after the bite.",
 	"acromantula_broodguard": "Bone-plated giants that guard the egg caverns. Their armour turns blows from the front; their webs pin you down.",
 }

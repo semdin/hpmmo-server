@@ -434,7 +434,7 @@ def test_quests(out_dir, profile="local"):
     check(0 <= float(final.get("distance_to_fig", -1)) <= 6.0,
           "[%s] the client stands beside Professor Fig (%.1f m)" % (profile, float(final.get("distance_to_fig", -1))))
     check(far.get("quest_active") == 0 and any("out_of_range" in n for n in final.get("notices", [])),
-          "[%s] asking Hagrid from across the map is refused and counts nothing" % profile)
+          "[%s] asking Borin from across the map is refused and counts nothing" % profile)
     check(first["id"] in near.get("quest_ready", []) and int(near.get("house_rep", 0)) == 0,
           "[%s] talking finished the quest; it waits to be claimed (ready %s, rep %s)"
           % (profile, near.get("quest_ready"), near.get("house_rep")))

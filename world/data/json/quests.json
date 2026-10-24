@@ -12,7 +12,7 @@
   "q_spider_infestation": {
     "id": "q_spider_infestation",
     "title": "The Whispering Woods",
-    "npc": "Hagrid",
+    "npc": "Borin",
     "desc": "The Forbidden Forest is crawling with venomous Acromantulas. Defeat 5 Acromantulas to protect the castle grounds.",
     "target_kills": {"Acromantula": 5},
     "reward_exp": 350,

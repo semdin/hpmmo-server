@@ -24,7 +24,7 @@ const PLACES := [
 	["Forbidden Forest", Vector2(-650, 160), 1.2],
 	["Hogsmeade", Vector2(680, -140), 1.0],
 	["Northern Moors", Vector2(420, -720), 1.0],
-	["Hagrid's Hut", Vector2(-330, -10), 0.8],
+	["Borin's Hut", Vector2(-330, -10), 0.8],
 	["Greenhouses", Vector2(-190, -185), 0.8],
 	["Courtyard", Vector2(0, 92), 0.75],
 ]

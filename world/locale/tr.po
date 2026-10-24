@@ -904,8 +904,8 @@ msgid "A creeping plant that strangles whatever struggles. Burn its vines to rea
 msgstr "Çırpınan her şeyi boğan sürüngen bir bitki. Kalbine ulaşmak için sarmaşıklarını yak."
 
 #: scripts/ui/hud_bestiary.gd
-msgid "Hagrid's three-headed dog, guarding the trapdoor. Music sends it to sleep."
-msgstr "Hagrid'in kapağı koruyan üç başlı köpeği. Müzik onu uyutur."
+msgid "Borin's three-headed dog, guarding the trapdoor. Music sends it to sleep."
+msgstr "Borin'in kapağı koruyan üç başlı köpeği. Müzik onu uyutur."
 
 #: scripts/ui/hud_bestiary.gd
 msgid "Lean, long-legged hunters of the Blackweb Caverns. Their emerald venom burns for seconds after the bite."
@@ -1560,8 +1560,8 @@ msgid "Northern Moors"
 msgstr "Kuzey Bozkırları"
 
 #: scripts/ui/hud_world_map.gd scripts/ui/mmorpg_overlay.gd addons/hpmmo_sim/data/travel.json addons/hpmmo_sim/data/quests.json
-msgid "Hagrid's Hut"
-msgstr "Hagrid'in Kulübesi"
+msgid "Borin's Hut"
+msgstr "Borin'in Kulübesi"
 
 #: scripts/ui/hud_world_map.gd scripts/ui/mmorpg_overlay.gd
 msgid "Greenhouses"
@@ -2800,8 +2800,8 @@ msgid "Ah, a new student! Hogwarts needs brave wizards."
 msgstr "Ah, yeni bir öğrenci! Hogwarts'ın cesur büyücülere ihtiyacı var."
 
 #: scripts/world/game_world.gd
-msgid "Acromantulas infest the Forbidden Forest to the west. Inferi haunt its edge, past Hagrid's hut."
-msgstr "Batıdaki Yasak Orman Akromantulalarla dolu. Hagrid'in kulübesinin ötesinde, ormanın kıyısında Inferius'lar dolaşıyor."
+msgid "Acromantulas infest the Forbidden Forest to the west. Inferi haunt its edge, past Borin's hut."
+msgstr "Batıdaki Yasak Orman Akromantulalarla dolu. Borin'in kulübesinin ötesinde, ormanın kıyısında Inferius'lar dolaşıyor."
 
 #: scripts/world/game_world.gd
 msgid "Break a Dark Monolith (follow the purple beams), refine your wand (O), then fly to the Quidditch Pitch (Shift to mount)."
@@ -2832,12 +2832,12 @@ msgid "Buy Wiggenweld before heading to the Forbidden Forest. Trust me."
 msgstr "Yasak Orman'a gitmeden önce Wiggenweld al. Bana güven."
 
 #: scripts/world/game_world.gd addons/hpmmo_sim/data/quests.json data/json/quests.json
-msgid "Hagrid"
-msgstr "Hagrid"
+msgid "Borin"
+msgstr "Borin"
 
 #: scripts/world/game_world.gd
-msgid "Yeh shouldn' go into the forest alone... brave though!"
-msgstr "Ormana yalnız girmemelisin... gerçi cesursun ha!"
+msgid "Don't go into that forest alone, friend... brave, though!"
+msgstr "O ormana tek başına girme dostum... ama cesursun, orası kesin!"
 
 #: scripts/world/game_world.gd
 msgid "Inferi fear fire - hit 'em with Incendio (2). Stupefy (1) stuns 'em cold."
@@ -3907,11 +3907,11 @@ msgstr "Taş Çember Zirvesi"
 msgid "Warden's Barrow"
 msgstr "Muhafız Höyüğü"
 
-#: addons/hpmmo_sim/data/spawn_tables.json
+#: addons/hpmmo_sim/data/spawn_tables.json addons/hpmmo_sim/data/quests.json
 msgid "Webbed Galleries"
 msgstr "Ağlı Galeriler"
 
-#: addons/hpmmo_sim/data/spawn_tables.json
+#: addons/hpmmo_sim/data/spawn_tables.json addons/hpmmo_sim/data/quests.json
 msgid "Egg Caverns"
 msgstr "Yumurta Mağaraları"
 
@@ -4248,16 +4248,16 @@ msgid "Defeat 6 Inferi"
 msgstr "6 Inferius alt et"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Inferi stalk the Forest Edge past Hagrid's hut. Fire (Incendio) hurts them twice as much."
-msgstr "Inferius'lar Hagrid'in kulübesinin ötesinde, Orman Kıyısı'nda dolaşıyor. Ateş (Incendio) onlara iki kat zarar verir."
+msgid "Inferi stalk the Forest Edge past Borin's hut. Fire (Incendio) hurts them twice as much."
+msgstr "Inferius'lar Borin'in kulübesinin ötesinde, Orman Kıyısı'nda dolaşıyor. Ateş (Incendio) onlara iki kat zarar verir."
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Report to Hagrid at his hut"
-msgstr "Kulübesinde Hagrid'e rapor ver"
+msgid "Report to Borin at his hut"
+msgstr "Kulübesinde Borin'e rapor ver"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Hagrid keeps watch over the forest from his hut west of the castle."
-msgstr "Hagrid, şatonun batısındaki kulübesinden ormanı gözlüyor."
+msgid "Borin Ashgrove, the forest warden, keeps watch from his hut west of the castle."
+msgstr "Orman bekçisi Borin Ashgrove, şatonun batısındaki kulübesinden ormanı gözlüyor."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Thinning the Brood"
@@ -4480,8 +4480,8 @@ msgid "Visit the Lakeside Glade"
 msgstr "Göl Kıyısı Açıklığı'nı ziyaret et"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Hagrid wants to know how far the Inferi have spread along the shore."
-msgstr "Hagrid, Inferius'ların kıyı boyunca ne kadar yayıldığını bilmek istiyor."
+msgid "Borin wants to know how far the Inferi have spread along the shore."
+msgstr "Borin, Inferius'ların kıyı boyunca ne kadar yayıldığını bilmek istiyor."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Webs in the Glade"
@@ -5547,5 +5547,32 @@ msgstr "Karanlık Metin Taşını Parçala"
 msgid "A corrupted Dark Monolith has emerged near the Black Lake. Gather other wizards, shatter its obsidian core, and collect the ancient drops."
 msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. Diğer büyücüleri topla, obsidyen çekirdeğini parçala ve kadim ganimetleri topla."
 
+#~ msgid "Acromantulas infest the Forbidden Forest to the west. Inferi haunt its edge, past Hagrid's hut."
+#~ msgstr "Batıdaki Yasak Orman Akromantulalarla dolu. Hagrid'in kulübesinin ötesinde, ormanın kıyısında Inferius'lar dolaşıyor."
+
 #~ msgid "At least 8 characters, letters and digits"
 #~ msgstr "En az 8 karakter, harf ve rakam"
+
+#~ msgid "Hagrid"
+#~ msgstr "Hagrid"
+
+#~ msgid "Hagrid keeps watch over the forest from his hut west of the castle."
+#~ msgstr "Hagrid, şatonun batısındaki kulübesinden ormanı gözlüyor."
+
+#~ msgid "Hagrid wants to know how far the Inferi have spread along the shore."
+#~ msgstr "Hagrid, Inferius'ların kıyı boyunca ne kadar yayıldığını bilmek istiyor."
+
+#~ msgid "Hagrid's Hut"
+#~ msgstr "Hagrid'in Kulübesi"
+
+#~ msgid "Hagrid's three-headed dog, guarding the trapdoor. Music sends it to sleep."
+#~ msgstr "Hagrid'in kapağı koruyan üç başlı köpeği. Müzik onu uyutur."
+
+#~ msgid "Inferi stalk the Forest Edge past Hagrid's hut. Fire (Incendio) hurts them twice as much."
+#~ msgstr "Inferius'lar Hagrid'in kulübesinin ötesinde, Orman Kıyısı'nda dolaşıyor. Ateş (Incendio) onlara iki kat zarar verir."
+
+#~ msgid "Report to Hagrid at his hut"
+#~ msgstr "Kulübesinde Hagrid'e rapor ver"
+
+#~ msgid "Yeh shouldn' go into the forest alone... brave though!"
+#~ msgstr "Ormana yalnız girmemelisin... gerçi cesursun ha!"

@@ -723,7 +723,7 @@ func zone_at(pos: Vector3) -> String:
 		var d := (xz - c) / r
 		if d.length() < 1.0:
 			return "Black Lake"  # i18n
-	var feature_names := {"castle_promontory": "Hogwarts Castle", "greenhouse_terrace": "Greenhouses", "hagrid_glade": "Hagrid's Hut"}  # i18n
+	var feature_names := {"castle_promontory": "Hogwarts Castle", "greenhouse_terrace": "Greenhouses", "hagrid_glade": "Borin's Hut"}  # i18n
 	for f in layout.get("features", []):
 		var id := String(f.get("id", ""))
 		if feature_names.has(id) and xz.distance_to(Vector2(float(f.center[0]), float(f.center[1]))) < float(f.get("radius", 0.0)):
