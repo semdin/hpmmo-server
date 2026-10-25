@@ -827,7 +827,7 @@ func _update_boss() -> void:
 	var t: Node = _player.get("current_target") as Node
 	if is_instance_valid(t) and (t.is_in_group("monoliths") or ("is_boss" in t and t.is_boss)) and t.current_hp > 0:
 		_boss_panel.hide()
-		_boss_name.text = I18n.upper(tr("Dark Monolith")) + " — Lv.35" if t.is_in_group("monoliths") else "%s • Lv.%d" % [I18n.mob_name(String(t.mob_name)), t.level]
+		_boss_name.text = "%s — Lv.%d" % [I18n.upper(I18n.t(String(t.call("display_name")))), int(t.call("stone_level"))] if t.is_in_group("monoliths") else "%s • Lv.%d" % [I18n.mob_name(String(t.mob_name)), t.level]
 		# The authority's health delta for the target wins over the
 		# node's own copy (which is the snapshot mirror when the boss is a
 		# replicated view).

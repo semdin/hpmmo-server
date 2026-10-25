@@ -38,9 +38,9 @@
           15.0
         ],
         "trial_return": [
-          14.0,
-          58.6,
-          88.0
+          5.6,
+          58.4,
+          87.3
         ],
         "crypt_return": [
           -640.0,
@@ -228,11 +228,12 @@
       "to_map": "dng_trial",
       "to_spawn": "entry",
       "label": "the Trial Hall",
+      "dressing": "portal_arch",
       "trigger": {
         "center": [
-          18.0,
-          58.6,
-          93.0
+          6.4,
+          58.4,
+          90.8
         ],
         "radius": 2.5,
         "y_min": 50.0,

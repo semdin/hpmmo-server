@@ -46,6 +46,7 @@ static func build(world: Node3D, visuals: bool) -> Node3D:
 	_stall(solid, c)
 	_house_pillars(solid, c)
 	_topiary(solid, c)
+	_portal_arches(solid, c)
 	shapes.cylinder(c + Vector3(0, -0.4, 0), 3.35, 1.4, "x", 16)
 	shapes.cylinder(c + Vector3(0, 0.6, 0), 0.7, 3.4, "x", 10)
 	for at in _bench_spots(c):
@@ -65,6 +66,7 @@ static func build(world: Node3D, visuals: bool) -> Node3D:
 	if visuals:
 		_hero_props(root, c)
 		_flowers(root, c)
+		_portal_glow(root, c)
 	return root
 
 
@@ -271,6 +273,109 @@ static func _topiary(kit: ArchKit, c: Vector3) -> void:
 			var p := GroundsLayout.ground(c.x + cos(a) * rr, c.z + sin(a) * rr)
 			kit.cylinder(p, 0.5, 0.5, "soil", 8)
 			kit.cone(p + Vector3(0, 0.45, 0), 0.75, 2.6, "hedge", 10, 1.0)
+
+
+## Grounds portals dressed as an arch on the lawn (maps.json `dressing`
+## "portal_arch": the Trial Hall). The trigger centre is the arch's centre and
+## the arch faces the fountain, so the glowing doorway is seen from the plaza.
+static func _arch_spots(c: Vector3) -> Array:
+	var out := []
+	for entry in HPMaps.portals_for_map("grounds"):
+		if String((entry as Dictionary).get("dressing", "")) != "portal_arch":
+			continue
+		var raw: Array = (entry as Dictionary).get("trigger", {}).get("center", [0, 0, 0])
+		var at := GroundsLayout.ground(float(raw[0]), float(raw[2]))
+		var to_c := Vector2(c.x - at.x, c.z - at.z).normalized()
+		var tangent := Vector2(-to_c.y, to_c.x)
+		out.append([at, atan2(-tangent.y, tangent.x), String(entry.get("label", ""))])
+	return out
+
+
+const ARCH_HALF := 2.0
+const ARCH_H := 4.4
+
+static func _portal_arches(kit: ArchKit, c: Vector3) -> void:
+	for spot in _arch_spots(c):
+		var at: Vector3 = spot[0]
+		var rot: float = spot[1]
+		var basis := Basis(Vector3.UP, rot)
+		kit.box(at + Vector3(0, 0.12, 0), Vector3(ARCH_HALF * 2.0 + 1.6, 0.24, 1.8), rot, "trim", false)
+		for side in [-1.0, 1.0]:
+			var p: Vector3 = at + basis * Vector3(side * ARCH_HALF, 0, 0)
+			kit.box(p + Vector3(0, 0.35, 0), Vector3(1.05, 0.7, 1.05), rot, "trim")
+			kit.box(p + Vector3(0, ARCH_H * 0.5, 0), Vector3(0.75, ARCH_H, 0.75), rot, "stone")
+			kit.box(p + Vector3(0, ARCH_H + 0.15, 0), Vector3(0.95, 0.3, 0.95), rot, "trim", false)
+		kit.box(at + Vector3(0, ARCH_H + 0.6, 0), Vector3(ARCH_HALF * 2.0 + 1.3, 0.6, 1.0), rot, "trim", false)
+		kit.gable(at + Vector3(0, ARCH_H + 0.9, 0), Vector2(ARCH_HALF * 2.0 + 1.1, 0.9), 1.3, rot, "stone", "trim", 0.15)
+
+
+const PORTAL_SHADER := """
+shader_type spatial;
+render_mode unshaded, blend_add, cull_disabled, depth_draw_never, shadows_disabled;
+uniform vec4 rim : source_color = vec4(1.0, 0.76, 0.32, 1.0);
+uniform vec4 core : source_color = vec4(0.32, 0.58, 1.0, 1.0);
+void fragment() {
+	vec2 p = (UV - vec2(0.5, 0.55)) * vec2(2.0, 2.2);
+	float r = length(p);
+	float a = atan(p.y, p.x);
+	float swirl = 0.5 + 0.5 * sin(a * 5.0 + r * 9.0 - TIME * 2.2);
+	float rings = 0.5 + 0.5 * sin(r * 13.0 - TIME * 3.0);
+	float edge = smoothstep(1.05, 0.7, r);
+	ALBEDO = mix(core.rgb, rim.rgb, clamp(r * 0.95 + swirl * 0.25, 0.0, 1.0));
+	ALPHA = edge * (0.22 + 0.5 * swirl * (0.55 + 0.45 * rings));
+}
+"""
+
+## The doorway itself: a slow swirl of gold and blue, a light, motes and the
+## place's name over the arch (eyes only).
+static func _portal_glow(root: Node3D, c: Vector3) -> void:
+	for spot in _arch_spots(c):
+		var at: Vector3 = spot[0]
+		var holder := Node3D.new()
+		holder.name = "PortalArch"
+		holder.position = at
+		holder.rotation.y = spot[1]
+		root.add_child(holder)
+		var quad := QuadMesh.new()
+		quad.size = Vector2(ARCH_HALF * 2.0 - 0.75, ARCH_H - 0.1)
+		var shader := Shader.new()
+		shader.code = PORTAL_SHADER
+		var mat := ShaderMaterial.new()
+		mat.shader = shader
+		quad.material = mat
+		var veil := MeshInstance3D.new()
+		veil.mesh = quad
+		veil.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		veil.position = Vector3(0, 0.25 + quad.size.y * 0.5, 0)
+		holder.add_child(veil)
+		var light := OmniLight3D.new()
+		light.light_color = Color(0.55, 0.7, 1.0)
+		light.light_energy = 1.6
+		light.omni_range = 9.0
+		light.position = Vector3(0, 2.0, 0)
+		holder.add_child(light)
+		var sign := Label3D.new()
+		sign.text = I18n.upper(I18n.t("Trial Hall"))
+		sign.font = HudKit.deco()
+		sign.font_size = 44
+		sign.outline_size = 10
+		sign.modulate = Color(1.0, 0.86, 0.55)
+		sign.outline_modulate = Color(0.05, 0.03, 0.02, 0.9)
+		sign.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		sign.pixel_size = 0.006
+		sign.position = Vector3(0, ARCH_H + 3.0, 0)
+		holder.add_child(sign)
+		var sub := Label3D.new()
+		sub.text = I18n.t("Press F inside the arch")
+		sub.font = HudKit.bold()
+		sub.font_size = 30
+		sub.outline_size = 8
+		sub.modulate = Color(0.85, 0.9, 1.0)
+		sub.outline_modulate = Color(0.05, 0.03, 0.02, 0.9)
+		sub.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		sub.pixel_size = 0.005
+		sub.position = Vector3(0, ARCH_H + 2.45, 0)
+		holder.add_child(sub)
 
 
 # ------------------------------------------------------------------ props

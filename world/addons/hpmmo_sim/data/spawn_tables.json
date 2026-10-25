@@ -23283,7 +23283,7 @@
       "spawn_distance_min": 4.0,
       "spawn_distance_max": 9.0,
       "name": "Dark Monolith",
-      "level": 35,
+      "level": 15,
       "loot_table": "monolith",
       "scene": "res://scenes/entities/monolith/dark_monolith.tscn"
     },

@@ -647,9 +647,9 @@ func _update_target_frame() -> void:
 		bar_colour = Color(0.24, 0.62, 0.30)
 		icon = "ui_target"
 	elif current_target.is_in_group("monoliths"):
-		title = tr("Dark Monolith")
+		title = I18n.t(String(current_target.call("display_name"))) if current_target.has_method("display_name") else tr("Dark Monolith")
 		rank = tr("Ancient Monolith")
-		lvl = 35
+		lvl = int(current_target.call("stone_level")) if current_target.has_method("stone_level") else 15
 		tint = Color(0.86, 0.62, 1.0)
 		bar_colour = Color(0.58, 0.20, 0.92)
 		icon = "minimap_monolith"

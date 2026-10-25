@@ -398,6 +398,19 @@ class MapView extends Control:
 					var nf := HudKit.bold()
 					draw_string_outline(nf, sp + Vector2(8, 4), String(n.npc_name), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 4, Color(0, 0, 0, 0.85))
 					draw_string(nf, sp + Vector2(8, 4), String(n.npc_name), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, HudKit.GOLD_HI)
+		# Where the Dark Monoliths come down: each lands within its roam of the
+		# authored spot. The stone itself is only known to a client near it.
+		var mf := HudKit.bold()
+		for site in MonolithBeacons.sites():
+			var cp := world_to_screen(Vector2(site[0].x, site[0].z))
+			draw_circle(cp, float(site[1]) * zoom, Color(0.35, 1.0, 0.45, 0.12))
+			draw_arc(cp, float(site[1]) * zoom, 0.0, TAU, 40, Color(0.35, 1.0, 0.45, 0.7), 2.0, true)
+			_draw_marker("minimap_monolith", cp, 22.0)
+			var mt := tr("Dark Monolith")
+			var mw := mf.get_string_size(mt, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
+			var mp := cp + Vector2(-mw * 0.5, -float(site[1]) * zoom - 6.0)
+			draw_string_outline(mf, mp, mt, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 4, Color(0, 0, 0, 0.85))
+			draw_string(mf, mp, mt, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.55, 1.0, 0.6))
 		for m in tree.get_nodes_in_group("monoliths"):
 			if m is Node3D and is_instance_valid(m) and m.visible:
 				var mp := world_to_screen(Vector2(m.global_position.x, m.global_position.z))

@@ -86,6 +86,8 @@ func _ready() -> void:
 			cl.queue_free()
 
 	_setup_npcs()
+	if not NetworkManager.is_dedicated_server:
+		add_child(MonolithBeacons.new())
 	# Training dummies are static authored scenery at fixed spots: every process
 	# builds the same ones, and only the authority registers them as entities.
 	_setup_training_grounds()
@@ -340,7 +342,8 @@ func _setup_npcs() -> void:
 	_spawn_npc(npcs, "Professor Fig", _on_ground(-12, 72),
 		["Ah, a new student! Hogwarts needs brave wizards.",
 		"Acromantulas infest the Forbidden Forest to the west. Inferi haunt its edge, past Borin's hut.",
-		"Break a Dark Monolith (follow the purple beams), refine your wand (O), then fly to the Quidditch Pitch (Shift to mount)."],
+		"Dark Monoliths fall in the western forests: follow the tall green light, or find them on your map (M).",
+		"From level 5 the Trial Hall is open: step into the glowing arch on the courtyard's south lawn and press F."],
 		Color(0.2, 0.25, 0.5))
 	_spawn_npc(npcs, "Ollivander", _on_ground(16, 68.6),
 		["Wands choose the wizard... but Galleons refine them!",
@@ -353,7 +356,7 @@ func _setup_npcs() -> void:
 		Color(0.5, 0.15, 0.2))
 	_spawn_npc(npcs, "Borin", _on_ground(-278, -11),
 		["Don't go into that forest alone, friend... brave, though!",
-		"Inferi fear fire - hit 'em with Incendio (2). Stupefy (1) stuns 'em cold."],
+		"Inferi fear fire - burn 'em with Incendio. Stupefy stuns 'em cold."],
 		Color(0.25, 0.3, 0.15))
 	_spawn_npc(npcs, "Madam Pince", _on_ground(-22, 20),
 		["The library is inside, past the great doors. Mind the books.", "The Great Hall is through the entrance hall. Charms is across the hall."], Color(0.2, 0.15, 0.3))

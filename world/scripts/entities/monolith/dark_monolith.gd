@@ -66,7 +66,7 @@ func _ready() -> void:
 		# EXP is paid exactly once through the normal reward path.
 		SimAuthority.register(HPProtocol.Kind.MONOLITH, self, {
 			"hp": current_hp, "max_hp": max_hp, "exp_reward": int(_cfg.get("exp_reward", 850)),
-			"name": display_name(), "level": int(_cfg.get("level", 35)),
+			"name": display_name(), "level": stone_level(),
 			"loot_table": String(_cfg.get("loot_table", "monolith")),
 			# The body clients draw (HPProtocol.MOB_SCENES; 0 = the Dark Monolith).
 			"variant": HPProtocol.MOB_VARIANT_SPIDER_STONE if scene_file_path == HPProtocol.mob_scene(HPProtocol.MOB_VARIANT_SPIDER_STONE) else 0,
@@ -75,7 +75,7 @@ func _ready() -> void:
 func _update_label() -> void:
 	if hp_label:
 		var pct := int((float(current_hp) / float(max_hp)) * 100.0)
-		hp_label.text = "%s (Lv.%d)\n%d / %d (%d%%)" % [I18n.t(display_name()), int(_cfg.get("level", 35)), current_hp, max_hp, pct]
+		hp_label.text = "%s (Lv.%d)\n%d / %d (%d%%)" % [I18n.t(display_name()), stone_level(), current_hp, max_hp, pct]
 		if pct > 50:
 			hp_label.modulate = Color(0.45, 1.0, 0.55)
 		elif pct > 25:
@@ -357,6 +357,9 @@ func _land() -> void:
 func display_name() -> String:
 	return String(_cfg.get("name", "Dark Monolith"))  # i18n
 
+func stone_level() -> int:
+	return int(_cfg.get("level", 15))
+
 ## Ground height under a wave spawn: the grounds terrain outside, a ray onto
 ## the map's collider elsewhere (the caverns' stones).
 func _ground_y(at: Vector3) -> float:
@@ -368,24 +371,15 @@ func _ground_y(at: Vector3) -> float:
 	return NAN if hit.is_empty() else float((hit["position"] as Vector3).y)
 
 func _add_sky_beam() -> void:
-	# A tall, faint emerald beacon so players can find the stone from afar
-	# (the Dark Mark's colour, not the old placeholder purple).
-	var beam := MeshInstance3D.new()
+	# A tall emerald light column so players can find the stone from afar
+	# (the Dark Mark's colour). The same column as MonolithBeacons, which
+	# stands in for the stone while it is too far away to be replicated.
+	if NetworkManager.is_dedicated_server:
+		return
+	var tall := monolith_type == "dark"
+	var beam := MonolithBeacons.beam(glow, 160.0 if tall else 26.0, 2.2 if tall else 1.2, 0.4)
 	beam.name = "SkyBeam"
-	var cm := CylinderMesh.new()
-	cm.top_radius = 0.03
-	cm.bottom_radius = 0.1
-	cm.height = 34.0
-	var bm := StandardMaterial3D.new()
-	bm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	bm.albedo_color = Color(glow.r * 0.5, glow.g * 0.5, glow.b * 0.5, 0.05)
-	bm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	bm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	bm.cull_mode = BaseMaterial3D.CULL_DISABLED
-	cm.material = bm
-	beam.mesh = cm
-	beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	beam.position = Vector3(0, 7.0 + 17.0, 0)
+	beam.position.y += 5.5
 	add_child(beam)
 
 var _burst := 0.0

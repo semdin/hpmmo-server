@@ -719,9 +719,12 @@ func _process(delta: float) -> void:
 		if _status_poll <= 0.0:
 			_status_poll = 0.1
 			StatusFX.update(self, cc_status())
-			# The authority's own bodies (offline, a host): GA follows the list.
-			if SimAuthority.is_authority():
-				var ga := SimAuthority.is_ga(SimAuthority.record_for(self))
+			# GA follows the list on the authority's own bodies (offline, a host)
+			# and the replicated record anywhere else, so a badge that arrived
+			# before this body existed still shows.
+			var ga_record := SimAuthority.record_for(self)
+			if not ga_record.is_empty() and (SimAuthority.is_authority() or ga_record.has("ga")):
+				var ga := SimAuthority.is_ga(ga_record)
 				if ga != is_ga:
 					is_ga = ga
 					_update_ga_emblem()

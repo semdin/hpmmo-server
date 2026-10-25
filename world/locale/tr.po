@@ -211,7 +211,7 @@ msgstr "Sarmaşıklar yok oldu - Kapan'ın kalbi açığa çıktı!"
 msgid "A brave Wizard"
 msgstr "Cesur bir büyücü"
 
-#: scripts/entities/monolith/dark_monolith.gd scripts/ui/hud.gd scripts/ui/mmorpg_overlay.gd addons/hpmmo_sim/data/spawn_tables.json
+#: scripts/entities/monolith/dark_monolith.gd scripts/ui/hud.gd scripts/ui/hud_world_map.gd scripts/ui/mmorpg_overlay.gd addons/hpmmo_sim/data/spawn_tables.json
 msgid "Dark Monolith"
 msgstr "Karanlık Metin Taşı"
 
@@ -1019,7 +1019,7 @@ msgstr "Patronus"
 msgid "Arcane"
 msgstr "Gizem"
 
-#: scripts/ui/hud_bestiary.gd addons/hpmmo_sim/data/maps.json addons/hpmmo_sim/data/dungeons.json
+#: scripts/ui/hud_bestiary.gd scripts/world/grounds/grounds_courtyard.gd addons/hpmmo_sim/data/maps.json addons/hpmmo_sim/data/dungeons.json
 msgid "Trial Hall"
 msgstr "Sınav Salonu"
 
@@ -2984,8 +2984,12 @@ msgid "Acromantulas infest the Forbidden Forest to the west. Inferi haunt its ed
 msgstr "Batıdaki Yasak Orman Akromantulalarla dolu. Borin'in kulübesinin ötesinde, ormanın kıyısında Inferius'lar dolaşıyor."
 
 #: scripts/world/game_world.gd
-msgid "Break a Dark Monolith (follow the purple beams), refine your wand (O), then fly to the Quidditch Pitch (Shift to mount)."
-msgstr "Bir Karanlık Metin Taşı kır (mor ışınları izle), asanı yükselt (O), sonra Quidditch Sahası'na uç (binmek için Shift)."
+msgid "Dark Monoliths fall in the western forests: follow the tall green light, or find them on your map (M)."
+msgstr "Karanlık Metin Taşları batı ormanlarına düşer: yükselen yeşil ışığı izle ya da onları haritanda bul (M)."
+
+#: scripts/world/game_world.gd
+msgid "From level 5 the Trial Hall is open: step into the glowing arch on the courtyard's south lawn and press F."
+msgstr "5. seviyeden itibaren Sınav Salonu açık: avlunun güney çimenliğindeki parlayan kemerin içine gir ve F'ye bas."
 
 #: scripts/world/game_world.gd
 msgid "Wands choose the wizard... but Galleons refine them!"
@@ -3020,8 +3024,8 @@ msgid "Don't go into that forest alone, friend... brave, though!"
 msgstr "O ormana tek başına girme dostum... ama cesursun, orası kesin!"
 
 #: scripts/world/game_world.gd
-msgid "Inferi fear fire - hit 'em with Incendio (2). Stupefy (1) stuns 'em cold."
-msgstr "Inferius'lar ateşten korkar - onlara Incendio (2) ile vur. Stupefy (1) onları anında sersemletir."
+msgid "Inferi fear fire - burn 'em with Incendio. Stupefy stuns 'em cold."
+msgstr "Inferiler ateşten korkar - Incendio ile yak onları. Stupefy de anında sersemletir."
 
 #: scripts/world/game_world.gd addons/hpmmo_sim/data/quests.json
 msgid "Madam Pince"
@@ -3058,6 +3062,10 @@ msgstr "Yansıtıldı!"
 #: scripts/world/grounds/grounds_builder.gd
 msgid "Broom landing"
 msgstr "Süpürge iniş alanı"
+
+#: scripts/world/grounds/grounds_courtyard.gd
+msgid "Press F inside the arch"
+msgstr "Kemerin içinde F'ye bas"
 
 #: scripts/world/map_controller.gd
 msgid "Floo Network (%s)"
@@ -4428,8 +4436,8 @@ msgid "Hit a training dummy 5 times"
 msgstr "Bir eğitim kuklasına 5 kez vur"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "The dummies in the courtyard never hit back. Left-click to cast; your spells hurt nothing inside the safe ground."
-msgstr "Avludaki kuklalar asla karşılık vermez. Büyü yapmak için sol tıkla; güvenli bölgede büyülerin hiçbir şeye zarar vermez."
+msgid "Three training dummies stand by the east road, just outside the courtyard wall - they never hit back. Left-click to cast; spells hurt nothing inside the safe courtyard."
+msgstr "Üç antrenman mankeni doğu yolunda, avlu duvarının hemen dışında durur - asla karşılık vermezler. Büyü yapmak için sol tıkla; güvenli avlunun içinde büyüler hiçbir şeye zarar vermez."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Spiders at the Gate"
@@ -4544,8 +4552,8 @@ msgid "Refine your wand once at Ollivander"
 msgstr "Ollivander'da asanı bir kez yükselt"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Press O near Ollivander, drag your wand onto the anvil and refine it with Phoenix Ash and Galleons."
-msgstr "Ollivander'ın yanında O'ya bas, asanı örse sürükle ve Anka Külü ile Galleon kullanarak yükselt."
+msgid "Press O to open Ollivander's workshop, drag your wand onto the anvil and refine it with Phoenix Ash and Galleons."
+msgstr "Ollivander'ın atölyesini açmak için O'ya bas, asanı örsün üzerine sürükle ve Anka Külü ile Galleon kullanarak yükselt."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "The Eastern Road"
@@ -4600,8 +4608,8 @@ msgid "Help destroy a Dark Monolith"
 msgstr "Bir Karanlık Metin Taşının yok edilmesine yardım et"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "A purple beam marks a Dark Monolith. Join others and break it before its waves overrun you."
-msgstr "Mor bir ışın bir Karanlık Metin Taşını işaret eder. Diğerlerine katıl ve dalgaları seni ezmeden onu kır."
+msgid "Dark Monoliths fall in the western forests (Forest Edge, Acromantula Thicket, Snatcher Woods, Crypt Hollow). Follow the tall green light or find them on your map (M), then break one with others before its waves overrun you."
+msgstr "Karanlık Metin Taşları batı ormanlarına düşer (Orman Kıyısı, Akromantula Çalılığı, Kapkaççı Korusu, Mahzen Çukuru). Yükselen yeşil ışığı izle ya da haritanda bul (M), sonra dalgaları seni ezmeden diğerleriyle birlikte birini kır."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "The Trial Hall"
@@ -4612,8 +4620,8 @@ msgid "Complete the Trial Hall"
 msgstr "Sınav Salonu'nu tamamla"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Enter the Trial Hall from the courtyard portal, clear the corridor and defeat the Trial Warden."
-msgstr "Avludaki geçitten Sınav Salonu'na gir, koridoru temizle ve Sınav Muhafızı'nı alt et."
+msgid "The Trial Hall portal is the glowing arch on the courtyard lawn, beside the lake walk. Step into it and press F, clear the corridor, then defeat the Trial Warden. Up to five can go in together."
+msgstr "Sınav Salonu geçidi, avlunun çimenliğinde göl yolunun yanındaki parlayan kemerdir. İçine gir ve F'ye bas, koridoru temizle, sonra Sınav Muhafızı'nı alt et. En fazla beş kişi birlikte girebilir."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "A Wand Worth Keeping"
@@ -4672,8 +4680,8 @@ msgid "Defeat 14 Snatchers"
 msgstr "14 Kapkaççı alt et"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "The snatchers have a camp in the woods south of the castle. Drive them out."
-msgstr "Kapkaççıların şatonun güneyindeki koruda bir kampı var. Onları oradan sür."
+msgid "The snatchers have a camp in the woods north-west of the castle. Drive them out."
+msgstr "Kapkaççıların kalenin kuzeybatısındaki ormanda bir kampı var. Onları oradan sür."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Survey the Lake"
@@ -4812,8 +4820,8 @@ msgid "Scout the Smugglers' Camp"
 msgstr "Kaçakçı Kampı'nı keşfet"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Find the snatcher captain's camp deep in the southern woods. Do not engage alone."
-msgstr "Güney korusunun derinliklerinde kapkaççı kaptanının kampını bul. Yalnız saldırma."
+msgid "Find the snatcher captain's camp deep in the northern woods, past Snatcher Woods. Do not engage alone."
+msgstr "Kapkaççı kaptanının kampını kuzey ormanlarının derinliklerinde, Kapkaççı Korusu'nun ötesinde bul. Tek başına saldırma."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "The Snatcher Captain"
@@ -4912,8 +4920,8 @@ msgid "Find Spider Hollow"
 msgstr "Örümcek Çukuru'nu bul"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "The Matriarch nests in Spider Hollow in the far north-west."
-msgstr "Ana, çok kuzeybatıdaki Örümcek Çukuru'nda yuvalanıyor."
+msgid "The Matriarch nests in Spider Hollow in the far south-west, beyond the Spider Woods."
+msgstr "Ana, uzak güneybatıda, Örümcek Korusu'nun ötesindeki Örümcek Çukuru'nda yuvalanıyor."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "The Matriarch"
@@ -5060,8 +5068,8 @@ msgid "Pests of the Third Floor"
 msgstr "Üçüncü Katın Baş Belaları"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 12 Cornish Pixies"
-msgstr "12 Cornwall Cini alt et"
+msgid "Defeat 8 Cornish Pixies"
+msgstr "8 Cornwall Cini alt et"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Enter the Forbidden Corridor from the castle. The pixies swarm and lift you off your feet."
@@ -5072,8 +5080,8 @@ msgid "Living Armour"
 msgstr "Canlı Zırh"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 8 Suits of Armour"
-msgstr "8 Zırh alt et"
+msgid "Defeat 6 Suits of Armour"
+msgstr "6 Zırh alt et"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Enchanted suits of armour guard the corridor. Force spells shake them apart."
@@ -5104,8 +5112,8 @@ msgid "More Pixies"
 msgstr "Daha Fazla Cin"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 16 Cornish Pixies"
-msgstr "16 Cornwall Cini alt et"
+msgid "Defeat 10 Cornish Pixies"
+msgstr "10 Cornwall Cini alt et"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "The pixies on the stairs beyond the snare are worse than the first lot."
@@ -5236,12 +5244,16 @@ msgid "The dark wizards who marched with Grak are fleeing across the Eastern Moo
 msgstr "Grak'la birlikte yürüyen kara büyücüler Doğu Bozkırı'ndan kaçıyor."
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Monolith on the Moor"
-msgstr "Bozkırdaki Metin Taşı"
+msgid "Stones Still Standing"
+msgstr "Hâlâ Ayakta Duran Taşlar"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "A Dark Monolith has risen where Grak fell. Break it with others."
-msgstr "Grak'ın düştüğü yerde bir Karanlık Metin Taşı yükseldi. Diğerleriyle birlikte onu kır."
+msgid "Destroy a Dark Monolith or a Webbound Seal Stone"
+msgstr "Bir Karanlık Metin Taşı ya da Ağbağlı Mühür Taşı yok et"
+
+#: addons/hpmmo_sim/data/quests.json
+msgid "Grak is gone, but the stones keep falling. Break a Dark Monolith in the western forests or a Webbound Seal Stone in the Blackweb Caverns, with others."
+msgstr "Grak gitti ama taşlar düşmeye devam ediyor. Diğerleriyle birlikte batı ormanlarında bir Karanlık Metin Taşı ya da Karaağ Mağaraları'nda bir Ağbağlı Mühür Taşı kır."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Masterwork"
@@ -5256,8 +5268,8 @@ msgid "Speak with Professor Fig about the Patronus"
 msgstr "Patronus hakkında Profesör Fig ile konuş"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Professor Fig can teach you the Patronus Charm (level 40). Dementors fear nothing else."
-msgstr "Profesör Fig sana Patronus Tılsımı'nı öğretebilir (seviye 40). Ruh Emiciler başka hiçbir şeyden korkmaz."
+msgid "Professor Fig says Dementors fear nothing but the Patronus Charm. Learn Expecto Patronum in your spell book (V) - it opens at level 40."
+msgstr "Profesör Fig, Ruh Emicilerin Patronus Tılsımı'ndan başka hiçbir şeyden korkmadığını söylüyor. Expecto Patronum'u büyü kitabından (V) öğren - 40. seviyede açılır."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "The Misty Shore"
@@ -5751,6 +5763,12 @@ msgstr "Karanlık Metin Taşını Parçala"
 msgid "A corrupted Dark Monolith has emerged near the Black Lake. Gather other wizards, shatter its obsidian core, and collect the ancient drops."
 msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. Diğer büyücüleri topla, obsidyen çekirdeğini parçala ve kadim ganimetleri topla."
 
+#~ msgid "A Dark Monolith has risen where Grak fell. Break it with others."
+#~ msgstr "Grak'ın düştüğü yerde bir Karanlık Metin Taşı yükseldi. Diğerleriyle birlikte onu kır."
+
+#~ msgid "A purple beam marks a Dark Monolith. Join others and break it before its waves overrun you."
+#~ msgstr "Mor bir ışın bir Karanlık Metin Taşını işaret eder. Diğerlerine katıl ve dalgaları seni ezmeden onu kır."
+
 #~ msgid "Acromantulas infest the Forbidden Forest to the west. Inferi haunt its edge, past Hagrid's hut."
 #~ msgstr "Batıdaki Yasak Orman Akromantulalarla dolu. Hagrid'in kulübesinin ötesinde, ormanın kıyısında Inferius'lar dolaşıyor."
 
@@ -5766,14 +5784,32 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "Avada Arcana"
 #~ msgstr "Avada Arcana"
 
+#~ msgid "Break a Dark Monolith (follow the purple beams), refine your wand (O), then fly to the Quidditch Pitch (Shift to mount)."
+#~ msgstr "Bir Karanlık Metin Taşı kır (mor ışınları izle), asanı yükselt (O), sonra Quidditch Sahası'na uç (binmek için Shift)."
+
 #~ msgid "Conjures a silver stag that charges through a wide cone. Dementors take triple damage and the stag breaks a dementor's attack, kiss included. Requires level 40."
 #~ msgstr "Geniş bir koni boyunca saldıran gümüş bir geyik çağırır. Ruh Emiciler üç kat hasar alır ve geyik bir Ruh Emici'nin saldırısını, öpücüğü dahil, bozar. Seviye 40 gerekir."
 
 #~ msgid "Corpses bewitched to serve a dark wizard. Slow, relentless and terrified of fire."
 #~ msgstr "Kara bir büyücüye hizmet etmek için büyülenmiş cesetler. Yavaş, amansız ve ateşten ödleri kopar."
 
+#~ msgid "Defeat 12 Cornish Pixies"
+#~ msgstr "12 Cornwall Cini alt et"
+
+#~ msgid "Defeat 16 Cornish Pixies"
+#~ msgstr "16 Cornwall Cini alt et"
+
+#~ msgid "Defeat 8 Suits of Armour"
+#~ msgstr "8 Zırh alt et"
+
 #~ msgid "Detonates a violent concussive shockwave. Heavy AOE damage with knockback."
 #~ msgstr "Şiddetli, sarsıcı bir şok dalgası patlatır. Geri itmeli ağır alan hasarı."
+
+#~ msgid "Enter the Trial Hall from the courtyard portal, clear the corridor and defeat the Trial Warden."
+#~ msgstr "Avludaki geçitten Sınav Salonu'na gir, koridoru temizle ve Sınav Muhafızı'nı alt et."
+
+#~ msgid "Find the snatcher captain's camp deep in the southern woods. Do not engage alone."
+#~ msgstr "Güney korusunun derinliklerinde kapkaççı kaptanının kampını bul. Yalnız saldırma."
 
 #~ msgid "Frost nova. Hurls a spinning ice crystal that bursts into shards and freezing mist, freezing every enemy in the blast for up to 1.6 seconds. Requires level 20."
 #~ msgstr "Buz patlaması. Dönen bir buz kristali fırlatır; kristal parçalara ve dondurucu bir sise dönüşerek patlar, patlamadaki her düşmanı 1,6 saniyeye kadar dondurur. 20. seviye gerekir."
@@ -5799,14 +5835,35 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "Inferi Ghoul"
 #~ msgstr "Inferius Hortlak"
 
+#~ msgid "Inferi fear fire - hit 'em with Incendio (2). Stupefy (1) stuns 'em cold."
+#~ msgstr "Inferius'lar ateşten korkar - onlara Incendio (2) ile vur. Stupefy (1) onları anında sersemletir."
+
 #~ msgid "Inferi stalk the Forest Edge past Hagrid's hut. Fire (Incendio) hurts them twice as much."
 #~ msgstr "Inferius'lar Hagrid'in kulübesinin ötesinde, Orman Kıyısı'nda dolaşıyor. Ateş (Incendio) onlara iki kat zarar verir."
+
+#~ msgid "Monolith on the Moor"
+#~ msgstr "Bozkırdaki Metin Taşı"
+
+#~ msgid "Press O near Ollivander, drag your wand onto the anvil and refine it with Phoenix Ash and Galleons."
+#~ msgstr "Ollivander'ın yanında O'ya bas, asanı örse sürükle ve Anka Külü ile Galleon kullanarak yükselt."
+
+#~ msgid "Professor Fig can teach you the Patronus Charm (level 40). Dementors fear nothing else."
+#~ msgstr "Profesör Fig sana Patronus Tılsımı'nı öğretebilir (seviye 40). Ruh Emiciler başka hiçbir şeyden korkmaz."
 
 #~ msgid "Professor Fig waits beside the courtyard fountain (gold ! marker). Walk up and click to talk."
 #~ msgstr "Profesör Fig avludaki çeşmenin yanında bekliyor (altın ! işareti). Yanına git ve konuşmak için tıkla."
 
 #~ msgid "Report to Hagrid at his hut"
 #~ msgstr "Kulübesinde Hagrid'e rapor ver"
+
+#~ msgid "The Matriarch nests in Spider Hollow in the far north-west."
+#~ msgstr "Ana, çok kuzeybatıdaki Örümcek Çukuru'nda yuvalanıyor."
+
+#~ msgid "The dummies in the courtyard never hit back. Left-click to cast; your spells hurt nothing inside the safe ground."
+#~ msgstr "Avludaki kuklalar asla karşılık vermez. Büyü yapmak için sol tıkla; güvenli bölgede büyülerin hiçbir şeye zarar vermez."
+
+#~ msgid "The snatchers have a camp in the woods south of the castle. Drive them out."
+#~ msgstr "Kapkaççıların şatonun güneyindeki koruda bir kampı var. Onları oradan sür."
 
 #~ msgid "Ultimate forbidden sorcery. Calls forth blinding emerald lightning that disintegrates targets in a wide blast radius."
 #~ msgstr "Nihai yasak büyücülük. Geniş bir patlama alanındaki hedefleri parçalayan kör edici zümrüt şimşekler çağırır."

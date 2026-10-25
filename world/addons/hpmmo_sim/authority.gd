@@ -4048,6 +4048,12 @@ func flags_for(record: Dictionary) -> int:
 func apply_stats_payload(uid: int, stats: Dictionary) -> void:
 	var record: Dictionary = entities.get(uid, {})
 	if record.is_empty():
+		# The join's own payload arrives while the menus are still up and the
+		# body does not exist yet. Its numbers come again with the character
+		# sheet, but the GA badge does not: keep it for the bind, or it would
+		# stay hidden until some vital changed (mounting a broom).
+		if stats.has("ga") and (uid == local_uid or (SimNet != null and uid == int(SimNet.local_uid))):
+			_pending_local_stats = {"uid": uid, "ga": bool(stats["ga"])}
 		return
 	var node = record.get("node")
 	var stats_copy := stats.duplicate(true)
@@ -4128,6 +4134,11 @@ func record_local_player(uid: int, node: Node3D, character: Dictionary) -> void:
 	players_by_peer[peer_id] = uid
 	if int(character.get("id", 0)) > 0:
 		players_by_character[int(character["id"])] = uid
+	if not _pending_local_stats.is_empty():
+		var pending := _pending_local_stats
+		_pending_local_stats = {}
+		if int(pending.get("uid", uid)) == uid:
+			apply_stats_payload(uid, pending)
 
 ## Client-side: the server assigned this body a map. Stored until the body is
 ## bound if the world scene does not exist yet, then applied (the map controller
@@ -4170,6 +4181,9 @@ func local_player_node() -> Node3D:
 		if candidate.get("is_local_player") == true:
 			return candidate
 	return null
+
+## The local body's GA flag from before it was bound (`apply_stats_payload`).
+var _pending_local_stats: Dictionary = {}
 
 ## Client-side replica update from a snapshot. Creates the record on first
 ## sight (presentation is asked to build a view) and refreshes it afterwards.
@@ -4650,6 +4664,7 @@ func forget_replicas() -> void:
 	_despawn_ticks.clear()
 	_pending_player_info.clear()
 	_pending_mob_info.clear()
+	_pending_local_stats = {}
 	casts.clear()
 	casts_by_node.clear()
 	portkeys.clear()
