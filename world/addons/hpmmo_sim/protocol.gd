@@ -104,7 +104,10 @@ class_name HPProtocol
 ## v25: snapshots carry a status byte (STATUS_* crowd control and damage over
 ##     time on the body: stun, freeze, slow, bleed, burn, poison, knocked,
 ##     disarmed), 31 bytes per entity, so every client draws the same effects.
-const PROTOCOL_VERSION := 25
+## v26: GA (game admin) - `ga` in player info and the owner's stats (the
+##     emblem over the name), `/ga` chat commands, and the world's weather
+##     (`sim_weather` {rain}) sent on change and on joining.
+const PROTOCOL_VERSION := 26
 
 ## Death choice (v18 `sim_respawn_request`).
 const RESPAWN_TOWN := 0

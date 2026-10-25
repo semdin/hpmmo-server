@@ -8,6 +8,18 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
 #: scripts/autoload/i18n.gd
+msgid "%s is now a GA."
+msgstr "%s artık GA."
+
+#: scripts/autoload/i18n.gd
+msgid "%s is no longer a GA."
+msgstr "%s artık GA değil."
+
+#: scripts/autoload/i18n.gd
+msgid "GAs: %s"
+msgstr "GA'lar: %s"
+
+#: scripts/autoload/i18n.gd
 msgid "No player called '%s' is online."
 msgstr "'%s' adında çevrimiçi bir oyuncu yok."
 
@@ -62,6 +74,30 @@ msgstr "%s, %s tarafından paramparça edildi! Diyara servet yağıyor!"
 #: scripts/autoload/i18n.gd
 msgid "A new %s has manifested in the realm!"
 msgstr "Diyarda yeni bir %s belirdi!"
+
+#: scripts/autoload/i18n.gd
+msgid "Rain started."
+msgstr "Yağmur başladı."
+
+#: scripts/autoload/i18n.gd
+msgid "Rain stopped."
+msgstr "Yağmur durdu."
+
+#: scripts/autoload/i18n.gd
+msgid "Only a GA can use /ga."
+msgstr "/ga komutlarını yalnızca GA kullanabilir."
+
+#: scripts/autoload/i18n.gd
+msgid "Usage: /ga add Name"
+msgstr "Kullanım: /ga ekle İsim"
+
+#: scripts/autoload/i18n.gd
+msgid "Usage: /ga remove Name"
+msgstr "Kullanım: /ga sil İsim"
+
+#: scripts/autoload/i18n.gd
+msgid "GA: /ga rain on|off, /ga add Name, /ga remove Name, /ga list"
+msgstr "GA: /ga yağmur aç|kapat, /ga ekle İsim, /ga sil İsim, /ga liste"
 
 #: scripts/autoload/i18n.gd
 msgid "There is no party invitation to accept."

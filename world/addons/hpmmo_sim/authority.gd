@@ -36,6 +36,8 @@ signal cast_landed(cast_id: int, caster_uid: int, spell_id: String, hits: Array)
 ## v25: an area bolt burst at `pos` - emitted BEFORE its damage, so a client
 ## draws the blast where the server's bolt went off and the numbers follow it.
 signal cast_impact(cast_id: int, caster_uid: int, spell_id: String, pos: Vector3)
+## v26: the world's weather changed ({"rain": bool}); net sends it to everyone.
+signal weather_changed(state: Dictionary)
 signal entity_damaged(uid: int, amount: int, hp: int, spell_id: String, attacker_uid: int)
 ## Same hit as `entity_damaged` plus its HIT_* flags (crit, combo finisher). The
 ## network bridge forwards this one; presentation (damage numbers) reads it.
@@ -3973,6 +3975,8 @@ func build_vitals(record: Dictionary) -> Dictionary:
 		result["knock_until_tick"] = int(record.get("knock_until_tick", 0))
 		result["freeze_until_tick"] = int(record.get("freeze_until_tick", 0))
 		result["bleed_until_tick"] = int(record.get("bleed_until_tick", 0))
+		# v26: the GA badge over the owner's own name.
+		result["ga"] = is_ga(record)
 	return result
 
 ## What other players may know of a body (v22): the rest of a stat payload -
@@ -4009,6 +4013,7 @@ func build_stats(record: Dictionary) -> Dictionary:
 			result["attribute_points"] = HPRules.attribute_points_available(int(record.get("level", 1)), attributes)
 		if node != null and is_instance_valid(node) and "titles" in node:
 			result["titles"] = (node.get("titles") as Array).duplicate()
+		result["ga"] = is_ga(record)
 
 	result.merge(equipment_snapshot(record))
 	return result
@@ -4474,12 +4479,113 @@ static func mob_info_of(record: Dictionary) -> Dictionary:
 		"elite": bool(record.get("is_elite", false)), "rev": int(record.get("meta_rev", 0)),
 		"parts_down": (record.get("parts_down", []) as Array).duplicate()}
 
-## What a client needs to label another player (v18 `sim_player_info`).
-static func player_info_of(record: Dictionary) -> Dictionary:
+## What a client needs to label another player (v18 `sim_player_info`; v26 `ga`).
+func player_info_of(record: Dictionary) -> Dictionary:
 	var info := {"name": String(record.get("name", "")), "house": String(record.get("house", "")),
-		"level": int(record.get("level", 1)), "gear": record.get("gear", {})}
-	info["rev"] = ("%s|%s|%d|%d" % [info["name"], info["house"], info["level"], int(record.get("gear_sig", 0))]).hash()
+		"level": int(record.get("level", 1)), "gear": record.get("gear", {}), "ga": is_ga(record)}
+	info["rev"] = ("%s|%s|%d|%d|%s" % [info["name"], info["house"], info["level"], int(record.get("gear_sig", 0)), str(info["ga"])]).hash()
 	return info
+
+# ------------------------------------------------------------- GA and weather
+
+## Game admins (GA), by character name: the world server keeps the list in
+## GA_FILE (written by `/ga add|remove` and POST /admin/ga) and seeds it from
+## HPMMO_GA (comma separated names). Offline play is the player's own world,
+## so its player is a GA there (the commands can be tried in solo).
+const GA_FILE := "user://ga_characters.json"
+var _ga_names: Dictionary = {}
+var _ga_loaded := false
+## The world's weather, server-wide (v26).
+var weather := {"rain": false}
+
+func _ensure_ga() -> void:
+	if _ga_loaded:
+		return
+	_ga_loaded = true
+	if FileAccess.file_exists(GA_FILE):
+		var parsed = JSON.parse_string(FileAccess.get_file_as_string(GA_FILE))
+		if parsed is Array:
+			for name in parsed:
+				_ga_names[String(name).strip_edges().to_lower()] = true
+	for name in OS.get_environment("HPMMO_GA").split(",", false):
+		if name.strip_edges() != "":
+			_ga_names[name.strip_edges().to_lower()] = true
+
+func is_ga(record: Dictionary) -> bool:
+	if record.is_empty() or int(record.get("kind", -1)) != HPProtocol.Kind.PLAYER:
+		return false
+	if role == Role.OFFLINE:
+		return true
+	if bool(record.get("replica", false)):
+		return bool(record.get("ga", false))
+	_ensure_ga()
+	return _ga_names.has(String(record.get("name", "")).strip_edges().to_lower())
+
+func ga_names() -> Array:
+	_ensure_ga()
+	var out: Array = _ga_names.keys()
+	out.sort()
+	return out
+
+## Grant or take back GA for a character name; true when the list changed.
+## Live bodies of that name show (or lose) the emblem at once.
+func set_ga(name: String, on: bool) -> bool:
+	_ensure_ga()
+	var key := name.strip_edges().to_lower()
+	if key == "" or _ga_names.has(key) == on:
+		return false
+	if on:
+		_ga_names[key] = true
+	else:
+		_ga_names.erase(key)
+	var file := FileAccess.open(GA_FILE, FileAccess.WRITE)
+	if file != null:
+		file.store_string(JSON.stringify(ga_names()))
+		file.close()
+	for uid in players_by_peer.values():
+		var record: Dictionary = entities.get(uid, {})
+		if String(record.get("name", "")).strip_edges().to_lower() == key:
+			touch(record)
+			_push_stats(record)
+	return true
+
+## Rain on or off for the whole world.
+func set_rain(on: bool) -> void:
+	if bool(weather.get("rain", false)) == on:
+		return
+	weather["rain"] = on
+	emit_signal("weather_changed", weather.duplicate())
+
+## A `/ga ...` line from `record`: {"handled", "reply"}. Only a GA may use it.
+##   /ga rain on|off (/ga yağmur aç|kapat), /ga add|remove <Name>, /ga list
+func ga_command(record: Dictionary, text: String) -> Dictionary:
+	var words := text.strip_edges().split(" ", false)
+	if words.is_empty() or words[0].to_lower() != "/ga":
+		return {"handled": false}
+	if not is_ga(record):
+		return {"handled": true, "reply": "Only a GA can use /ga."}
+	var verb := words[1].to_lower() if words.size() > 1 else ""
+	var arg := words[2] if words.size() > 2 else ""
+	match verb:
+		"rain", "yağmur", "yagmur":
+			var on := arg.to_lower() in ["on", "aç", "ac", "1", "start", "başlat"]
+			if arg == "":
+				on = not bool(weather.get("rain", false))
+			set_rain(on)
+			return {"handled": true, "reply": "Rain started." if on else "Rain stopped."}
+		"add", "ekle":
+			if arg == "":
+				return {"handled": true, "reply": "Usage: /ga add Name"}
+			set_ga(arg, true)
+			return {"handled": true, "reply": "%s is now a GA." % arg}
+		"remove", "sil", "kaldır":
+			if arg == "":
+				return {"handled": true, "reply": "Usage: /ga remove Name"}
+			set_ga(arg, false)
+			return {"handled": true, "reply": "%s is no longer a GA." % arg}
+		"list", "liste":
+			return {"handled": true, "reply": "GAs: %s" % ", ".join(ga_names())}
+	return {"handled": true, "reply": "GA: /ga rain on|off, /ga add Name, /ga remove Name, /ga list"}
 
 var _pending_player_info: Dictionary = {}
 
@@ -4496,6 +4602,7 @@ func _merge_player_info(record: Dictionary, info: Dictionary) -> void:
 	record["name"] = String(info.get("name", record.get("name", "")))
 	record["house"] = String(info.get("house", record.get("house", "")))
 	record["level"] = int(info.get("level", record.get("level", 1)))
+	record["ga"] = bool(info.get("ga", false))
 	if info.get("gear") is Dictionary:
 		record["gear"] = (info["gear"] as Dictionary).duplicate(true)
 	emit_signal("player_info", int(record.get("uid", 0)), info)

@@ -887,16 +887,13 @@ func _idle_and_wander(delta: float) -> void:
 			wander_timer = 7
 			_set_state(State.WANDER)
 
-## Stroll pace: a person's slow stroll (WANDER_PACE) or the walk cycle's own
-## ground speed if that is brisker, at most 30% of the chase speed; the clip is
-## played faster to match (_update_anim_speed). The inferi and goblin cycles are
-## authored very slow (0.37-0.57 m/s): at their own pace a creature took two
-## steps and seemed to stand still.
-const WANDER_PACE := 1.1
-
+## Stroll pace: the walk cycle a little brisker than authored (x1.5, the clip
+## played as much faster), at most 30% of the chase speed. Faster than that the
+## short-stepping inferi and goblin cycles turned into a scurry of tiny steps;
+## the longer wander legs (_idle_and_wander) carry them across the camp instead.
 func _wander_speed() -> float:
 	if walk_speed > 0.0:
-		return minf(move_speed * 0.3, maxf(walk_speed * 1.6, WANDER_PACE))
+		return minf(move_speed * 0.3, maxf(walk_speed * 1.5, 0.45))
 	return move_speed * 0.3
 
 func aggro_on(player: Node3D, alert_pack: bool = true) -> void:
@@ -1633,6 +1630,10 @@ func _respawn() -> void:
 
 func _enter_tree() -> void:
 	_pack_index_add()
+	# The creature fill (DayNight) lights the character layer; the meshes join it
+	# now, before they enter the world (HeroAppearance.set_character_layer).
+	if not NetworkManager.is_dedicated_server:
+		HeroAppearance.set_character_layer(self)
 
 func _exit_tree() -> void:
 	_pack_index_remove()

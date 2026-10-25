@@ -130,6 +130,9 @@ func mob_name(text: String) -> String:
 
 # i18n-begin
 const COMPOSED := [
+	"%s is now a GA.",
+	"%s is no longer a GA.",
+	"GAs: %s",
 	"No player called '%s' is online.",
 	"You invited %s to your party.",
 	"%s was removed from the party.",
@@ -147,6 +150,12 @@ const COMPOSED := [
 ]
 ## Fixed server lines, listed so the catalogue carries them.
 const SERVER_LINES := [
+	"Rain started.",
+	"Rain stopped.",
+	"Only a GA can use /ga.",
+	"Usage: /ga add Name",
+	"Usage: /ga remove Name",
+	"GA: /ga rain on|off, /ga add Name, /ga remove Name, /ga list",
 	"There is no party invitation to accept.",
 	"You joined the party.",
 	"Invitation declined.",

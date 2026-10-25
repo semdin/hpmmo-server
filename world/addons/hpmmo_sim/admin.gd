@@ -391,12 +391,24 @@ func _handle(request: Dictionary) -> Dictionary:
 		return _handle_save()
 	if route == "POST /admin/disconnect-all":
 		return _handle_disconnect_all()
+	if route == "POST /admin/ga":
+		return _handle_ga(body)
 	if route == "GET /admin/state" or route == "GET /admin/status":
 		return {"status": 200, "body": _status_payload()}
 	return {"status": 404, "body": {"ok": false, "error": "not_found"}}
 
 
 # --------------------------------------------------------------------- endpoints
+
+## Make a character a GA (game admin) or take it back: {"name": "...", "on": true}.
+## The first GA is made here (or through HPMMO_GA); a GA makes others in game
+## with /ga add Name.
+func _handle_ga(body: Dictionary) -> Dictionary:
+	var name := String(body.get("name", "")).strip_edges()
+	if name == "" or name.length() > 32:
+		return {"status": 400, "body": {"ok": false, "error": "name required"}}
+	var changed: bool = SimAuthority.set_ga(name, bool(body.get("on", true)))
+	return {"status": 200, "body": {"ok": true, "changed": changed, "ga": SimAuthority.ga_names()}}
 
 func _handle_begin(body: Dictionary) -> Dictionary:
 	if state != State.ONLINE:

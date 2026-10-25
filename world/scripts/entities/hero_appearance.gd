@@ -157,10 +157,10 @@ static func show_cloak(root: Node, entry: Dictionary) -> void:
 	source.free()
 	mesh.name = "EquippedCloak"
 	mesh.set_meta("cloak_texture", texture_path)
+	mesh.layers |= CHARACTER_LAYER
 	skeleton.add_child(mesh)
 	mesh.skeleton = NodePath("..")
 	mesh.transform = Transform3D.IDENTITY
-	mesh.layers |= CHARACTER_LAYER
 	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	mesh.material_override = _cloak_material(texture_path)
 	# The shell would let the arms and the broom shaft through: the deformer
@@ -219,6 +219,8 @@ static func spawn(anchor: Node3D, primary: Color) -> Node3D:
 	var body := MODEL.instantiate() as Node3D
 	if body == null:
 		return null
+	# On the character layer before it enters the world (see set_character_layer).
+	set_character_layer(body)
 	anchor.add_child(body)
 	body.position = Vector3.ZERO
 	body.rotation = Vector3.ZERO
@@ -288,7 +290,8 @@ static var _dressed_material: StandardMaterial3D = null
 ## Put the body on the character layer and give its material the cloth rim.
 ## Idempotent; every hero shares one dressed material.
 static func dress_body(body: MeshInstance3D) -> void:
-	body.layers |= CHARACTER_LAYER
+	if body.layers & CHARACTER_LAYER == 0:
+		set_character_layer(body)
 	var source := body.mesh.surface_get_material(0) if body.mesh else null
 	if not (source is StandardMaterial3D) or body.mesh.get_surface_count() != 1:
 		return
@@ -300,6 +303,35 @@ static func dress_body(body: MeshInstance3D) -> void:
 	if body.get_surface_override_material(0) == null:
 		body.set_surface_override_material(0, _dressed_material)
 
+
+## Put every mesh under `root` (itself included) on the character layer.
+##
+## A mesh must get its layers BEFORE it enters the world: the renderer pairs it
+## with the lights whose cull mask it matches when it enters, and a later layer
+## change never re-pairs it - freeing it then printed "BUG, indexing did not
+## unpair geometries from light" (Godot 4.7; a Label3D swaps its base with every
+## text change, so a creature's health label printed it on each hit). A mesh
+## already in the world is taken out and put back so it pairs afresh. Bodies
+## call this from their _enter_tree, when their children have not entered yet.
+static func set_character_layer(root: Node) -> void:
+	var meshes: Array = root.find_children("*", "GeometryInstance3D", true, false)
+	if root is GeometryInstance3D:
+		meshes.append(root)
+	for node in meshes:
+		var gi := node as GeometryInstance3D
+		# Labels and sprites change their base as their text or frame changes;
+		# they take no light anyway, so they stay off the layer.
+		if gi is Label3D or gi is SpriteBase3D or gi.layers & CHARACTER_LAYER != 0:
+			continue
+		if gi.is_inside_tree():
+			var parent := gi.get_parent()
+			var index := gi.get_index()
+			parent.remove_child(gi)
+			gi.layers |= CHARACTER_LAYER
+			parent.add_child(gi)
+			parent.move_child(gi, index)
+		else:
+			gi.layers |= CHARACTER_LAYER
 
 ## Attach the character fill to `camera` (once) and return it.
 static func add_character_fill(camera: Camera3D) -> DirectionalLight3D:
@@ -316,6 +348,8 @@ static func add_character_fill(camera: Camera3D) -> DirectionalLight3D:
 	# the face look wet and plastic. Lift it from above-left so the face keeps
 	# its modelling instead of being flattened by a light on the view axis.
 	fill.light_specular = 0.0
+	# A light for the characters, not a second sun in the sky.
+	fill.sky_mode = DirectionalLight3D.SKY_MODE_LIGHT_ONLY
 	fill.rotation_degrees = Vector3(-32, 28, 0)
 	camera.add_child(fill)
 	return fill

@@ -570,6 +570,7 @@ func sim_spawn_player(peer_id: int, identity: Dictionary) -> void:
 		SimAuthority.entities[uid]["awaiting_bind"] = true
 	_known_by_peer[peer_id] = {}
 	sim_join_result.rpc_id(peer_id, true, "", uid, character, SimAuthority.sim_tick, SimAuthority.seed_value)
+	sim_weather.rpc_id(peer_id, SimAuthority.weather.duplicate())
 	# The client needs its own numbers immediately: without this it would show
 	# defaults until the first time something changed them.
 	sim_stats_event.rpc_id(peer_id, uid, SimAuthority.build_stats(SimAuthority.entities[uid]))
@@ -832,6 +833,10 @@ func route_chat(record: Dictionary, text: String) -> void:
 	var channel := "local"
 	# `/commands` (party management, /p party chat) are answered here.
 	if clean.begins_with("/"):
+		var ga: Dictionary = SimAuthority.ga_command(record, clean)
+		if bool(ga.get("handled", false)):
+			_tell(record, String(ga.get("reply", "")))
+			return
 		var answer: Dictionary = SimAuthority.party_command(record, clean)
 		if bool(answer.get("handled", false)):
 			if answer.has("reply"):
@@ -1001,6 +1006,12 @@ func sim_cast_landed(cast_id: int, caster_uid: int, spell_id: String, hits: Arra
 @rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
 func sim_cast_impact(cast_id: int, caster_uid: int, spell_id: String, pos: Vector3) -> void:
 	SimAuthority.emit_signal("cast_impact", cast_id, caster_uid, spell_id, pos)
+
+## v26: the world's weather ({"rain": bool}).
+@rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
+func sim_weather(state: Dictionary) -> void:
+	SimAuthority.weather = state.duplicate()
+	SimAuthority.emit_signal("weather_changed", state)
 
 @rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
 func sim_damage_event(uid: int, amount: int, hp: int, spell_id: String, attacker_uid: int, flags: int) -> void:
@@ -1371,6 +1382,7 @@ func bridge_authority() -> void:
 	SimAuthority.cast_released.connect(broadcast_cast_released)
 	SimAuthority.cast_landed.connect(broadcast_cast_landed)
 	SimAuthority.cast_impact.connect(broadcast_cast_impact)
+	SimAuthority.weather_changed.connect(broadcast_weather)
 	SimAuthority.stats_changed.connect(broadcast_stats)
 	SimAuthority.loot_spawned.connect(broadcast_loot)
 	SimAuthority.loot_taken.connect(broadcast_loot_taken)
@@ -1507,6 +1519,12 @@ func broadcast_cast_released(cast_id: int, caster_uid: int, spell_id: String, or
 	for peer_id in multiplayer.get_peers():
 		if _peer_can_see(peer_id, caster_uid):
 			sim_cast_released.rpc_id(peer_id, cast_id, caster_uid, spell_id, origin, dir)
+
+## The weather reaches everyone in the world (and each join, see sim_join).
+func broadcast_weather(state: Dictionary) -> void:
+	if not has_peers():
+		return
+	sim_weather.rpc(state)
 
 ## An area bolt's burst point goes to whoever saw the bolt leave (it is sent
 ## before the damage events on the same reliable channel, so it arrives first).

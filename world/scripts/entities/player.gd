@@ -111,6 +111,10 @@ const SHOVE_DECAY := 26.0
 ## authority sends the same window as `knock_until_tick` with the vitals).
 var _knock_left := 0.0
 var _status_poll := 0.0
+## v26: a game admin - the winged GA badge bobs over the name.
+var is_ga := false
+var _ga_emblem: Sprite3D = null
+const GA_EMBLEM := "res://assets/ui/ga_emblem.png"
 var skill_points: int = 0
 ## The persisted `quests` object, kept whole so keys this build does not know
 ## survive a load/save round trip.
@@ -547,7 +551,30 @@ func _apply_house_customization() -> void:
 var _nameplate_sub: Label3D = null
 var _nameplate_title: Label3D = null
 
+## The GA badge over the name (a GA's body only), built on first need.
+func _update_ga_emblem() -> void:
+	if NetworkManager.is_dedicated_server:
+		return
+	if not is_ga:
+		if _ga_emblem != null:
+			_ga_emblem.visible = false
+		return
+	if _ga_emblem == null:
+		_ga_emblem = Sprite3D.new()
+		_ga_emblem.name = "GAEmblem"
+		if ResourceLoader.exists(GA_EMBLEM):
+			_ga_emblem.texture = load(GA_EMBLEM)
+		_ga_emblem.pixel_size = 0.0019
+		_ga_emblem.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		_ga_emblem.shaded = false
+		_ga_emblem.no_depth_test = true
+		_ga_emblem.render_priority = 6
+		_ga_emblem.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(_ga_emblem)
+	_ga_emblem.visible = true
+
 func _update_nameplate() -> void:
+	_update_ga_emblem()
 	if nameplate == null:
 		return
 	var bold_path := "res://assets/fonts/Marcellus-Regular.ttf"
@@ -682,6 +709,9 @@ func _process(delta: float) -> void:
 	_committed_until = maxf(0.0, _committed_until - delta)
 	_hit_recovery = maxf(0.0, _hit_recovery - delta)
 	_knock_left = maxf(0.0, _knock_left - delta)
+	if _ga_emblem != null and _ga_emblem.visible:
+		# A slow float over the name, like a GM's badge.
+		_ga_emblem.position = Vector3(0, NAMEPLATE_HEIGHT + 0.66 + sin(Time.get_ticks_msec() * 0.0024) * 0.07, 0)
 	# Crowd control and damage over time drawn on the body (any player body
 	# a screen shows: this one, another player's view).
 	if not NetworkManager.is_dedicated_server:
@@ -689,6 +719,12 @@ func _process(delta: float) -> void:
 		if _status_poll <= 0.0:
 			_status_poll = 0.1
 			StatusFX.update(self, cc_status())
+			# The authority's own bodies (offline, a host): GA follows the list.
+			if SimAuthority.is_authority():
+				var ga := SimAuthority.is_ga(SimAuthority.record_for(self))
+				if ga != is_ga:
+					is_ga = ga
+					_update_ga_emblem()
 	_mount_lock = maxf(0.0, _mount_lock - delta)
 	_mount_notice_cd = maxf(0.0, _mount_notice_cd - delta)
 	_queue_time = maxf(0.0, _queue_time - delta)
@@ -2432,6 +2468,9 @@ func apply_authoritative_stats(stats: Dictionary) -> void:
 			attributes = fresh_attributes
 			_recalculate_equipment()
 	attribute_points = int(stats.get("attribute_points", attribute_points))
+	if stats.has("ga") and bool(stats["ga"]) != is_ga:
+		is_ga = bool(stats["ga"])
+		_update_nameplate()
 	if stats.get("floo_known") is Array:
 		_quest_state["floo_known"] = (stats["floo_known"] as Array).duplicate()
 	if stats.get("titles") is Array and stats["titles"] != titles:
