@@ -250,7 +250,7 @@ func _spawn(map_id: String, entry: Dictionary, origin: Vector3, pack_id: int) ->
 	mob.level = int(entry.get("level", 1))
 	var pack := {"mob": species, "level": int(entry.get("level", 1))}
 	if encounters != null:
-		encounters._configure_member(mob, pack, false)
+		encounters._configure_member(mob, pack, false, species)
 	mob.aggro_mode = "aggressive"
 	mob.assist_radius = 22.0
 	mob.leash_distance = 70.0

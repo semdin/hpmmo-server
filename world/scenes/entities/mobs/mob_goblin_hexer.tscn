@@ -1,0 +1,61 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/entities/mobs/mob_base.gd" id="1_mb"]
+[ext_resource type="PackedScene" path="res://assets/models/monsters/goblin_hexer.glb" id="2_body"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
+radius = 0.3
+height = 1.2
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_boss"]
+radius = 0.36
+height = 1.44
+
+[node name="MobGoblinHexer" type="CharacterBody3D" groups=["mobs", "targetable"]]
+collision_layer = 2
+collision_mask = 7
+script = ExtResource("1_mb")
+mob_name = "Goblin Hexer"
+level = 10
+max_hp = 300
+attack_power = 28
+move_speed = 6.4
+aggro_radius = 12.0
+attack_range = 13.0
+attack_cooldown = 1.8
+exp_reward = 90
+is_ranged = true
+bolt_spell = "basic_cast"
+anim_set = "goblin_caster"
+voice_set = "goblin"
+walk_speed = 0.457
+run_speed = 2.551
+attack_anticipation = 0.7
+attack_recovery = 0.6
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+shape = SubResource("CapsuleShape3D_1")
+
+[node name="CollisionShape3DBoss" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.72, 0)
+shape = SubResource("CapsuleShape3D_boss")
+disabled = true
+
+[node name="Visuals" type="Node3D" parent="."]
+
+[node name="NormalVariant" parent="Visuals" instance=ExtResource("2_body")]
+
+[node name="BossVariant" parent="Visuals" instance=ExtResource("2_body")]
+transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0, 0, 0)
+visible = false
+
+[node name="Label3D" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
+billboard = 1
+double_sided = false
+text = "[Lv.10] Goblin Hexer
+300 / 300"
+font_size = 32
+outline_size = 8
+outline_modulate = Color(0, 0, 0, 1)

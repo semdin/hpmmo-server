@@ -884,6 +884,10 @@ msgid "Vault guards in goblin-wrought silver. Shoving, stubborn and well paid; w
 msgstr "Goblin işi gümüş zırhlı kasa muhafızları. İtip kakarlar, inatçıdırlar ve iyi para alırlar; taşıdıkları şey nadiren sıradandır."
 
 #: scripts/ui/hud_bestiary.gd
+msgid "Goblin magic needs no wand. Hexers walk with the tellers and the guards and blast debtors off their feet with bare hands."
+msgstr "Goblin büyüsü asa istemez. Büyücüler veznedarlar ve muhafızlarla birlikte dolaşır, borçluları çıplak elleriyle savurduğu büyüyle yere serer."
+
+#: scripts/ui/hud_bestiary.gd
 msgid "Giant spiders of the Forbidden Forest, bred from Aragog's line. They hunt in packs."
 msgstr "Yasak Orman'ın dev örümcekleri, Aragog'un soyundan. Sürüler halinde avlanırlar."
 
@@ -3830,6 +3834,10 @@ msgstr "Goblin Veznedar"
 #: addons/hpmmo_sim/data/mobs.json
 msgid "Goblin Vault Guard"
 msgstr "Goblin Kasa Muhafızı"
+
+#: addons/hpmmo_sim/data/mobs.json
+msgid "Goblin Hexer"
+msgstr "Goblin Büyücü"
 
 #: addons/hpmmo_sim/data/mobs.json
 msgid "Elite "

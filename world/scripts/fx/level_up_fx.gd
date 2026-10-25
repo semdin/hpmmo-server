@@ -207,7 +207,7 @@ static func _banner(overlay: Control, level: int) -> void:
 	if live != null:
 		var title := live.get_node_or_null("Box/Title") as Label
 		if title != null:
-			title.text = I18n.upper(I18n.t("Level %d")) % level
+			title.text = I18n.upper(I18n.t("Level %d") % level)
 		return
 	var root := Control.new()
 	root.name = "LevelUpBanner"
@@ -270,7 +270,7 @@ static func _banner(overlay: Control, level: int) -> void:
 
 	var title := Label.new()
 	title.name = "Title"
-	title.text = I18n.upper(I18n.t("Level %d")) % level
+	title.text = I18n.upper(I18n.t("Level %d") % level)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_override("font", UITheme.font_title())
 	title.add_theme_font_size_override("font_size", 64)

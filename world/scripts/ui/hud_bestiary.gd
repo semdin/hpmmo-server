@@ -15,6 +15,7 @@ const LORE := {
 	"inferi_warden": "Inferi raised from a cursed lake to guard what lies beneath. Their cold grip drags you down; fire still breaks them.",
 	"goblin_teller": "Goblin clerks of the wizarding bank, out collecting debts. They count every Knut and carry a heavy purse.",
 	"goblin_guard": "Vault guards in goblin-wrought silver. Shoving, stubborn and well paid; what they carry is rarely ordinary.",
+	"goblin_hexer": "Goblin magic needs no wand. Hexers walk with the tellers and the guards and blast debtors off their feet with bare hands.",
 	"acromantula": "Giant spiders of the Forbidden Forest, bred from Aragog's line. They hunt in packs.",
 	"darksnatcher": "Wizards turned bounty hunters, roaming the roads in gangs. Some cast from range.",
 	"troll_forest": "Hulking forest trolls with crude clubs. Slow to anger, slower to fall.",
@@ -82,33 +83,35 @@ static func build_entries() -> Array:
 	var tables := HPRules.spawn_tables()
 	var by_species := {}
 	for pack in tables.get("packs", []):
-		var species := String(pack.get("mob", ""))
-		var e: Dictionary = by_species.get(species, {"species": species, "regions": {}, "bosses": [], "dungeons": [],
-			"level_min": 999, "level_max": 0, "aggressive_from": 0})
-		var level := int(pack.get("level", 1))
-		if bool(pack.get("boss", false)):
-			var key := String(pack.get("boss_key", ""))
-			var name := String((tables.get("boss_overrides", {}) as Dictionary).get(key, {}).get("name", ""))
-			if name == "":
-				name = "Acromantula Matriarch" if species == "acromantula" else "Dark Snatcher Commander"  # i18n
-			var region := HPRules.region_by_id(String(pack.get("zone", "")))
-			var area: Array = pack.get("area", [0, 0, 0, 0])
-			e["bosses"].append({"name": I18n.t(name), "level": level, "world": bool(pack.get("world_boss", false)),
-				"region": I18n.t(String(region.get("display", pack.get("zone", "")))),
-				"at": Vector2(float(area[0]) + float(area[2]) * 0.5, float(area[1]) + float(area[3]) * 0.5)})
-		else:
-			var zone := String(pack.get("zone", ""))
-			var r: Dictionary = e["regions"].get(zone, {"zone": zone, "packs": 0, "lo": 999, "hi": 0})
-			r["packs"] = int(r["packs"]) + 1
-			r["lo"] = mini(int(r["lo"]), level)
-			r["hi"] = maxi(int(r["hi"]), level)
-			e["regions"][zone] = r
-			e["level_min"] = mini(int(e["level_min"]), level)
-			e["level_max"] = maxi(int(e["level_max"]), level)
-			if String(pack.get("aggro_mode", "")) == "aggressive":
-				var from := int(e["aggressive_from"])
-				e["aggressive_from"] = level if from == 0 else mini(from, level)
-		by_species[species] = e
+		# A mixed pack (goblin roster) lists every species it fields.
+		for species_id in HPRules.pack_species(pack):
+			var species := String(species_id)
+			var e: Dictionary = by_species.get(species, {"species": species, "regions": {}, "bosses": [], "dungeons": [],
+				"level_min": 999, "level_max": 0, "aggressive_from": 0})
+			var level := int(pack.get("level", 1))
+			if bool(pack.get("boss", false)):
+				var key := String(pack.get("boss_key", ""))
+				var name := String((tables.get("boss_overrides", {}) as Dictionary).get(key, {}).get("name", ""))
+				if name == "":
+					name = "Acromantula Matriarch" if species == "acromantula" else "Dark Snatcher Commander"  # i18n
+				var region := HPRules.region_by_id(String(pack.get("zone", "")))
+				var area: Array = pack.get("area", [0, 0, 0, 0])
+				e["bosses"].append({"name": I18n.t(name), "level": level, "world": bool(pack.get("world_boss", false)),
+					"region": I18n.t(String(region.get("display", pack.get("zone", "")))),
+					"at": Vector2(float(area[0]) + float(area[2]) * 0.5, float(area[1]) + float(area[3]) * 0.5)})
+			else:
+				var zone := String(pack.get("zone", ""))
+				var r: Dictionary = e["regions"].get(zone, {"zone": zone, "packs": 0, "lo": 999, "hi": 0})
+				r["packs"] = int(r["packs"]) + 1
+				r["lo"] = mini(int(r["lo"]), level)
+				r["hi"] = maxi(int(r["hi"]), level)
+				e["regions"][zone] = r
+				e["level_min"] = mini(int(e["level_min"]), level)
+				e["level_max"] = maxi(int(e["level_max"]), level)
+				if String(pack.get("aggro_mode", "")) == "aggressive":
+					var from := int(e["aggressive_from"])
+					e["aggressive_from"] = level if from == 0 else mini(from, level)
+			by_species[species] = e
 	for id in HPMaps.dungeons().keys():
 		var dungeon: Dictionary = HPMaps.dungeons()[id]
 		for step in dungeon.get("steps", []):

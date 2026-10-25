@@ -47,6 +47,9 @@ signal died(mob: Node3D)
 @export var exp_reward := 65
 @export var weak_to_fire := false
 @export var is_ranged := false
+## The bolt a ranged creature throws (a spells.json id): a snatcher's wand
+## Stupefy, a goblin hexer's wandless arcane blast.
+@export var bolt_spell := "stupefy"
 @export var pack_id := 0:
 	set(value):
 		if value == pack_id:
@@ -207,6 +210,11 @@ const ANIM_SETS := {
 	"goblin": {"idle": "Idle", "walk": "Walk", "run": "Run", "turn": "Walk",
 		"anticipation": "Swing_Anticipation", "attack": "Swing_Attack", "hit": "Hit",
 		"stun": "Hit", "death": "Death"},
+	# Goblin hexers (the Meshy goblin again, art/creatures/goblin/meshy_hexer):
+	# a wandless two-handed push blast (mage_soell_cast_3) is the ordinary attack.
+	"goblin_caster": {"idle": "Idle", "walk": "Walk", "run": "Run", "turn": "Walk",
+		"anticipation": "Cast_Anticipation", "attack": "Cast_Attack", "hit": "Hit",
+		"stun": "Hit", "death": "Death"},
 	# Floating wraiths (art/pipeline/scripts/wraith_rig.py).
 	"wraith": {"idle": "Idle", "walk": "Float", "run": "Float", "turn": "Float",
 		"anticipation": "Reach_Anticipation", "attack": "Reach_Attack", "hit": "Hit",
@@ -361,10 +369,10 @@ func _set_collision_enabled(enabled: bool) -> void:
 func _update_anim_speed(slot: String = "walk") -> void:
 	if not is_instance_valid(anim_player):
 		return
-	# The body's real ground speed (a wander strolls at 30% of move_speed); a
-	# replica has no velocity of its own and moves at the chase speed.
-	var speed := Vector2(velocity.x, velocity.z).length()
-	if sim_puppet or speed < 0.1:
+	# The ground speed the body really covers (_track_drawn_speed): a stroll,
+	# a chase, a replica's interpolated glide.
+	var speed := _drawn_speed
+	if speed < 0.1:
 		speed = move_speed
 	if slot == "run" and run_speed > 0.0:
 		anim_player.speed_scale = clampf(speed / run_speed, 0.4, 3.0)
@@ -394,6 +402,21 @@ func _clip_for(slot: String) -> String:
 	if anim_player and not anim_player.has_animation(clip):
 		clip = String(aliases.get(clip, "Idle"))
 	return clip
+
+## Smoothed planar speed the body covers, and whether that reads as moving
+## (hysteresis, so a body on the threshold does not flicker idle/walk).
+var _drawn_speed := 0.0
+var _drawn_moving := false
+
+func _track_drawn_speed(speed: float, delta: float) -> void:
+	_drawn_speed = lerpf(_drawn_speed, speed, minf(1.0, delta * 8.0))
+	_drawn_moving = _drawn_speed > (0.15 if _drawn_moving else 0.35)
+
+## Walk/run only while the body really moves: a mob held up (its ring place
+## reached, a crowd in front) stands instead of running on the spot, and a
+## replica that strolls walks instead of gliding in its idle pose.
+func _play_locomotion(moving_slot: String) -> void:
+	_play_slot(moving_slot if _drawn_moving else "idle")
 
 func _play_slot(slot: String, blend: float = 0.18) -> void:
 	if not is_instance_valid(anim_player):
@@ -569,6 +592,8 @@ func _physics_process(delta: float) -> void:
 	var standing := state == State.IDLE and attack_phase == AttackPhase.NONE and is_on_floor() 		and velocity.x == 0.0 and velocity.z == 0.0 and knockback_velocity.length_squared() < 0.01
 	if not standing:
 		move_and_slide()
+	var real := get_real_velocity() if not standing else Vector3.ZERO
+	_track_drawn_speed(Vector2(real.x, real.z).length(), delta)
 	if global_position.y < -10.0:
 		global_position = spawn_point
 		velocity = Vector3.ZERO
@@ -815,7 +840,7 @@ func _idle_and_wander(delta: float) -> void:
 					aggro_on(player)
 					return
 	if state == State.WANDER:
-		_move_to(wander_target, move_speed * 0.3, delta)
+		_move_to(wander_target, _wander_speed(), delta)
 		wander_timer -= delta
 		if global_position.distance_to(wander_target) < 0.8 or wander_timer <= 0:
 			_set_state(State.IDLE)
@@ -828,8 +853,16 @@ func _idle_and_wander(delta: float) -> void:
 		if wander_timer <= 0:
 			var angle := randf() * TAU
 			wander_target = spawn_point + Vector3(cos(angle), 0, sin(angle)) * randf_range(1, 3)
-			wander_timer = 4
+			wander_timer = 7
 			_set_state(State.WANDER)
+
+## Stroll pace: the walk cycle's own ground speed (a little brisk), at most 30%
+## of the chase speed. A goblin's sneak cycle covers 0.24 m/s; dragged along at
+## 2 m/s it slid over the grass with its feet barely moving.
+func _wander_speed() -> float:
+	if walk_speed > 0.0:
+		return minf(move_speed * 0.3, maxf(walk_speed * 1.6, 0.45))
+	return move_speed * 0.3
 
 func aggro_on(player: Node3D, alert_pack: bool = true) -> void:
 	if state in [State.DEAD, State.RETURN] or not Rules.can_damage(self, player):
@@ -928,6 +961,15 @@ func _has_attack_slot() -> bool:
 func _hold_attack_ring(delta: float) -> void:
 	var ring := float(HPRules.pack_tuning("attack_slot_ring", 3.4))
 	var slot := target_player.global_position + Vector3(cos(_ring_angle()), 0, sin(_ring_angle())) * ring
+	var to_slot := slot - global_position
+	to_slot.y = 0.0
+	if to_slot.length() < 0.6:
+		# On its place: wait facing the fight instead of jittering round the point.
+		velocity.x = 0
+		velocity.z = 0
+		_face_direction(target_player.global_position - global_position, delta)
+		_play_locomotion("run")
+		return
 	_move_to(slot, move_speed * 0.7, delta)
 
 ## Evenly spread ring positions inside the pack: the members sort themselves by
@@ -970,14 +1012,18 @@ func _move_to(point: Vector3, speed: float, delta: float) -> void:
 	var wanted := direction
 	if _detour_time > 0.0:
 		_detour_time -= delta
-		# The sidestep ends as soon as the way to the goal is open again.
-		if _path_clear(wanted):
+		# The sidestep ends as soon as the way to the goal is open again - after
+		# a short committed stretch: the probes see scenery only, so a body
+		# wedged behind another creature had its sidestep cancelled on the very
+		# next frame and stayed wedged.
+		if _detour_time < 0.5 and _path_clear(wanted):
 			_detour_time = 0.0
 		else:
 			direction = _detour_dir
 	direction = _steer(direction)
-	# Local separation: five mobs must not occupy one point.
-	var push := _separation()
+	# Local separation: five mobs must not occupy one point - and a body in the
+	# way (a pack mate, another pack's creature) is gone round, not queued behind.
+	var push := _separation(direction) + _bump_steer(direction)
 	if push.length_squared() > 0.0001:
 		direction = (direction + push * float(HPRules.pack_tuning("separation_weight", 1.35))).normalized()
 		direction = _steer(direction)
@@ -985,7 +1031,7 @@ func _move_to(point: Vector3, speed: float, delta: float) -> void:
 	velocity.x = direction.x * speed
 	velocity.z = direction.z * speed
 	_face_direction(direction, delta)
-	_play_slot("run" if state in [State.CHASE, State.RETURN] else "walk")
+	_play_locomotion("run" if state in [State.CHASE, State.RETURN] else "walk")
 	_check_stuck(delta, wanted)
 
 ## Obstacle steering: probe the desired direction and fan out to either side,
@@ -1147,8 +1193,9 @@ func wake() -> void:
 
 ## A creature only keeps its distance from its own pack (packs stand tens of
 ## metres apart), so separation is O(pack) instead of O(every creature).
-func _separation() -> Vector3:
+func _separation(direction: Vector3) -> Vector3:
 	var radius := float(HPRules.pack_tuning("separation_radius", 1.7))
+	var side := direction.cross(Vector3.UP)
 	var push := Vector3.ZERO
 	for mob in pack_mates():
 		if not is_instance_valid(mob) or mob._sleeping:
@@ -1159,8 +1206,35 @@ func _separation() -> Vector3:
 		offset.y = 0
 		var distance := offset.length()
 		if distance > 0.01 and distance < radius:
-			push += (offset / distance) * (1.0 - distance / radius)
+			var away := offset / distance
+			var weight := 1.0 - distance / radius
+			push += away * weight
+			# A mate on the way: pushed straight back off it, a body queued behind
+			# one already swinging at the target and never reached it (the crowd
+			# that stood off while two or three fought). Go round it instead, on
+			# the side it is not.
+			var ahead := -away.dot(direction)
+			if ahead > 0.35:
+				var turn := signf(side.dot(away))
+				push += side * (turn if turn != 0.0 else _steer_side) * ahead * weight * 1.5
 	return push
+
+## A body this mob walked into on its last move that is not its target (another
+## pack's creature, a bystander): the way round it, square to the heading.
+func _bump_steer(direction: Vector3) -> Vector3:
+	for i in get_slide_collision_count():
+		var hit := get_slide_collision(i)
+		var other := hit.get_collider()
+		if other == target_player or not (other is CharacterBody3D):
+			continue
+		var normal := hit.get_normal()
+		normal.y = 0.0
+		if normal.length_squared() < 0.01 or normal.normalized().dot(direction) > -0.3:
+			continue
+		var side := direction.cross(Vector3.UP)
+		var turn := signf(side.dot(normal))
+		return side * (turn if turn != 0.0 else _steer_side)
+	return Vector3.ZERO
 
 func _face_direction(direction: Vector3, delta: float) -> void:
 	if Vector2(direction.x, direction.z).length_squared() > 0.001:
@@ -1298,8 +1372,8 @@ func _resolve_attack(plan: Dictionary) -> void:
 	elif kind == "ranged":
 		if _valid_target() and Rules.has_line_of_sight(self, target_player):
 			var dir := (target_player.global_position + Vector3.UP - (global_position + Vector3.UP * 1.2)).normalized()
-			FX.play_cast(get_parent(), self, "stupefy", global_position + Vector3.UP * 1.2, dir)
-			SimAuthority.mob_projectile(self, "stupefy", dir, power)
+			FX.play_cast(get_parent(), self, bolt_spell, global_position + Vector3.UP * 1.2, dir)
+			SimAuthority.mob_projectile(self, bolt_spell, dir, power)
 	elif _valid_target() and Rules.has_line_of_sight(self, target_player):
 		if global_position.distance_to(target_player.global_position) <= _melee_reach():
 			_play_voice(_voice_key("attack"))
@@ -1463,6 +1537,8 @@ func _respawn() -> void:
 	_corpse_time = 0
 	_stuck_timer = 0
 	_detour_time = 0.0
+	_drawn_speed = 0.0
+	_drawn_moving = false
 	_published_state = -1
 	_puppet_state = -1
 	_set_state(State.IDLE)
@@ -1515,6 +1591,7 @@ func pack_mates() -> Array:
 ## A client's view of a server-owned mob: position/rotation interpolation plus
 ## presentation chosen from the replicated state byte. No damage, no AI.
 func _update_puppet(delta: float) -> void:
+	var before := global_position
 	if sim_motion.has_samples():
 		var drawn := sim_motion.sample()
 		global_position = drawn.pos
@@ -1525,6 +1602,10 @@ func _update_puppet(delta: float) -> void:
 		global_position = global_position.lerp(sim_target_pos, minf(1.0, 12.0 * delta))
 		if visuals:
 			visuals.rotation.y = lerp_angle(visuals.rotation.y, sim_target_rot, minf(1.0, 12.0 * delta))
+	# A replica has no velocity of its own: its pace is the glide it is drawn
+	# along (capped, so a respawn jump is not a sprint).
+	var glide := Vector2(global_position.x - before.x, global_position.z - before.z).length() / maxf(delta, 0.001)
+	_track_drawn_speed(minf(glide, maxf(move_speed, 1.0) * 1.5), delta)
 	var record := SimAuthority.record_for(self)
 	if record.is_empty():
 		return
@@ -1554,6 +1635,14 @@ func _update_puppet(delta: float) -> void:
 	if replicated != _puppet_state:
 		_puppet_state = replicated
 		_play_puppet_clip(replicated, record)
+	# Locomotion follows the glide every frame: the server's wander used to
+	# play the idle pose here (bodies slid over the grass), and a chaser held
+	# up in the crowd ran on the spot.
+	match replicated:
+		HPProtocol.MobState.WANDER, HPProtocol.MobState.IDLE:
+			_play_locomotion("walk")
+		HPProtocol.MobState.CHASE, HPProtocol.MobState.RETURN:
+			_play_locomotion("run")
 
 func _enter_puppet_death(record: Dictionary) -> void:
 	_cancel_warning()
@@ -1567,8 +1656,6 @@ func _enter_puppet_death(record: Dictionary) -> void:
 
 func _play_puppet_clip(replicated: int, record: Dictionary) -> void:
 	match replicated:
-		HPProtocol.MobState.CHASE, HPProtocol.MobState.RETURN:
-			_play_slot("run")
 		HPProtocol.MobState.ANTICIPATION:
 			var telegraph: Dictionary = record.get("telegraph", {})
 			if telegraph.is_empty():
@@ -1581,8 +1668,6 @@ func _play_puppet_clip(replicated: int, record: Dictionary) -> void:
 			_play_slot("idle")
 		HPProtocol.MobState.STUNNED:
 			_play_slot("stun", 0.1)
-		HPProtocol.MobState.WANDER, HPProtocol.MobState.IDLE:
-			_play_slot("idle")
 		_:
 			pass
 

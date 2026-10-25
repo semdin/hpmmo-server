@@ -123,7 +123,7 @@ func focus_species(species: String, display: String) -> void:
 	focus_regions.clear()
 	var bands := {}
 	for pack in HPRules.spawn_tables().get("packs", []):
-		if String(pack.get("mob", "")) != species:
+		if not HPRules.pack_species(pack).has(species):
 			continue
 		var area: Array = pack.get("area", [0, 0, 0, 0])
 		var at := Vector2(float(area[0]) + float(area[2]) * 0.5, float(area[1]) + float(area[3]) * 0.5)

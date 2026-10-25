@@ -99,7 +99,9 @@ class_name HPProtocol
 ##     as `gear`. A v21 client would draw every other player bare-handed.
 ## v23: mob variants 17-19 (Inferius Lake Warden, Goblin Teller, Goblin Vault
 ##     Guard). A v22 client would draw them as the variant-1 Inferius.
-const PROTOCOL_VERSION := 23
+## v24: mob variant 20 (Goblin Hexer, the wandless caster of the mixed goblin
+##     packs). A v23 client would draw it as the variant-1 Inferius.
+const PROTOCOL_VERSION := 24
 
 ## Death choice (v18 `sim_respawn_request`).
 const RESPAWN_TOWN := 0
@@ -327,6 +329,8 @@ const MOB_VARIANT_SPIDER_STONE := 16
 const MOB_VARIANT_INFERI_WARDEN := 17
 const MOB_VARIANT_GOBLIN_TELLER := 18
 const MOB_VARIANT_GOBLIN_GUARD := 19
+# v24 mixed goblin packs.
+const MOB_VARIANT_GOBLIN_HEXER := 20
 
 const MOB_SCENES := {
 	MOB_VARIANT_INFERI: "res://scenes/entities/mobs/mob_inferi.tscn",
@@ -348,6 +352,7 @@ const MOB_SCENES := {
 	MOB_VARIANT_INFERI_WARDEN: "res://scenes/entities/mobs/mob_inferi_warden.tscn",
 	MOB_VARIANT_GOBLIN_TELLER: "res://scenes/entities/mobs/mob_goblin_teller.tscn",
 	MOB_VARIANT_GOBLIN_GUARD: "res://scenes/entities/mobs/mob_goblin_guard.tscn",
+	MOB_VARIANT_GOBLIN_HEXER: "res://scenes/entities/mobs/mob_goblin_hexer.tscn",
 }
 
 static func mob_variant(scene_path: String) -> int:

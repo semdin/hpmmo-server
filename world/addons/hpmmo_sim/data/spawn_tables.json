@@ -1540,7 +1540,13 @@
       "max_alive": 4,
       "aggro_mode": "reactive",
       "assist_radius": 16.0,
-      "leash_distance": 30.0
+      "leash_distance": 30.0,
+      "roster": [
+        "goblin_guard",
+        "goblin_hexer",
+        "goblin_teller",
+        "goblin_guard"
+      ]
     },
     {
       "id": 77,
@@ -1939,7 +1945,13 @@
       "max_alive": 4,
       "aggro_mode": "reactive",
       "assist_radius": 16.0,
-      "leash_distance": 30.0
+      "leash_distance": 30.0,
+      "roster": [
+        "goblin_teller",
+        "goblin_hexer",
+        "goblin_guard",
+        "goblin_teller"
+      ]
     },
     {
       "id": 98,
@@ -3820,7 +3832,12 @@
       "max_alive": 3,
       "aggro_mode": "reactive",
       "assist_radius": 16.0,
-      "leash_distance": 30.0
+      "leash_distance": 30.0,
+      "roster": [
+        "goblin_teller",
+        "goblin_hexer",
+        "goblin_guard"
+      ]
     },
     {
       "id": 197,
@@ -5872,7 +5889,12 @@
       "max_alive": 3,
       "aggro_mode": "reactive",
       "assist_radius": 16.0,
-      "leash_distance": 30.0
+      "leash_distance": 30.0,
+      "roster": [
+        "goblin_teller",
+        "goblin_hexer",
+        "goblin_guard"
+      ]
     },
     {
       "id": 305,
@@ -6385,7 +6407,14 @@
       "max_alive": 5,
       "aggro_mode": "reactive",
       "assist_radius": 16.0,
-      "leash_distance": 30.0
+      "leash_distance": 30.0,
+      "roster": [
+        "goblin_guard",
+        "goblin_hexer",
+        "goblin_teller",
+        "goblin_guard",
+        "goblin_hexer"
+      ]
     },
     {
       "id": 332,
@@ -7829,7 +7858,13 @@
       "max_alive": 4,
       "aggro_mode": "reactive",
       "assist_radius": 16.0,
-      "leash_distance": 30.0
+      "leash_distance": 30.0,
+      "roster": [
+        "goblin_teller",
+        "goblin_hexer",
+        "goblin_guard",
+        "goblin_teller"
+      ]
     },
     {
       "id": 408,
@@ -7943,7 +7978,12 @@
       "max_alive": 3,
       "aggro_mode": "reactive",
       "assist_radius": 16.0,
-      "leash_distance": 30.0
+      "leash_distance": 30.0,
+      "roster": [
+        "goblin_guard",
+        "goblin_hexer",
+        "goblin_teller"
+      ]
     },
     {
       "id": 414,
@@ -8589,7 +8629,13 @@
       "max_alive": 4,
       "aggro_mode": "reactive",
       "assist_radius": 16.0,
-      "leash_distance": 30.0
+      "leash_distance": 30.0,
+      "roster": [
+        "goblin_teller",
+        "goblin_hexer",
+        "goblin_guard",
+        "goblin_teller"
+      ]
     },
     {
       "id": 448,
@@ -9083,7 +9129,12 @@
       "max_alive": 3,
       "aggro_mode": "aggressive",
       "assist_radius": 16.0,
-      "leash_distance": 30.0
+      "leash_distance": 30.0,
+      "roster": [
+        "goblin_guard",
+        "goblin_hexer",
+        "goblin_teller"
+      ]
     },
     {
       "id": 474,
@@ -9767,7 +9818,13 @@
       "max_alive": 4,
       "aggro_mode": "reactive",
       "assist_radius": 16.0,
-      "leash_distance": 30.0
+      "leash_distance": 30.0,
+      "roster": [
+        "goblin_guard",
+        "goblin_hexer",
+        "goblin_teller",
+        "goblin_guard"
+      ]
     },
     {
       "id": 510,
@@ -10204,7 +10261,12 @@
       "max_alive": 3,
       "aggro_mode": "reactive",
       "assist_radius": 16.0,
-      "leash_distance": 30.0
+      "leash_distance": 30.0,
+      "roster": [
+        "goblin_teller",
+        "goblin_hexer",
+        "goblin_guard"
+      ]
     },
     {
       "id": 533,
@@ -12256,7 +12318,13 @@
       "max_alive": 4,
       "aggro_mode": "reactive",
       "assist_radius": 16.0,
-      "leash_distance": 30.0
+      "leash_distance": 30.0,
+      "roster": [
+        "goblin_teller",
+        "goblin_hexer",
+        "goblin_guard",
+        "goblin_teller"
+      ]
     },
     {
       "id": 641,
@@ -12389,7 +12457,13 @@
       "max_alive": 4,
       "aggro_mode": "reactive",
       "assist_radius": 16.0,
-      "leash_distance": 30.0
+      "leash_distance": 30.0,
+      "roster": [
+        "goblin_guard",
+        "goblin_hexer",
+        "goblin_teller",
+        "goblin_guard"
+      ]
     },
     {
       "id": 648,
@@ -13016,7 +13090,13 @@
       "max_alive": 4,
       "aggro_mode": "reactive",
       "assist_radius": 16.0,
-      "leash_distance": 30.0
+      "leash_distance": 30.0,
+      "roster": [
+        "goblin_guard",
+        "goblin_hexer",
+        "goblin_teller",
+        "goblin_guard"
+      ]
     },
     {
       "id": 681,
@@ -13776,7 +13856,12 @@
       "max_alive": 3,
       "aggro_mode": "reactive",
       "assist_radius": 16.0,
-      "leash_distance": 30.0
+      "leash_distance": 30.0,
+      "roster": [
+        "goblin_teller",
+        "goblin_hexer",
+        "goblin_guard"
+      ]
     },
     {
       "id": 721,
@@ -15144,7 +15229,13 @@
       "max_alive": 4,
       "aggro_mode": "aggressive",
       "assist_radius": 16.0,
-      "leash_distance": 30.0
+      "leash_distance": 30.0,
+      "roster": [
+        "goblin_guard",
+        "goblin_hexer",
+        "goblin_teller",
+        "goblin_guard"
+      ]
     },
     {
       "id": 793,
@@ -16113,7 +16204,14 @@
       "max_alive": 5,
       "aggro_mode": "reactive",
       "assist_radius": 16.0,
-      "leash_distance": 30.0
+      "leash_distance": 30.0,
+      "roster": [
+        "goblin_guard",
+        "goblin_hexer",
+        "goblin_teller",
+        "goblin_guard",
+        "goblin_hexer"
+      ]
     },
     {
       "id": 844,
@@ -16417,7 +16515,13 @@
       "max_alive": 4,
       "aggro_mode": "reactive",
       "assist_radius": 16.0,
-      "leash_distance": 30.0
+      "leash_distance": 30.0,
+      "roster": [
+        "goblin_guard",
+        "goblin_hexer",
+        "goblin_teller",
+        "goblin_guard"
+      ]
     },
     {
       "id": 860,
@@ -17272,7 +17376,15 @@
       "max_alive": 6,
       "aggro_mode": "reactive",
       "assist_radius": 16.0,
-      "leash_distance": 30.0
+      "leash_distance": 30.0,
+      "roster": [
+        "goblin_teller",
+        "goblin_hexer",
+        "goblin_guard",
+        "goblin_teller",
+        "goblin_hexer",
+        "goblin_guard"
+      ]
     },
     {
       "id": 905,
@@ -17785,7 +17897,13 @@
       "max_alive": 4,
       "aggro_mode": "reactive",
       "assist_radius": 16.0,
-      "leash_distance": 30.0
+      "leash_distance": 30.0,
+      "roster": [
+        "goblin_guard",
+        "goblin_hexer",
+        "goblin_teller",
+        "goblin_guard"
+      ]
     },
     {
       "id": 932,
@@ -18412,7 +18530,14 @@
       "max_alive": 5,
       "aggro_mode": "aggressive",
       "assist_radius": 16.0,
-      "leash_distance": 30.0
+      "leash_distance": 30.0,
+      "roster": [
+        "goblin_guard",
+        "goblin_hexer",
+        "goblin_teller",
+        "goblin_guard",
+        "goblin_hexer"
+      ]
     },
     {
       "id": 965,
@@ -18640,7 +18765,13 @@
       "max_alive": 4,
       "aggro_mode": "reactive",
       "assist_radius": 16.0,
-      "leash_distance": 30.0
+      "leash_distance": 30.0,
+      "roster": [
+        "goblin_teller",
+        "goblin_hexer",
+        "goblin_guard",
+        "goblin_teller"
+      ]
     },
     {
       "id": 977,
@@ -19628,7 +19759,14 @@
       "max_alive": 5,
       "aggro_mode": "reactive",
       "assist_radius": 16.0,
-      "leash_distance": 30.0
+      "leash_distance": 30.0,
+      "roster": [
+        "goblin_teller",
+        "goblin_hexer",
+        "goblin_guard",
+        "goblin_teller",
+        "goblin_hexer"
+      ]
     },
     {
       "id": 1029,
@@ -20711,7 +20849,12 @@
       "max_alive": 3,
       "aggro_mode": "reactive",
       "assist_radius": 16.0,
-      "leash_distance": 30.0
+      "leash_distance": 30.0,
+      "roster": [
+        "goblin_guard",
+        "goblin_hexer",
+        "goblin_teller"
+      ]
     },
     {
       "id": 1086,
@@ -22792,7 +22935,7 @@
     "respawn_clear_radius": 16.0,
     "respawn_retry_seconds": 5.0,
     "pack_spacing": 3.1,
-    "attack_slots": 3,
+    "attack_slots": 8,
     "attack_slot_ring": 3.4,
     "separation_radius": 1.7,
     "separation_weight": 1.35
@@ -23072,7 +23215,8 @@
     "acromantula_broodguard": "res://scenes/entities/mobs/mob_acromantula_broodguard.tscn",
     "inferi_warden": "res://scenes/entities/mobs/mob_inferi_warden.tscn",
     "goblin_teller": "res://scenes/entities/mobs/mob_goblin_teller.tscn",
-    "goblin_guard": "res://scenes/entities/mobs/mob_goblin_guard.tscn"
+    "goblin_guard": "res://scenes/entities/mobs/mob_goblin_guard.tscn",
+    "goblin_hexer": "res://scenes/entities/mobs/mob_goblin_hexer.tscn"
   },
   "_density_note": "Metin2-style density v2 (2026-10-17): packs on a ~40 m jittered grid over the whole grounds (terrain-filtered: no lake, cliffs or safe zones); each belongs to its nearest hunting region. Generated by a one-off script, edit freely.",
   "_monolith_types_note": "Metin stones by type. Each monoliths[] entry names its `type` (default dark). A type: name, level, max_hp, exp_reward, respawn_ms, loot_table (loot_tables.json key), scene, spawn distances and the HP-threshold waves. monolith_config is the dark type's legacy block (kept for older readers).",

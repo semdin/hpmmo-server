@@ -279,9 +279,9 @@ static func validate_encounters() -> Dictionary:
 			problems.append("%s: escort count must be 0 or exactly 2" % encounter_id)
 		var zone := String(pack.get("zone", ""))
 		per_region[zone] = int(per_region.get(zone, 0)) + 1
-		var species := String(pack.get("mob", ""))
-		if mob_def(species).is_empty():
-			problems.append("%s: mob '%s' is not in mobs.json" % [encounter_id, species])
+		for species in pack_species(pack):
+			if mob_def(String(species)).is_empty():
+				problems.append("%s: mob '%s' is not in mobs.json" % [encounter_id, species])
 		var band := region_level_band(zone)
 		if not band.is_empty() and not is_boss_encounter(pack):
 			var level := int(pack.get("level", 1))
@@ -1015,6 +1015,22 @@ static func mob_scene_path(species: String) -> String:
 	if path != "":
 		return path
 	return String(spawn_tables().get("mob_scenes", {}).get(species, ""))
+
+## Species of pack member `index`: the entry's `roster` (a mixed pack - goblin
+## tellers, hexers and vault guards together) or its single `mob`.
+static func pack_member_species(pack: Dictionary, index: int) -> String:
+	var roster: Array = pack.get("roster", [])
+	if roster.is_empty():
+		return String(pack.get("mob", ""))
+	return String(roster[index % roster.size()])
+
+## Every species a pack fields, its lead (`mob`) first.
+static func pack_species(pack: Dictionary) -> Array:
+	var out: Array = [String(pack.get("mob", ""))]
+	for species in pack.get("roster", []):
+		if not out.has(String(species)):
+			out.append(String(species))
+	return out
 
 static func mob_resist(species: String) -> Dictionary:
 	return (mob_def(species).get("resist", {}) as Dictionary).duplicate()

@@ -80,6 +80,17 @@ func _prepare_encounter(authored: Dictionary, scenes: Dictionary) -> Dictionary:
 	var pack: Dictionary = authored.duplicate(true)
 	pack["entry"] = authored
 	pack["scene"] = load(scene_path)
+	# A mixed pack (`roster`) loads one body per species it fields.
+	var member_scenes: Dictionary = {}
+	for species in HPRules.pack_species(authored):
+		var path := HPRules.mob_scene_path(String(species))
+		if path == "":
+			path = String(scenes.get(String(species), ""))
+		if path == "":
+			printerr("[Encounters] %s: no scene for mob '%s'" % [authored.get("encounter_id", "?"), species])
+			return {}
+		member_scenes[String(species)] = load(path)
+	pack["member_scenes"] = member_scenes
 	pack["encounter_id"] = String(authored.get("encounter_id", ""))
 	pack["template_id"] = String(authored.get("template", ""))
 	pack["template"] = HPRules.template_for(authored)
@@ -280,7 +291,8 @@ func _spawn_pack(index: int) -> void:
 	for i in range(int(pack.count)):
 		var offset: Vector3 = offsets[i] if i < offsets.size() else Vector3.ZERO
 		if members.size() <= i:
-			var mob = pack.scene.instantiate()
+			var species := HPRules.pack_member_species(pack, i)
+			var mob = (pack.member_scenes.get(species, pack.scene) as PackedScene).instantiate()
 			mob.name = "Pack%dMember%d" % [index + 1, i]
 			mob.position = _on_ground(anchor + offset)
 			mob.pack_anchor = anchor
@@ -288,7 +300,7 @@ func _spawn_pack(index: int) -> void:
 			mob.managed_respawn = true
 			mob.encounter_id = String(pack.get("encounter_id", ""))
 			mob.level = pack.level
-			_configure_member(mob, pack, not pack.get("boss", false))
+			_configure_member(mob, pack, not pack.get("boss", false), species)
 			mob.aggro_radius = HPRules.aggro_radius_for_level(int(pack.level))
 			mob.aggro_mode = String(pack.get("aggro_mode", "reactive"))
 			mob.assist_radius = float(pack.get("assist_radius", 16.0))
@@ -312,7 +324,7 @@ func _spawn_pack(index: int) -> void:
 			# Ordinary members re-roll elite every life; a boss pack keeps the
 			# stats _apply_boss gave it.
 			if not pack.get("boss", false):
-				_configure_member(mob, pack, true)
+				_configure_member(mob, pack, true, HPRules.pack_member_species(pack, i))
 			mob._respawn()
 	# A pooled pack respawns at a freshly sampled anchor: the snapshot interest
 	# index (HPSnapshots, by pack anchor) must re-file it.
@@ -331,8 +343,7 @@ func _spawn_pack(index: int) -> void:
 ## to the scene's own numbers) x the level strength, then the elite roll. Runs
 ## before the body enters the tree (its _ready keeps the result as its base) and
 ## again before every pooled respawn, so elite is rolled per life.
-func _configure_member(mob: Node3D, pack: Dictionary, can_be_elite: bool) -> void:
-	var species := String(pack.get("mob", ""))
+func _configure_member(mob: Node3D, pack: Dictionary, can_be_elite: bool, species: String) -> void:
 	var def := HPRules.mob_def(species)
 	if not mob.has_meta("scene_stats"):
 		mob.set_meta("scene_stats", {"max_hp": mob.max_hp, "attack_power": mob.attack_power,
