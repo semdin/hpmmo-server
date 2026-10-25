@@ -287,6 +287,8 @@ static func _place(root: Node3D, model: String, at: Vector3, yaw: float) -> void
 
 static func _hero_props(root: Node3D, c: Vector3) -> void:
 	_place(root, "fountain", c + Vector3(0, 0.05, 0), 0.0)
+	# The model's water is painted on; this one moves (pools, streams, splashes).
+	FountainWater.build(root, c + Vector3(0, 0.05, 0))
 	for at in _bench_spots(c):
 		_place(root, "bench", at[0] + Vector3(0, 0.08, 0), at[1])
 	for at in _boar_spots(c):

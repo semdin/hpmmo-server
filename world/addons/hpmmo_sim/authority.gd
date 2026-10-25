@@ -33,6 +33,9 @@ signal cast_finished(cast_id: int, accepted: bool, reason: String)
 signal cast_ack(cast_seq: int, cast_id: int, ok: bool, reason: String)
 signal cast_released(cast_id: int, caster_uid: int, spell_id: String, origin: Vector3, dir: Vector3)
 signal cast_landed(cast_id: int, caster_uid: int, spell_id: String, hits: Array)
+## v25: an area bolt burst at `pos` - emitted BEFORE its damage, so a client
+## draws the blast where the server's bolt went off and the numbers follow it.
+signal cast_impact(cast_id: int, caster_uid: int, spell_id: String, pos: Vector3)
 signal entity_damaged(uid: int, amount: int, hp: int, spell_id: String, attacker_uid: int)
 ## Same hit as `entity_damaged` plus its HIT_* flags (crit, combo finisher). The
 ## network bridge forwards this one; presentation (damage numbers) reads it.
@@ -2089,6 +2092,7 @@ func _projectile_impact(projectile: Dictionary, impact_uid: int, impact_pos: Vec
 	var spell_id := String(projectile["spell_id"])
 	var hits: Array = []
 	if bool(projectile["aoe"]):
+		emit_signal("cast_impact", int(projectile["cast_id"]), int(caster["uid"]), spell_id, impact_pos)
 		var radius := float(projectile["radius"])
 		var data := HPRules.spell(spell_id)
 		var floor_ratio := float(data.get("falloff_floor", 0.4))
@@ -4660,7 +4664,9 @@ func request_equipment(peer_id: int, request_id: int, revision: int, operation: 
 	elif revision != node.inventory_revision: reason = "stale_inventory"
 	elif bool(record.get("dead", false)): reason = "dead"
 	elif int(record.get("pending_transfer", 0)) != 0: reason = "transfer_pending"
-	elif int(record.get("cast_id", 0)) != 0 or sim_tick < int(record.get("cast_lock_until_tick", 0)): reason = "casting"
+	# A potion is drunk mid-fight, between and during casts (Metin2 style);
+	# only gear changes wait for the cast to finish.
+	elif operation != "consume" and (int(record.get("cast_id", 0)) != 0 or sim_tick < int(record.get("cast_lock_until_tick", 0))): reason = "casting"
 	elif operation not in ["consume", "destroy"] and sim_tick - int(record.get("last_combat_tick", -100000)) < 5 * HPProtocol.SIM_HZ: reason = "in_combat"
 	elif slot == "broom" and bool(record.get("mounted", false)): reason = "mounted"
 	elif operation == "equip" and not HPEquipment.level_ok(item_id, int(node.level)): reason = "level_too_low"

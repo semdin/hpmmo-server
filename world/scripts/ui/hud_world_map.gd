@@ -80,6 +80,10 @@ func _ready() -> void:
 	body.add_child(_coords)
 	_hint = HudKit.label("", 13, HudKit.TEXT_DIM, HudKit.body(), 0)
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# Wraps inside the window: the bestiary's "Showing <creature>" line made the
+	# unwrapped hint wider than the window and pushed the map out of its frame.
+	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_hint.custom_minimum_size.x = 1.0
 	body.add_child(_hint)
 	_apply_mode()
 

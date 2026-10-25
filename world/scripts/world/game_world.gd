@@ -77,6 +77,8 @@ func _ready() -> void:
 			loot_window.name = "LootWindow"
 			canvas.add_child(loot_window)
 		add_child(TargetRing.new())
+		# Day and night on the grounds, the creature fill light everywhere.
+		DayNight.create(self)
 	else:
 		print("[Dedicated Server] Headless world active (no local player/UI).")
 		var cl = get_node_or_null("CanvasLayer")
@@ -480,6 +482,7 @@ func _setup_replication() -> void:
 		SimAuthority.cast_started.connect(_on_cast_started)
 		SimAuthority.cast_released.connect(_on_cast_released)
 		SimAuthority.cast_landed.connect(_on_cast_landed)
+		SimAuthority.cast_impact.connect(_on_cast_impact)
 	SimAuthority.loot_spawned.connect(_on_loot_spawned)
 	SimAuthority.chat.connect(_on_chat)
 	SimAuthority.world_event.connect(_on_world_event)
@@ -833,6 +836,13 @@ func _presentation_cast_origin(caster: Node, origin: Vector3) -> Vector3:
 	if tip != null and is_instance_valid(tip):
 		return tip.global_position
 	return origin
+
+## An area bolt burst on the server: its drawn view bursts there now (it may
+## still be short of the spot, or a frame behind), before the damage numbers.
+func _on_cast_impact(cast_id: int, _caster_uid: int, _spell_id: String, pos: Vector3) -> void:
+	var view = _bolt_views.get(cast_id)
+	if view != null and is_instance_valid(view) and view.has_method("detonate_at"):
+		view.detonate_at(pos)
 
 func _on_cast_landed(cast_id: int, _caster_uid: int, spell_id: String, hits: Array) -> void:
 	var view = _bolt_views.get(cast_id)

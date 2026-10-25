@@ -26,8 +26,8 @@ attack_cooldown = 1.6
 exp_reward = 200
 anim_set = "goblin"
 voice_set = "goblin"
-walk_speed = 0.441
-run_speed = 2.658
+walk_speed = 0.572
+run_speed = 2.383
 attack_anticipation = 0.6
 attack_recovery = 0.6
 

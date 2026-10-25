@@ -2676,6 +2676,14 @@ msgid "Auto picks Low on integrated graphics and High on a dedicated GPU"
 msgstr "Otomatik: dahili grafikte Düşük, harici ekran kartında Yüksek seçer"
 
 #: scripts/ui/settings_ui.gd
+msgid "Time of day"
+msgstr "Gün saati"
+
+#: scripts/ui/settings_ui.gd
+msgid "Server time follows the clock in GMT+3: day, dusk and night on the grounds"
+msgstr "Sunucu saati GMT+3 saatini izler: arazide gündüz, alacakaranlık ve gece"
+
+#: scripts/ui/settings_ui.gd
 msgid "Interface scale"
 msgstr "Arayüz boyutu"
 
@@ -2894,6 +2902,18 @@ msgstr "Kat 2 - Yumurta Mağaraları"
 #: scripts/world/caverns/spider_caverns.gd
 msgid "Blackweb Caverns - %s"
 msgstr "Karaağ Mağaraları - %s"
+
+#: scripts/world/day_night.gd
+msgid "Server time (GMT+3)"
+msgstr "Sistem (sunucu saati, GMT+3)"
+
+#: scripts/world/day_night.gd
+msgid "Always day"
+msgstr "Hep gündüz"
+
+#: scripts/world/day_night.gd
+msgid "Always night"
+msgstr "Hep gece"
 
 #: scripts/world/dungeon_director.gd
 msgid "The way back is open. Regroup and try again."

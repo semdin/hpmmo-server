@@ -28,8 +28,8 @@ is_ranged = true
 bolt_spell = "basic_cast"
 anim_set = "goblin_caster"
 voice_set = "goblin"
-walk_speed = 0.457
-run_speed = 2.551
+walk_speed = 0.497
+run_speed = 2.264
 attack_anticipation = 0.7
 attack_recovery = 0.6
 

@@ -16,7 +16,7 @@ const QualityPreset = preload("res://scripts/world/quality_preset.gd")
 ## only after its button is pressed, and the very next key (or Escape to cancel)
 ## is consumed and never reaches gameplay.
 
-const WINDOW_SIZE := Vector2(660, 600)
+const WINDOW_SIZE := Vector2(660, 640)
 
 ## The player picked another language and wants the HUD rebuilt in it now.
 signal language_apply_requested
@@ -135,6 +135,23 @@ func _build() -> void:
 	_graphics.item_selected.connect(_on_graphics_selected)
 	row.add_child(_graphics)
 	g.add_child(row)
+	var tod_row := _row(tr("Time of day"))
+	var tod := OptionButton.new()
+	tod.name = "TimeOfDay"
+	tod.focus_mode = Control.FOCUS_NONE
+	tod.custom_minimum_size = Vector2(280, 32)
+	tod.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	HudKit.style_button(tod, 14)
+	for choice in GameSettings.TIME_OF_DAY_CHOICES:
+		tod.add_item(tr(String(DayNight.CHOICES[choice])))
+		if choice == GameSettings.instance().time_of_day:
+			tod.select(tod.item_count - 1)
+	tod.tooltip_text = tr("Server time follows the clock in GMT+3: day, dusk and night on the grounds")
+	tod.item_selected.connect(func(index: int):
+		GameSettings.instance().set_time_of_day(GameSettings.TIME_OF_DAY_CHOICES[index])
+		settings_written += 1)
+	tod_row.add_child(tod)
+	g.add_child(tod_row)
 	g.add_child(_slider_row("ui_scale", tr("Interface scale"), GameSettings.UI_SCALE_MIN, GameSettings.UI_SCALE_MAX, 0.05))
 	g.add_child(_section(tr("Camera & effects")))
 	g.add_child(_slider_row("mouse_sensitivity", tr("Mouse sensitivity"), GameSettings.SENSITIVITY_MIN, GameSettings.SENSITIVITY_MAX, 0.05))

@@ -191,6 +191,18 @@ func _handle_hit(target: Node) -> void:
 		_end_travel("spent")
 	queue_free()
 
+## The authority's area bolt burst at `pos` (game_world `cast_impact`): this
+## view bursts there too, whether it was still flying or a little short.
+func detonate_at(pos: Vector3) -> void:
+	if spent:
+		return
+	spent = true
+	global_position = pos
+	SkillFX.play_impact(get_parent(), pos, spell_id, null, direction)
+	if travel_effect != null and is_instance_valid(travel_effect):
+		_end_travel("spent")
+	queue_free()
+
 ## The authority says this cast already hit (a bolt that brushed a body, or
 ## landed before this view arrived): stop flying, the impact is drawn on the victim.
 func end_on_landed() -> void:

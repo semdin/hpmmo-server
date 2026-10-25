@@ -28,7 +28,7 @@ var _leaving := ""
 var _leave_at_ms := 0
 
 func _init() -> void:
-	super._init("Menu", Vector2(260, 318))
+	super._init("Menu", Vector2(280, 350))
 	name = "GameMenu"
 	# A small card over the live game: no dimming, and the character can keep
 	# moving while it is open.
@@ -54,6 +54,10 @@ func _ready() -> void:
 		_buttons[String(spec[0])] = b
 	_note = HudKit.label(tr(NOTE_IDLE), 12, HudKit.TEXT_DIM, HudKit.body(), 0)
 	_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# The countdown line ("Changing character in 5... (taking damage cancels)")
+	# is wider than the card: unwrapped it pushed the buttons out of the frame.
+	_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_note.custom_minimum_size = Vector2(1.0, 34.0)
 	body.add_child(_note)
 	SimAuthority.entity_damaged.connect(_on_entity_damaged)
 	SimAuthority.entity_died.connect(_on_entity_died)

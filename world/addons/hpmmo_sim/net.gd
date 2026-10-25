@@ -999,6 +999,10 @@ func sim_cast_landed(cast_id: int, caster_uid: int, spell_id: String, hits: Arra
 	SimAuthority.emit_signal("cast_landed", cast_id, caster_uid, spell_id, hits)
 
 @rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
+func sim_cast_impact(cast_id: int, caster_uid: int, spell_id: String, pos: Vector3) -> void:
+	SimAuthority.emit_signal("cast_impact", cast_id, caster_uid, spell_id, pos)
+
+@rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
 func sim_damage_event(uid: int, amount: int, hp: int, spell_id: String, attacker_uid: int, flags: int) -> void:
 	SimAuthority.on_damage_event(uid, amount, hp, spell_id, attacker_uid, flags)
 
@@ -1366,6 +1370,7 @@ func bridge_authority() -> void:
 	SimAuthority.cast_started.connect(broadcast_cast_started)
 	SimAuthority.cast_released.connect(broadcast_cast_released)
 	SimAuthority.cast_landed.connect(broadcast_cast_landed)
+	SimAuthority.cast_impact.connect(broadcast_cast_impact)
 	SimAuthority.stats_changed.connect(broadcast_stats)
 	SimAuthority.loot_spawned.connect(broadcast_loot)
 	SimAuthority.loot_taken.connect(broadcast_loot_taken)
@@ -1502,6 +1507,15 @@ func broadcast_cast_released(cast_id: int, caster_uid: int, spell_id: String, or
 	for peer_id in multiplayer.get_peers():
 		if _peer_can_see(peer_id, caster_uid):
 			sim_cast_released.rpc_id(peer_id, cast_id, caster_uid, spell_id, origin, dir)
+
+## An area bolt's burst point goes to whoever saw the bolt leave (it is sent
+## before the damage events on the same reliable channel, so it arrives first).
+func broadcast_cast_impact(cast_id: int, caster_uid: int, spell_id: String, pos: Vector3) -> void:
+	if not has_peers():
+		return
+	for peer_id in multiplayer.get_peers():
+		if _peer_can_see(peer_id, caster_uid):
+			sim_cast_impact.rpc_id(peer_id, cast_id, caster_uid, spell_id, pos)
 
 ## The landing reaches whoever saw the bolt leave (its caster is in sight) or
 ## can see one of the bodies it hit.

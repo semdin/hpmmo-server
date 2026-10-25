@@ -390,7 +390,7 @@ func _update_anim_speed(slot: String = "walk") -> void:
 	if walk_speed <= 0.0:
 		_set_anim_speed(1.0)
 		return
-	_set_anim_speed(clampf(speed / walk_speed, 0.55, 3.0))
+	_set_anim_speed(clampf(speed / walk_speed, 0.55, 3.2))
 
 func _set_anim_speed(speed: float) -> void:
 	_anim_speed_base = speed
@@ -882,16 +882,21 @@ func _idle_and_wander(delta: float) -> void:
 		wander_timer -= delta
 		if wander_timer <= 0:
 			var angle := randf() * TAU
-			wander_target = spawn_point + Vector3(cos(angle), 0, sin(angle)) * randf_range(1, 3)
+			# A real stroll round the camp, not two steps on the spot.
+			wander_target = spawn_point + Vector3(cos(angle), 0, sin(angle)) * randf_range(2.5, 6.0)
 			wander_timer = 7
 			_set_state(State.WANDER)
 
-## Stroll pace: the walk cycle's own ground speed (a little brisk), at most 30%
-## of the chase speed. A goblin's sneak cycle covers 0.24 m/s; dragged along at
-## 2 m/s it slid over the grass with its feet barely moving.
+## Stroll pace: a person's slow stroll (WANDER_PACE) or the walk cycle's own
+## ground speed if that is brisker, at most 30% of the chase speed; the clip is
+## played faster to match (_update_anim_speed). The inferi and goblin cycles are
+## authored very slow (0.37-0.57 m/s): at their own pace a creature took two
+## steps and seemed to stand still.
+const WANDER_PACE := 1.1
+
 func _wander_speed() -> float:
 	if walk_speed > 0.0:
-		return minf(move_speed * 0.3, maxf(walk_speed * 1.6, 0.45))
+		return minf(move_speed * 0.3, maxf(walk_speed * 1.6, WANDER_PACE))
 	return move_speed * 0.3
 
 func aggro_on(player: Node3D, alert_pack: bool = true) -> void:

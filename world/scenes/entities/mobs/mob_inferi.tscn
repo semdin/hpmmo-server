@@ -27,8 +27,8 @@ exp_reward = 60
 weak_to_fire = true
 anim_set = "undead"
 voice_set = "inferi"
-walk_speed = 0.395
-run_speed = 4.105
+walk_speed = 0.367
+run_speed = 3.519
 attack_anticipation = 0.55
 attack_recovery = 0.5
 

@@ -130,7 +130,8 @@ func _on_entity_hit(uid: int, amount: int, _hp: int, spell_id: String, attacker_
 func show_status(victim: Node3D, text: String, colour: Color) -> void:
 	if victim == null or not is_instance_valid(victim):
 		return
-	_spawn_number(_anchor_of(victim) + Vector3.UP * 0.55, I18n.upper(text), colour, 24.0, true, "", Color(0.02, 0.02, 0.03))
+	# A small label: the look on the body (stars, ice, blood) says it first.
+	_spawn_number(_anchor_of(victim) + Vector3.UP * 0.45, text, colour, 15.0, false, "", Color(0.02, 0.02, 0.03))
 
 func _local_uid() -> int:
 	if local_player != null and is_instance_valid(local_player):

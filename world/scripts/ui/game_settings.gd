@@ -53,6 +53,9 @@ const INTENSITY_MAX := 1.5
 const BUSES := ["Music", "SFX", "UI", "Ambience"]
 const GRAPHICS_CHOICES := ["auto", "low", "medium", "high"]
 const GRAPHICS_DEFAULT := "auto"
+## Time of day on the grounds (DayNight): the server clock in GMT+3, or held.
+const TIME_OF_DAY_CHOICES := ["system", "day", "night"]
+const TIME_OF_DAY_DEFAULT := "system"
 
 ## Actions the settings screen may rebind, with the key GameData registers by
 ## default. Only these are offered: the screen never invents an action, and a
@@ -96,6 +99,7 @@ var mouse_sensitivity: float = SENSITIVITY_DEFAULT
 var shake_intensity: float = SHAKE_DEFAULT
 var flash_intensity: float = FLASH_DEFAULT
 var graphics_quality: String = GRAPHICS_DEFAULT
+var time_of_day: String = TIME_OF_DAY_DEFAULT
 var bindings: Dictionary = {}
 var load_error: String = ""
 
@@ -178,6 +182,7 @@ func load_from_disk() -> void:
 	shake_intensity = SHAKE_DEFAULT
 	flash_intensity = FLASH_DEFAULT
 	graphics_quality = GRAPHICS_DEFAULT
+	time_of_day = TIME_OF_DAY_DEFAULT
 	bindings.clear()
 	load_error = ""
 	for action in BINDABLE_ACTIONS:
@@ -202,6 +207,8 @@ func load_from_disk() -> void:
 	flash_intensity = clampf(float(config.get_value(SECTION_GENERAL, "flash", FLASH_DEFAULT)), INTENSITY_MIN, INTENSITY_MAX)
 	var quality := String(config.get_value(SECTION_GENERAL, "graphics_quality", GRAPHICS_DEFAULT))
 	graphics_quality = quality if GRAPHICS_CHOICES.has(quality) else GRAPHICS_DEFAULT
+	var tod := String(config.get_value(SECTION_GENERAL, "time_of_day", TIME_OF_DAY_DEFAULT))
+	time_of_day = tod if TIME_OF_DAY_CHOICES.has(tod) else TIME_OF_DAY_DEFAULT
 	volumes.clear()
 	# Volumes saved against the previous (synthesised) sound set are dropped
 	# once, so the regenerated soundtrack is heard at its intended mix.
@@ -223,6 +230,7 @@ func save_to_disk() -> void:
 	config.set_value(SECTION_GENERAL, "shake", shake_intensity)
 	config.set_value(SECTION_GENERAL, "flash", flash_intensity)
 	config.set_value(SECTION_GENERAL, "graphics_quality", graphics_quality)
+	config.set_value(SECTION_GENERAL, "time_of_day", time_of_day)
 	for action in bindings:
 		config.set_value(SECTION_BINDINGS, action, int(bindings[action]))
 	for bus in BUSES:
@@ -256,6 +264,11 @@ func set_flash_intensity(value: float) -> void:
 ## "auto" or a preset name; QualityPreset.choose() applies it to the live world.
 func set_graphics_quality(choice: String) -> void:
 	graphics_quality = choice if GRAPHICS_CHOICES.has(choice) else GRAPHICS_DEFAULT
+	save_to_disk()
+
+## "system" (server time, GMT+3), "day" or "night"; DayNight eases to it.
+func set_time_of_day(choice: String) -> void:
+	time_of_day = choice if TIME_OF_DAY_CHOICES.has(choice) else TIME_OF_DAY_DEFAULT
 	save_to_disk()
 
 ## The four audio buses are owned by AudioManager (Spell effects), which already
