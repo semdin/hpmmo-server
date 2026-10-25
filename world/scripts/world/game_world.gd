@@ -114,8 +114,38 @@ func _exit_tree() -> void:
 	# Views belong to the world that made them.
 	_views.clear()
 
+## A player once saw their own wizard twice, both bodies under their name and
+## one stuck in a T-pose, until they logged out (live, 2026-10-25). Whatever
+## built it, the client never needs a second copy of its own body: once a
+## second, any puppet of our uid or carrying our name, and any extra body
+## that thinks it is the local player, is removed.
+var _ghost_sweep := 1.0
+
+func _reap_ghost_bodies() -> void:
+	if SimAuthority.is_authority() or not is_instance_valid(local_player):
+		return
+	var own_name := String(local_player.player_name).strip_edges().to_lower()
+	for uid in _views.keys():
+		var view = _views[uid]
+		if not is_instance_valid(view) or not view.is_in_group("players"):
+			continue
+		var same_name := own_name != "" and String(view.get("player_name")).strip_edges().to_lower() == own_name
+		if _is_own_uid(int(uid)) or same_name:
+			print("[GameWorld] removed a duplicate body of the local player (uid %d, own uid %d/%d)" % [
+				int(uid), SimAuthority.local_uid, int(SimNet.local_uid)])
+			_views.erase(uid)
+			view.queue_free()
+	for body in get_tree().get_nodes_in_group("players"):
+		if body != local_player and body.get("is_local_player") == true and is_ancestor_of(body):
+			print("[GameWorld] removed a second local player body %s" % body.get_path())
+			body.queue_free()
+
 func _process(delta: float) -> void:
 	_drain_view_queue()
+	_ghost_sweep -= delta
+	if _ghost_sweep <= 0.0:
+		_ghost_sweep = 1.0
+		_reap_ghost_bodies()
 	if DisplayServer.get_name() == "headless":
 		# Dedicated server / tests: nothing below is gameplay - it is candle and
 		# torch dressing.
@@ -553,6 +583,8 @@ func _on_entity_replicating(record: Dictionary) -> void:
 	var uid := int(record["uid"])
 	if _views.has(uid) or record.get("node") != null or _queued.has(uid):
 		return   # already on screen (authority roles own their nodes) or on its way
+	if _is_own_uid(uid) or bool(record.get("local", false)):
+		return   # our own body is the predicted one, never a second puppet
 	if int(record.get("kind", 0)) == HPProtocol.Kind.PLAYER:
 		_create_view(record)
 		return
@@ -713,8 +745,15 @@ func _on_entity_despawned(uid: int) -> void:
 		else:
 			view.queue_free()
 
+## The server's uid for this client's body. SimNet learns it at the join and
+## SimAuthority once the body is bound; a snapshot can sit between the two.
+func _is_own_uid(uid: int) -> bool:
+	if uid == 0 or SimAuthority.is_authority():
+		return false
+	return uid == SimAuthority.local_uid or uid == int(SimNet.local_uid)
+
 func _on_entity_moved(uid: int, pos: Vector3, rot_y: float, flags: int) -> void:
-	if uid == SimAuthority.local_uid and is_instance_valid(local_player):
+	if _is_own_uid(uid) and is_instance_valid(local_player):
 		# The local body is predicted, not puppeted: it reconciles instead.
 		local_player.apply_authoritative_position(pos, rot_y)
 		return

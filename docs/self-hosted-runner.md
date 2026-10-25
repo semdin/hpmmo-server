@@ -10,7 +10,7 @@ A persistent workspace fetches only changed objects.
 |---|---|
 | runner user | `ghrunner` (no login password) |
 | runners | `/opt/actions-runner-server`, `/opt/actions-runner-client` (systemd `actions.runner.*`) |
-| resource cap | `hpmmo-ci.slice`: CPUQuota=200%, MemoryMax=5G, low CPU/IO weight; runner units `Nice=10` |
+| resource cap | `hpmmo-ci.slice`: CPUQuota=150%, AllowedCPUs=2-3 (the world server keeps vCPU 0-1; since 2026-10-25), MemoryMax=5G, low CPU/IO weight; runner units `Nice=10` |
 | root rights | `/etc/sudoers.d/90-hpmmo-ci`: NOPASSWD for `/opt/hpmmo/bin/hpmmo_deploy.sh` and `/opt/hpmmo-ci/build_linux_launcher.sh` only |
 | Linux launcher build | `/opt/hpmmo-ci/build_linux_launcher.sh` (root-owned copy of `client/launcher_cpp/packaging/linux/ci_build_launcher.sh`): Docker image `hpmmo-launcher-build:22.04` from the checked-out Dockerfile, AppImage built in a throwaway container. Reinstall the copy when that script changes: `install -o root -g root -m 0755 <checkout>/launcher_cpp/packaging/linux/ci_build_launcher.sh /opt/hpmmo-ci/build_linux_launcher.sh` |
 | Godot | `/opt/hpmmo-ci/godot/godot` (4.7.2), export templates in `~ghrunner/.local/share/godot/export_templates/` |

@@ -366,6 +366,7 @@ const FT_SCENE = preload("res://scenes/ui/floating_text.tscn")
 
 func _ready() -> void:
 	add_to_group("players")
+	_pass_through_bodies()
 	floor_max_angle = deg_to_rad(FLOOR_MAX_ANGLE_DEG)
 	floor_snap_length = FLOOR_SNAP_LENGTH
 	floor_constant_speed = true
@@ -436,6 +437,19 @@ func _setup_character_model() -> void:
 		hero_anim.setup(anim_player, skeleton, visuals)
 		hero_anim.event_fired.connect(_on_animation_event)
 	_setup_broom()
+
+## Wizards walk through each other and through the NPCs. Bodies that block
+## each other read as lag on a crowded courtyard, and a low broom flight could
+## settle on another player's head and ride along with them (or wedge inside an
+## NPC) until someone logged out. Layer 2 is unchanged: spells, targeting and
+## creatures still meet every body. NPCs built later add the same exception.
+func _pass_through_bodies() -> void:
+	for group in ["players", "npcs"]:
+		for other in get_tree().get_nodes_in_group(group):
+			if other == self or not (other is PhysicsBody3D):
+				continue
+			add_collision_exception_with(other)
+			(other as PhysicsBody3D).add_collision_exception_with(self)
 
 ## Build the socket set once, from the documented bone map. Sockets are
 ## BoneAttachment3D nodes so they follow the skeleton without baking offsets into

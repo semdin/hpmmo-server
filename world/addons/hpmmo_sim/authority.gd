@@ -708,10 +708,20 @@ func mob_telegraph_for(node: Node) -> Dictionary:
 ## resets. Reward credit its members accumulated is cancelled HERE, so a pull
 ## that never ended in a kill cannot be paid out by a later kill, and any
 ## lingering telegraph, burn or stun is cleared with it.
-func reset_encounter(pack_id: int, reason: String) -> void:
+##
+## Members still fighting someone are left alone: every member that breaks off
+## calls this, and wiping the whole pack each time cancelled the credit (and the
+## burn, stun, enrage) of creatures players were still killing - the live
+## journal showed one pack reset five times in a second during a single fight.
+## `from_node` is the member that broke off; it is reset whatever its state.
+const _FIGHTING_STATES := [HPProtocol.MobState.CHASE, HPProtocol.MobState.ATTACK,
+	HPProtocol.MobState.ANTICIPATION, HPProtocol.MobState.RECOVERY, HPProtocol.MobState.STUNNED]
+
+func reset_encounter(pack_id: int, reason: String, from_node: Node = null) -> void:
 	if pack_id <= 0:
 		return
 	var affected: Array = []
+	var from_uid := int(record_for(from_node).get("uid", 0)) if from_node != null else 0
 	# The pack's members from the interest index, not a walk of every creature
 	# in the world (each member that breaks off calls this).
 	for uid in HPSnapshots.pack_uids(self, pack_id):
@@ -720,6 +730,12 @@ func reset_encounter(pack_id: int, reason: String) -> void:
 			continue
 		if int(record.get("pack_id", 0)) != pack_id or bool(record.get("dead", false)):
 			continue
+		if int(uid) != from_uid and _FIGHTING_STATES.has(int(record.get("state", 0))):
+			continue
+		var clean := (record.get("damage_log", []) as Array).is_empty() and int(record.get("burn_until_tick", 0)) == 0
+		clean = clean and status_bits(record) == 0 and not bool(record.get("is_enraged", false)) and not record.has("telegraph")
+		if clean:
+			continue   # already clean: nothing to cancel or tell anyone
 		record["damage_log"] = []
 		record["burn_until_tick"] = 0
 		record["burn_next_tick"] = 0

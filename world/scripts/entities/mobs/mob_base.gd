@@ -1029,7 +1029,7 @@ func _break_fight(reason: String) -> void:
 	target_player = null
 	_set_state(State.RETURN)
 	if SimAuthority.is_authority():
-		SimAuthority.reset_encounter(pack_id, reason)
+		SimAuthority.reset_encounter(pack_id, reason, self)
 
 # ----------------------------------------------------------------- movement
 

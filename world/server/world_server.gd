@@ -157,10 +157,18 @@ func _env(name: String, fallback: String) -> String:
 	return value if value != "" else fallback
 
 var _status_accumulator: float = 0.0
+## Worst frame and hitches (frames over 50 ms) since the last status line. The
+## physics/process numbers below are one frame's sample; a hitch between two
+## lines only shows here.
+var _worst_frame_ms := 0.0
+var _hitches := 0
 
 ## Periodic status line: enough to tell "nobody is connected" from "somebody is
 ## connected but their input is not arriving".
 func _process(delta: float) -> void:
+	_worst_frame_ms = maxf(_worst_frame_ms, delta * 1000.0)
+	if delta > 0.05:
+		_hitches += 1
 	_status_accumulator += delta
 	if _status_accumulator < 5.0:
 		return
@@ -178,9 +186,12 @@ func _process(delta: float) -> void:
 	# Frame cost: one physics step per sim tick, so physics_ms + process_ms
 	# near 1000 / SIM_HZ means the server cannot hold its tick rate (players
 	# then see their corrections pull them back).
-	print("[WorldServer] tick=%d state=%s entities=%d players=%d inputs=%d casts=%d physics_ms=%.1f process_ms=%.1f | %s" % [
+	print("[WorldServer] tick=%d state=%s entities=%d players=%d inputs=%d casts=%d physics_ms=%.1f process_ms=%.1f worst_frame_ms=%.0f hitches=%d | %s" % [
 		SimAuthority.sim_tick, SimAuthority.maintenance_state(), SimAuthority.entities.size(),
 		SimAuthority.players_by_peer.size(), SimNet.inputs_received, SimNet.cast_requests_received,
 		Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0,
 		Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
+		_worst_frame_ms, _hitches,
 		" ; ".join(players)])
+	_worst_frame_ms = 0.0
+	_hitches = 0

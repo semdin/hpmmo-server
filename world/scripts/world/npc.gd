@@ -39,6 +39,12 @@ func _build(robe_color: Color) -> void:
 	add_to_group("targetable")
 	collision_layer = 2
 	collision_mask = 1
+	# Players walk through NPCs (player.gd `_pass_through_bodies`); this side
+	# covers the bodies that were already in the world before this NPC.
+	for player in get_tree().get_nodes_in_group("players"):
+		if player is PhysicsBody3D:
+			(player as PhysicsBody3D).add_collision_exception_with(self)
+			add_collision_exception_with(player)
 	var body: Dictionary = BODIES.get(npc_name, {})
 	var size := float(body.get("scale", 1.0))
 	# Nameplate and marker float a fixed gap above the crown.

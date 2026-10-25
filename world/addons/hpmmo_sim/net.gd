@@ -904,15 +904,27 @@ func sim_dungeon_state(map_id: String, state: Dictionary) -> void:
 
 func _send_party_state(uid: int, state: Dictionary) -> void:
 	var peer := int(SimAuthority.record_by_uid(uid).get("peer_id", 0))
-	if peer == 0 or peer == local_peer_id or not has_peers():
+	if peer == 0 or peer == local_peer_id or not _peer_live(peer):
 		return   # the authority's own player hears the signal directly
 	sim_party_state.rpc_id(peer, state)
 
 func _send_party_invite(uid: int, from_name: String) -> void:
 	var peer := int(SimAuthority.record_by_uid(uid).get("peer_id", 0))
-	if peer == 0 or peer == local_peer_id or not has_peers():
+	if peer == 0 or peer == local_peer_id or not _peer_live(peer):
 		return
 	sim_party_invite.rpc_id(peer, from_name)
+
+## A peer that can still take packets. The maintenance kick disconnects every
+## peer before it removes their bodies, and each removal tells the rest of the
+## party: those sends hit closing connections ("Unable to send packet on
+## channel 2, max channels: 0" in the live journal).
+func _peer_live(peer_id: int) -> bool:
+	if not has_peers() or not multiplayer.get_peers().has(peer_id):
+		return false
+	if multiplayer.multiplayer_peer is ENetMultiplayerPeer:
+		var packet_peer := (multiplayer.multiplayer_peer as ENetMultiplayerPeer).get_peer(peer_id)
+		return packet_peer != null and packet_peer.get_state() == ENetPacketPeer.STATE_CONNECTED
+	return true
 
 ## v15: the authority shoved this player; the owner applies the same impulse
 ## to its predicted body (the authority's copy already took it).
