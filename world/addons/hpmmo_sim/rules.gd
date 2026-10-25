@@ -847,6 +847,9 @@ static func can_damage(caster: Node, target: Node) -> bool:
 		return false
 	if target.is_in_group("dummies"):
 		return true
+	# Duelists agreed to the fight: it goes on inside a safe volume too.
+	if are_duel_foes(caster, target):
+		return true
 	# Protected space: neither side of the exchange may be inside a volume.
 	if is_protected_node(caster) or is_protected_node(target):
 		return false
@@ -866,8 +869,29 @@ static func faction_ok(caster: Node, target: Node) -> bool:
 	if not is_instance_valid(caster):
 		return false
 	if caster.is_in_group("players"):
-		return not target.is_in_group("players")
+		return not target.is_in_group("players") or are_duel_foes(caster, target)
 	return target.is_in_group("players")
+
+## Duels (v27): uid -> {foe uid: true} for every duelist whose fight is on and
+## who is still standing. The authority writes it (`set_duel_foes`); a client
+## mirrors its own player's row from `sim_duel_state` so targeting and aim
+## assist pick the foe like any hostile body.
+static var duel_foes: Dictionary = {}
+
+static func are_duel_foes(a: Node, b: Node) -> bool:
+	if duel_foes.is_empty() or not is_instance_valid(a) or not is_instance_valid(b):
+		return false
+	var row = duel_foes.get(int(a.get_meta("sim_uid", 0)))
+	return row is Dictionary and (row as Dictionary).has(int(b.get_meta("sim_uid", 0)))
+
+static func set_duel_foes(uid: int, foes: Array) -> void:
+	if foes.is_empty():
+		duel_foes.erase(uid)
+		return
+	var row := {}
+	for foe in foes:
+		row[int(foe)] = true
+	duel_foes[uid] = row
 
 static func has_line_of_sight(source: Node3D, target: Node3D) -> bool:
 	if not is_instance_valid(source) or not is_instance_valid(target):

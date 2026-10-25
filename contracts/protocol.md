@@ -16,29 +16,39 @@ its own state. `server_relay` is off, so clients cannot address each other.
 | `sim_input` | `any_peer, call_remote, unreliable_ordered, HPProtocol.CH_INPUT` | seq: int, move: Vector2, yaw: float, jump: bool, descend: bool |
 | `sim_cast_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | spell_id: String, aim: Vector3, cast_seq: int |
 | `sim_mount_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | mounted: bool |
-| `sim_respawn_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | - |
+| `sim_respawn_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | mode: int |
 | `sim_transfer_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | portal_id: String, to_map: String |
+| `sim_portkey_place` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | dest_id: String |
+| `sim_portkey_grab` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | portkey_id: int, hold: bool |
+| `sim_portkey_state` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | state: Dictionary |
+| `sim_travel_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | node_id: String, dest_id: String |
 | `sim_transfer_ready` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | token: int |
 | `sim_transfer_abort` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | token: int |
-| `sim_pickup_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | loot_uid: int |
+| `sim_pickup_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | loot_uid: int, slot: int |
 | `sim_talk_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | npc_name: String |
 | `sim_skill_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | spell_id: String |
+| `sim_quest_claim` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | quest_id: String |
+| `sim_attribute_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | stat: String |
 | `sim_chat_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | text: String |
 | `sim_dungeon_state` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | map_id: String, state: Dictionary |
 | `sim_push` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | force: Vector3 |
 | `sim_party_state` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | state: Dictionary |
 | `sim_party_invite` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | from_name: String |
+| `sim_duel_invite` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | from_name: String, group: bool, size: int |
+| `sim_duel_state` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | state: Dictionary |
 | `sim_join_result` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | ok: bool, reason: String, uid: int, character: Dictionary, tick: int, world_seed: int |
 | `sim_bind_result` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | ok: bool, reason: String, character: Dictionary |
 | `sim_cast_result` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | cast_seq: int, cast_id: int, ok: bool, reason: String |
 | `sim_cast_started` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | uid: int, cast_id: int, spell_id: String, aim: Vector3, release_tick: int |
 | `sim_cast_released` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | cast_id: int, caster_uid: int, spell_id: String, origin: Vector3, dir: Vector3 |
 | `sim_cast_landed` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | cast_id: int, caster_uid: int, spell_id: String, hits: Array |
+| `sim_cast_impact` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | cast_id: int, caster_uid: int, spell_id: String, pos: Vector3 |
+| `sim_weather` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | state: Dictionary |
 | `sim_damage_event` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | uid: int, amount: int, hp: int, spell_id: String, attacker_uid: int, flags: int |
 | `sim_death_event` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | uid: int, killer_uid: int |
 | `sim_respawn_event` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | uid: int |
 | `sim_stats_event` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | uid: int, stats: Dictionary |
-| `sim_loot_event` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | uid: int, item_id: String, amount: int, pos: Vector3 |
+| `sim_loot_event` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | uid: int, item_id: String, amount: int, pos: Vector3, items: Array |
 | `sim_loot_despawn` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | uid: int |
 | `sim_reward_event` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | character_id: int, exp: int, galleons: int, items: Array, op_id: String |
 | `sim_chat_event` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | text: String |
@@ -51,15 +61,16 @@ its own state. `server_relay` is off, so clients cannot address each other.
 | `sim_transfer_expired` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | token: int, map_id: String, pos: Vector3 |
 | `sim_map_state` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | map_id: String, pos: Vector3, spawn_id: String |
 | `sim_snapshot` | `authority, call_remote, unreliable, HPProtocol.CH_SNAPSHOT` | tick: int, chunk: int, chunks: int, data: PackedByteArray |
-| `sim_despawn` | `authority, call_remote, reliable, HPProtocol.CH_SNAPSHOT` | uid: int |
+| `sim_despawn` | `authority, call_remote, reliable, HPProtocol.CH_SNAPSHOT` | uid: int, tick: int |
 | `sim_telegraph` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | uid: int, data: Dictionary |
 | `sim_world_event` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | kind: String, data: Dictionary |
 | `sim_mob_info` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | uid: int, info: Dictionary |
+| `sim_player_info` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | uid: int, info: Dictionary |
 | `sim_telegraph_end` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | uid: int |
 | `sim_equipment_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | request_id: int, revision: int, operation: String, slot: String, item_id: String, tier: int, uid: int |
 | `sim_equipment_result` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | answer: Dictionary |
 
-Surface entries: 47. Hash of this document is pinned in the workspace lock;
+Surface entries: 58. Hash of this document is pinned in the workspace lock;
 Canonical gameplay catalogs live in `world/addons/hpmmo_sim/data/`; client content schemas live in `contracts/schemas/`.
 
-Surface hash: `5206ba44c6d98f6a8ec2241e525fa7cd3f96874f4e0731e34d0d2be5832ab748`
+Surface hash: `2b794680a4d08bace833521be4ea8898da9604addb70e39b487ee52689b65805`

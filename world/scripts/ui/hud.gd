@@ -69,6 +69,11 @@ var settings: SettingsUI = null
 ## notices, Metin2-style chat, the Esc menu, the world map and the quest scroll.
 var unit_frame: HudUnitFrame = null
 var party_frames: HudParty = null
+## Party invitations and duel challenges (top centre), the right-click player
+## menu, and the local player's duel (countdown, plaque, arena, result).
+var invites: HudInvites = null
+var player_menu: HudPlayerMenu = null
+var duel_view: HudDuel = null
 var _invite_button: Button = null
 var buff_bar: HudBuffBar = null
 var action_bar: HudActionBar = null
@@ -125,6 +130,7 @@ func _ready() -> void:
 	_add_system_chat(tr("Welcome to Hogwarts! Spells on 1-4, Q, E · potions on F1-F4 · Shift mounts the broom."))
 	_add_system_chat(tr("Enter to chat, start a line with ! to shout to everyone. M opens the map, Esc the menu."))
 	_add_system_chat(tr("Party: /invite Name, /leave, /p text for party chat."))
+	_add_system_chat(tr("Duel: right-click a player, or /duel Name (/gduel Name for parties, /yield to give up)."))
 
 ## Interface wiring: the animation layers, the authoritative binder and the
 ## panels. Built at runtime so the scene file keeps its node paths (other
@@ -176,6 +182,9 @@ func _setup_panels() -> void:
 	move_child(unit_frame, 0)   # behind the gauges it frames
 	party_frames = HudParty.new()
 	add_child(party_frames)
+	duel_view = HudDuel.new()
+	duel_view.chat_sink = add_system_chat
+	add_child(duel_view)
 	buff_bar = HudBuffBar.new()
 	add_child(buff_bar)
 	action_bar = HudActionBar.new()
@@ -215,6 +224,11 @@ func _setup_panels() -> void:
 	modal.add_child(character_window)
 	game_menu = HudGameMenu.new()
 	modal.add_child(game_menu)
+	invites = HudInvites.new()
+	modal.add_child(invites)
+	player_menu = HudPlayerMenu.new()
+	player_menu.party_frames = party_frames
+	modal.add_child(player_menu)
 	game_menu.settings_requested.connect(func(): settings.open())
 	settings.language_apply_requested.connect(game_menu.leave_to_characters)
 	game_menu.map_requested.connect(func(): world_map.open())
@@ -370,7 +384,15 @@ func bind_player(p_player: Node3D) -> void:
 		return
 	if is_instance_valid(player) and player.has_signal("notice") and player.notice.is_connected(show_notice):
 		player.notice.disconnect(show_notice)
+	if is_instance_valid(player) and player.has_signal("player_menu_requested") and player.player_menu_requested.is_connected(_open_player_menu):
+		player.player_menu_requested.disconnect(_open_player_menu)
 	player = p_player
+	if player.has_signal("player_menu_requested") and not player.player_menu_requested.is_connected(_open_player_menu):
+		player.player_menu_requested.connect(_open_player_menu)
+	if duel_view != null:
+		duel_view.player = player
+	if player_menu != null:
+		player_menu.player = player
 	if binder != null:
 		binder.bind(player)
 	if player.has_signal("notice") and not player.notice.is_connected(show_notice):
@@ -646,6 +668,10 @@ func _update_target_frame() -> void:
 		tint = Color(0.62, 0.84, 1.0)
 		bar_colour = Color(0.24, 0.62, 0.30)
 		icon = "ui_target"
+		if is_instance_valid(player) and HPRules.are_duel_foes(player, current_target):
+			rank = tr("%s · Duel opponent") % their_house
+			tint = Color(1.0, 0.56, 0.48)
+			bar_colour = Color(0.80, 0.12, 0.10)
 	elif current_target.is_in_group("monoliths"):
 		title = I18n.t(String(current_target.call("display_name"))) if current_target.has_method("display_name") else tr("Dark Monolith")
 		rank = tr("Ancient Monolith")
@@ -1276,6 +1302,10 @@ func _on_invite_pressed() -> void:
 	NetworkManager.send_chat("/invite %s" % who)
 	_add_system_chat(tr("Party invitation sent to %s.") % who)
 	_invite_button.visible = false
+
+func _open_player_menu(other: Node3D) -> void:
+	if player_menu != null:
+		player_menu.open(other)
 
 func _in_my_party(target: Node) -> bool:
 	if party_frames == null or not is_instance_valid(target):

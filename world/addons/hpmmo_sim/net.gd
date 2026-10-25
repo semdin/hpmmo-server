@@ -838,13 +838,15 @@ func route_chat(record: Dictionary, text: String) -> void:
 			_tell(record, String(ga.get("reply", "")))
 			return
 		var answer: Dictionary = SimAuthority.party_command(record, clean)
+		if not bool(answer.get("handled", false)):
+			answer = SimAuthority.duel_command(record, clean)
 		if bool(answer.get("handled", false)):
 			if answer.has("reply"):
 				_tell(record, String(answer["reply"]))
 			if answer.has("party_text") and String(answer["party_text"]).strip_edges() != "":
 				_route_party_line(record, String(answer["party_text"]).strip_edges())
 			return
-		_tell(record, "Unknown command. Party: /invite Name, /accept, /decline, /leave, /kick Name, /promote Name, /p text")
+		_tell(record, "Unknown command. Party: /invite Name, /accept, /decline, /leave, /kick Name, /promote Name, /p text. Duel: /duel Name, /gduel Name, /daccept, /ddecline, /yield")
 		return
 	if clean.begins_with(HPProtocol.CHAT_SHOUT_PREFIX):
 		channel = "shout"
@@ -914,6 +916,18 @@ func _send_party_invite(uid: int, from_name: String) -> void:
 		return
 	sim_party_invite.rpc_id(peer, from_name)
 
+func _send_duel_invite(uid: int, from_name: String, group: bool, size: int) -> void:
+	var peer := int(SimAuthority.record_by_uid(uid).get("peer_id", 0))
+	if peer == 0 or peer == local_peer_id or not _peer_live(peer):
+		return
+	sim_duel_invite.rpc_id(peer, from_name, group, size)
+
+func _send_duel_state(uid: int, state: Dictionary) -> void:
+	var peer := int(SimAuthority.record_by_uid(uid).get("peer_id", 0))
+	if peer == 0 or peer == local_peer_id or not _peer_live(peer):
+		return   # the authority's own player hears the signal directly
+	sim_duel_state.rpc_id(peer, state)
+
 ## A peer that can still take packets. The maintenance kick disconnects every
 ## peer before it removes their bodies, and each removal tells the rest of the
 ## party: those sends hit closing connections ("Unable to send packet on
@@ -950,6 +964,30 @@ func sim_party_state(state: Dictionary) -> void:
 @rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
 func sim_party_invite(from_name: String) -> void:
 	SimAuthority.emit_signal("party_invited", SimAuthority.local_uid, from_name)
+
+## v27: a duel challenge from `from_name` (answered with /daccept or /ddecline).
+@rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
+func sim_duel_invite(from_name: String, group: bool, size: int) -> void:
+	SimAuthority.emit_signal("duel_invited", SimAuthority.local_uid, from_name, group, size)
+
+## v27: the receiving duelist's view of their duel. The client mirrors the
+## standing duelists' foe rows into the rules, so targeting, aim assist and the
+## drawn bolts treat the foes as hostile (and an ally's foes as theirs).
+@rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
+func sim_duel_state(state: Dictionary) -> void:
+	HPRules.duel_foes.clear()
+	if int(state.get("duel_id", 0)) != 0 and String(state.get("phase", "")) == "fight":
+		var out: Array = state.get("out", [])
+		var sides := [[], []]
+		for i in 2:
+			for entry in state.get("allies" if i == 0 else "foes", []):
+				var uid := int((entry as Dictionary).get("uid", 0))
+				if not out.has(uid):
+					sides[i].append(uid)
+		for i in 2:
+			for uid in sides[i]:
+				HPRules.set_duel_foes(int(uid), sides[1 - i])
+	SimAuthority.emit_signal("duel_state", SimAuthority.local_uid, state)
 
 static func _hears(listener: Dictionary, speaker: Dictionary) -> bool:
 	if listener.is_empty() or speaker.is_empty():
@@ -1403,6 +1441,8 @@ func bridge_authority() -> void:
 	SimAuthority.world_event.connect(broadcast_world_event)
 	SimAuthority.party_state.connect(_send_party_state)
 	SimAuthority.party_invited.connect(_send_party_invite)
+	SimAuthority.duel_invited.connect(_send_duel_invite)
+	SimAuthority.duel_state.connect(_send_duel_state)
 	SimAuthority.portkey_state.connect(_send_portkey_state)
 	SimAuthority.player_pushed.connect(_send_push)
 	SimAuthority.dungeon_state.connect(_send_dungeon_state)

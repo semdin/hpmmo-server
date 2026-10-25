@@ -23,6 +23,9 @@ signal buffs_changed
 ## A click landed on an NPC close enough to talk to (the world opens the dialogue,
 ## the same path as the interact key).
 signal talk_requested(npc: Node3D)
+## A right click landed on another player (the HUD opens the player menu:
+## party invite, duel, group duel).
+signal player_menu_requested(other: Node3D)
 
 ## --------------------------------------------------------------- the rig body
 ## Measured from hero_wizard.glb (the Rigify hero, 1.75 m crown; art/hero). Every
@@ -587,6 +590,19 @@ func _update_ga_emblem() -> void:
 		add_child(_ga_emblem)
 	_ga_emblem.visible = true
 
+## Duel marks on the name (the duel HUD sets them on the local player's foes):
+## a standing foe reads red, a beaten one grey.
+const DUEL_NONE := 0
+const DUEL_FOE := 1
+const DUEL_OUT := 2
+var duel_mark := DUEL_NONE
+
+func set_duel_mark(mark: int) -> void:
+	if mark == duel_mark:
+		return
+	duel_mark = mark
+	_update_nameplate()
+
 func _update_nameplate() -> void:
 	_update_ga_emblem()
 	if nameplate == null:
@@ -603,6 +619,10 @@ func _update_nameplate() -> void:
 	nameplate.outline_render_priority = 4
 	nameplate.outline_modulate = Color(0.04, 0.03, 0.02, 0.88)
 	nameplate.modulate = Color(1.0, 0.88, 0.58) if is_local_player else Color(0.96, 0.96, 0.94)
+	if duel_mark == DUEL_FOE:
+		nameplate.modulate = Color(1.0, 0.36, 0.30)
+	elif duel_mark == DUEL_OUT:
+		nameplate.modulate = Color(0.62, 0.58, 0.56)
 	if font != null:
 		nameplate.font = font
 	if _nameplate_sub == null:
@@ -2655,9 +2675,12 @@ func _inspect_click_target() -> bool:
 		return true
 	var query := PhysicsRayQueryParameters3D.create(from, to)
 	query.collision_mask = 2
+	query.exclude = [get_rid()]   # the camera sits behind this body
 	var result := get_world_3d().direct_space_state.intersect_ray(query)
 	if result and result.collider is Node3D and (result.collider as Node3D).is_in_group("targetable"):
 		set_target(result.collider)
+		if (result.collider as Node3D).is_in_group("players"):
+			player_menu_requested.emit(result.collider)
 		return true
 	return false
 

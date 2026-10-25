@@ -50,7 +50,7 @@ class_name HPProtocol
 ##     troll, dementor) are part of v14: a v13 client cannot render them.
 ##     `sim_world_event(kind, data)` announces world bosses realm-wide.
 ##     Parties: `/commands` ride the chat intent; `sim_party_state(state)` and
-##     `sim_party_invite(from_name)` answer the members.
+##     `sim_party_invite(from_name)` answer the members (duels: v27).
 ##     Instanced maps travel as `<base>#<slot>` map ids; `sim_dungeon_state`
 ##     carries a copy's run state (step, open gates, message).
 ## v15: the Forbidden Corridor - mob variants 7-13 (pixie, armours, Devil's
@@ -107,7 +107,12 @@ class_name HPProtocol
 ## v26: GA (game admin) - `ga` in player info and the owner's stats (the
 ##     emblem over the name), `/ga` chat commands, and the world's weather
 ##     (`sim_weather` {rain}) sent on change and on joining.
-const PROTOCOL_VERSION := 26
+## v27: duels - `/duel`, `/gduel`, `/daccept`, `/ddecline`, `/yield` ride the
+##     chat intent; `sim_duel_invite(from_name, group, size)` challenges and
+##     `sim_duel_state(state)` gives each duelist the sides, countdown, arena and
+##     result. Player-versus-player damage exists only between duel foes, so a
+##     v26 client would never target (or predict hits on) its foe.
+const PROTOCOL_VERSION := 27
 
 ## Death choice (v18 `sim_respawn_request`).
 const RESPAWN_TOWN := 0

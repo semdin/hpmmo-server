@@ -1,19 +1,16 @@
 extends Control
 class_name HudParty
 
-## Party frames under the player's own frame, and the invitation prompt.
+## Party frames under the player's own frame.
 ##
 ## Everything shown comes from the authority: `SimAuthority.party_state`
-## (members, leader, live health and mana once a second) and `party_invited`. Answers
-## travel as chat commands (`/accept`, `/decline`), so the prompt is a thin
-## shortcut over what can also be typed.
+## (members, leader, live health and mana once a second). The invitation card
+## is HudInvites (top centre, shared with duel challenges).
 
 const ROW_W := 190.0
 const ROW_H := 46.0
 
 var _rows: VBoxContainer
-var _prompt: PanelContainer
-var _prompt_text: Label
 var _state: Dictionary = {"party_id": 0}
 
 func _init() -> void:
@@ -27,9 +24,7 @@ func _ready() -> void:
 	_rows.add_theme_constant_override("separation", 4)
 	_rows.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_rows)
-	_build_prompt()
 	SimAuthority.party_state.connect(_on_party_state)
-	SimAuthority.party_invited.connect(_on_party_invited)
 
 func _is_local(uid: int) -> bool:
 	return uid == SimAuthority.local_uid or SimAuthority.local_uid == 0
@@ -88,37 +83,9 @@ func _member_row(m: Dictionary, leader: bool, away: bool) -> Control:
 		panel.modulate = Color(1, 1, 1, 0.45)
 	return panel
 
-func _build_prompt() -> void:
-	_prompt = PanelContainer.new()
-	_prompt.name = "PartyInvite"
-	_prompt.add_theme_stylebox_override("panel", HudKit.window())
-	_prompt.visible = false
-	_prompt.position = Vector2(0.0, -6.0)
-	add_child(_prompt)
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 6)
-	_prompt.add_child(box)
-	_prompt_text = HudKit.label("", 14, HudKit.PARCHMENT, HudKit.body(), 2)
-	box.add_child(_prompt_text)
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
-	box.add_child(row)
-	var yes := HudKit.button(tr("Accept"), 14)
-	yes.pressed.connect(func(): answer(true))
-	row.add_child(yes)
-	var no := HudKit.button(tr("Decline"), 14)
-	no.pressed.connect(func(): answer(false))
-	row.add_child(no)
+## True while the local player is in a party.
+func in_party() -> bool:
+	return int(_state.get("party_id", 0)) != 0
 
-func _on_party_invited(uid: int, from_name: String) -> void:
-	if not _is_local(uid):
-		return
-	_prompt_text.text = tr("%s invites you to a party.") % from_name
-	_prompt.visible = true
-
-func answer(accept: bool) -> void:
-	_prompt.visible = false
-	NetworkManager.send_chat("/accept" if accept else "/decline")
-
-func invite_pending() -> bool:
-	return _prompt.visible
+func is_leader() -> bool:
+	return in_party() and int(_state.get("leader", 0)) == SimAuthority.local_uid

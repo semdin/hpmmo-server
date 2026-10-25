@@ -65,6 +65,12 @@ signal party_state(uid: int, state: Dictionary)
 signal portkey_state(uid: int, state: Dictionary)
 ## `uid` was invited by `from_name` (answer with /accept or /decline).
 signal party_invited(uid: int, from_name: String)
+## v27: `uid` was challenged by `from_name` (`group`: party against party, the
+## challenger's party has `size` members). Answered with /daccept or /ddecline.
+signal duel_invited(uid: int, from_name: String, group: bool, size: int)
+## v27: a duelist's view of their duel (sides, countdown, arena, who is out), or
+## {"duel_id": 0} with a `result` when it ended / `declined_by` when refused.
+signal duel_state(uid: int, state: Dictionary)
 ## v15: the authority shoved a player (knockback, a pixie's lift, Fluffy's
 ## breath on the stair). The owning client applies the same impulse to its
 ## predicted body so both sides move it the same way.
@@ -129,6 +135,8 @@ var sim_tick: int = 0
 var entities: Dictionary = {}        # uid -> record
 const PartyBook = preload("res://addons/hpmmo_sim/party.gd")
 var party = PartyBook.new()
+const DuelBook = preload("res://addons/hpmmo_sim/duel.gd")
+var duel = DuelBook.new()
 var by_node: Dictionary = {}         # instance_id -> uid
 var players_by_peer: Dictionary = {} # peer_id -> uid
 var players_by_character: Dictionary = {} # character_id -> uid
@@ -795,7 +803,10 @@ func remove_player(peer_id: int) -> void:
 		for resolver in get_tree().get_nodes_in_group(HPStaircase.GROUP_RESOLVER):
 			if resolver.has_method("resolve_departing_player"):
 				resolver.call("resolve_departing_player", record, "disconnect")
-		# A departing player leaves their party; the rest are told.
+		# A departing player forfeits a duel and leaves their party; the rest
+		# are told.
+		duel.requests.erase(uid)
+		_duel_out(uid, "left")
 		_party_changed(party.leave(uid))
 		var node = record.get("node")
 		if persistence != null:
@@ -1752,6 +1763,8 @@ func _step() -> void:
 	if sim_tick % HPProtocol.SIM_HZ == 0:
 		_tick_parties()
 		_tick_instances()
+	if not duel.duels.is_empty() or not duel.requests.is_empty():
+		_tick_duels()
 	_regen_accumulator_ms += TICK_MS
 	if _regen_accumulator_ms >= REGEN_INTERVAL_MS:
 		_regen_accumulator_ms = 0
@@ -2358,9 +2371,12 @@ func _apply_damage(target: Dictionary, raw: int, spell_id: String, attacker: Dic
 	# burn tick that lands after the victim reached a safe volume deals nothing.
 	# It applies to ATTACKS: damage with no attacker (falling, kill-planes,
 	# scripted effects) is not an attack from a position and is not gated by it.
+	# A duel blow (v27): player against player is only ever a duel (the faction
+	# gate below refuses anything else), and agreed duels ignore safe volumes.
+	var duel_blow := int(attacker.get("kind", -1)) == HPProtocol.Kind.PLAYER and int(target.get("kind", -1)) == HPProtocol.Kind.PLAYER
 	if not attacker.is_empty():
 		var protected_target := HPRules.is_protected_node(target_node)
-		if protected_target and not target_node.is_in_group("dummies"):
+		if protected_target and not target_node.is_in_group("dummies") and not duel_blow:
 			return 0
 	# Faction gate (players cannot damage players, NPCs are immune, ...). The
 	# protected-attacker rule is NOT applied here: attack paths ask
@@ -2426,6 +2442,11 @@ func _apply_damage(target: Dictionary, raw: int, spell_id: String, attacker: Dic
 			if chance > 0.0 and rng.randf() * 100.0 < chance:
 				amount = int(round(amount * HPRules.crit_multiplier()))
 				hit_flags |= HPProtocol.HIT_CRIT
+		# A duel blow: softened, then the victim's armour against the attacker's
+		# level, as a creature's hit would be.
+		if duel_blow:
+			amount = int(round(amount * DuelBook.DAMAGE_MULTIPLIER \
+				* (1.0 - HPRules.armor_reduction(float(target.get("armor", 0)), _player_level(attacker)))))
 		# A player hit by a creature: armour (against the attacker's level), the
 		# matching melee / projectile / spell resistance, then the legacy
 		# percentage efsuns (resist creatures, magic armour).
@@ -2450,6 +2471,11 @@ func _apply_damage(target: Dictionary, raw: int, spell_id: String, attacker: Dic
 			to_hp = amount - drained
 			if "current_mana" in target_node:
 				target_node.set("current_mana", int(target["mana"]))
+	# A duel never kills: the blow that would leaves the loser on 1 HP, out of
+	# the fight.
+	var duel_lethal := duel_blow and to_hp > 0 and to_hp >= int(target.get("hp", 0))
+	if duel_lethal:
+		to_hp = maxi(0, int(target.get("hp", 0)) - 1)
 	target["hp"] = maxi(0, int(target.get("hp", 0)) - to_hp)
 	target["last_damage"] = amount
 	touch(target)
@@ -2478,6 +2504,8 @@ func _apply_damage(target: Dictionary, raw: int, spell_id: String, attacker: Dic
 		_push_vitals(target)
 	if int(target["hp"]) <= 0:
 		_kill(target, attacker)
+	elif duel_lethal:
+		_duel_out(int(target["uid"]), "defeat", int(attacker.get("uid", 0)))
 	if amount > 0 and player_hits_mob:
 		_attacker_drain(attacker, amount)
 	elif amount > 0 and mob_hits_player and float(target.get("reflect", 0.0)) > 0.0 and not bool(attacker.get("dead", false)):
@@ -2843,6 +2871,8 @@ func _kill(target: Dictionary, killer: Dictionary) -> void:
 	target["dead"] = true
 	target["hp"] = 0
 	touch(target)
+	if duel.in_duel(int(target["uid"])):
+		_duel_out(int(target["uid"]), "died")
 	var node = target.get("node")
 	var killer_node = killer.get("node") if not killer.is_empty() else null
 	emit_signal("entity_died", int(target["uid"]), int(killer.get("uid", 0)))
@@ -4518,6 +4548,226 @@ static func _party_reason(reason: String) -> String:
 		"not_member":
 			return "That player is not in your party."
 	return "That did not work."
+
+# ------------------------------------------------------------------- duels
+
+## The duel commands (v27), routed like the party ones. Returns {"handled",
+## "reply"}; the reply is a system line for the sender alone.
+func duel_command(record: Dictionary, line: String) -> Dictionary:
+	var parts := line.substr(1).strip_edges().split(" ", false, 1)
+	if parts.is_empty():
+		return {"handled": false}
+	var cmd := String(parts[0]).to_lower()
+	var arg := String(parts[1]).strip_edges() if parts.size() > 1 else ""
+	var uid := int(record.get("uid", 0))
+	match cmd:
+		"duel":
+			return {"handled": true, "reply": _challenge(record, arg, false)}
+		"gduel", "groupduel":
+			return {"handled": true, "reply": _challenge(record, arg, true)}
+		"daccept", "duelaccept":
+			var refusal := _accept_duel(record)
+			return {"handled": true, "reply": refusal} if refusal != "" else {"handled": true}
+		"ddecline", "dueldecline":
+			var from: int = duel.decline(uid)
+			if from != 0:
+				emit_signal("duel_state", from, {"duel_id": 0, "declined_by": String(record.get("name", ""))})
+			return {"handled": true, "reply": "Duel declined."}
+		"yield", "surrender":
+			if not duel.in_duel(uid):
+				return {"handled": true, "reply": "You are not in a duel."}
+			_duel_out(uid, "yield")
+			return {"handled": true}
+	return {"handled": false}
+
+func _record_pos(record: Dictionary) -> Vector3:
+	var node = record.get("node")
+	return (node as Node3D).global_position if node is Node3D and is_instance_valid(node) else Vector3.INF
+
+## `record` challenges the player called `name` (group: party against party).
+## Returns the sender's reply line.
+func _challenge(record: Dictionary, name: String, group: bool) -> String:
+	if name == "":
+		return "Usage: /gduel Name" if group else "Usage: /duel Name"
+	var uid := int(record.get("uid", 0))
+	var target := player_by_name(name)
+	if target.is_empty():
+		return "No player called '%s' is online." % name
+	var target_uid := int(target["uid"])
+	var target_name := String(target.get("name", ""))
+	if target_uid == uid:
+		return "You cannot duel yourself."
+	if duel.in_duel(uid):
+		return "You are already in a duel."
+	if duel.in_duel(target_uid):
+		return "%s is already in a duel." % target_name
+	if bool(record.get("dead", false)) or bool(target.get("dead", false)):
+		return "Both duelists must be alive."
+	var to := target_uid
+	var size := 1
+	if group:
+		var mine: Dictionary = party.party_of(uid)
+		if mine.is_empty():
+			return "You need a party for a group duel."
+		if int(mine["leader"]) != uid:
+			return "Only the party leader can call a group duel."
+		var theirs: Dictionary = party.party_of(target_uid)
+		if theirs.is_empty():
+			return "%s is not in a party." % target_name
+		if int(theirs["id"]) == int(mine["id"]):
+			return "You cannot duel your own party."
+		to = int(theirs["leader"])
+		size = (mine["members"] as Array).size()
+		target = entities.get(to, {})
+		target_name = String(target.get("name", target_name))
+		if target.is_empty() or duel.in_duel(to):
+			return "%s is already in a duel." % target_name
+	if String(target.get("map_id", "")) != String(record.get("map_id", "")) \
+			or _record_pos(target).distance_to(_record_pos(record)) > DuelBook.CHALLENGE_RANGE:
+		return "%s is too far away to duel." % target_name
+	var refusal: String = duel.request(uid, to, group, sim_tick)
+	if refusal != "":
+		return "That did not work."
+	emit_signal("duel_invited", to, String(record.get("name", "")), group, size)
+	if group:
+		return "You challenged %s's party to a group duel." % target_name
+	return "You challenged %s to a duel." % target_name
+
+## `record` accepts its pending challenge: the duel opens with a countdown.
+## Returns "" or the refusal line.
+func _accept_duel(record: Dictionary) -> String:
+	var uid := int(record.get("uid", 0))
+	var req: Dictionary = duel.take_request(uid, sim_tick)
+	if req.is_empty():
+		return "There is no duel challenge to accept."
+	var from := int(req["from"])
+	var challenger: Dictionary = entities.get(from, {})
+	if challenger.is_empty() or int(challenger.get("kind", 0)) != HPProtocol.Kind.PLAYER:
+		return "The challenger is no longer here."
+	if duel.in_duel(uid) or duel.in_duel(from):
+		return "One of you is already in a duel."
+	if bool(record.get("dead", false)) or bool(challenger.get("dead", false)):
+		return "Both duelists must be alive."
+	var map_id := String(record.get("map_id", ""))
+	var a := _record_pos(challenger)
+	var b := _record_pos(record)
+	if String(challenger.get("map_id", "")) != map_id or a.distance_to(b) > DuelBook.CHALLENGE_RANGE + 10.0:
+		return "You are too far apart to duel."
+	var center := (a + b) * 0.5
+	var group := bool(req.get("group", false))
+	var side_a: Array = [from]
+	var side_b: Array = [uid]
+	if group:
+		var pa: Dictionary = party.party_of(from)
+		var pb: Dictionary = party.party_of(uid)
+		if pa.is_empty() or pb.is_empty() or int(pa["id"]) == int(pb["id"]) \
+				or int(pa["leader"]) != from or int(pb["leader"]) != uid:
+			return "The parties changed - challenge again."
+		side_a = _duel_gather(from, map_id, center)
+		side_b = _duel_gather(uid, map_id, center)
+	var started: Dictionary = duel.start(side_a, side_b, group, map_id, center, sim_tick)
+	_sync_duel(started)
+	return ""
+
+## The members of `leader`'s party who join a group duel: alive, on the map,
+## inside the gathering circle and in no other duel (the leader always).
+func _duel_gather(leader: int, map_id: String, center: Vector3) -> Array:
+	var out: Array = [leader]
+	for member_uid in party.members_of(leader):
+		var m: Dictionary = entities.get(int(member_uid), {})
+		if int(member_uid) == leader or m.is_empty() or bool(m.get("dead", false)) or duel.in_duel(int(member_uid)):
+			continue
+		if String(m.get("map_id", "")) != map_id or _record_pos(m).distance_to(center) > DuelBook.GATHER_RADIUS:
+			continue
+		out.append(int(member_uid))
+	return out
+
+func _duel_names(uids: Array) -> Array:
+	var out: Array = []
+	for u in uids:
+		out.append({"uid": int(u), "name": String((entities.get(int(u), {}) as Dictionary).get("name", "?"))})
+	return out
+
+## What one duelist sees of their duel.
+func duel_state_for(uid: int, d: Dictionary) -> Dictionary:
+	var side := DuelBook.side_of(d, uid)
+	return {"duel_id": int(d["id"]), "group": bool(d["group"]),
+		"phase": "fight" if DuelBook.fighting(d, sim_tick) else "countdown",
+		"fight_in_ms": maxi(0, (int(d["fight_tick"]) - sim_tick) * TICK_MS),
+		"ends_in_ms": maxi(0, (int(d["end_tick"]) - sim_tick) * TICK_MS),
+		"center": d["center"], "radius": DuelBook.ARENA_RADIUS,
+		"allies": _duel_names(d["sides"][side]), "foes": _duel_names(d["sides"][1 - side]),
+		"out": (d["out"] as Dictionary).keys()}
+
+## Rewrite the rules' foe rows of a duel and tell every member.
+func _sync_duel(d: Dictionary) -> void:
+	for i in 2:
+		for u in d["sides"][i]:
+			HPRules.set_duel_foes(int(u), duel.foes_of(int(u), sim_tick))
+	for i in 2:
+		for u in d["sides"][i]:
+			emit_signal("duel_state", int(u), duel_state_for(int(u), d))
+
+## `uid` is out of its duel (`reason`: defeat, fled, left, died, yield); the
+## duel ends when a side has nobody standing.
+func _duel_out(uid: int, reason: String, by_uid := 0) -> void:
+	var d: Dictionary = duel.duel_of(uid)
+	if d.is_empty() or (d["out"] as Dictionary).has(uid):
+		return
+	var winner: int = duel.defeat(uid)
+	if winner >= 0:
+		_end_duel(d, winner, reason, uid, by_uid)
+	else:
+		_sync_duel(d)
+
+## Close a duel and tell both sides how it went (`winner` -1 = a draw).
+func _end_duel(d: Dictionary, winner: int, reason: String, last_uid := 0, by_uid := 0) -> void:
+	var names := [_duel_names(d["sides"][0]), _duel_names(d["sides"][1])]
+	var last := String((entities.get(last_uid, {}) as Dictionary).get("name", ""))
+	var by := String((entities.get(by_uid, {}) as Dictionary).get("name", ""))
+	for u in duel.finish(int(d["id"])):
+		HPRules.set_duel_foes(int(u), [])
+	for i in 2:
+		var result := "draw" if winner < 0 else ("won" if i == winner else "lost")
+		for u in d["sides"][i]:
+			emit_signal("duel_state", int(u), {"duel_id": 0, "ended": int(d["id"]), "group": bool(d["group"]),
+				"result": result, "reason": reason, "last": last, "by": by,
+				"allies": names[i], "foes": names[1 - i]})
+
+## Every tick while a duel or a challenge is live: challenges run out, the
+## countdown opens the fight, and a duelist who is gone, dead, off the map or
+## outside the arena is out. A fight that runs too long is a draw.
+func _tick_duels() -> void:
+	if sim_tick % HPProtocol.SIM_HZ == 0:
+		duel.expire_requests(sim_tick)
+	for id in duel.duels.keys():
+		var d: Dictionary = duel.duels.get(id, {})
+		if d.is_empty():
+			continue
+		if not bool(d.get("live", false)) and DuelBook.fighting(d, sim_tick):
+			d["live"] = true
+			_sync_duel(d)
+		if sim_tick >= int(d["end_tick"]):
+			_end_duel(d, -1, "timeout")
+			continue
+		if sim_tick % 5 != 0:
+			continue
+		var center: Vector3 = d["center"]
+		for u in (d["sides"][0] as Array) + (d["sides"][1] as Array):
+			if not duel.duels.has(id):
+				break
+			if (d["out"] as Dictionary).has(int(u)):
+				continue
+			var r: Dictionary = entities.get(int(u), {})
+			if r.is_empty():
+				_duel_out(int(u), "left")
+			elif bool(r.get("dead", false)):
+				_duel_out(int(u), "died")
+			else:
+				var at := _record_pos(r)
+				if String(r.get("map_id", "")) != String(d["map_id"]) \
+						or Vector2(at.x - center.x, at.z - center.z).length() > DuelBook.ARENA_RADIUS:
+					_duel_out(int(u), "fled")
 
 ## What a client needs to label a mob (v14 `sim_mob_info`). `rev` changes when
 ## the mob's identity does (a respawn can re-roll elite).

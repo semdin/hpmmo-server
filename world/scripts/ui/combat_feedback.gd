@@ -575,6 +575,10 @@ func safe_area_text() -> String:
 func _update_status() -> void:
 	_status_label.text = _status_fallback_text()
 	_safe_label.text = tr("Safe area · Combat disabled") if safe_area_text() != "" else ""
+	# A duel's fight goes on inside safe ground (the foes agreed to it).
+	if _safe_label.text != "" and player != null and is_instance_valid(player) \
+			and HPRules.duel_foes.has(int(player.get_meta("sim_uid", -1))):
+		_safe_label.text = tr("Safe area · Duel in progress")
 	_safe_icon.visible = _safe_label.text != ""
 
 ## ------------------------------------------------------------------ process

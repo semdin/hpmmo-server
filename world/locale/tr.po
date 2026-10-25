@@ -25,15 +25,35 @@ msgstr "'%s' adında çevrimiçi bir oyuncu yok."
 
 #: scripts/autoload/i18n.gd
 msgid "You invited %s to your party."
-msgstr "%s adlı oyuncuyu partine davet ettin."
+msgstr "%s adlı oyuncuyu grubuna davet ettin."
 
 #: scripts/autoload/i18n.gd
 msgid "%s was removed from the party."
-msgstr "%s partiden çıkarıldı."
+msgstr "%s gruptan çıkarıldı."
 
 #: scripts/autoload/i18n.gd
 msgid "%s now leads the party."
-msgstr "Partinin yeni lideri: %s."
+msgstr "Grubun yeni lideri: %s."
+
+#: scripts/autoload/i18n.gd
+msgid "%s is already in a duel."
+msgstr "%s zaten bir düelloda."
+
+#: scripts/autoload/i18n.gd
+msgid "%s is not in a party."
+msgstr "%s bir grupta değil."
+
+#: scripts/autoload/i18n.gd
+msgid "%s is too far away to duel."
+msgstr "%s düello için çok uzakta."
+
+#: scripts/autoload/i18n.gd
+msgid "You challenged %s's party to a group duel."
+msgstr "%s liderliğindeki gruba grup düellosu teklif ettin."
+
+#: scripts/autoload/i18n.gd
+msgid "You challenged %s to a duel."
+msgstr "%s adlı oyuncuya düello teklif ettin."
 
 #: scripts/autoload/i18n.gd
 msgid "New title earned: %s!"
@@ -101,11 +121,11 @@ msgstr "GA: /ga yağmur aç|kapat, /ga ekle İsim, /ga sil İsim, /ga liste"
 
 #: scripts/autoload/i18n.gd
 msgid "There is no party invitation to accept."
-msgstr "Kabul edilecek bir parti daveti yok."
+msgstr "Kabul edilecek bir grup daveti yok."
 
 #: scripts/autoload/i18n.gd
 msgid "You joined the party."
-msgstr "Partiye katıldın."
+msgstr "Gruba katıldın."
 
 #: scripts/autoload/i18n.gd
 msgid "Invitation declined."
@@ -113,11 +133,11 @@ msgstr "Davet reddedildi."
 
 #: scripts/autoload/i18n.gd
 msgid "You left the party."
-msgstr "Partiden ayrıldın."
+msgstr "Gruptan ayrıldın."
 
 #: scripts/autoload/i18n.gd
 msgid "You are not in a party."
-msgstr "Bir partide değilsin."
+msgstr "Bir grupta değilsin."
 
 #: scripts/autoload/i18n.gd
 msgid "You cannot invite yourself."
@@ -125,27 +145,87 @@ msgstr "Kendini davet edemezsin."
 
 #: scripts/autoload/i18n.gd
 msgid "That player is already in a party."
-msgstr "O oyuncu zaten bir partide."
+msgstr "O oyuncu zaten bir grupta."
 
 #: scripts/autoload/i18n.gd
 msgid "Only the party leader can do that."
-msgstr "Bunu yalnızca parti lideri yapabilir."
+msgstr "Bunu yalnızca grup lideri yapabilir."
 
 #: scripts/autoload/i18n.gd
 msgid "The party is full (5)."
-msgstr "Parti dolu (5)."
+msgstr "Grup dolu (5)."
 
 #: scripts/autoload/i18n.gd
 msgid "That player is not in your party."
-msgstr "O oyuncu partinde değil."
+msgstr "O oyuncu grubunda değil."
 
 #: scripts/autoload/i18n.gd
 msgid "That did not work."
 msgstr "Bu işe yaramadı."
 
 #: scripts/autoload/i18n.gd
-msgid "Unknown command. Party: /invite Name, /accept, /decline, /leave, /kick Name, /promote Name, /p text"
-msgstr "Bilinmeyen komut. Parti: /invite İsim, /accept, /decline, /leave, /kick İsim, /promote İsim, /p metin"
+msgid "Unknown command. Party: /invite Name, /accept, /decline, /leave, /kick Name, /promote Name, /p text. Duel: /duel Name, /gduel Name, /daccept, /ddecline, /yield"
+msgstr "Bilinmeyen komut. Grup: /invite İsim, /accept, /decline, /leave, /kick İsim, /promote İsim, /p metin. Düello: /duel İsim, /gduel İsim, /daccept, /ddecline, /yield"
+
+#: scripts/autoload/i18n.gd
+msgid "Usage: /duel Name"
+msgstr "Kullanım: /duel İsim"
+
+#: scripts/autoload/i18n.gd
+msgid "Usage: /gduel Name"
+msgstr "Kullanım: /gduel İsim"
+
+#: scripts/autoload/i18n.gd
+msgid "You cannot duel yourself."
+msgstr "Kendinle düello yapamazsın."
+
+#: scripts/autoload/i18n.gd scripts/ui/hud_player_menu.gd
+msgid "You are already in a duel."
+msgstr "Zaten bir düellodasın."
+
+#: scripts/autoload/i18n.gd
+msgid "Both duelists must be alive."
+msgstr "İki düellocu da hayatta olmalı."
+
+#: scripts/autoload/i18n.gd
+msgid "You need a party for a group duel."
+msgstr "Grup düellosu için bir grubun olmalı."
+
+#: scripts/autoload/i18n.gd
+msgid "Only the party leader can call a group duel."
+msgstr "Grup düellosunu yalnızca grup lideri başlatabilir."
+
+#: scripts/autoload/i18n.gd
+msgid "You cannot duel your own party."
+msgstr "Kendi grubunla düello yapamazsın."
+
+#: scripts/autoload/i18n.gd
+msgid "There is no duel challenge to accept."
+msgstr "Kabul edilecek bir düello teklifi yok."
+
+#: scripts/autoload/i18n.gd
+msgid "The challenger is no longer here."
+msgstr "Teklifi yapan oyuncu artık burada değil."
+
+#: scripts/autoload/i18n.gd
+msgid "One of you is already in a duel."
+msgstr "İkinizden biri zaten bir düelloda."
+
+#: scripts/autoload/i18n.gd
+msgid "You are too far apart to duel."
+msgstr "Düello için birbirinizden çok uzaktasınız."
+
+#: scripts/autoload/i18n.gd
+msgid "The parties changed - challenge again."
+msgstr "Gruplar değişti - teklifi yeniden gönder."
+
+#: scripts/autoload/i18n.gd
+msgid "Duel declined."
+msgstr "Düello reddedildi."
+
+#: scripts/autoload/i18n.gd
+msgid "You are not in a duel."
+msgstr "Bir düelloda değilsin."
 
 #: scripts/entities/loot/loot_drop.gd
 msgid "Too far"
@@ -219,7 +299,7 @@ msgstr "Karanlık Metin Taşı"
 msgid "Forbidden Corridor Explorer"
 msgstr "Yasak Koridor Kâşifi"
 
-#: scripts/entities/player.gd
+#: scripts/entities/player.gd scripts/ui/hud_player_menu.gd
 msgid "Lv. %d  ·  %s"
 msgstr "Sv. %d  ·  %s"
 
@@ -693,7 +773,11 @@ msgstr "Sohbet için Enter; herkese seslenmek için satırı ! ile başlat. M ha
 
 #: scripts/ui/hud.gd
 msgid "Party: /invite Name, /leave, /p text for party chat."
-msgstr "Parti: /invite İsim, /leave, parti sohbeti için /p metin."
+msgstr "Grup: /invite İsim, /leave, grup sohbeti için /p metin."
+
+#: scripts/ui/hud.gd
+msgid "Duel: right-click a player, or /duel Name (/gduel Name for parties, /yield to give up)."
+msgstr "Düello: bir oyuncuya sağ tıkla ya da /duel İsim yaz (gruplar için /gduel İsim, pes etmek için /yield)."
 
 #: scripts/ui/hud.gd scripts/ui/hud_quest_log.gd
 msgid "Quests"
@@ -781,7 +865,11 @@ msgstr "Sürü Lideri"
 
 #: scripts/ui/hud.gd
 msgid "%s · Party"
-msgstr "%s · Parti"
+msgstr "%s · Grup"
+
+#: scripts/ui/hud.gd
+msgid "%s · Duel opponent"
+msgstr "%s · Düello rakibi"
 
 #: scripts/ui/hud.gd
 msgid "Ancient Monolith"
@@ -795,7 +883,7 @@ msgstr "Eğitim Kuklası"
 msgid "Practice target"
 msgstr "Antrenman hedefi"
 
-#: scripts/ui/hud.gd scripts/ui/hud_quest_log.gd
+#: scripts/ui/hud.gd scripts/ui/hud_player_menu.gd scripts/ui/hud_quest_log.gd
 msgid "Lv. %d"
 msgstr "Sv. %d"
 
@@ -871,13 +959,13 @@ msgstr "[O] Ollivander - asanı yükselt"
 msgid "[Shift] Mount or dismount the broom"
 msgstr "[Shift] Süpürgeye bin ya da in"
 
-#: scripts/ui/hud.gd
+#: scripts/ui/hud.gd scripts/ui/hud_player_menu.gd
 msgid "Invite to Party"
-msgstr "Partiye Davet Et"
+msgstr "Gruba Davet Et"
 
 #: scripts/ui/hud.gd
 msgid "Party invitation sent to %s."
-msgstr "%s adlı oyuncuya parti daveti gönderildi."
+msgstr "%s adlı oyuncuya grup daveti gönderildi."
 
 #: scripts/ui/hud_action_bar.gd
 msgid "drop"
@@ -1341,7 +1429,115 @@ msgstr "%s bağırıyor: %s"
 
 #: scripts/ui/hud_chat.gd
 msgid "[Party]"
-msgstr "[Parti]"
+msgstr "[Grup]"
+
+#: scripts/ui/hud_duel.gd
+msgid "%s declined your duel."
+msgstr "%s düello teklifini reddetti."
+
+#: scripts/ui/hud_duel.gd
+msgid "Duel accepted - the fight begins in %d seconds. Leaving the circle loses the duel."
+msgstr "Düello kabul edildi - dövüş %d saniye içinde başlıyor. Çemberin dışına çıkan kaybeder."
+
+#: scripts/ui/hud_duel.gd
+msgid "You are out of the duel - your side fights on."
+msgstr "Düellodan düştün - takımın savaşmaya devam ediyor."
+
+#: scripts/ui/hud_duel.gd
+msgid "Victory"
+msgstr "Zafer"
+
+#: scripts/ui/hud_duel.gd
+msgid "Defeat"
+msgstr "Yenilgi"
+
+#: scripts/ui/hud_duel.gd
+msgid "Draw"
+msgstr "Berabere"
+
+#: scripts/ui/hud_duel.gd
+msgid "Duel won"
+msgstr "Düello kazanıldı"
+
+#: scripts/ui/hud_duel.gd
+msgid "Duel lost"
+msgstr "Düello kaybedildi"
+
+#: scripts/ui/hud_duel.gd
+msgid "Duel drawn"
+msgstr "Düello berabere"
+
+#: scripts/ui/hud_duel.gd
+msgid "Your party won the group duel."
+msgstr "Grubun grup düellosunu kazandı."
+
+#: scripts/ui/hud_duel.gd
+msgid "Your party lost the group duel."
+msgstr "Grubun grup düellosunu kaybetti."
+
+#: scripts/ui/hud_duel.gd
+msgid "You defeated %s."
+msgstr "%s adlı rakibi yendin."
+
+#: scripts/ui/hud_duel.gd
+msgid "%s defeated you."
+msgstr "%s seni yendi."
+
+#: scripts/ui/hud_duel.gd
+msgid "You left the duel circle."
+msgstr "Düello çemberinin dışına çıktın."
+
+#: scripts/ui/hud_duel.gd
+msgid "%s left the duel circle."
+msgstr "%s düello çemberinin dışına çıktı."
+
+#: scripts/ui/hud_duel.gd
+msgid "%s left the game."
+msgstr "%s oyundan ayrıldı."
+
+#: scripts/ui/hud_duel.gd
+msgid "You yielded."
+msgstr "Pes ettin."
+
+#: scripts/ui/hud_duel.gd
+msgid "%s yielded."
+msgstr "%s pes etti."
+
+#: scripts/ui/hud_duel.gd
+msgid "You died."
+msgstr "Öldün."
+
+#: scripts/ui/hud_duel.gd
+msgid "%s died."
+msgstr "%s öldü."
+
+#: scripts/ui/hud_duel.gd
+msgid "Time ran out."
+msgstr "Süre doldu."
+
+#: scripts/ui/hud_duel.gd
+msgid "The duel is over."
+msgstr "Düello sona erdi."
+
+#: scripts/ui/hud_duel.gd
+msgid "Fight!"
+msgstr "Savaş!"
+
+#: scripts/ui/hud_duel.gd
+msgid "Stay inside the duel circle - leaving it loses the duel!"
+msgstr "Düello çemberinin içinde kal - dışarı çıkarsan kaybedersin!"
+
+#: scripts/ui/hud_duel.gd scripts/ui/hud_player_menu.gd
+msgid "Group Duel"
+msgstr "Grup Düellosu"
+
+#: scripts/ui/hud_duel.gd
+msgid "Duel"
+msgstr "Düello"
+
+#: scripts/ui/hud_duel.gd
+msgid "vs"
+msgstr "vs"
 
 #: scripts/ui/hud_floo.gd
 msgid "Floo Network"
@@ -1361,7 +1557,7 @@ msgstr "Eski Çizme (Portkey)"
 
 #: scripts/ui/hud_floo.gd
 msgid "%s Galleons - carries your party anywhere"
-msgstr "%s Galleon - partini her yere taşır"
+msgstr "%s Galleon - grubunu her yere taşır"
 
 #: scripts/ui/hud_floo.gd
 msgid "Buy"
@@ -1467,21 +1663,61 @@ msgstr "Kesildi: yenildin."
 msgid "Saving…"
 msgstr "Kaydediliyor…"
 
+#: scripts/ui/hud_invites.gd
+msgid "Accept"
+msgstr "Kabul Et"
+
+#: scripts/ui/hud_invites.gd
+msgid "Decline"
+msgstr "Reddet"
+
+#: scripts/ui/hud_invites.gd
+msgid "Duel Challenge"
+msgstr "Düello Teklifi"
+
+#: scripts/ui/hud_invites.gd
+msgid "Group Duel Challenge"
+msgstr "Grup Düellosu Teklifi"
+
+#: scripts/ui/hud_invites.gd
+msgid "Party Invitation"
+msgstr "Grup Daveti"
+
+#: scripts/ui/hud_invites.gd
+msgid "%s challenges you to a duel."
+msgstr "%s sana düello teklif ediyor."
+
+#: scripts/ui/hud_invites.gd
+msgid "%s challenges your party to a group duel (%d players)."
+msgstr "%s grubuna grup düellosu teklif ediyor (%d oyuncu)."
+
+#: scripts/ui/hud_invites.gd
+msgid "%s invites you to join their party."
+msgstr "%s seni grubuna davet ediyor."
+
 #: scripts/ui/hud_party.gd
 msgid "%s%s  Lv %d"
 msgstr "%s%s  Sv %d"
 
-#: scripts/ui/hud_party.gd
-msgid "Accept"
-msgstr "Kabul Et"
+#: scripts/ui/hud_player_menu.gd
+msgid "Already in your party."
+msgstr "Zaten grubunda."
 
-#: scripts/ui/hud_party.gd
-msgid "Decline"
-msgstr "Reddet"
+#: scripts/ui/hud_player_menu.gd
+msgid "Challenge to Duel"
+msgstr "Düello Teklif Et"
 
-#: scripts/ui/hud_party.gd
-msgid "%s invites you to a party."
-msgstr "%s seni partiye davet ediyor."
+#: scripts/ui/hud_player_menu.gd
+msgid "You need a party."
+msgstr "Önce bir grup kurmalısın."
+
+#: scripts/ui/hud_player_menu.gd
+msgid "Only the party leader can call it."
+msgstr "Yalnızca grup lideri başlatabilir."
+
+#: scripts/ui/hud_player_menu.gd
+msgid "They are in your party."
+msgstr "Bu oyuncu senin grubunda."
 
 #: scripts/ui/hud_portkey.gd
 msgid "Portkey"
@@ -1489,7 +1725,7 @@ msgstr "Portkey"
 
 #: scripts/ui/hud_portkey.gd
 msgid "Set the boot down and choose where it goes. For ten seconds your party may grab hold; then everyone holding on is carried there together."
-msgstr "Çizmeyi yere koy ve nereye gideceğini seç. On saniye boyunca partin ona tutunabilir; sonra tutunan herkes birlikte oraya taşınır."
+msgstr "Çizmeyi yere koy ve nereye gideceğini seç. On saniye boyunca grubun ona tutunabilir; sonra tutunan herkes birlikte oraya taşınır."
 
 #: scripts/ui/hud_portkey.gd
 msgid "Set down"
@@ -3253,7 +3489,7 @@ msgstr "O Portkey çoktan gitti."
 
 #: scripts/world/map_controller.gd
 msgid "That Portkey is not yours - only its owner's party may hold on."
-msgstr "O Portkey senin değil - yalnızca sahibinin partisi tutunabilir."
+msgstr "O Portkey senin değil - yalnızca sahibinin grubu tutunabilir."
 
 #: scripts/world/map_controller.gd
 msgid "A Portkey will not work in here."
@@ -3293,7 +3529,7 @@ msgstr "%s, %s yönüne bir Portkey koydu - ona tutun! (F)"
 
 #: scripts/world/portkey_views.gd
 msgid "A party member"
-msgstr "Bir parti üyesi"
+msgstr "Bir grup üyesi"
 
 #: scripts/world/portkey_views.gd
 msgid "The Portkey fizzled - nobody was holding on. The boot is back in your bag."
@@ -3925,7 +4161,7 @@ msgstr "Uçuç Ağı şöminesine atılan bir tutam seni ziyaret ettiğin herhan
 
 #: addons/hpmmo_sim/data/items.json
 msgid "A battered boot enchanted as a Portkey. Right-click to set it down and choose where it goes: for ten seconds your party may grab hold, then everyone holding on is carried there together."
-msgstr "Portkey olarak büyülenmiş hırpalanmış bir çizme. Yere koymak ve nereye gideceğini seçmek için sağ tıkla: on saniye boyunca partin ona tutunabilir, sonra tutunan herkes birlikte oraya taşınır."
+msgstr "Portkey olarak büyülenmiş hırpalanmış bir çizme. Yere koymak ve nereye gideceğini seçmek için sağ tıkla: on saniye boyunca grubun ona tutunabilir, sonra tutunan herkes birlikte oraya taşınır."
 
 #: addons/hpmmo_sim/data/mobs.json
 msgid "Drowned Inferius"
@@ -4937,7 +5173,7 @@ msgstr "Akromantula Anası'nı alt et"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Bring a party. The Matriarch's bite poisons and her brood answers her call."
-msgstr "Bir parti getir. Ana'nın ısırığı zehirler ve kuluçkası çağrısına karşılık verir."
+msgstr "Bir grup getir. Ana'nın ısırığı zehirler ve kuluçkası çağrısına karşılık verir."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Gate of Bones"
@@ -5225,7 +5461,7 @@ msgstr "Dağ Trolü Reisi Grak'ı alt et"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Grak only appears every so often. Gather a party and be ready."
-msgstr "Grak yalnızca arada bir ortaya çıkar. Bir parti topla ve hazır ol."
+msgstr "Grak yalnızca arada bir ortaya çıkar. Bir grup topla ve hazır ol."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Scattering the Clans"
@@ -5433,7 +5669,7 @@ msgstr "22 Ruh Emici alt et"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Clear the way to the barrow for your party."
-msgstr "Partin için höyüğe giden yolu aç."
+msgstr "Grubun için höyüğe giden yolu aç."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Final Preparations"
@@ -5767,6 +6003,9 @@ msgstr "Karanlık Metin Taşını Parçala"
 msgid "A corrupted Dark Monolith has emerged near the Black Lake. Gather other wizards, shatter its obsidian core, and collect the ancient drops."
 msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. Diğer büyücüleri topla, obsidyen çekirdeğini parçala ve kadim ganimetleri topla."
 
+#~ msgid "%s invites you to a party."
+#~ msgstr "%s seni partiye davet ediyor."
+
 #~ msgid "A Dark Monolith has risen where Grak fell. Break it with others."
 #~ msgstr "Grak'ın düştüğü yerde bir Karanlık Metin Taşı yükseldi. Diğerleriyle birlikte onu kır."
 
@@ -5880,6 +6119,9 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 
 #~ msgid "Ultimate star sorcery. Calls down a falling star that bursts into a violet ring of starlight, scorching everything in a wide blast radius."
 #~ msgstr "Nihai yıldız büyüsü. Gökten bir yıldız indirir; yıldız, mor bir yıldız ışığı halkasına dönüşerek patlar ve geniş bir alandaki her şeyi kavurur."
+
+#~ msgid "Unknown command. Party: /invite Name, /accept, /decline, /leave, /kick Name, /promote Name, /p text"
+#~ msgstr "Bilinmeyen komut. Parti: /invite İsim, /accept, /decline, /leave, /kick İsim, /promote İsim, /p metin"
 
 #~ msgid "Yeh shouldn' go into the forest alone... brave though!"
 #~ msgstr "Ormana yalnız girmemelisin... gerçi cesursun ha!"
