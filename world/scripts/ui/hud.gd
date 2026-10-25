@@ -110,7 +110,6 @@ func _ready() -> void:
 	add_child(chat)
 	chat.setup($ChatContainer, chat_history, chat_input)
 	SimAuthority.notice.connect(_on_authority_notice)
-	SimAuthority.player_notice.connect(_on_own_player_notice)
 
 	slot_1.pressed.connect(func(): _trigger_player_spell("stupefy"))
 	slot_2.pressed.connect(func(): _trigger_player_spell("incendio"))
@@ -809,7 +808,7 @@ const PICKUP_REASONS := {
 	"transfer_pending": "Wait until the map loads.",
 }
 const QUEST_REASONS := {
-	"reward_chest": "Your bag is full: the rest of the quest reward waits in a chest at your feet.",
+	"bag_full": "No room in your bag for the quest reward. Make space, then claim it again.",
 }
 # i18n-end
 var _notice_last_ms: Dictionary = {}
@@ -830,13 +829,6 @@ func _on_authority_notice(text: String, _color: Color) -> void:
 		return
 	_notice_last_ms[text] = now
 	show_notice(line, "warn")
-
-## Offline play (no network bridge): the authority's notice for this body.
-func _on_own_player_notice(uid: int, kind: String, detail: String) -> void:
-	if not SimAuthority.is_authority() or SimAuthority.player_notice.is_connected(SimNet._send_player_notice):
-		return   # a host's bridge already turns it into `notice`
-	if is_instance_valid(player) and int(SimAuthority.record_for(player).get("uid", -1)) == uid:
-		_on_authority_notice(kind + ":" + detail, Color.WHITE)
 
 ## A realm-wide event (v14 `sim_world_event`): a line in the chat log, the
 ## centre band in the boss colour and the boss horn. Returns the text shown.

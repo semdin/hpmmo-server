@@ -147,7 +147,11 @@ func tracker_text() -> String:
 ## Ask the authority for a finished quest's reward.
 func claim(quest_id: String) -> void:
 	if is_instance_valid(player_ref) and is_ready(quest_id):
-		SimNet.submit_quest_claim(player_ref, quest_id)
+		var result: Dictionary = SimNet.submit_quest_claim(player_ref, quest_id)
+		# Online the server answers with sim_notice; the authority's own player
+		# (offline) hears its refusal here, in the same shape.
+		if SimAuthority.is_authority() and not bool(result.get("ok", true)):
+			SimAuthority.emit_signal("notice", "quest:" + String(result.get("reason", "")), Color(1.0, 0.8, 0.4))
 
 ## The player opened (read) a quest: it stops blinking.
 func mark_seen(quest_id: String) -> void:

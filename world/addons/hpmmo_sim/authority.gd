@@ -21,9 +21,6 @@ signal chat(text: String)
 ## HPProtocol.CHAT_LOCAL_RADIUS on the speaker's map) or "shout" (every player).
 signal chat_line(channel: String, uid: int, sender: String, house: String, text: String)
 signal notice(text: String, color: Color)
-## A notice for one player (`kind:detail`, as `notice`): the network layer sends
-## it to that player's client; the authority's own player hears `notice`.
-signal player_notice(uid: int, kind: String, detail: String)
 signal entity_replicating(record: Dictionary)      # presentation: create a view
 signal entity_despawned(uid: int)
 signal entity_moved(uid: int, pos: Vector3, rot_y: float, flags: int)
@@ -3807,6 +3804,11 @@ func quest_claim_for_record(record: Dictionary, quest_id: String) -> Dictionary:
 	var quest := HPRules.quest_by_id(quest_id)
 	if quest.is_empty() or not ready.has(quest_id):
 		return HPProtocol.reject(HPProtocol.REJECT_QUEST_NOT_READY)
+	# Metin2 rule: no room in the bag, no reward. The quest stays ready to
+	# claim; nothing is dropped on the ground (in the air, on water, at a
+	# dungeon gate, a chest at the feet made no sense).
+	if not _quest_items_fit(record, quest.get("reward_items", [])):
+		return HPProtocol.reject(HPProtocol.REJECT_BAG_FULL)
 	ready.erase(quest_id)
 	record["quest_ready"] = ready
 	_complete_quest(record, quest)
@@ -3839,33 +3841,37 @@ func _complete_quest(player: Dictionary, quest: Dictionary) -> void:
 	if persistence != null:
 		persistence.save_player(player)
 
-## Quest item rewards ([{id, amount, tier?}]) go into the bag; whatever does not
-## fit waits in a personal chest at the player's feet. Returns what was given.
-func _grant_quest_items(player: Dictionary, rewards: Array) -> Array:
+## Whether every item reward of a quest fits the bag at once.
+func _quest_items_fit(player: Dictionary, rewards: Array) -> bool:
 	var node = player.get("node")
 	if rewards.is_empty() or node == null or not is_instance_valid(node):
-		return []
-	var given: Array = []
-	var overflow: Array = []
+		return true
+	var trial: Array = node.inventory.duplicate(true)
 	for reward in rewards:
 		var id := String(reward.get("id", ""))
 		var amount := int(reward.get("amount", 1))
 		if HPEquipment.item(id).is_empty() or amount <= 0:
 			continue
-		var trial: Array = node.inventory.duplicate(true)
 		HPEquipment.add(trial, id, int(reward.get("tier", 0)), amount)
-		if HPEquipment.capacity_ok(trial):
-			node.inventory.assign(trial)
-		else:
-			overflow.append({"id": id, "amount": amount, "tier": int(reward.get("tier", 0))})
+	return HPEquipment.capacity_ok(trial)
+
+## Quest item rewards ([{id, amount, tier?}]) go into the bag. The claim checked
+## that they fit (`_quest_items_fit`). Returns what was given.
+func _grant_quest_items(player: Dictionary, rewards: Array) -> Array:
+	var node = player.get("node")
+	if rewards.is_empty() or node == null or not is_instance_valid(node):
+		return []
+	var given: Array = []
+	for reward in rewards:
+		var id := String(reward.get("id", ""))
+		var amount := int(reward.get("amount", 1))
+		if HPEquipment.item(id).is_empty() or amount <= 0:
+			continue
+		HPEquipment.add(node.inventory, id, int(reward.get("tier", 0)), amount)
 		given.append({"id": id, "amount": amount})
-	if given.size() > overflow.size():
+	if not given.is_empty():
 		node.inventory_revision += 1
 		node.inventory_changed.emit()
-	if not overflow.is_empty():
-		_spawn_chest(overflow, (node as Node3D).global_position, String(player.get("map_id", "")), int(player.get("uid", 0)))
-		# Say where it went: a full bag otherwise looked like a lost reward.
-		emit_signal("player_notice", int(player.get("uid", 0)), "quest", "reward_chest")
 	return given
 
 ## The body is what the save reads, so the record's chain position is written

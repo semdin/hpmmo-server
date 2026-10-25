@@ -836,8 +836,8 @@ msgid "Wait until the map loads."
 msgstr "Harita yüklenene kadar bekle."
 
 #: scripts/ui/hud.gd
-msgid "Your bag is full: the rest of the quest reward waits in a chest at your feet."
-msgstr "Çantan dolu: görev ödülünün kalanı ayağının dibindeki sandıkta seni bekliyor."
+msgid "No room in your bag for the quest reward. Make space, then claim it again."
+msgstr "Görev ödülü için çantanda yer yok. Yer açıp ödülü yeniden al."
 
 #: scripts/ui/hud.gd
 msgid "%s stirs at %s - %d seconds!"
@@ -5886,3 +5886,6 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 
 #~ msgid "You cannot act."
 #~ msgstr "Hareket edemezsin."
+
+#~ msgid "Your bag is full: the rest of the quest reward waits in a chest at your feet."
+#~ msgstr "Çantan dolu: görev ödülünün kalanı ayağının dibindeki sandıkta seni bekliyor."

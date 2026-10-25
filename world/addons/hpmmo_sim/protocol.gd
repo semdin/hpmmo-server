@@ -199,6 +199,8 @@ const REJECT_NO_ATTRIBUTE_POINTS := "no_attribute_points"
 const REJECT_ATTRIBUTE_MAX := "attribute_max"
 const REJECT_ATTRIBUTE_UNKNOWN := "attribute_unknown"
 const REJECT_QUEST_NOT_READY := "quest_not_ready"
+## A claim whose item rewards do not fit the bag (the quest stays ready).
+const REJECT_BAG_FULL := "bag_full"
 ## Map transfer.
 const REJECT_TRANSFER_PENDING := "transfer_pending"
 const REJECT_NO_PORTAL := "no_portal"

@@ -926,17 +926,6 @@ func _peer_live(peer_id: int) -> bool:
 		return packet_peer != null and packet_peer.get_state() == ENetPacketPeer.STATE_CONNECTED
 	return true
 
-## A notice for one player (SimAuthority.player_notice): their client, or the
-## hosting player's own HUD.
-func _send_player_notice(uid: int, kind: String, detail: String) -> void:
-	var peer := int(SimAuthority.record_by_uid(uid).get("peer_id", 0))
-	if peer == local_peer_id:
-		SimAuthority.emit_signal("notice", kind + ":" + detail, Color(1.0, 0.8, 0.4))
-		return
-	if peer == 0 or not _peer_live(peer):
-		return
-	sim_notice.rpc_id(peer, kind, detail)
-
 ## v15: the authority shoved this player; the owner applies the same impulse
 ## to its predicted body (the authority's copy already took it).
 func _send_push(uid: int, force: Vector3) -> void:
@@ -1416,7 +1405,6 @@ func bridge_authority() -> void:
 	SimAuthority.party_invited.connect(_send_party_invite)
 	SimAuthority.portkey_state.connect(_send_portkey_state)
 	SimAuthority.player_pushed.connect(_send_push)
-	SimAuthority.player_notice.connect(_send_player_notice)
 	SimAuthority.dungeon_state.connect(_send_dungeon_state)
 	SimAuthority.maintenance_event.connect(broadcast_maintenance)
 	SimAuthority.transfer_granted.connect(broadcast_transfer_granted)
