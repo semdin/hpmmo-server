@@ -107,6 +107,10 @@ const TITLE_NAMES := {"fc_explorer": "Forbidden Corridor Explorer"}  # i18n
 ## of its own that rides on top of the input-driven one and fades out.
 var _shove := Vector3.ZERO
 const SHOVE_DECAY := 26.0
+## The owner's own guess at how long a shove keeps it from acting (the
+## authority sends the same window as `knock_until_tick` with the vitals).
+var _knock_left := 0.0
+var _status_poll := 0.0
 var skill_points: int = 0
 ## The persisted `quests` object, kept whole so keys this build does not know
 ## survive a load/save round trip.
@@ -677,6 +681,14 @@ func _process(delta: float) -> void:
 	_cast_lock = maxf(0.0, _cast_lock - delta)
 	_committed_until = maxf(0.0, _committed_until - delta)
 	_hit_recovery = maxf(0.0, _hit_recovery - delta)
+	_knock_left = maxf(0.0, _knock_left - delta)
+	# Crowd control and damage over time drawn on the body (any player body
+	# a screen shows: this one, another player's view).
+	if not NetworkManager.is_dedicated_server:
+		_status_poll -= delta
+		if _status_poll <= 0.0:
+			_status_poll = 0.1
+			StatusFX.update(self, cc_status())
 	_mount_lock = maxf(0.0, _mount_lock - delta)
 	_mount_notice_cd = maxf(0.0, _mount_notice_cd - delta)
 	_queue_time = maxf(0.0, _queue_time - delta)
@@ -872,7 +884,7 @@ func _physics_process(delta: float) -> void:
 		if global_position.y > _flight_ceiling():
 			vertical = minf(vertical, -0.5)
 		velocity.y = move_toward(velocity.y, vertical * 7.0, delta * 18.0)
-	elif not input_blocked() and _jump_ready(delta) and not is_swimming:
+	elif not input_blocked() and not cc_locked() and _jump_ready(delta) and not is_swimming:
 		velocity.y = 8.0
 
 	# Input direction relative to camera yaw
@@ -1028,7 +1040,11 @@ func _update_animation_state() -> void:
 		return
 	if pose_override != "":
 		return   # the reach-down / held one-shot owns the body
-	if _hit_recovery > 0.0:
+	var cc := cc_status()
+	if cc & HPProtocol.STATUS_KNOCKED:
+		hero_anim.set_locomotion("thrown", "Fall_Loop")
+		return
+	if _hit_recovery > 0.0 or cc & (HPProtocol.STATUS_STUN | HPProtocol.STATUS_FREEZE):
 		hero_anim.set_locomotion("stun", "Stun_Loop")
 		return
 	if is_mounted:
@@ -1134,6 +1150,10 @@ func _on_animation_event(event_name: String) -> void:
 func _intent_move() -> Vector2:
 	if _committed_until > 0.0:
 		# A committed attack roots the caster: intent is zero, not merely slow.
+		return Vector2.ZERO
+	if cc_locked():
+		# Stunned or thrown: the server body and the owner's prediction both
+		# drop the steering (a shove still carries the body).
 		return Vector2.ZERO
 	if sim_server_controlled:
 		return HPRules.sanitize_input_vector(sim_input.get("move", Vector2.ZERO))
@@ -1622,6 +1642,43 @@ func apply_knockback(force: Vector3) -> void:
 	_shove += Vector3(force.x, 0.0, force.z)
 	if force.y > 0.0:
 		velocity.y = maxf(velocity.y, force.y)
+	# Thrown: no casts and no steering until it is down (the authority's
+	# push_player holds the same window).
+	_knock_left = maxf(_knock_left, float(HPRules.shove_lock_ms(force)) / 1000.0)
+	_basic_held = false
+	_queued_spell = ""
+
+## The HPProtocol.STATUS_* bits on this body. The owner's own stun and throw
+## come from the authority's ticks (they arrive with the vitals, before the
+## snapshot byte) and from its own prediction of a shove.
+func cc_status() -> int:
+	var record := SimAuthority.record_for(self)
+	if record.is_empty():
+		return HPProtocol.STATUS_KNOCKED if _knock_left > 0.0 else 0
+	var bits := SimAuthority.status_bits(record)
+	var tick := int(SimAuthority.sim_tick)
+	if int(record.get("stun_until_tick", 0)) > tick:
+		bits |= HPProtocol.STATUS_STUN
+	if int(record.get("freeze_until_tick", 0)) > tick:
+		bits |= HPProtocol.STATUS_FREEZE
+	if int(record.get("knock_until_tick", 0)) > tick or _knock_left > 0.0:
+		bits |= HPProtocol.STATUS_KNOCKED
+	return 0 if is_dead else bits
+
+## Stunned, frozen or thrown: nothing is cast and the body is not steered.
+func cc_locked() -> bool:
+	return cc_status() & HPProtocol.STATUS_LOCKED != 0
+
+## Why a cast is refused right now (empty: it is not).
+func cc_block_reason() -> String:
+	var cc := cc_status()
+	if cc & HPProtocol.STATUS_KNOCKED:
+		return tr("You were knocked off your feet!")
+	if cc & HPProtocol.STATUS_FREEZE:
+		return tr("You are frozen!")
+	if cc & HPProtocol.STATUS_STUN:
+		return tr("You are stunned!")
+	return ""
 
 ## The Floo fireplaces this character can travel to (`quests.floo_known`,
 ## authority-written; travel.json `known_by_default` are always known).
@@ -1880,6 +1937,15 @@ func cast_spell(spell_id: String) -> void:
 		if _mount_notice_cd <= 0.0:
 			_mount_notice_cd = 1.0
 			show_notice(tr("Not while mounted!"))
+		return
+
+	# Stunned, frozen or thrown: the authority refuses the cast, so it is not
+	# predicted; a held basic attack resumes by itself once the body is free.
+	var cc_reason := cc_block_reason()
+	if cc_reason != "":
+		if _mount_notice_cd <= 0.0:
+			_mount_notice_cd = 0.8
+			show_notice(cc_reason)
 		return
 
 	var s_data: Dictionary = GameData.SPELLS[spell_id]

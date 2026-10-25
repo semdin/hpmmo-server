@@ -248,6 +248,14 @@ msgid "Space rises · Ctrl descends · Shift dismounts on level ground."
 msgstr "Boşluk yükselir · Ctrl alçalır · Shift düz zeminde iner."
 
 #: scripts/entities/player.gd
+msgid "You were knocked off your feet!"
+msgstr "Savruldun!"
+
+#: scripts/entities/player.gd
+msgid "You are frozen!"
+msgstr "Dondun!"
+
+#: scripts/entities/player.gd
 msgid "Not while mounted!"
 msgstr "Binekliyken olmaz!"
 
@@ -326,6 +334,38 @@ msgstr "Seviye %d"
 #: scripts/fx/level_up_fx.gd
 msgid "Level up"
 msgstr "Seviye atladın"
+
+#: scripts/fx/status_fx.gd
+msgid "Stunned!"
+msgstr "Sersemledi!"
+
+#: scripts/fx/status_fx.gd
+msgid "Frozen!"
+msgstr "Dondu!"
+
+#: scripts/fx/status_fx.gd
+msgid "Slowed"
+msgstr "Yavaşlatıldı"
+
+#: scripts/fx/status_fx.gd scripts/ui/hud_buff_bar.gd
+msgid "Bleeding"
+msgstr "Kanıyor"
+
+#: scripts/fx/status_fx.gd scripts/ui/hud_buff_bar.gd
+msgid "Burning"
+msgstr "Yanıyor"
+
+#: scripts/fx/status_fx.gd scripts/ui/hud_buff_bar.gd
+msgid "Poisoned"
+msgstr "Zehirlendi"
+
+#: scripts/fx/status_fx.gd
+msgid "Knocked back!"
+msgstr "Savruldu!"
+
+#: scripts/fx/status_fx.gd
+msgid "Disarmed"
+msgstr "Silahsızlandı"
 
 #: scripts/systems/quest_manager.gd
 msgid "Complete! Click to claim your reward"
@@ -606,18 +646,6 @@ msgstr "geçersiz tuş"
 #: scripts/ui/hit_feedback.gd
 msgid "Critical"
 msgstr "Kritik"
-
-#: scripts/ui/hit_feedback.gd scripts/ui/hud_buff_bar.gd
-msgid "Stunned"
-msgstr "Sersemletildi"
-
-#: scripts/ui/hit_feedback.gd
-msgid "Slowed"
-msgstr "Yavaşlatıldı"
-
-#: scripts/ui/hit_feedback.gd
-msgid "Ignited"
-msgstr "Tutuştu"
 
 #: scripts/ui/hud.gd
 msgid "Welcome to Hogwarts! Spells on 1-4, Q, E · potions on F1-F4 · Shift mounts the broom."
@@ -1076,8 +1104,32 @@ msgid "from Lv %d"
 msgstr "Sv %d itibarıyla"
 
 #: scripts/ui/hud_buff_bar.gd
-msgid "You cannot act."
-msgstr "Hareket edemezsin."
+msgid "Stunned"
+msgstr "Sersemletildi"
+
+#: scripts/ui/hud_buff_bar.gd
+msgid "You cannot cast or move."
+msgstr "Büyü yapamaz ve hareket edemezsin."
+
+#: scripts/ui/hud_buff_bar.gd
+msgid "Knocked back"
+msgstr "Savruldun"
+
+#: scripts/ui/hud_buff_bar.gd
+msgid "Thrown off your feet: no casting until you land."
+msgstr "Havaya savruldun: yere inene kadar büyü yapamazsın."
+
+#: scripts/ui/hud_buff_bar.gd
+msgid "Frozen"
+msgstr "Donmuş"
+
+#: scripts/ui/hud_buff_bar.gd
+msgid "Encased in ice: you cannot cast or move."
+msgstr "Buza hapsoldun: büyü yapamaz ve hareket edemezsin."
+
+#: scripts/ui/hud_buff_bar.gd
+msgid "Losing health over time."
+msgstr "Zamanla can kaybediyorsun."
 
 #: scripts/ui/hud_buff_bar.gd
 msgid "Despair"
@@ -1088,16 +1140,8 @@ msgid "A dementor's cold: no natural health recovery."
 msgstr "Bir Ruh Emici'nin soğuğu: doğal can yenilenmesi yok."
 
 #: scripts/ui/hud_buff_bar.gd
-msgid "Poisoned"
-msgstr "Zehirlendi"
-
-#: scripts/ui/hud_buff_bar.gd
 msgid "Spider venom: damage over time."
 msgstr "Örümcek zehri: zamanla hasar."
-
-#: scripts/ui/hud_buff_bar.gd
-msgid "Burning"
-msgstr "Yanıyor"
 
 #: scripts/ui/hud_buff_bar.gd
 msgid "Taking fire damage over time."
@@ -1538,6 +1582,38 @@ msgstr "Etki %%%d"
 #: scripts/ui/hud_skill_window.gd
 msgid "Mana %d  ·  Cooldown %.1fs"
 msgstr "Mana %d  ·  Bekleme %.1f sn"
+
+#: scripts/ui/hud_skill_window.gd
+msgid "Stun %.1fs"
+msgstr "Sersemletme %.1f sn"
+
+#: scripts/ui/hud_skill_window.gd
+msgid "Throws enemies, knocked down %.1fs"
+msgstr "Düşmanları savurur, yerde %.1f sn sersemletir"
+
+#: scripts/ui/hud_skill_window.gd
+msgid "Knocks enemies back"
+msgstr "Düşmanları geri savurur"
+
+#: scripts/ui/hud_skill_window.gd
+msgid "Freeze %.1fs"
+msgstr "Dondurma %.1f sn"
+
+#: scripts/ui/hud_skill_window.gd
+msgid "Slow %d%% for %.1fs"
+msgstr "Yavaşlatma %%%d, %.1f sn"
+
+#: scripts/ui/hud_skill_window.gd
+msgid "Bleed %d x %d"
+msgstr "Kanama %d x %d"
+
+#: scripts/ui/hud_skill_window.gd
+msgid "Burn %d x %d"
+msgstr "Yanma %d x %d"
+
+#: scripts/ui/hud_skill_window.gd
+msgid "Disarm %.1fs"
+msgstr "Silahsızlandırma %.1f sn"
 
 #: scripts/ui/hud_tracker.gd
 msgid "More quests (J)"
@@ -4036,8 +4112,8 @@ msgid "Bombarda"
 msgstr "Bombarda"
 
 #: addons/hpmmo_sim/data/spells.json
-msgid "Detonates a violent concussive shockwave. Heavy AOE damage with knockback."
-msgstr "Şiddetli, sarsıcı bir şok dalgası patlatır. Geri itmeli ağır alan hasarı."
+msgid "Detonates a violent concussive shockwave. Heavy AOE damage; enemies in the blast are thrown through the air and lie stunned for a moment where they land."
+msgstr "Şiddetli bir sarsıntı dalgası patlatır. Ağır alan hasarı verir; patlamadaki düşmanlar havaya savrulur ve düştükleri yerde bir an sersemlemiş kalır."
 
 #: addons/hpmmo_sim/data/spells.json
 msgid "Expelliarmus"
@@ -4056,24 +4132,24 @@ msgid "Stella Ruina"
 msgstr "Stella Ruina"
 
 #: addons/hpmmo_sim/data/spells.json
-msgid "Ultimate star sorcery. Calls down a falling star that bursts into a violet ring of starlight, scorching everything in a wide blast radius."
-msgstr "Nihai yıldız büyüsü. Gökten bir yıldız indirir; yıldız, mor bir yıldız ışığı halkasına dönüşerek patlar ve geniş bir alandaki her şeyi kavurur."
+msgid "Ultimate star sorcery. Calls down a falling star that bursts into a violet ring of starlight, scorching everything in a wide blast radius; its shards leave every enemy hit bleeding for 4 seconds."
+msgstr "Nihai yıldız büyüsü. Gökten bir yıldız indirir; yıldız, mor bir yıldız ışığı halkasına dönüşerek patlar ve geniş bir alandaki her şeyi kavurur; parçaları isabet ettiği her düşmanı 4 saniye boyunca kanatır."
 
 #: addons/hpmmo_sim/data/spells.json addons/hpmmo_sim/data/quests.json
 msgid "Expecto Patronum"
 msgstr "Expecto Patronum"
 
 #: addons/hpmmo_sim/data/spells.json
-msgid "Conjures a silver stag that charges through a wide cone. Dementors take triple damage and the stag breaks a dementor's attack, kiss included. Requires level 40."
-msgstr "Geniş bir koni boyunca saldıran gümüş bir geyik çağırır. Ruh Emiciler üç kat hasar alır ve geyik bir Ruh Emici'nin saldırısını, öpücüğü dahil, bozar. Seviye 40 gerekir."
+msgid "Conjures a silver stag that charges through a wide cone. Dementors take triple damage and the stag breaks a dementor's attack, kiss included; everything it charges through is slowed by 40% for 3 seconds. Requires level 40."
+msgstr "Geniş bir koni boyunca saldıran gümüş bir geyik çağırır. Ruh Emiciler üç kat hasar alır ve geyik bir Ruh Emici'nin saldırısını, öpücüğü dahil, bozar; geçtiği her şey 3 saniye boyunca %40 yavaşlar. Seviye 40 gerekir."
 
 #: addons/hpmmo_sim/data/spells.json
 msgid "Glacius"
 msgstr "Glacius"
 
 #: addons/hpmmo_sim/data/spells.json
-msgid "Frost nova. Hurls a spinning ice crystal that bursts into shards and freezing mist, freezing every enemy in the blast for up to 1.6 seconds. Requires level 20."
-msgstr "Buz patlaması. Dönen bir buz kristali fırlatır; kristal parçalara ve dondurucu bir sise dönüşerek patlar, patlamadaki her düşmanı 1,6 saniyeye kadar dondurur. 20. seviye gerekir."
+msgid "Frost nova. Hurls a spinning ice crystal that bursts into shards and freezing mist, freezing every enemy in the blast solid for up to 1.6 seconds; thawed enemies stay chilled and slowed for 2.5 seconds. Requires level 20."
+msgstr "Buz patlaması. Dönen bir buz kristali fırlatır; kristal parçalara ve dondurucu bir sise dönüşerek patlar, patlamadaki her düşmanı 1,6 saniyeye kadar buz kalıbına çevirir; çözülen düşmanlar 2,5 saniye boyunca üşür ve yavaşlar. 20. seviye gerekir."
 
 #: addons/hpmmo_sim/data/dungeons.json
 msgid "The hall stirs - clear the corridor."
@@ -5616,8 +5692,17 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "Avada Arcana"
 #~ msgstr "Avada Arcana"
 
+#~ msgid "Conjures a silver stag that charges through a wide cone. Dementors take triple damage and the stag breaks a dementor's attack, kiss included. Requires level 40."
+#~ msgstr "Geniş bir koni boyunca saldıran gümüş bir geyik çağırır. Ruh Emiciler üç kat hasar alır ve geyik bir Ruh Emici'nin saldırısını, öpücüğü dahil, bozar. Seviye 40 gerekir."
+
 #~ msgid "Corpses bewitched to serve a dark wizard. Slow, relentless and terrified of fire."
 #~ msgstr "Kara bir büyücüye hizmet etmek için büyülenmiş cesetler. Yavaş, amansız ve ateşten ödleri kopar."
+
+#~ msgid "Detonates a violent concussive shockwave. Heavy AOE damage with knockback."
+#~ msgstr "Şiddetli, sarsıcı bir şok dalgası patlatır. Geri itmeli ağır alan hasarı."
+
+#~ msgid "Frost nova. Hurls a spinning ice crystal that bursts into shards and freezing mist, freezing every enemy in the blast for up to 1.6 seconds. Requires level 20."
+#~ msgstr "Buz patlaması. Dönen bir buz kristali fırlatır; kristal parçalara ve dondurucu bir sise dönüşerek patlar, patlamadaki her düşmanı 1,6 saniyeye kadar dondurur. 20. seviye gerekir."
 
 #~ msgid "Hagrid"
 #~ msgstr "Hagrid"
@@ -5634,6 +5719,9 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "Hagrid's three-headed dog, guarding the trapdoor. Music sends it to sleep."
 #~ msgstr "Hagrid'in kapağı koruyan üç başlı köpeği. Müzik onu uyutur."
 
+#~ msgid "Ignited"
+#~ msgstr "Tutuştu"
+
 #~ msgid "Inferi Ghoul"
 #~ msgstr "Inferius Hortlak"
 
@@ -5649,5 +5737,11 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "Ultimate forbidden sorcery. Calls forth blinding emerald lightning that disintegrates targets in a wide blast radius."
 #~ msgstr "Nihai yasak büyücülük. Geniş bir patlama alanındaki hedefleri parçalayan kör edici zümrüt şimşekler çağırır."
 
+#~ msgid "Ultimate star sorcery. Calls down a falling star that bursts into a violet ring of starlight, scorching everything in a wide blast radius."
+#~ msgstr "Nihai yıldız büyüsü. Gökten bir yıldız indirir; yıldız, mor bir yıldız ışığı halkasına dönüşerek patlar ve geniş bir alandaki her şeyi kavurur."
+
 #~ msgid "Yeh shouldn' go into the forest alone... brave though!"
 #~ msgstr "Ormana yalnız girmemelisin... gerçi cesursun ha!"
+
+#~ msgid "You cannot act."
+#~ msgstr "Hareket edemezsin."

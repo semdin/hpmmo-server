@@ -740,6 +740,59 @@ static func weaken_ms(spell_id: String) -> int:
 static func weaken_factor(spell_id: String) -> float:
 	return float(spell(spell_id).get("weaken_factor", 1.0))
 
+## The damage-over-time ticks (they carry no crowd control and roll no procs).
+static func is_damage_over_time(spell_id: String) -> bool:
+	return spell_id == "burn" or spell_id == "poison" or spell_id == "bleed"
+
+## Glacius-style freeze (spells.json `freeze_ms` / `freeze_ms_boss`): the body
+## cannot move, act or animate while it runs.
+static func freeze_ms(spell_id: String, is_boss: bool) -> int:
+	var data := spell(spell_id)
+	if is_boss:
+		return int(data.get("freeze_ms_boss", data.get("freeze_ms", 0)))
+	return int(data.get("freeze_ms", 0))
+
+## A spell's slow (`slow` {ms, factor, boss_ms}); empty when it has none. A
+## freeze's slow starts when the ice thaws (the chill after Glacius).
+static func slow_spec(spell_id: String) -> Dictionary:
+	return spell(spell_id).get("slow", {})
+
+## A spell's bleed (`bleed` {damage, ticks, interval_ms, hit_share}).
+static func bleed_spec(spell_id: String) -> Dictionary:
+	return spell(spell_id).get("bleed", {})
+
+## A spell's launch (`launch` {push, lift, land_stun_ms}): the victim is thrown
+## `push` m/s away from the blast and `lift` m/s up, cannot act in the air, and
+## lies stunned for `land_stun_ms` after it lands.
+static func launch_spec(spell_id: String) -> Dictionary:
+	return spell(spell_id).get("launch", {})
+
+## How far a creature resists being thrown (mobs.json `displace_resist`, 1 =
+## never moves). Bosses and rooted bodies are never thrown.
+static func displace_scale(species: String, is_boss: bool) -> float:
+	if is_boss:
+		return 0.0
+	return clampf(1.0 - float(mob_def(species).get("displace_resist", 0.0)), 0.0, 1.0)
+
+## Gravity a thrown body falls under (mob_base and player.gd use the same).
+const LAUNCH_GRAVITY := 24.0
+
+## How long a throw of `lift` m/s keeps a body in the air (it lands where it
+## took off), at least `floor_ms`: the window in which it cannot act.
+static func airborne_ms(lift: float, floor_ms := 350) -> int:
+	return maxi(floor_ms, int(round(2.0 * maxf(0.0, lift) / LAUNCH_GRAVITY * 1000.0)))
+
+## How long a shove of `force` (authority push_player) keeps a player from
+## acting: the time up in the air, or a flat push's slide. The authority and the
+## owner's prediction use the same number.
+static func shove_lock_ms(force: Vector3) -> int:
+	return airborne_ms(maxf(0.0, force.y), int(clampf(Vector2(force.x, force.z).length() * 70.0, 300.0, 700.0)))
+
+## A mob's resistance to crowd control (resist.stun; 1.0 = immune, negative =
+## longer). Scales every stun, freeze and landing stun on that creature.
+static func cc_scale(resist: Dictionary) -> float:
+	return clampf(1.0 - float(resist.get("stun", 0.0)), 0.0, 2.0)
+
 ## Character level a spell unlocks at (spells.json `requires_level`, 1 = always).
 static func spell_required_level(spell_id: String) -> int:
 	return int(spell(spell_id).get("requires_level", 1))

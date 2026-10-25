@@ -101,7 +101,10 @@ class_name HPProtocol
 ##     Guard). A v22 client would draw them as the variant-1 Inferius.
 ## v24: mob variant 20 (Goblin Hexer, the wandless caster of the mixed goblin
 ##     packs). A v23 client would draw it as the variant-1 Inferius.
-const PROTOCOL_VERSION := 24
+## v25: snapshots carry a status byte (STATUS_* crowd control and damage over
+##     time on the body: stun, freeze, slow, bleed, burn, poison, knocked,
+##     disarmed), 31 bytes per entity, so every client draws the same effects.
+const PROTOCOL_VERSION := 25
 
 ## Death choice (v18 `sim_respawn_request`).
 const RESPAWN_TOWN := 0
@@ -303,6 +306,20 @@ const FLAG_PROTECTED := 1 << 4
 const FLAG_ENRAGED := 1 << 5
 const FLAG_WARDED := 1 << 6
 const FLAG_BOSS := 1 << 7
+
+## v25: crowd control and damage over time on a body, one byte per entity in
+## snapshots (HPSnapshots) and `status` on replica records. Presentation reads
+## it; the rules live in the authority's *_until_tick fields.
+const STATUS_STUN := 1 << 0
+const STATUS_FREEZE := 1 << 1
+const STATUS_SLOW := 1 << 2
+const STATUS_BLEED := 1 << 3
+const STATUS_BURN := 1 << 4
+const STATUS_POISON := 1 << 5
+const STATUS_KNOCKED := 1 << 6
+const STATUS_WEAK := 1 << 7
+## A body that cannot act (no casts, no steering) while any of these runs.
+const STATUS_LOCKED := STATUS_STUN | STATUS_FREEZE | STATUS_KNOCKED
 
 ## Mob variants. Snapshots carry a variant byte instead of a scene path (28 bytes
 ## per entity total); both processes resolve it through this table, so a mob the

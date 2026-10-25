@@ -8,6 +8,7 @@ var current_hp: int = 800
 var _t: float = 0.0
 ## The whole figure (post, sack, head) - it sways and rocks on a hit.
 var _pole: Node3D = null
+var _status_poll := 0.0
 
 func setup() -> void:
 	add_to_group("targetable")
@@ -46,6 +47,12 @@ func _process(delta: float) -> void:
 	_t += delta
 	if _pole:
 		_pole.rotation.x = sin(_t * 1.2) * 0.02
+	# A stunned, frozen or bleeding dummy shows it like any creature (practice
+	# shows what each skill does).
+	_status_poll -= delta
+	if _status_poll <= 0.0:
+		_status_poll = 0.1
+		StatusFX.update(self, SimAuthority.status_of(self))
 
 func _update_label() -> void:
 	var label := get_node_or_null("DummyLabel") as Label3D

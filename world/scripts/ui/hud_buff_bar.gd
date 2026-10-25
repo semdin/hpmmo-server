@@ -8,7 +8,7 @@ class_name HudBuffBar
 ##
 ## Sources: the body's own `active_buffs` (Protego, the broom, later potions and
 ## anything else that calls `player.add_buff`) and the authority's record for the
-## debuffs only the server knows the end of (stun, burn).
+## debuffs only the server knows the end of (stun, throw, freeze, burn, bleed).
 
 const ICON := 34.0
 
@@ -54,10 +54,22 @@ func current_effects() -> Dictionary:
 			var spell: Dictionary = GameData.SPELLS.get("protego", {})
 			out["protego"] = {"icon": "protego", "title": "Protego", "desc": "Reflects projectiles; other damage reduced by 60%.",
 				"remaining": float(ward - tick) * dt, "duration": float(spell.get("duration_ms", 3500)) / 1000.0, "debuff": false}
-		var stun := int(record.get("stun_until_tick", record.get("stunned_until_tick", 0)))
+		var stun := int(record.get("stun_until_tick", 0))
 		if stun > tick:
-			out["stun"] = {"icon": "status_stun", "title": "Stunned", "desc": "You cannot act.",
+			out["stun"] = {"icon": "status_stun", "title": "Stunned", "desc": "You cannot cast or move.",
 				"remaining": float(stun - tick) * dt, "duration": maxf(1.0, float(stun - tick) * dt), "debuff": true}
+		var knock := int(record.get("knock_until_tick", 0))
+		if knock > tick:
+			out["knocked"] = {"icon": "status_stun", "title": "Knocked back", "desc": "Thrown off your feet: no casting until you land.",
+				"remaining": float(knock - tick) * dt, "duration": maxf(0.5, float(knock - tick) * dt), "debuff": true}
+		var freeze := int(record.get("freeze_until_tick", 0))
+		if freeze > tick:
+			out["frozen"] = {"icon": "status_stun", "title": "Frozen", "desc": "Encased in ice: you cannot cast or move.",
+				"remaining": float(freeze - tick) * dt, "duration": maxf(1.0, float(freeze - tick) * dt), "debuff": true}
+		var bleed := int(record.get("bleed_until_tick", 0))
+		if bleed > tick:
+			out["bleed"] = {"icon": "status_burn", "title": "Bleeding", "desc": "Losing health over time.",
+				"remaining": float(bleed - tick) * dt, "duration": maxf(1.0, float(bleed - tick) * dt), "debuff": true}
 		var despair := int(record.get("despair_until_tick", 0))
 		if despair > tick:
 			out["despair"] = {"icon": "status_despair", "title": "Despair", "desc": "A dementor's cold: no natural health recovery.",

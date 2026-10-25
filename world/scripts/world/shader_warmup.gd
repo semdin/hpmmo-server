@@ -110,6 +110,17 @@ func _add_combat_extras() -> void:
 	ring.position = _grid(_slot) + Vector3.BACK * 0.5
 	ring.rotation.x = PI * 0.5   # face the camera
 	_slot += 1
+	# Crowd-control looks (StatusFX): ice shell, tints, crystals, stars, motes.
+	for mat in StatusFX.warm_materials():
+		var swatch := MeshInstance3D.new()
+		var quad := QuadMesh.new()
+		quad.size = Vector2(0.6, 0.6)
+		swatch.mesh = quad
+		swatch.material_override = mat
+		swatch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(swatch)
+		swatch.position = _grid(_slot) + Vector3.BACK * 0.5
+		_slot += 1
 	for body in _bodies:
 		if body.has_method("_show_warning"):
 			body.set("_attack_center", (body as Node3D).global_position)

@@ -140,6 +140,16 @@ var _weaken_timer := 0.0
 ## Slow efsun proc (authority): move and attack speed x _slow_factor while it runs.
 var _slow_timer := 0.0
 var _slow_factor := 1.0
+## A throw (authority apply_launch: Bombarda, Expelliarmus): the body flies on
+## its own velocity and the AI waits until it is down again.
+var _airborne := false
+var _launch_velocity := Vector3.ZERO
+var _launch_time := 0.0
+## Presentation pace from crowd control (StatusFX: 0 = frozen pose, the slowed
+## share while slowed) on top of the clip speed the AI chose.
+var cc_anim_scale := 1.0
+var _anim_speed_base := 1.0
+var _status_poll := 0.0
 var _scan_timer := 0.0
 var _stuck_timer := 0.0
 var _last_pos := Vector3.ZERO
@@ -375,12 +385,22 @@ func _update_anim_speed(slot: String = "walk") -> void:
 	if speed < 0.1:
 		speed = move_speed
 	if slot == "run" and run_speed > 0.0:
-		anim_player.speed_scale = clampf(speed / run_speed, 0.4, 3.0)
+		_set_anim_speed(clampf(speed / run_speed, 0.4, 3.0))
 		return
 	if walk_speed <= 0.0:
-		anim_player.speed_scale = 1.0
+		_set_anim_speed(1.0)
 		return
-	anim_player.speed_scale = clampf(speed / walk_speed, 0.55, 3.0)
+	_set_anim_speed(clampf(speed / walk_speed, 0.55, 3.0))
+
+func _set_anim_speed(speed: float) -> void:
+	_anim_speed_base = speed
+	if is_instance_valid(anim_player):
+		anim_player.speed_scale = speed * cc_anim_scale
+
+## StatusFX: hold the pose (0, frozen) or play at the slowed pace.
+func set_cc_anim_scale(scale: float) -> void:
+	cc_anim_scale = scale
+	_set_anim_speed(_anim_speed_base)
 
 func _apply_lod() -> void:
 	var lod1 := visuals.find_child("LOD1", true, false)
@@ -425,7 +445,7 @@ func _play_slot(slot: String, blend: float = 0.18) -> void:
 		_update_anim_speed(slot)
 	else:
 		# The walk-cycle scale must not leak into attacks and reactions.
-		anim_player.speed_scale = 1.0
+		_set_anim_speed(1.0)
 	var clip := _clip_for(slot)
 	if anim_player.has_animation(clip) and (anim_player.current_animation != clip or not anim_player.is_playing()):
 		anim_player.play(clip, blend, _phase_speed(slot, clip))
@@ -452,7 +472,7 @@ func _play_attack_clip(plan: Dictionary, phase: String, blend: float = 0.08) -> 
 		if anim_player.current_animation != clip or not anim_player.is_playing():
 			# The run cycle's scale must not leak in (a boulder throw played at
 			# 0.43x looked like slow motion); stretch the clip over its phase.
-			anim_player.speed_scale = 1.0
+			_set_anim_speed(1.0)
 			var span := float(plan.get("anticipation" if phase == "anticipation" else "recovery", 0.0))
 			var speed := 1.0
 			if span > 0.0:
@@ -518,6 +538,12 @@ func _tick_visual_lod(delta: float) -> void:
 func _physics_process(delta: float) -> void:
 	if not NetworkManager.is_dedicated_server:
 		_tick_visual_lod(delta)
+		# Crowd control and damage over time drawn on the body (stars, ice,
+		# blood, flames), from the authority's status bits.
+		_status_poll -= delta
+		if _status_poll <= 0.0 and not _visual_dormant:
+			_status_poll = 0.1
+			StatusFX.update(self, SimAuthority.status_of(self))
 	# Client view of a server-owned mob: no AI, no damage, no physics authority -
 	# only interpolation towards the last replicated sample, presentation from
 	# the replicated state byte, and the boss warning drawn from the server's
@@ -562,6 +588,10 @@ func _physics_process(delta: float) -> void:
 	_weaken_timer = maxf(0, _weaken_timer - delta)
 	_slow_timer = maxf(0, _slow_timer - delta)
 	_publish_state()
+	if _airborne:
+		stun_timer -= delta
+		_tick_airborne(delta)
+		return
 	if state == State.STUNNED:
 		stun_timer -= delta
 		if stun_timer <= 0:
@@ -1389,9 +1419,13 @@ func _apply_riders(plan: Dictionary, hits: Array) -> void:
 	var web_s := float(plan.get("web_s", 0.0))
 	var push := float(plan.get("push", 0.0))
 	var lift := float(plan.get("lift", 0.0))
+	# The troll's slam: the player is dazed (no casts, no steering).
+	var stun_s := float(plan.get("stun_s", 0.0))
 	var dealt := 0
 	for hit in hits:
 		dealt += int((hit as Dictionary).get("amount", 0))
+		if stun_s > 0.0:
+			SimAuthority.stun_player(int((hit as Dictionary).get("uid", 0)), stun_s)
 		if despair > 0.0:
 			SimAuthority.apply_despair(int((hit as Dictionary).get("uid", 0)), despair)
 		if not poison.is_empty():
@@ -1447,7 +1481,8 @@ func on_authoritative_damage(type: String, attacker: Node3D, stun_ms: int, weake
 		_weaken_timer = float(weaken_ms) / 1000.0
 	_update_label()
 
-## Authority slow (slow efsun proc): `factor` of the move and attack speed for `ms`.
+## Authority slow (slow efsun proc, Glacius' chill, the Patronus): `factor` of
+## the move and attack speed for `ms`.
 func apply_slow(ms: int, factor: float) -> void:
 	if state == State.DEAD:
 		return
@@ -1488,6 +1523,39 @@ func apply_knockback(force: Vector3) -> void:
 	if not is_boss and state != State.DEAD:
 		knockback_velocity = force
 
+## Thrown by a spell (authority, spells.json `launch`): `force` is the take-off
+## velocity. The body flies its arc under gravity and lands where physics puts
+## it; the authority holds it stunned (no AI) through the flight and the
+## landing stun.
+func apply_launch(force: Vector3) -> void:
+	if is_boss or state == State.DEAD:
+		return
+	_cancel_attack()
+	_airborne = true
+	_launch_time = 0.0
+	_launch_velocity = Vector3(force.x, 0.0, force.z)
+	velocity = force
+	knockback_velocity = Vector3.ZERO
+
+func _tick_airborne(delta: float) -> void:
+	_launch_time += delta
+	velocity.x = _launch_velocity.x
+	velocity.z = _launch_velocity.z
+	_launch_velocity = _launch_velocity.move_toward(Vector3.ZERO, delta * 3.0)
+	velocity.y -= HPRules.LAUNCH_GRAVITY * delta
+	move_and_slide()
+	_track_drawn_speed(0.0, delta)
+	# Down again (a short guard: the take-off frame still touches the floor),
+	# or a throw that never comes down (a ledge, a wall) ends anyway.
+	if (_launch_time > 0.12 and is_on_floor()) or _launch_time > 3.0:
+		_airborne = false
+		_launch_velocity = Vector3.ZERO
+		velocity = Vector3.ZERO
+	if global_position.y < -10.0:
+		global_position = spawn_point
+		velocity = Vector3.ZERO
+		_airborne = false
+
 func _drop_mob_loot() -> void:
 	var drops := [{"id": "galleons", "amount": randi_range(250, 600) if is_boss else randi_range(30, 95)}]
 	if randf() < 0.5:
@@ -1525,8 +1593,11 @@ func _respawn() -> void:
 	_slow_timer = 0.0
 	_weaken_timer = 0
 	knockback_velocity = Vector3.ZERO
+	_airborne = false
+	_launch_velocity = Vector3.ZERO
 	velocity = Vector3.ZERO
 	attack_timer = 1
+	StatusFX.update(self, 0)
 	# A fresh idle beat, like _ready: an expired timer from the previous life
 	# would send the body wandering on its first frame back.
 	wander_timer = randf_range(1, 4)

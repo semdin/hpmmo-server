@@ -32,8 +32,8 @@ const COLOR_CRIT_EDGE := Color(0.75, 0.08, 0.02)
 const COLOR_FINISHER := Color(1.0, 0.6, 0.16)
 const COLOR_TAKEN := Color(1.0, 0.27, 0.22)
 const COLOR_OTHER := Color(0.78, 0.78, 0.78)
-const COLOR_PROC := Color(0.62, 0.86, 1.0)
-const COLOR_BURN := Color(1.0, 0.55, 0.2)
+## Damage-over-time ticks (the local player's burn, bleed and poison on others).
+const COLOR_DOT := {"burn": Color(1.0, 0.55, 0.2), "bleed": Color(0.95, 0.12, 0.14), "poison": Color(0.5, 0.95, 0.3)}
 
 static var _instance: HitFeedback = null
 
@@ -89,7 +89,7 @@ func _exit_tree() -> void:
 	if _instance == self:
 		_instance = null
 
-func _on_entity_hit(uid: int, amount: int, _hp: int, _spell_id: String, attacker_uid: int, flags: int) -> void:
+func _on_entity_hit(uid: int, amount: int, _hp: int, spell_id: String, attacker_uid: int, flags: int) -> void:
 	if amount <= 0:
 		return
 	var victim = SimAuthority.record_by_uid(uid).get("node")
@@ -102,6 +102,10 @@ func _on_entity_hit(uid: int, amount: int, _hp: int, _spell_id: String, attacker
 	if uid == local and local != 0:
 		_spawn_number(anchor, str(amount), COLOR_TAKEN, 30.0, false)
 		return
+	if attacker_uid == local and local != 0 and COLOR_DOT.has(spell_id):
+		# A tick of a burn or bleed the local player laid: small, in its colour.
+		_spawn_number(anchor, str(amount), COLOR_DOT[spell_id], 26.0, false)
+		return
 	if attacker_uid == local and local != 0:
 		if crit:
 			_spawn_number(anchor, "%d!" % amount, COLOR_CRIT, 58.0 if not finisher else 64.0, true, I18n.upper(tr("Critical")), COLOR_CRIT_EDGE)
@@ -110,7 +114,6 @@ func _on_entity_hit(uid: int, amount: int, _hp: int, _spell_id: String, attacker
 			_spawn_number(anchor, str(amount), COLOR_FINISHER, 44.0, true)
 		else:
 			_spawn_number(anchor, str(amount), COLOR_OUT, 36.0, false)
-		_show_procs(anchor, flags)
 		_flash(victim as Node3D, 1.0 if (crit or finisher) else 0.7)
 		_squash(victim as Node3D, 1.6 if (crit or finisher) else 1.0)
 		if crit or finisher:
@@ -122,13 +125,12 @@ func _on_entity_hit(uid: int, amount: int, _hp: int, _spell_id: String, attacker
 		return
 	_spawn_number(anchor, ("%d!" % amount) if crit else str(amount), COLOR_OTHER, 20.0, false)
 
-## Crowd-control efsun procs the server rolled with the local player's hit.
-func _show_procs(anchor: Vector3, flags: int) -> void:
-	var lift := 0.5
-	for proc in [[HPProtocol.HIT_STUN, tr("Stunned"), COLOR_PROC], [HPProtocol.HIT_SLOW, tr("Slowed"), COLOR_PROC], [HPProtocol.HIT_BURN, tr("Ignited"), COLOR_BURN]]:
-		if flags & int(proc[0]) != 0:
-			_spawn_number(anchor + Vector3.UP * lift, String(proc[1]), proc[2], 26.0, true)
-			lift += 0.4
+## A crowd-control status that began on `victim` (StatusFX): its name, popped
+## above the damage numbers. Efsun procs show the same way, from the status.
+func show_status(victim: Node3D, text: String, colour: Color) -> void:
+	if victim == null or not is_instance_valid(victim):
+		return
+	_spawn_number(_anchor_of(victim) + Vector3.UP * 0.55, I18n.upper(text), colour, 24.0, true, "", Color(0.02, 0.02, 0.03))
 
 func _local_uid() -> int:
 	if local_player != null and is_instance_valid(local_player):
@@ -225,13 +227,16 @@ func _flash(victim: Node3D, strength: float) -> void:
 		(m as GeometryInstance3D).material_overlay = mat
 	var tw := victim.create_tween()
 	tw.tween_property(mat, "albedo_color:a", 0.0, FLASH_SECONDS)
+	# Back to the status look (StatusFX's ice, cold, poison or blood) if one runs.
 	tw.tween_callback(func():
 		for m in meshes:
 			if is_instance_valid(m) and (m as GeometryInstance3D).material_overlay == mat:
-				(m as GeometryInstance3D).material_overlay = null)
+				(m as GeometryInstance3D).material_overlay = (m as Node).get_meta("status_overlay") if (m as Node).has_meta("status_overlay") else null)
 
 func _collect_meshes(node: Node, out: Array) -> void:
 	for child in node.get_children():
+		if child.name == "StatusFX":
+			continue   # the stars and the ice are not the body
 		if child is MeshInstance3D and (child as MeshInstance3D).visible:
 			out.append(child)
 		if out.size() < 24:

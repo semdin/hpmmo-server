@@ -361,7 +361,13 @@ func register_player(node: Node3D, character_id: int, peer_id: int, account_id: 
 		"house_rep": _node_house_rep(node),
 		"mounted": false,
 		"ward_until_tick": 0,
-		"stunned_until_tick": 0,
+		# Crowd control a creature laid on the player (troll slam, a shove):
+		# no casts and no steering while it runs (see cc_locked).
+		"stun_until_tick": 0,
+		"knock_until_tick": 0,
+		"freeze_until_tick": 0,
+		"slow_until_tick": 0,
+		"bleed_until_tick": 0,
 		"cast_lock_until_tick": 0,
 		"cooldowns": {},
 		"combo_index": 0,
@@ -505,6 +511,10 @@ func register_mob(node: Node3D, pack_id: int, zone_id: String) -> int:
 		"burn_source_uid": 0,
 		"weak_until_tick": 0,
 		"stun_until_tick": 0,
+		"freeze_until_tick": 0,
+		"knock_until_tick": 0,
+		"slow_until_tick": 0,
+		"bleed_until_tick": 0,
 		"immune": node.get("immune") == true,
 		"front_guard": float(node.get("front_guard")) if node.get("front_guard") != null else 0.0,
 		"no_rewards": node.get("no_rewards") == true,
@@ -543,6 +553,7 @@ func refresh_mob(node: Node3D) -> void:
 	record["proc_stun_ready_tick"] = 0
 	record["slow_until_tick"] = 0
 	record["weak_until_tick"] = 0
+	_clear_cc(record)
 	# A respawned mob must not keep a stale boss telegraph (Creature pass:
 	# pooling/resets clear every trace of the previous life).
 	record.erase("telegraph")
@@ -710,6 +721,7 @@ func reset_encounter(pack_id: int, reason: String) -> void:
 		record["burn_source_uid"] = 0
 		record["stun_until_tick"] = 0
 		record["weak_until_tick"] = 0
+		_clear_cc(record)
 		record["is_enraged"] = false
 		record.erase("telegraph")
 		touch(record)
@@ -858,7 +870,9 @@ func cast_for_record(record: Dictionary, spell_id: String, aim: Vector3, cast_se
 		return _reject_cast(record, cast_seq, "no_wand")
 	if bool(record.get("mounted", false)) and spell_id != "protego":
 		return _reject_cast(record, cast_seq, HPProtocol.REJECT_MOUNTED)
-	if sim_tick < int(record.get("stunned_until_tick", 0)):
+	if cc_locked(record):
+		# Stunned, frozen or thrown: nothing is cast until the body is back on
+		# its feet (the client shows why and does not predict the cast).
 		return _reject_cast(record, cast_seq, HPProtocol.REJECT_STATE)
 
 	# Bounded input buffer: a request inside the queue window is remembered and
@@ -2379,7 +2393,7 @@ func _apply_damage(target: Dictionary, raw: int, spell_id: String, attacker: Dic
 				amount = int(round(amount * (1.0 + bonus / 100.0)))
 		# Critical hits: players only (base chance + enchanted crit_chance, more on
 		# a combo finisher). The roll is the server's; clients only draw it.
-		if int(attacker.get("kind", -1)) == HPProtocol.Kind.PLAYER and amount > 0 and spell_id != "reflect":
+		if int(attacker.get("kind", -1)) == HPProtocol.Kind.PLAYER and amount > 0 and spell_id != "reflect" and not HPRules.is_damage_over_time(spell_id):
 			var chance := HPRules.crit_chance(float(attacker.get("crit_chance", 0.0)), hit_flags & HPProtocol.HIT_FINISHER != 0)
 			if chance > 0.0 and rng.randf() * 100.0 < chance:
 				amount = int(round(amount * HPRules.crit_multiplier()))
@@ -2424,7 +2438,7 @@ func _apply_damage(target: Dictionary, raw: int, spell_id: String, attacker: Dic
 	# it, so a stale value here would spawn the wrong number of waves.
 	_sync_node_health(target)
 	_apply_status_on_hit(target, spell_id, attacker)
-	var procs := _roll_cc_procs(target, attacker, amount) 		if player_hits_mob and amount > 0 and spell_id != "burn" and int(target["hp"]) > 0 else {}
+	var procs := _roll_cc_procs(target, attacker, amount) 		if player_hits_mob and amount > 0 and not HPRules.is_damage_over_time(spell_id) and int(target["hp"]) > 0 else {}
 	hit_flags |= int(procs.get("flags", 0))
 	_notify_damage(target, spell_id, attacker, procs)
 	emit_signal("entity_damaged", int(target["uid"]), amount, int(target["hp"]), spell_id, int(attacker.get("uid", 0)))
@@ -2525,7 +2539,21 @@ func _notify_damage(target: Dictionary, spell_id: String, attacker: Dictionary, 
 		return
 	if int(procs.get("slow_ms", 0)) > 0 and node.has_method("apply_slow"):
 		node.call("apply_slow", int(procs.slow_ms), float(procs.get("slow_factor", 1.0)))
-	var stun := maxi(HPRules.stun_ms(spell_id, target.get("is_boss") == true), int(procs.get("stun_ms", 0)))
+	var stun := int(procs.get("stun_ms", 0))
+	if int(target.get("kind", 0)) != HPProtocol.Kind.PLAYER:
+		# What _apply_status_on_hit laid on the creature this tick: the node holds
+		# still (STUNNED) until the last of stun, freeze and throw ends.
+		var lock_until := maxi(int(target.get("stun_until_tick", 0)), maxi(int(target.get("freeze_until_tick", 0)), int(target.get("knock_until_tick", 0))))
+		if lock_until > sim_tick and int(target.get("__cc_applied_tick", -1)) == sim_tick:
+			stun = maxi(stun, (lock_until - sim_tick) * TICK_MS)
+		var slow_until := int(target.get("slow_until_tick", 0))
+		if slow_until > sim_tick and int(target.get("__slow_applied_tick", -1)) == sim_tick and node.has_method("apply_slow"):
+			node.call("apply_slow", (slow_until - sim_tick) * TICK_MS, float(target.get("slow_factor", 1.0)))
+		var launch: Vector3 = target.get("__launch", Vector3.ZERO)
+		if launch != Vector3.ZERO:
+			target.erase("__launch")
+			if node.has_method("apply_launch"):
+				node.call("apply_launch", launch)
 	var weaken := HPRules.weaken_ms(spell_id)
 	node.call("on_authoritative_damage", spell_id,
 		attacker.get("node") if not attacker.is_empty() else null, stun, weaken)
@@ -2542,17 +2570,64 @@ func _trim_damage_log(target: Dictionary) -> void:
 				trimmed.append(entry)
 		target["damage_log"] = trimmed
 
-## Status effects are a property of the victim: stun and disarm land on mobs and
-## never on players (the client's `is_protego_active` and the engine's ward cover
-## players instead).
+## Status effects are a property of the victim: a spell's stun, freeze, slow,
+## bleed, throw and disarm (spells.json) land on creatures and never on players
+## (creatures' own riders - stun_player, push_player, apply_web - cover them).
+## Every hold is scaled by the skill level and the creature's stun resistance;
+## the node is told what to play in _notify_damage.
 func _apply_status_on_hit(target: Dictionary, spell_id: String, attacker: Dictionary) -> void:
 	if target.get("kind", 0) == HPProtocol.Kind.PLAYER:
 		return
+	if HPRules.is_damage_over_time(spell_id) or int(target.get("hp", 0)) <= 0:
+		return
 	var effect := HPRules.skill_effect_multiplier(skill_level(attacker, spell_id))
-	var stun := HPRules.stun_ms(spell_id, target.get("is_boss") == true)
-	if stun > 0:
-		target["stun_until_tick"] = sim_tick + int(ceil(float(stun) * effect / TICK_MS))
+	var boss: bool = target.get("is_boss") == true
+	# A creature's stun resistance shortens every hold (1.0 = immune).
+	var hold := effect * HPRules.cc_scale(target.get("resist", {}))
+	var stun := HPRules.stun_ms(spell_id, boss)
+	if stun > 0 and hold > 0.0:
+		target["stun_until_tick"] = maxi(int(target.get("stun_until_tick", 0)), sim_tick + int(ceil(float(stun) * hold / TICK_MS)))
+		target["__cc_applied_tick"] = sim_tick
 		interrupt_mob(target)
+	var freeze := HPRules.freeze_ms(spell_id, boss)
+	if freeze > 0 and hold > 0.0:
+		target["freeze_until_tick"] = maxi(int(target.get("freeze_until_tick", 0)), sim_tick + int(ceil(float(freeze) * hold / TICK_MS)))
+		target["__cc_applied_tick"] = sim_tick
+		interrupt_mob(target)
+	var slow := HPRules.slow_spec(spell_id)
+	if not slow.is_empty():
+		var ms := (float(slow.get("boss_ms", float(slow.get("ms", 0)) * 0.5)) if boss else float(slow.get("ms", 0))) * effect
+		# The chill after a freeze runs from the thaw.
+		var from := maxi(sim_tick, int(target.get("freeze_until_tick", 0)))
+		var until := from + int(ceil(ms / TICK_MS))
+		if ms > 0.0 and until > int(target.get("slow_until_tick", 0)):
+			target["slow_until_tick"] = until
+			target["slow_from_tick"] = from
+			target["slow_factor"] = clampf(float(slow.get("factor", 0.6)), 0.1, 1.0)
+			target["__slow_applied_tick"] = sim_tick
+	var bleed := HPRules.bleed_spec(spell_id)
+	if not bleed.is_empty():
+		var spec := bleed.duplicate()
+		spec["damage"] = maxi(int(spec.get("damage", 1)), int(round(float(target.get("last_damage", 0)) * float(spec.get("hit_share", 0.0)))))
+		_start_bleed(target, spec, attacker)
+	var launch := HPRules.launch_spec(spell_id)
+	var displace := HPRules.displace_scale(String(target.get("species", "")), boss) if int(target.get("kind", 0)) == HPProtocol.Kind.MOB else 0.0
+	if not launch.is_empty() and displace > 0.0 and not attacker.is_empty():
+		var t = target.get("node")
+		var a = attacker.get("node")
+		if t is Node3D and a is Node3D and is_instance_valid(t) and is_instance_valid(a):
+			var away := (t as Node3D).global_position - (a as Node3D).global_position
+			away.y = 0.0
+			away = away.normalized() if away.length_squared() > 0.0001 else Vector3.ZERO
+			var lift := float(launch.get("lift", 0.0)) * displace
+			target["__launch"] = away * float(launch.get("push", 0.0)) * displace + Vector3.UP * lift
+			var air := HPRules.airborne_ms(lift)
+			target["knock_until_tick"] = sim_tick + int(ceil(float(air) / TICK_MS))
+			var land := int(float(launch.get("land_stun_ms", 0)) * hold)
+			if land > 0:
+				target["stun_until_tick"] = maxi(int(target.get("stun_until_tick", 0)), int(target["knock_until_tick"]) + int(ceil(float(land) / TICK_MS)))
+			target["__cc_applied_tick"] = sim_tick
+			interrupt_mob(target)
 	if HPRules.spell_banishes(spell_id, String(HPRules.mob_def(String(target.get("species", ""))).get("family", ""))):
 		interrupt_mob(target)
 	var weaken := HPRules.weaken_ms(spell_id)
@@ -2586,7 +2661,8 @@ func _roll_cc_procs(target: Dictionary, attacker: Dictionary, amount: int) -> Di
 		var spec: Dictionary = specs.get("slow_chance", {})
 		var ms := int(float(spec.get("slow_ms", 3000)) * (0.5 if is_boss else 1.0))
 		if ms > 0:
-			target["slow_until_tick"] = sim_tick + int(ceil(float(ms) / TICK_MS))
+			target["slow_until_tick"] = maxi(int(target.get("slow_until_tick", 0)), sim_tick + int(ceil(float(ms) / TICK_MS)))
+			target["slow_from_tick"] = sim_tick
 			result.slow_ms = ms
 			result.slow_factor = float(spec.get("factor", 0.6))
 			result.flags |= HPProtocol.HIT_SLOW
@@ -2616,6 +2692,62 @@ func _start_burn(target: Dictionary, burn: Dictionary, attacker: Dictionary) -> 
 	target["burn_source_uid"] = int(attacker.get("uid", 0)) if not attacker.is_empty() else 0
 	target["burn_kind"] = "burn"
 
+## A bleed of `bleed` ({damage, ticks, interval_ms}) on `target`: its own clock
+## beside the burn one, so a burning body can bleed as well. A weaker bleed
+## does not replace a stronger one that is still running.
+func _start_bleed(target: Dictionary, bleed: Dictionary, attacker: Dictionary) -> void:
+	if int(target.get("bleed_until_tick", 0)) > sim_tick and int(bleed.get("damage", 0)) < int(target.get("bleed_damage", 0)):
+		return
+	var interval := maxi(1, int(ceil(float(bleed.get("interval_ms", 1000)) / TICK_MS)))
+	target["bleed_until_tick"] = sim_tick + int(bleed.get("ticks", 0)) * interval
+	target["bleed_next_tick"] = sim_tick + interval
+	target["bleed_interval"] = interval
+	target["bleed_damage"] = int(bleed.get("damage", 0))
+	target["bleed_source_uid"] = int(attacker.get("uid", 0)) if not attacker.is_empty() else 0
+	_ticking[int(target.get("uid", 0))] = true
+
+## Every crowd-control and bleed field back to nothing (respawn, reset).
+func _clear_cc(record: Dictionary) -> void:
+	for key in ["stun_until_tick", "freeze_until_tick", "knock_until_tick", "slow_until_tick", "slow_from_tick", "bleed_until_tick", "bleed_next_tick"]:
+		record[key] = 0
+	record.erase("__launch")
+
+## True while `record` cannot act: stunned, frozen or still in the air after a
+## throw. Casts are refused and steering is dropped (player.gd reads the same
+## ticks from its record).
+func cc_locked(record: Dictionary) -> bool:
+	return int(record.get("stun_until_tick", 0)) > sim_tick or int(record.get("freeze_until_tick", 0)) > sim_tick \
+		or int(record.get("knock_until_tick", 0)) > sim_tick
+
+## The STATUS_* bits of a body (snapshots, presentation). A replica carries the
+## byte the server sent; an authority record derives it from its ticks.
+func status_bits(record: Dictionary) -> int:
+	if bool(record.get("replica", false)):
+		return int(record.get("status", 0))
+	if record.is_empty() or bool(record.get("dead", false)):
+		return 0
+	var bits := 0
+	if int(record.get("stun_until_tick", 0)) > sim_tick:
+		bits |= HPProtocol.STATUS_STUN
+	if int(record.get("freeze_until_tick", 0)) > sim_tick:
+		bits |= HPProtocol.STATUS_FREEZE
+	if int(record.get("knock_until_tick", 0)) > sim_tick:
+		bits |= HPProtocol.STATUS_KNOCKED
+	var slowed := int(record.get("slow_until_tick", 0)) > sim_tick and int(record.get("slow_from_tick", 0)) <= sim_tick
+	if slowed or int(record.get("webbed_until_tick", 0)) > sim_tick:
+		bits |= HPProtocol.STATUS_SLOW
+	if int(record.get("bleed_until_tick", 0)) > sim_tick:
+		bits |= HPProtocol.STATUS_BLEED
+	if int(record.get("burn_until_tick", 0)) > sim_tick:
+		bits |= HPProtocol.STATUS_POISON if String(record.get("burn_kind", "burn")) == "poison" else HPProtocol.STATUS_BURN
+	if int(record.get("weak_until_tick", 0)) > sim_tick:
+		bits |= HPProtocol.STATUS_WEAK
+	return bits
+
+## The STATUS_* bits of the body `node` stands for (0 when it has no record).
+func status_of(node: Node) -> int:
+	return status_bits(record_for(node))
+
 ## Entities with something to advance each tick (a burn, a Protego ward,
 ## ground loot waiting to expire). The tick used to walk every entity - with
 ## ~1700 creatures in the world that was most of the server's step.
@@ -2632,7 +2764,7 @@ func _advance_effects() -> void:
 		if record.is_empty():
 			_ticking.erase(uid)
 			continue
-		if int(record.get("burn_until_tick", 0)) == 0 and int(record.get("ward_until_tick", 0)) == 0 				and int(record.get("kind", 0)) != HPProtocol.Kind.LOOT:
+		if int(record.get("burn_until_tick", 0)) == 0 and int(record.get("ward_until_tick", 0)) == 0 and int(record.get("bleed_until_tick", 0)) == 0 				and int(record.get("kind", 0)) != HPProtocol.Kind.LOOT:
 			_ticking.erase(uid)
 			continue
 		if bool(record.get("dead", false)):
@@ -2649,6 +2781,14 @@ func _advance_effects() -> void:
 				record["burn_next_tick"] = sim_tick + interval_ticks
 				var source: Dictionary = entities.get(int(record.get("burn_source_uid", 0)), {})
 				_apply_damage(record, int(record.get("burn_damage", 0)), String(record.get("burn_kind", "burn")), source)
+		var bleed_until := int(record.get("bleed_until_tick", 0))
+		if bleed_until > 0 and not bool(record.get("dead", false)):
+			if sim_tick > bleed_until:
+				record["bleed_until_tick"] = 0
+			elif sim_tick >= int(record.get("bleed_next_tick", 0)):
+				record["bleed_next_tick"] = sim_tick + int(record.get("bleed_interval", interval_ticks))
+				var bleeder: Dictionary = entities.get(int(record.get("bleed_source_uid", 0)), {})
+				_apply_damage(record, int(record.get("bleed_damage", 0)), "bleed", bleeder)
 		if int(record.get("ward_until_tick", 0)) != 0 and sim_tick >= int(record["ward_until_tick"]):
 			record["ward_until_tick"] = 0
 			touch(record)
@@ -3105,7 +3245,33 @@ func push_player(record: Dictionary, force: Vector3) -> void:
 	var node = record.get("node")
 	if node != null and is_instance_valid(node) and node.has_method("apply_knockback"):
 		node.call("apply_knockback", force)
+	# Thrown: no casts and no steering until the body is down again (the time
+	# up in the air, or a shove's slide for a flat push).
+	var air_ms := HPRules.shove_lock_ms(force)
+	record["knock_until_tick"] = maxi(int(record.get("knock_until_tick", 0)), sim_tick + int(ceil(float(air_ms) / TICK_MS)))
+	interrupt_cast(record)
+	record["queued_spell"] = ""
+	touch(record)
+	_push_vitals(record)
 	emit_signal("player_pushed", int(record.get("uid", 0)), force)
+
+## A creature's stun on a player (mobs.json ability rider `stun_s`, the troll's
+## slam): no casts and no steering for `seconds`. The Stun Immunity efsun turns
+## it aside.
+func stun_player(uid: int, seconds: float) -> void:
+	var record: Dictionary = entities.get(uid, {})
+	if record.is_empty() or int(record.get("kind", 0)) != HPProtocol.Kind.PLAYER or bool(record.get("dead", false)):
+		return
+	if float(record.get("stun_immunity", 0.0)) > 0.0:
+		return
+	var until := sim_tick + int(ceil(seconds * 1000.0 / TICK_MS))
+	if until <= int(record.get("stun_until_tick", 0)):
+		return
+	record["stun_until_tick"] = until
+	interrupt_cast(record)
+	record["queued_spell"] = ""
+	touch(record)
+	_push_vitals(record)
 
 ## A title (dungeons.json first_clear_title) for a player; true when new. The
 ## body keeps it in the character's `quests` (saved with the sheet).
@@ -3194,6 +3360,7 @@ func _respawn_player(record: Dictionary, here: bool = false) -> void:
 	record["ward_until_tick"] = sim_tick + int(ceil(float(HPRules.revive_here_ward_ms()) / TICK_MS)) if here else 0
 	record["stun_until_tick"] = 0
 	record["burn_until_tick"] = 0
+	_clear_cc(record)
 	record["cast_id"] = 0
 	record["respawn_tick"] = 0
 	record["respawn_ready_tick"] = 0
@@ -3286,6 +3453,8 @@ func apply_web(uid: int, seconds: float) -> void:
 	var record: Dictionary = entities.get(uid, {})
 	if record.is_empty() or int(record.get("kind", 0)) != HPProtocol.Kind.PLAYER:
 		return
+	if float(record.get("slow_immunity", 0.0)) > 0.0:
+		return   # Slow Immunity efsun
 	var until := sim_tick + int(ceil(seconds * 1000.0 / TICK_MS))
 	if until <= int(record.get("webbed_until_tick", 0)):
 		return
@@ -3794,6 +3963,12 @@ func build_vitals(record: Dictionary) -> Dictionary:
 		result["webbed_until_tick"] = int(record.get("webbed_until_tick", 0))
 		result["burn_until_tick"] = int(record.get("burn_until_tick", 0))
 		result["burn_kind"] = String(record.get("burn_kind", "burn"))
+		# Crowd control on the player (stun, throw): the owner stops casting and
+		# steering for the same ticks the authority refuses them.
+		result["stun_until_tick"] = int(record.get("stun_until_tick", 0))
+		result["knock_until_tick"] = int(record.get("knock_until_tick", 0))
+		result["freeze_until_tick"] = int(record.get("freeze_until_tick", 0))
+		result["bleed_until_tick"] = int(record.get("bleed_until_tick", 0))
 	return result
 
 ## What other players may know of a body (v22): the rest of a stat payload -
@@ -3989,7 +4164,7 @@ func local_player_node() -> Node3D:
 
 ## Client-side replica update from a snapshot. Creates the record on first
 ## sight (presentation is asked to build a view) and refreshes it afterwards.
-func upsert_replica(uid: int, kind: int, pos: Vector3, rot_y: float, hp: int, max_hp: int, flags: int, state: int, variant: int = 0, pack_id: int = 0) -> void:
+func upsert_replica(uid: int, kind: int, pos: Vector3, rot_y: float, hp: int, max_hp: int, flags: int, state: int, variant: int = 0, pack_id: int = 0, status: int = 0) -> void:
 	var record: Dictionary = entities.get(uid, {})
 	var is_new := record.is_empty()
 	if is_new and int(_despawn_ticks.get(uid, -1)) >= snapshot_tick:
@@ -4025,6 +4200,7 @@ func upsert_replica(uid: int, kind: int, pos: Vector3, rot_y: float, hp: int, ma
 	record["max_hp"] = max_hp
 	record["flags"] = flags
 	record["state"] = state
+	record["status"] = status
 	record["variant"] = variant
 	record["pack_id"] = pack_id
 	record["dead"] = (flags & HPProtocol.FLAG_DEAD) != 0

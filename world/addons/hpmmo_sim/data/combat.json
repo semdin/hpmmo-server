@@ -438,8 +438,8 @@
           1
         ],
         "flag": true,
-        "disabled": true,
-        "theme": "guard"
+        "theme": "guard",
+        "_comment": "Flag: a creature's stun (the troll's slam) does not land on the wearer. Throws still do."
       },
       "slow_immunity": {
         "label": "Slow Immunity",
@@ -452,8 +452,8 @@
           1
         ],
         "flag": true,
-        "disabled": true,
-        "theme": "guard"
+        "theme": "guard",
+        "_comment": "Flag: a creature's slow (spider web, drowning grasp) does not land on the wearer."
       },
       "hp_regen": {
         "label": "Health Regeneration",

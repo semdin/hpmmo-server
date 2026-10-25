@@ -181,6 +181,8 @@ func tooltip_for(spell_id: String) -> Control:
 		add.call(tr("Master") if HPRules.skill_is_master(lv) else (tr("Not learned") if lv <= 0 else tr("Level %d") % lv), 13, HudKit.GOLD_LT, HudKit.body())
 	add.call(I18n.t(String(spell.get("desc", ""))), 13, HudKit.TEXT, HudKit.body())
 	var shown_lv := maxi(1, lv)
+	for line in _control_lines(spell_id, shown_lv):
+		add.call(line, 13, Color(1.0, 0.82, 0.45), HudKit.bold())
 	box.add_child(HSeparator.new())
 	if lv > 0 or not trainable:
 		for line in _numbers(spell_id, shown_lv):
@@ -202,9 +204,39 @@ func _numbers(spell_id: String, lv: int) -> Array:
 	var out: Array = []
 	if int(spell.get("damage", 0)) > 0:
 		out.append(tr("Damage %d%%") % roundi(HPRules.skill_damage_multiplier(lv) * 100.0))
-	if spell.has("duration_ms") or spell.has("stun_ms") or spell.has("weaken_ms"):
+	if spell.has("duration_ms") or not _control_lines(spell_id, lv).is_empty():
 		out.append(tr("Effect %d%%") % roundi(HPRules.skill_effect_multiplier(lv) * 100.0))
 	out.append(tr("Mana %d  ·  Cooldown %.1fs") % [int(spell.get("mana_cost", 0)), HPRules.cooldown_for(spell_id, house, lv, stats)])
+	return out
+
+
+## What the spell does to an enemy besides damage (spells.json crowd control
+## and damage over time), at skill level `lv`.
+func _control_lines(spell_id: String, lv: int) -> Array:
+	var spell: Dictionary = HPRules.spell(spell_id)
+	var effect := HPRules.skill_effect_multiplier(lv)
+	var out: Array = []
+	if int(spell.get("stun_ms", 0)) > 0:
+		out.append(tr("Stun %.1fs") % (float(spell.stun_ms) * effect / 1000.0))
+	var launch: Dictionary = spell.get("launch", {})
+	if not launch.is_empty():
+		if int(launch.get("land_stun_ms", 0)) > 0:
+			out.append(tr("Throws enemies, knocked down %.1fs") % (float(launch.land_stun_ms) * effect / 1000.0))
+		else:
+			out.append(tr("Knocks enemies back"))
+	if int(spell.get("freeze_ms", 0)) > 0:
+		out.append(tr("Freeze %.1fs") % (float(spell.freeze_ms) * effect / 1000.0))
+	var slow: Dictionary = spell.get("slow", {})
+	if not slow.is_empty():
+		out.append(tr("Slow %d%% for %.1fs") % [roundi((1.0 - float(slow.get("factor", 1.0))) * 100.0), float(slow.get("ms", 0)) * effect / 1000.0])
+	var bleed: Dictionary = spell.get("bleed", {})
+	if not bleed.is_empty():
+		out.append(tr("Bleed %d x %d") % [int(bleed.get("damage", 0)), int(bleed.get("ticks", 0))])
+	var burn: Dictionary = spell.get("burn", {})
+	if not burn.is_empty():
+		out.append(tr("Burn %d x %d") % [int(burn.get("damage", 0)), int(burn.get("ticks", 0))])
+	if int(spell.get("weaken_ms", 0)) > 0:
+		out.append(tr("Disarm %.1fs") % (float(spell.weaken_ms) * effect / 1000.0))
 	return out
 
 

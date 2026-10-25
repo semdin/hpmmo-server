@@ -166,13 +166,9 @@ static func play_impact(world: Node3D, pos: Vector3, spell_id: String, victim: N
 	var at := pos
 	if HPRules.delivery(spell_id) != "projectile_aoe":
 		at = pos - safe_direction(incoming) * 0.5
-	var effect := spawn_stage(world, spell_id, "impact", at, safe_direction(incoming), null, opts)
-	if effect == null:
-		return
-	if spell_id == "incendio" and victim != null:
-		# The burn is server-timed; the sustain runs for the authoritative burn
-		# duration (spells.json: ticks x interval_ms) and no longer.
-		play_burn(world, victim, burn_seconds(spell_id))
+	spawn_stage(world, spell_id, "impact", at, safe_direction(incoming), null, opts)
+	# The burn's flames (and every other status look) come from the victim's
+	# replicated status (StatusFX), for exactly as long as the server says.
 
 
 ## The authoritative burn length from spells.json (ticks x interval_ms), with the
