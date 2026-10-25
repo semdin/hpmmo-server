@@ -53,6 +53,16 @@ var _hover_slot: UISlot = null
 var _destroy_window: UIWindow
 var _destroy_text: Label
 var _destroy_entry: Dictionary = {}
+# Bag layout. The authority keeps the bag as a plain list, and drawing it in
+# list order shifted every item up when one left (destroyed, sold, worn). The
+# cell each item sits in is this client's own memory, per character (Metin2
+# style): an emptied cell stays empty, the piece a wear swaps out takes the
+# cell of the one put on, and an item dragged onto another cell moves there.
+const LAYOUT_PATH := "user://bag_layout.json"
+var _cells: Dictionary = {}       # item key -> cell index
+var _cell_keys: Array = []        # cell index -> item key ("" = empty), as last drawn
+var _cell_hint := -1              # the cell the next newcomer takes
+var _layout_owner := ""
 
 func _ready() -> void:
 	theme = UITheme.get_theme()
@@ -253,17 +263,18 @@ func refresh() -> void:
 		item_container.remove_child(child)
 		child.queue_free()
 	_bag_slots.clear()
-	for entry in player.inventory:
-		if int(entry.get("amount", 0)) <= 0: continue
+	var cells := _arrange_bag()
+	for index in range(cells.size()):
 		var slot := _make_slot(Vector2(_bag_px, _bag_px))
-		slot.set_item(entry.id, entry)
-		slot.selected = _selection_key(slot) == _selected_key
-		slot.disabled = _pending or _locked(entry)
-		if _locked(entry): slot.modulate = Color(1, 1, 1, 0.35)   # on Ollivander's anvil
+		slot.set_meta("cell", index)
+		var entry: Dictionary = cells[index]
+		if not entry.is_empty():
+			slot.set_item(entry.id, entry)
+			slot.selected = _selection_key(slot) == _selected_key
+			slot.disabled = _pending or _locked(entry)
+			if _locked(entry): slot.modulate = Color(1, 1, 1, 0.35)   # on Ollivander's anvil
+			_bag_slots.append(slot)
 		item_container.add_child(slot)
-		_bag_slots.append(slot)
-	while item_container.get_child_count() < COLUMNS * ROWS:
-		item_container.add_child(_make_slot(Vector2(_bag_px, _bag_px)))
 	_preview.show_player(player)
 	# The staged sale may have left the bag (sold, equipped, consumed).
 	if not _sell_entry.is_empty() and _bag_entry(_sell_entry).is_empty():
@@ -272,6 +283,105 @@ func refresh() -> void:
 
 func _on_inventory_changed() -> void:
 	if visible: refresh()
+
+## A bag entry's identity across answers: its instance uid, or id and tier for
+## a stack (the n-th such stack when there are several).
+func _item_key(entry: Dictionary, seen: Dictionary) -> String:
+	var uid := int(entry.get("uid", 0))
+	if uid > 0:
+		return "u%d" % uid
+	var key := "s%s:%d" % [String(entry.get("id", "")), int(entry.get("tier", 0))]
+	var n := int(seen.get(key, 0))
+	seen[key] = n + 1
+	return key if n == 0 else "%s#%d" % [key, n]
+
+## The bag as cells: remembered items keep their cell, newcomers take the hint
+## cell (a swap, a drop target) or the first free one.
+func _arrange_bag() -> Array:
+	_load_layout()
+	var total := maxi(COLUMNS * ROWS, player.inventory.size())
+	var cells: Array = []
+	_cell_keys.clear()
+	for _i in range(total):
+		cells.append({})
+		_cell_keys.append("")
+	var present := {}
+	var seen := {}
+	var newcomers: Array = []
+	for entry in player.inventory:
+		if int(entry.get("amount", 0)) <= 0: continue
+		var key := _item_key(entry, seen)
+		present[key] = true
+		var at := int(_cells.get(key, -1))
+		if at >= 0 and at < total and _cell_keys[at] == "":
+			cells[at] = entry
+			_cell_keys[at] = key
+		else:
+			newcomers.append([key, entry])
+	var changed := false
+	for pair in newcomers:
+		var at := _cell_keys.find("")
+		if _cell_hint >= 0 and _cell_hint < total and _cell_keys[_cell_hint] == "":
+			at = _cell_hint
+		_cell_hint = -1
+		cells[at] = pair[1]
+		_cell_keys[at] = pair[0]
+		_cells[pair[0]] = at
+		changed = true
+	for key in _cells.keys():
+		if not present.has(key):
+			_cells.erase(key)
+			changed = true
+	if changed:
+		_save_layout()
+	return cells
+
+func _layout_owner_name() -> String:
+	return String(player.get("player_name")) if is_instance_valid(player) else ""
+
+func _load_layout() -> void:
+	var owner := _layout_owner_name()
+	if owner == _layout_owner:
+		return
+	_layout_owner = owner
+	_cells = {}
+	var mine = _read_layouts().get(owner, {})
+	if mine is Dictionary:
+		for key in mine:
+			_cells[String(key)] = int(mine[key])
+
+func _read_layouts() -> Dictionary:
+	if not FileAccess.file_exists(LAYOUT_PATH):
+		return {}
+	var file := FileAccess.open(LAYOUT_PATH, FileAccess.READ)
+	if file == null:
+		return {}
+	var data = JSON.parse_string(file.get_as_text())
+	return data if data is Dictionary else {}
+
+func _save_layout() -> void:
+	if _layout_owner == "":
+		return
+	var all := _read_layouts()
+	all[_layout_owner] = _cells
+	var file := FileAccess.open(LAYOUT_PATH, FileAccess.WRITE)
+	if file != null:
+		file.store_string(JSON.stringify(all))
+
+## Drag inside the bag: the item moves to that cell (trading places with
+## whatever sits there).
+func _move_cell(from: int, to: int) -> void:
+	if from < 0 or to < 0 or from >= _cell_keys.size() or to >= _cell_keys.size() or from == to:
+		return
+	var moving := String(_cell_keys[from])
+	if moving == "":
+		return
+	var other := String(_cell_keys[to])
+	_cells[moving] = to
+	if other != "":
+		_cells[other] = from
+	_save_layout()
+	refresh()
 
 func _select(slot: UISlot) -> void:
 	if slot.item_id == "": return
@@ -352,6 +462,8 @@ func _activate(slot: UISlot) -> void:
 		return
 	var targets: Array = item_data.get("slots", [])
 	if targets.is_empty(): return
+	# The piece this one replaces comes back into the cell it leaves.
+	_cell_hint = int(slot.get_meta("cell", -1))
 	if "ring_left" in targets:
 		for target in targets:
 			if not player.equipment.has(target):
@@ -374,13 +486,25 @@ func _locked(entry: Dictionary) -> bool:
 
 func _can_drop(destination: UISlot, payload: Dictionary) -> bool:
 	if _pending or _locked(payload): return false
-	if destination.equipment_slot == "": return payload.get("source_slot", "") != ""
+	if destination.equipment_slot == "":
+		if payload.get("source_slot", "") != "": return true   # take it off, into this cell
+		var from := int(payload.get("cell", -1))
+		return from >= 0 and from != int(destination.get_meta("cell", -1))
 	return payload.get("source_slot", "") == "" and HPEquipment.fits(payload.id, destination.equipment_slot)
 
 func _drop(destination: UISlot, payload: Dictionary) -> void:
 	if not _can_drop(destination, payload): return
-	if destination.equipment_slot == "": _request("unequip", payload.source_slot)
-	else: _request("equip", destination.equipment_slot, payload)
+	var cell := int(destination.get_meta("cell", -1))
+	if destination.equipment_slot == "":
+		if payload.get("source_slot", "") == "":
+			_move_cell(int(payload.get("cell", -1)), cell)
+			return
+		if cell >= 0 and cell < _cell_keys.size() and String(_cell_keys[cell]) == "":
+			_cell_hint = cell
+		_request("unequip", payload.source_slot)
+	else:
+		_cell_hint = int(payload.get("cell", -1))
+		_request("equip", destination.equipment_slot, payload)
 
 # ------------------------------------------------------------------ merchant
 
@@ -545,6 +669,8 @@ func _answer(answer: Dictionary) -> void:
 	_pending = false
 	var ok: bool = answer.get("ok", false)
 	var reason := String(answer.get("reason", ""))
+	if not ok:
+		_cell_hint = -1
 	if ok and reason == "sold":
 		_clear_offer()
 		_notify(tr("Sold for %s Galleons.") % galleon_text(_sold_price), "good")

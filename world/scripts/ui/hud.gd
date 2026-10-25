@@ -110,6 +110,7 @@ func _ready() -> void:
 	add_child(chat)
 	chat.setup($ChatContainer, chat_history, chat_input)
 	SimAuthority.notice.connect(_on_authority_notice)
+	SimAuthority.player_notice.connect(_on_own_player_notice)
 
 	slot_1.pressed.connect(func(): _trigger_player_spell("stupefy"))
 	slot_2.pressed.connect(func(): _trigger_player_spell("incendio"))
@@ -650,8 +651,8 @@ func _update_target_frame() -> void:
 		title = I18n.t(String(current_target.call("display_name"))) if current_target.has_method("display_name") else tr("Dark Monolith")
 		rank = tr("Ancient Monolith")
 		lvl = int(current_target.call("stone_level")) if current_target.has_method("stone_level") else 15
-		tint = Color(0.86, 0.62, 1.0)
-		bar_colour = Color(0.58, 0.20, 0.92)
+		tint = Color(0.62, 1.0, 0.68)   # the stone's emerald runes
+		bar_colour = Color(0.20, 0.74, 0.36)
 		icon = "minimap_monolith"
 	elif "current_hp" in current_target and "max_hp" in current_target:
 		title = tr("Training Dummy")
@@ -807,6 +808,9 @@ const PICKUP_REASONS := {
 	"not_yours": "That loot belongs to someone else.",
 	"transfer_pending": "Wait until the map loads.",
 }
+const QUEST_REASONS := {
+	"reward_chest": "Your bag is full: the rest of the quest reward waits in a chest at your feet.",
+}
 # i18n-end
 var _notice_last_ms: Dictionary = {}
 
@@ -816,6 +820,8 @@ func _on_authority_notice(text: String, _color: Color) -> void:
 	var line := ""
 	if kind == "pickup":
 		line = I18n.t(String(PICKUP_REASONS.get(reason, "")))
+	elif kind == "quest":
+		line = I18n.t(String(QUEST_REASONS.get(reason, "")))
 	if line == "":
 		return
 	# Pickup retries twice a second while the player stands on the item.
@@ -824,6 +830,13 @@ func _on_authority_notice(text: String, _color: Color) -> void:
 		return
 	_notice_last_ms[text] = now
 	show_notice(line, "warn")
+
+## Offline play (no network bridge): the authority's notice for this body.
+func _on_own_player_notice(uid: int, kind: String, detail: String) -> void:
+	if not SimAuthority.is_authority() or SimAuthority.player_notice.is_connected(SimNet._send_player_notice):
+		return   # a host's bridge already turns it into `notice`
+	if is_instance_valid(player) and int(SimAuthority.record_for(player).get("uid", -1)) == uid:
+		_on_authority_notice(kind + ":" + detail, Color.WHITE)
 
 ## A realm-wide event (v14 `sim_world_event`): a line in the chat log, the
 ## centre band in the boss colour and the boss horn. Returns the text shown.

@@ -99,6 +99,11 @@ static func spawn_stage(world: Node3D, spell_id: String, stage: String, origin: 
 		dir: Vector3, caster: Node3D = null, opts: Dictionary = {}) -> Node3D:
 	if not is_instance_valid(world) or not VFX.SPELLS.has(spell_id):
 		return null
+	# Pictures only: the dedicated server drew every creature slam and bolt it
+	# resolved (a troll slam's impact cost ~60 ms of a server frame, every few
+	# seconds of a fight, live 2026-10-25).
+	if NetworkManager.is_dedicated_server:
+		return null
 	var effect: Node3D = SpellEffect.new()
 	world.add_child(effect)
 	effect.call("setup", spell_id, stage, quality(), origin, safe_direction(dir), caster, opts)

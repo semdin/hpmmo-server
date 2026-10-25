@@ -22,8 +22,8 @@ var _light_energy := 0.0
 var follow: Node3D = null
 
 static func play(parent: Node, at: Vector3, layers: Array, opts: Dictionary = {}) -> FlipbookFX:
-	if parent == null or not parent.is_inside_tree():
-		return null
+	if parent == null or not parent.is_inside_tree() or NetworkManager.is_dedicated_server:
+		return null   # pictures only; the dedicated server draws nothing
 	var fx := FlipbookFX.new()
 	fx.name = String(opts.get("name", "FlipbookFX"))
 	fx._life = float(opts.get("life", 3.0))

@@ -17,6 +17,15 @@ const WORLD_MIN := Vector2(-1024, -1024)
 const WORLD_SIZE := 2048.0
 const CASTLE_MIN := Vector2(-118, -98)
 const CASTLE_SIZE := 222.0
+## The Blackweb Caverns: a 512 m heightfield centred on the map origin, drawn
+## from its own heights (walls dark, the two floors shaded by depth).
+const CAVERNS_MAP := "spider_caverns"
+const CAVERNS_MIN := Vector2(-256, -256)
+const CAVERNS_SIZE := 512.0
+const CAVERNS_HEIGHTS := "res://assets/maps/spider_caverns/cavern_height.res"
+const CAVERNS_LAYOUT := "res://assets/maps/spider_caverns/cavern_layout.json"
+static var _caverns_tex: Texture2D = null
+static var _caverns_rooms: Array = []
 # i18n-begin
 const PLACES := [
 	["Hogwarts Castle", Vector2(30, -70), 1.25],
@@ -97,7 +106,13 @@ func _update_hint() -> void:
 		_hint.text = tr("Showing %s (red marks)  ·  ") % focus_name + _hint.text
 
 func _detect_mode() -> String:
+	# The caverns sit ~1.5 km above the grounds' coordinates: on the grounds
+	# sheet a player down there showed up beside the greenhouses.
+	if player != null and is_instance_valid(player) and player.global_position.y > HPMaps.y_min(CAVERNS_MAP) - 10.0:
+		return "caverns"
 	if guide != null and is_instance_valid(guide):
+		if HPMaps.base_map(guide.current_map()) == CAVERNS_MAP:
+			return "caverns"
 		return "castle" if guide.current_map() == "castle_interior" else "grounds"
 	if player != null and is_instance_valid(player) and player.global_position.y > 185.0:
 		return "castle"
@@ -106,7 +121,7 @@ func _detect_mode() -> String:
 func _apply_mode() -> void:
 	mode = _detect_mode()
 	if _title != null:
-		set_title("Hogwarts Castle" if mode == "castle" else "World Map")  # i18n
+		set_title({"castle": "Hogwarts Castle", "caverns": "Blackweb Caverns"}.get(mode, "World Map"))  # i18n
 	if _floors != null:
 		_floors.visible = mode == "castle"
 	_update_hint()
@@ -218,6 +233,8 @@ func waypoint_click(w: Vector2, screen_hit_existing: bool) -> void:
 	if screen_hit_existing:
 		guide.clear()
 		return
+	if mode == "caverns":
+		return   # the waypoint router walks the grounds and the castle only
 	if mode == "castle":
 		var y := float(castle_level) * 10.0
 		var snapped := _snap_to_plate(w, y)
@@ -241,6 +258,51 @@ func _snap_to_plate(w: Vector2, y: float) -> Vector2:
 			best = p
 	return best
 
+## The caverns sheet, built once from the collider's heights: rock walls near
+## black, floor 1 a warm grey, floor 2 (some 25 m lower) a cold green-grey,
+## with a little hill shading so the ramps read.
+static func caverns_texture() -> Texture2D:
+	if _caverns_tex != null:
+		return _caverns_tex
+	var shape := load(CAVERNS_HEIGHTS) as HeightMapShape3D
+	if shape == null:
+		return null
+	var w := shape.map_width
+	var d := shape.map_depth
+	var h := shape.map_data
+	var img := Image.create(w, d, false, Image.FORMAT_RGB8)
+	for z in range(d):
+		for x in range(w):
+			var y := h[z * w + x]
+			var east := h[z * w + mini(x + 1, w - 1)]
+			var south := h[mini(z + 1, d - 1) * w + x]
+			var shade := clampf(1.0 + (y - east) * 0.35 + (y - south) * 0.35, 0.55, 1.35)
+			var steep := maxf(absf(y - east), absf(y - south))
+			var c: Color
+			if y >= -5.0 and y <= 3.0:
+				c = Color(0.52, 0.47, 0.40) * shade          # floor 1 (~0 m)
+			elif y < -19.0 and y > -32.0:
+				c = Color(0.33, 0.42, 0.36) * shade          # floor 2 (~-25 m)
+			elif y < -5.0 and y >= -19.0 and steep < 0.7:
+				c = Color(0.43, 0.45, 0.38) * shade          # a ramp between them
+			else:
+				c = Color(0.07, 0.065, 0.07).lerp(Color(0.16, 0.15, 0.16), clampf((y + 20.0) / 50.0, 0.0, 1.0))
+			img.set_pixel(x, z, Color(c.r, c.g, c.b))
+	_caverns_tex = ImageTexture.create_from_image(img)
+	return _caverns_tex
+
+## Room labels from the layout ([name, Vector2 centre, floor]).
+static func cavern_rooms() -> Array:
+	if not _caverns_rooms.is_empty():
+		return _caverns_rooms
+	var raw := FileAccess.get_file_as_string(CAVERNS_LAYOUT)
+	var data = JSON.parse_string(raw) if raw != "" else null
+	if data is Dictionary:
+		for room in (data as Dictionary).get("rooms", []):
+			var c: Array = (room as Dictionary).get("c", [0, 0])
+			_caverns_rooms.append([String(room.get("name", "")), Vector2(float(c[0]), float(c[1])), int(room.get("floor", 0))])
+	return _caverns_rooms
+
 
 class MapView extends Control:
 	var host: HudWorldMap
@@ -260,16 +322,22 @@ class MapView extends Control:
 		custom_minimum_size = Vector2(300, 300)
 
 	func _bounds_min() -> Vector2:
-		return HudWorldMap.CASTLE_MIN if host.mode == "castle" else HudWorldMap.WORLD_MIN
+		match host.mode:
+			"castle": return HudWorldMap.CASTLE_MIN
+			"caverns": return HudWorldMap.CAVERNS_MIN
+		return HudWorldMap.WORLD_MIN
 
 	func _bounds_size() -> float:
-		return HudWorldMap.CASTLE_SIZE if host.mode == "castle" else HudWorldMap.WORLD_SIZE
+		match host.mode:
+			"castle": return HudWorldMap.CASTLE_SIZE
+			"caverns": return HudWorldMap.CAVERNS_SIZE
+		return HudWorldMap.WORLD_SIZE
 
 	func centre_on_player() -> void:
 		var p := host.player
 		if p != null and is_instance_valid(p):
 			centre = Vector2(p.global_position.x, p.global_position.z)
-		zoom = maxf(_min_zoom(), 3.2 if host.mode == "castle" else 0.45)
+		zoom = maxf(_min_zoom(), {"castle": 3.2, "caverns": 1.6}.get(host.mode, 0.45))
 		_clamp()
 
 	func _min_zoom() -> float:
@@ -333,6 +401,8 @@ class MapView extends Control:
 	func _draw() -> void:
 		if host.mode == "castle":
 			_draw_castle()
+		elif host.mode == "caverns":
+			_draw_caverns()
 		else:
 			_draw_grounds()
 		_draw_route()
@@ -398,23 +468,35 @@ class MapView extends Control:
 					var nf := HudKit.bold()
 					draw_string_outline(nf, sp + Vector2(8, 4), String(n.npc_name), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 4, Color(0, 0, 0, 0.85))
 					draw_string(nf, sp + Vector2(8, 4), String(n.npc_name), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, HudKit.GOLD_HI)
-		# Where the Dark Monoliths come down: each lands within its roam of the
-		# authored spot. The stone itself is only known to a client near it.
-		var mf := HudKit.bold()
-		for site in MonolithBeacons.sites():
-			var cp := world_to_screen(Vector2(site[0].x, site[0].z))
-			draw_circle(cp, float(site[1]) * zoom, Color(0.35, 1.0, 0.45, 0.12))
-			draw_arc(cp, float(site[1]) * zoom, 0.0, TAU, 40, Color(0.35, 1.0, 0.45, 0.7), 2.0, true)
-			_draw_marker("minimap_monolith", cp, 22.0)
-			var mt := tr("Dark Monolith")
-			var mw := mf.get_string_size(mt, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
-			var mp := cp + Vector2(-mw * 0.5, -float(site[1]) * zoom - 6.0)
-			draw_string_outline(mf, mp, mt, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 4, Color(0, 0, 0, 0.85))
-			draw_string(mf, mp, mt, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.55, 1.0, 0.6))
+		# A Dark Monolith shows only once it is near enough to be replicated: the
+		# quest text says where they fall, the map does not hand out every site.
 		for m in tree.get_nodes_in_group("monoliths"):
 			if m is Node3D and is_instance_valid(m) and m.visible:
 				var mp := world_to_screen(Vector2(m.global_position.x, m.global_position.z))
 				_draw_marker("minimap_monolith", mp, 24.0)
+
+	## The caverns: the shaded heightfield, the room names (floor 2 in green)
+	## and the seal stones near enough to be known.
+	func _draw_caverns() -> void:
+		draw_rect(Rect2(Vector2.ZERO, size), Color(0.03, 0.03, 0.04))
+		var tex := HudWorldMap.caverns_texture()
+		if tex != null:
+			var tl := world_to_screen(HudWorldMap.CAVERNS_MIN)
+			draw_texture_rect(tex, Rect2(tl, Vector2.ONE * HudWorldMap.CAVERNS_SIZE * zoom), false)
+		var f := HudKit.bold()
+		var fs := int(clampf(10.0 + zoom * 3.0, 11.0, 20.0))
+		for room in HudWorldMap.cavern_rooms():
+			var txt := String(room[0])
+			if txt == "":
+				continue
+			var at := world_to_screen(room[1])
+			var w := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+			var colour := Color(0.62, 1.0, 0.7) if int(room[2]) == 2 else HudKit.GOLD_HI
+			draw_string_outline(f, at - Vector2(w * 0.5, 0), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 5, Color(0, 0, 0, 0.9))
+			draw_string(f, at - Vector2(w * 0.5, 0), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, colour)
+		for m in get_tree().get_nodes_in_group("monoliths"):
+			if m is Node3D and is_instance_valid(m) and m.visible and (m as Node3D).global_position.y > HPMaps.y_min(HudWorldMap.CAVERNS_MAP) - 10.0:
+				_draw_marker("minimap_monolith", world_to_screen(Vector2(m.global_position.x, m.global_position.z)), 24.0)
 
 	## A Marauder's-Map style plan of one storey: parchment, inked walls, room
 	## names, doors and the stairs that leave this floor.
@@ -506,6 +588,8 @@ class MapView extends Control:
 		var g := host.guide
 		if g == null or not is_instance_valid(g) or not g.has_target():
 			return
+		if host.mode == "caverns":
+			return   # a grounds or castle waypoint is not on this sheet
 		var castle := host.mode == "castle"
 		var on_map := (g.target_map == "castle_interior") == castle
 		var pts := g.route()

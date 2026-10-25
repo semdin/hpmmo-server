@@ -97,7 +97,7 @@ CHAIN = [
      'West of the forest edge the spiders grow to the size of carts. Bring potions.', 'Borin',
      {'items': [('mat_phoenix_ash', 3)]}),
     (9, 'b', 'monolith', '', 1, 'Shatter the Darkness', 'Help destroy a Dark Monolith',
-     'Dark Monoliths fall in the western forests (Forest Edge, Acromantula Thicket, Snatcher Woods, Crypt Hollow). Follow the tall green light or find them on your map (M), then break one with others before its waves overrun you.', 'Professor Fig', {}),
+     "Dark Monoliths fall in the western forests: at the Forest Edge past Borin's hut, in the Acromantula Thicket beyond it, in Snatcher Woods to the north-west and in Crypt Hollow far to the west. Close by, a green light rises over the trees. Break one with others before its waves overrun you.", 'Professor Fig', {}),
     (10, 'B', 'dungeon', 'trial', 1, 'The Trial Hall', 'Complete the Trial Hall',
      'The Trial Hall portal is the glowing arch on the courtyard lawn, beside the lake walk. Step into it and press F, clear the corridor, then defeat the Trial Warden. Up to five can go in together.', 'Professor Fig',
      {'items': [('wand_runebound', 1)]}),

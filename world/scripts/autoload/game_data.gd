@@ -241,7 +241,9 @@ func _register_input_actions() -> void:
 	_ensure_action("flight_descend", [KEY_CTRL])
 	_ensure_action("mount_broom", [KEY_SHIFT])
 	_ensure_action("target_cycle", [KEY_TAB])
-	_ensure_action("pickup_loot", [KEY_Z, KEY_QUOTELEFT])
+	# The key under Esc picks up loot too: QUOTELEFT on a PC keyboard, SECTION on
+	# a Mac ISO keyboard (Z works everywhere).
+	_ensure_action("pickup_loot", [KEY_Z, KEY_QUOTELEFT, KEY_SECTION])
 	_ensure_action("toggle_inventory", [KEY_I])
 	_ensure_action("toggle_ollivander", [KEY_O])
 	_ensure_action("toggle_chat", [KEY_ENTER])

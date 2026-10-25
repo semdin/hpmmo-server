@@ -21,6 +21,9 @@ signal chat(text: String)
 ## HPProtocol.CHAT_LOCAL_RADIUS on the speaker's map) or "shout" (every player).
 signal chat_line(channel: String, uid: int, sender: String, house: String, text: String)
 signal notice(text: String, color: Color)
+## A notice for one player (`kind:detail`, as `notice`): the network layer sends
+## it to that player's client; the authority's own player hears `notice`.
+signal player_notice(uid: int, kind: String, detail: String)
 signal entity_replicating(record: Dictionary)      # presentation: create a view
 signal entity_despawned(uid: int)
 signal entity_moved(uid: int, pos: Vector3, rot_y: float, flags: int)
@@ -2377,6 +2380,12 @@ func _apply_damage(target: Dictionary, raw: int, spell_id: String, attacker: Dic
 	var player_hits_mob := int(attacker.get("kind", -1)) == HPProtocol.Kind.PLAYER and int(target.get("kind", -1)) == HPProtocol.Kind.MOB \
 		and spell_id != "reflect"
 	var mob_hits_player := int(attacker.get("kind", -1)) == HPProtocol.Kind.MOB and int(target.get("kind", -1)) == HPProtocol.Kind.PLAYER
+	# A creature walking home evades a hit from beyond its leash: whittling it
+	# down from outside while it ignores the attacker was the easy kite. Inside
+	# its ground the hit lands and it turns back to fight (mob_base).
+	var evade_node = target_node if player_hits_mob and target_node.has_method("evades_hit_from") else null
+	if evade_node != null and bool(evade_node.call("evades_hit_from", attacker.get("node"))):
+		return 0
 	# Block / deflect (players' item stats): a creature's melee or projectile hit
 	# that is turned aside does nothing at all.
 	if mob_hits_player:
@@ -3855,6 +3864,8 @@ func _grant_quest_items(player: Dictionary, rewards: Array) -> Array:
 		node.inventory_changed.emit()
 	if not overflow.is_empty():
 		_spawn_chest(overflow, (node as Node3D).global_position, String(player.get("map_id", "")), int(player.get("uid", 0)))
+		# Say where it went: a full bag otherwise looked like a lost reward.
+		emit_signal("player_notice", int(player.get("uid", 0)), "quest", "reward_chest")
 	return given
 
 ## The body is what the save reads, so the record's chain position is written

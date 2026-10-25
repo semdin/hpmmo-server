@@ -245,7 +245,7 @@ func _gui_input(event: InputEvent) -> void:
 
 func _get_drag_data(_at: Vector2) -> Variant:
 	if not equipment_interaction or disabled or item_id == "": return null
-	var payload := {"arcane_item": true, "id": item_id, "tier": int(entry.get("tier", 0)), "uid": int(entry.get("uid", 0)), "source_slot": equipment_slot}
+	var payload := {"arcane_item": true, "id": item_id, "tier": int(entry.get("tier", 0)), "uid": int(entry.get("uid", 0)), "source_slot": equipment_slot, "cell": int(get_meta("cell", -1))}
 	var preview := TextureRect.new()
 	preview.texture = UITheme.icon_for(item_id)
 	preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE

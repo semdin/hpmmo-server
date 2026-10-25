@@ -211,7 +211,7 @@ msgstr "Sarmaşıklar yok oldu - Kapan'ın kalbi açığa çıktı!"
 msgid "A brave Wizard"
 msgstr "Cesur bir büyücü"
 
-#: scripts/entities/monolith/dark_monolith.gd scripts/ui/hud.gd scripts/ui/hud_world_map.gd scripts/ui/mmorpg_overlay.gd addons/hpmmo_sim/data/spawn_tables.json
+#: scripts/entities/monolith/dark_monolith.gd scripts/ui/hud.gd scripts/ui/mmorpg_overlay.gd addons/hpmmo_sim/data/spawn_tables.json
 msgid "Dark Monolith"
 msgstr "Karanlık Metin Taşı"
 
@@ -834,6 +834,10 @@ msgstr "Bu ganimet başkasına ait."
 #: scripts/ui/hud.gd scripts/ui/inventory_arcane.gd
 msgid "Wait until the map loads."
 msgstr "Harita yüklenene kadar bekle."
+
+#: scripts/ui/hud.gd
+msgid "Your bag is full: the rest of the quest reward waits in a chest at your feet."
+msgstr "Çantan dolu: görev ödülünün kalanı ayağının dibindeki sandıkta seni bekliyor."
 
 #: scripts/ui/hud.gd
 msgid "%s stirs at %s - %d seconds!"
@@ -1734,6 +1738,10 @@ msgstr "  ·  B: yaratıklar"
 #: scripts/ui/hud_world_map.gd
 msgid "Showing %s (red marks)  ·  "
 msgstr "%s gösteriliyor (kırmızı işaretler)  ·  "
+
+#: scripts/ui/hud_world_map.gd addons/hpmmo_sim/data/maps.json
+msgid "Blackweb Caverns"
+msgstr "Karaağ Mağaraları"
 
 #: scripts/ui/hud_world_map.gd
 msgid "You"
@@ -2984,8 +2992,8 @@ msgid "Acromantulas infest the Forbidden Forest to the west. Inferi haunt its ed
 msgstr "Batıdaki Yasak Orman Akromantulalarla dolu. Borin'in kulübesinin ötesinde, ormanın kıyısında Inferius'lar dolaşıyor."
 
 #: scripts/world/game_world.gd
-msgid "Dark Monoliths fall in the western forests: follow the tall green light, or find them on your map (M)."
-msgstr "Karanlık Metin Taşları batı ormanlarına düşer: yükselen yeşil ışığı izle ya da onları haritanda bul (M)."
+msgid "Dark Monoliths fall in the western forests, from the Forest Edge past Borin's hut to Snatcher Woods in the north-west. Close by, you will see their green light."
+msgstr "Karanlık Metin Taşları batı ormanlarına düşer: Borin'in kulübesinin ötesindeki Orman Kıyısı'ndan kuzeybatıdaki Kapkaççı Korusu'na kadar. Yaklaşınca yeşil ışıklarını görürsün."
 
 #: scripts/world/game_world.gd
 msgid "From level 5 the Trial Hall is open: step into the glowing arch on the courtyard's south lawn and press F."
@@ -4140,10 +4148,6 @@ msgid "Webbound Seal Stone"
 msgstr "Ağbağlı Mühür Taşı"
 
 #: addons/hpmmo_sim/data/maps.json
-msgid "Blackweb Caverns"
-msgstr "Karaağ Mağaraları"
-
-#: addons/hpmmo_sim/data/maps.json
 msgid "Hogwarts Entrance"
 msgstr "Hogwarts Girişi"
 
@@ -4608,8 +4612,8 @@ msgid "Help destroy a Dark Monolith"
 msgstr "Bir Karanlık Metin Taşının yok edilmesine yardım et"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Dark Monoliths fall in the western forests (Forest Edge, Acromantula Thicket, Snatcher Woods, Crypt Hollow). Follow the tall green light or find them on your map (M), then break one with others before its waves overrun you."
-msgstr "Karanlık Metin Taşları batı ormanlarına düşer (Orman Kıyısı, Akromantula Çalılığı, Kapkaççı Korusu, Mahzen Çukuru). Yükselen yeşil ışığı izle ya da haritanda bul (M), sonra dalgaları seni ezmeden diğerleriyle birlikte birini kır."
+msgid "Dark Monoliths fall in the western forests: at the Forest Edge past Borin's hut, in the Acromantula Thicket beyond it, in Snatcher Woods to the north-west and in Crypt Hollow far to the west. Close by, a green light rises over the trees. Break one with others before its waves overrun you."
+msgstr "Karanlık Metin Taşları batı ormanlarına düşer: Borin'in kulübesinin ötesindeki Orman Kıyısı'na, onun da ötesindeki Akromantula Çalılığı'na, kuzeybatıdaki Kapkaççı Korusu'na ve çok batıdaki Mahzen Çukuru'na. Yaklaşınca ağaçların üstünde yeşil bir ışık yükselir. Dalgaları seni ezmeden önce diğerleriyle birlikte birini kır."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "The Trial Hall"
@@ -5792,6 +5796,12 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 
 #~ msgid "Corpses bewitched to serve a dark wizard. Slow, relentless and terrified of fire."
 #~ msgstr "Kara bir büyücüye hizmet etmek için büyülenmiş cesetler. Yavaş, amansız ve ateşten ödleri kopar."
+
+#~ msgid "Dark Monoliths fall in the western forests (Forest Edge, Acromantula Thicket, Snatcher Woods, Crypt Hollow). Follow the tall green light or find them on your map (M), then break one with others before its waves overrun you."
+#~ msgstr "Karanlık Metin Taşları batı ormanlarına düşer (Orman Kıyısı, Akromantula Çalılığı, Kapkaççı Korusu, Mahzen Çukuru). Yükselen yeşil ışığı izle ya da haritanda bul (M), sonra dalgaları seni ezmeden diğerleriyle birlikte birini kır."
+
+#~ msgid "Dark Monoliths fall in the western forests: follow the tall green light, or find them on your map (M)."
+#~ msgstr "Karanlık Metin Taşları batı ormanlarına düşer: yükselen yeşil ışığı izle ya da onları haritanda bul (M)."
 
 #~ msgid "Defeat 12 Cornish Pixies"
 #~ msgstr "12 Cornwall Cini alt et"

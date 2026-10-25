@@ -86,8 +86,6 @@ func _ready() -> void:
 			cl.queue_free()
 
 	_setup_npcs()
-	if not NetworkManager.is_dedicated_server:
-		add_child(MonolithBeacons.new())
 	# Training dummies are static authored scenery at fixed spots: every process
 	# builds the same ones, and only the authority registers them as entities.
 	_setup_training_grounds()
@@ -372,7 +370,7 @@ func _setup_npcs() -> void:
 	_spawn_npc(npcs, "Professor Fig", _on_ground(-12, 72),
 		["Ah, a new student! Hogwarts needs brave wizards.",
 		"Acromantulas infest the Forbidden Forest to the west. Inferi haunt its edge, past Borin's hut.",
-		"Dark Monoliths fall in the western forests: follow the tall green light, or find them on your map (M).",
+		"Dark Monoliths fall in the western forests, from the Forest Edge past Borin's hut to Snatcher Woods in the north-west. Close by, you will see their green light.",
 		"From level 5 the Trial Hall is open: step into the glowing arch on the courtyard's south lawn and press F."],
 		Color(0.2, 0.25, 0.5))
 	_spawn_npc(npcs, "Ollivander", _on_ground(16, 68.6),

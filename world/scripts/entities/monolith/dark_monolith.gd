@@ -371,9 +371,9 @@ func _ground_y(at: Vector3) -> float:
 	return NAN if hit.is_empty() else float((hit["position"] as Vector3).y)
 
 func _add_sky_beam() -> void:
-	# A tall emerald light column so players can find the stone from afar
-	# (the Dark Mark's colour). The same column as MonolithBeacons, which
-	# stands in for the stone while it is too far away to be replicated.
+	# A tall emerald light column over the stone (the Dark Mark's colour). It
+	# exists only while the stone is replicated (within ~70 m); nothing marks a
+	# site from further away any more.
 	if NetworkManager.is_dedicated_server:
 		return
 	var tall := monolith_type == "dark"

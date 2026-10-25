@@ -42,6 +42,16 @@ signal died(mob: Node3D)
 @export var aggro_mode := "reactive"
 @export var assist_radius := 16.0
 @export var leash_distance := 26.0
+## A fight that is still going (the creature was hit within LEASH_HOT_SECONDS)
+## stretches the leash to LEASH_HOT_SCALE x: hitting a creature while backing off
+## no longer walks it home at the first step past the line, and it gives up only
+## once the fight cools or the far limit is crossed.
+const LEASH_HOT_SECONDS := 4.0
+const LEASH_HOT_SCALE := 1.6
+## Walking home it heals this share of its health per second (full at home).
+const RETURN_REGEN_SHARE := 0.15
+var _last_hit_msec := -100000
+var _return_heal := 0.0
 @export var attack_range := 2.2
 @export var attack_cooldown := 1.4
 @export var exp_reward := 65
@@ -436,7 +446,17 @@ func _track_drawn_speed(speed: float, delta: float) -> void:
 ## reached, a crowd in front) stands instead of running on the spot, and a
 ## replica that strolls walks instead of gliding in its idle pose.
 func _play_locomotion(moving_slot: String) -> void:
-	_play_slot(moving_slot if _drawn_moving else "idle")
+	_play_slot(_gait_for(moving_slot) if _drawn_moving else "idle")
+
+## A chase slower than half the run cycle's ground speed plays the walk, sped
+## up to the body's pace, when the walk can carry it: Grak chases at ~3.5 m/s
+## against a troll sprint authored at ~12 m/s, and the run at its 0.4x floor
+## slid the feet until he seemed to stand still.
+func _gait_for(slot: String) -> String:
+	if slot == "run" and run_speed > 0.0 and walk_speed > 0.0 \
+			and _drawn_speed < run_speed * 0.5 and _drawn_speed <= walk_speed * 3.2:
+		return "walk"
+	return slot
 
 func _play_slot(slot: String, blend: float = 0.18) -> void:
 	if not is_instance_valid(anim_player):
@@ -673,7 +693,7 @@ func _tick_attack(delta: float) -> void:
 	# A leash broken mid-windup cancels the attack: the release must not land
 	# from outside the pack's arena ("clear attacks ... return
 	# home").
-	if global_position.distance_to(pack_anchor) > _leash_limit():
+	if _leash_broken():
 		_break_fight("leash")
 		return
 	if attack_phase == AttackPhase.ANTICIPATION:
@@ -897,7 +917,11 @@ func _wander_speed() -> float:
 	return move_speed * 0.3
 
 func aggro_on(player: Node3D, alert_pack: bool = true) -> void:
-	if state in [State.DEAD, State.RETURN] or not Rules.can_damage(self, player):
+	if state == State.DEAD or not Rules.can_damage(self, player):
+		return
+	# Walking home it turns on someone who strikes it inside its own ground;
+	# from outside the leash it ignores them (and evades the hit).
+	if state == State.RETURN and not _inside_home_ground(player):
 		return
 	wake()
 	var newly_aggroed := state != State.CHASE and state != State.ATTACK
@@ -930,8 +954,33 @@ func _leash_limit() -> float:
 		return boss_arena_radius
 	return leash_distance
 
+## Past the leash: the base limit once the fight has cooled, the stretched one
+## while it is still being hit.
+func _leash_broken() -> bool:
+	var away := global_position.distance_to(pack_anchor)
+	var limit := _leash_limit()
+	if away <= limit:
+		return false
+	var hot := Time.get_ticks_msec() - _last_hit_msec < int(LEASH_HOT_SECONDS * 1000.0)
+	return not hot or away > limit * LEASH_HOT_SCALE
+
+## A body standing on this creature's ground (inside the base leash, measured
+## flat from the pack anchor).
+func _inside_home_ground(body: Node3D) -> bool:
+	if not is_instance_valid(body):
+		return false
+	var flat := body.global_position - pack_anchor
+	flat.y = 0.0
+	return flat.length() <= _leash_limit()
+
+## Authority: a creature walking home evades a hit from outside its ground, so
+## it cannot be whittled down from beyond the leash while it ignores the
+## attacker. Inside its ground the hit lands and it turns to fight.
+func evades_hit_from(attacker: Node) -> bool:
+	return state == State.RETURN and not (attacker is Node3D and _inside_home_ground(attacker as Node3D))
+
 func _fight(delta: float) -> void:
-	if not _valid_target() or global_position.distance_to(pack_anchor) > _leash_limit():
+	if not _valid_target() or _leash_broken():
 		# Losing every valid target (or breaking the leash) resets the encounter:
 		# the pack walks home and the authority cancels its reward credit.
 		_break_fight("no_target" if _valid_target() == false else "leash")
@@ -1017,10 +1066,24 @@ func _ring_angle() -> float:
 
 func _return_home(delta: float) -> void:
 	_move_to(spawn_point, move_speed, delta)
+	var authority := SimAuthority.is_authority() and not sim_puppet
 	if global_position.distance_to(spawn_point) < 1.3:
+		# The authority's record holds the health every client sees: healing only
+		# this node left a creature that walked home at its wounded value.
+		if authority:
+			SimAuthority.heal_mob(self, max_hp)
 		current_hp = max_hp
+		_return_heal = 0.0
 		_set_state(State.IDLE)
 		_update_label()
+		return
+	if authority and current_hp < max_hp:
+		_return_heal += float(max_hp) * RETURN_REGEN_SHARE * delta
+		if _return_heal >= 1.0:
+			var amount := int(_return_heal)
+			_return_heal -= amount
+			SimAuthority.heal_mob(self, amount)
+			_update_label()
 
 ## Every member that has nothing left to fight walks home; when the last one is
 ## home the encounter resets (rewards cancelled by the authority).
@@ -1465,13 +1528,16 @@ func trigger_enrage() -> void:
 ## its own. Clients calling this only ask - the engine answers (and in a
 ## client-only process the answer is "no", because the server sends the result).
 func take_damage(amount: int, type: String, attacker: Node3D) -> void:
-	if sim_puppet or state in [State.DEAD, State.RETURN]:
+	if sim_puppet or state == State.DEAD or evades_hit_from(attacker):
 		return
 	SimAuthority.apply_damage(self, amount, type, attacker)
 
 ## Presentation hook after the authority applied damage: reaction state only.
 func on_authoritative_damage(type: String, attacker: Node3D, stun_ms: int, weaken_ms: int) -> void:
-	if state in [State.DEAD, State.RETURN]:
+	if state == State.DEAD:
+		return
+	_last_hit_msec = Time.get_ticks_msec()
+	if state == State.RETURN and not (is_instance_valid(attacker) and _inside_home_ground(attacker)):
 		return
 	if is_instance_valid(attacker):
 		aggro_on(attacker)

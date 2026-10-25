@@ -665,7 +665,7 @@
       "level": 9,
       "title": "Shatter the Darkness",
       "name": "Help destroy a Dark Monolith",
-      "desc": "Dark Monoliths fall in the western forests (Forest Edge, Acromantula Thicket, Snatcher Woods, Crypt Hollow). Follow the tall green light or find them on your map (M), then break one with others before its waves overrun you.",
+      "desc": "Dark Monoliths fall in the western forests: at the Forest Edge past Borin's hut, in the Acromantula Thicket beyond it, in Snatcher Woods to the north-west and in Crypt Hollow far to the west. Close by, a green light rises over the trees. Break one with others before its waves overrun you.",
       "giver": "Professor Fig",
       "type": "monolith",
       "target": "",

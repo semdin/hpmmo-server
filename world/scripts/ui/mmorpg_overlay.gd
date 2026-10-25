@@ -628,7 +628,7 @@ func _world_to_map(pos: Vector3) -> Vector2:
 
 ## A map marker: one of the minimap icons in a fixed box. The player is the
 ## arrow, a mob the red shard, a boss the crown, an NPC the figure and a monolith
-## the purple spike, so the map says what a marker is and not only where it is.
+## the green spike, so the map says what a marker is and not only where it is.
 func _dot(key: String, icon_id: String, size: float) -> Control:
 	if not _dots.has(key):
 		var marker := TextureRect.new()
