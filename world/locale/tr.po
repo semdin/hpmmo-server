@@ -2944,12 +2944,24 @@ msgid "Server time (GMT+3)"
 msgstr "Sistem (sunucu saati, GMT+3)"
 
 #: scripts/world/day_night.gd
-msgid "Always day"
-msgstr "Hep gündüz"
+msgid "Always dawn (Sabah)"
+msgstr "Hep sabah"
 
 #: scripts/world/day_night.gd
-msgid "Always night"
-msgstr "Hep gece"
+msgid "Always noon (Öğle)"
+msgstr "Hep öğle"
+
+#: scripts/world/day_night.gd
+msgid "Always afternoon (İkindi)"
+msgstr "Hep ikindi"
+
+#: scripts/world/day_night.gd
+msgid "Always sunset (Akşam)"
+msgstr "Hep akşam"
+
+#: scripts/world/day_night.gd
+msgid "Always night (Yatsı)"
+msgstr "Hep yatsı (gece)"
 
 #: scripts/world/dungeon_director.gd
 msgid "The way back is open. Regroup and try again."
@@ -5741,6 +5753,12 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 
 #~ msgid "Acromantulas infest the Forbidden Forest to the west. Inferi haunt its edge, past Hagrid's hut."
 #~ msgstr "Batıdaki Yasak Orman Akromantulalarla dolu. Hagrid'in kulübesinin ötesinde, ormanın kıyısında Inferius'lar dolaşıyor."
+
+#~ msgid "Always day"
+#~ msgstr "Hep gündüz"
+
+#~ msgid "Always night"
+#~ msgstr "Hep gece"
 
 #~ msgid "At least 8 characters, letters and digits"
 #~ msgstr "En az 8 karakter, harf ve rakam"

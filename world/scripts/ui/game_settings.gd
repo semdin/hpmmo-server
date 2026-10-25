@@ -53,8 +53,11 @@ const INTENSITY_MAX := 1.5
 const BUSES := ["Music", "SFX", "UI", "Ambience"]
 const GRAPHICS_CHOICES := ["auto", "low", "medium", "high"]
 const GRAPHICS_DEFAULT := "auto"
-## Time of day on the grounds (DayNight): the server clock in GMT+3, or held.
-const TIME_OF_DAY_CHOICES := ["system", "day", "night"]
+## Time of day on the grounds (DayNight): the server clock in GMT+3, or held at
+## one of the five prayer times (sabah, öğle, ikindi, akşam, yatsı).
+const TIME_OF_DAY_CHOICES := ["system", "dawn", "noon", "afternoon", "sunset", "night"]
+## Older saves held "day".
+const TIME_OF_DAY_ALIASES := {"day": "noon"}
 const TIME_OF_DAY_DEFAULT := "system"
 
 ## Actions the settings screen may rebind, with the key GameData registers by
@@ -208,6 +211,7 @@ func load_from_disk() -> void:
 	var quality := String(config.get_value(SECTION_GENERAL, "graphics_quality", GRAPHICS_DEFAULT))
 	graphics_quality = quality if GRAPHICS_CHOICES.has(quality) else GRAPHICS_DEFAULT
 	var tod := String(config.get_value(SECTION_GENERAL, "time_of_day", TIME_OF_DAY_DEFAULT))
+	tod = String(TIME_OF_DAY_ALIASES.get(tod, tod))
 	time_of_day = tod if TIME_OF_DAY_CHOICES.has(tod) else TIME_OF_DAY_DEFAULT
 	volumes.clear()
 	# Volumes saved against the previous (synthesised) sound set are dropped
@@ -266,7 +270,7 @@ func set_graphics_quality(choice: String) -> void:
 	graphics_quality = choice if GRAPHICS_CHOICES.has(choice) else GRAPHICS_DEFAULT
 	save_to_disk()
 
-## "system" (server time, GMT+3), "day" or "night"; DayNight eases to it.
+## "system" (server time, GMT+3) or a held prayer time; DayNight eases to it.
 func set_time_of_day(choice: String) -> void:
 	time_of_day = choice if TIME_OF_DAY_CHOICES.has(choice) else TIME_OF_DAY_DEFAULT
 	save_to_disk()

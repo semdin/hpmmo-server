@@ -6,7 +6,8 @@ class_name DayNight
 ## Time of day follows the server clock in GMT+3 (the players' time zone),
 ## read from the machine's UTC clock so every client agrees without a protocol
 ## field. Settings > General > Time of day can hold it at day or night instead
-## (GameSettings.time_of_day: "system" | "day" | "night").
+## (GameSettings.time_of_day: "system" or a held prayer time - "dawn", "noon",
+## "afternoon", "sunset", "night").
 ##
 ## The day has its five prayer-time faces and the hours between blend them:
 ## sabah (dawn, pink and cold), öğle (noon, high white sun), ikindi (afternoon,
@@ -43,8 +44,12 @@ const SUN_MAX_ELEVATION := 62.0
 const MOON_MAX_ELEVATION := 48.0
 
 # i18n-begin
-const CHOICES := {"system": "Server time (GMT+3)", "day": "Always day", "night": "Always night"}
+const CHOICES := {"system": "Server time (GMT+3)", "dawn": "Always dawn (Sabah)", "noon": "Always noon (Öğle)",
+	"afternoon": "Always afternoon (İkindi)", "sunset": "Always sunset (Akşam)", "night": "Always night (Yatsı)"}
 # i18n-end
+## The hour each held choice shows: the sun just up, high, low and gold, on
+## the horizon, and the moon.
+const HELD_HOURS := {"dawn": 6.2, "noon": 12.5, "afternoon": 15.8, "sunset": 18.7, "night": 0.5}
 
 const LOOKS := {
 	"dawn": {
@@ -147,11 +152,9 @@ static func hour() -> float:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--hour="):
 			return fposmod(float(arg.trim_prefix("--hour=")), 24.0)
-	match GameSettings.instance().time_of_day:
-		"day":
-			return 13.0
-		"night":
-			return 0.5
+	var held := String(GameSettings.instance().time_of_day)
+	if HELD_HOURS.has(held):
+		return float(HELD_HOURS[held])
 	return fposmod(Time.get_unix_time_from_system() / 3600.0 + UTC_OFFSET_HOURS, 24.0)
 
 static func look_at_hour(h: float) -> Dictionary:
