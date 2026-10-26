@@ -1,7 +1,7 @@
 {
  "generated": "2026-10-26",
  "source_repository": "hpmmo-client",
- "source_revision": "eb2050ecd2583fbe8ee4e714b79d0236ef3b750a",
+ "source_revision": "b678e17b573c1602d5333a230990cd19d2112f64",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/audio/sound_library.json": "d2a765cd871e502a092152ce57c3223f2080dd54434bb72a548fcc3d071a4b17",
@@ -680,7 +680,8 @@
   "scripts/ui/world_loader.gd": "dca6fe345f55b2ed889a93579e1cfa81bb5be39ebd7a55db32adad5beac8f09e",
   "scripts/world/castle/castle_atmosphere.gd": "9c386592208589cf6b595ffcdd91caff9a92cd80602d36d07630140c73f9d110",
   "scripts/world/castle/castle_blockout.gd": "0e95a773d2693c9b7d2ca837fcb453cca75ec1a6ea622421e255b892ea8e0082",
-  "scripts/world/castle/castle_decor.gd": "877dab13d2ff26a0985cf3489df929588ff7be4d426c98dc4f036dad0abf6d00",
+  "scripts/world/castle/castle_decor.gd": "3eccd10b5d75e5313c5ba4193896e6da20c7bb37d060d006881d72b83835a6b0",
+  "scripts/world/castle/castle_feast.gd": "e1ee29304d2d2b4aa24dbb36440c98806143e66ef4f60499ae4b5d61582f707b",
   "scripts/world/castle/magical_staircase.gd": "40285764e954d58007d3a15a951025eff7e0989af84023f3b12dd1989778e8b1",
   "scripts/world/castle_interior.gd": "2d9b6f4faae9eee08e1af725bb7394e556b851dd7bc98853d636007cee33a6fb",
   "scripts/world/caverns/cavern_atmosphere.gd": "3d6e332c6a3e172f960b2a58dd4ebf2cbbf10b0f073224e20a1a6cd9ef93a86c",

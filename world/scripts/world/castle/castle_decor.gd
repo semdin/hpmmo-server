@@ -8,11 +8,13 @@ extends RefCounted
 ##     for them, the enchanted ceiling (a material slot on the vault webs);
 ##   * Entrance Hall: two iron ring chandeliers with candles and a warm light;
 ##   * moonlight through the windows (a shadowed directional light the
-##     volumetric fog turns into beams on medium and high).
+##     volumetric fog turns into beams on medium and high);
+##   * the laid Great Hall and kitchen tables (castle_feast.gd).
 ## Client only - the dedicated server never builds it.
 
 const QualityPreset = preload("res://scripts/world/quality_preset.gd")
 const StaticMerge = preload("res://scripts/world/static_merge.gd")
+const CastleFeast = preload("res://scripts/world/castle/castle_feast.gd")
 const CANDLE_SHADER := preload("res://assets/shaders/castle/floating_candle.gdshader")
 const FLAME_SHADER := preload("res://assets/shaders/castle/candle_flame.gdshader")
 
@@ -46,6 +48,7 @@ static func build(parent: Node3D, map_y: float, quality: String = "") -> Node3D:
 	_prop(root, "owl_lectern", Vector3(-96.2, map_y + 1.0, 56.0), 90.0, 1.75)
 	for z in [49.6, 62.4]:
 		_prop(root, "armour", Vector3(-17.15, map_y, z), 90.0, 2.45)
+	CastleFeast.build(root, map_y, quality)
 	_batch(root)
 	return root
 
