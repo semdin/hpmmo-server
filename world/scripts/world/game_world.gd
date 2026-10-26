@@ -53,7 +53,7 @@ func _enter_tree() -> void:
 
 func _ready() -> void:
 	if not NetworkManager.is_dedicated_server:
-		_request_mob_scenes()
+		_queue_preloads()
 		# Reduced-quality particle budget for every effect that enters the world
 		# from here on (the build, spawns, map transfers).
 		get_tree().node_added.connect(_on_node_added)
@@ -140,6 +140,7 @@ func _reap_ghost_bodies() -> void:
 
 func _process(delta: float) -> void:
 	_drain_view_queue()
+	_preload_next(delta)
 	_ghost_sweep -= delta
 	if _ghost_sweep <= 0.0:
 		_ghost_sweep = 1.0
@@ -544,17 +545,44 @@ func _setup_replication() -> void:
 const VIEWS_PER_FRAME := 3
 var _view_queue: Array = []        # uids, oldest first
 var _queued: Dictionary = {}       # uid -> true
-var _mob_scenes_requested := false
+## Creature scenes and spell effects, loaded ahead of first sight - on the main
+## thread, one at a time, once the world is up and no map is loading.
+##
+## They used to be background (threaded) loads started at the top of _ready,
+## racing the grounds build and, on a Mac, the shader warm-up, which loads the
+## same creature scenes on the main thread: the two waited on each other and
+## the client froze on "Raising the castle" for good (live, 2026-10-25, a
+## character logged out in the caverns; reproduced on Windows). A main-thread
+## load always finishes; a short hitch while the player looks around the spawn
+## is the price.
+const PRELOAD_EVERY := 0.2
+var _preload_queue: Array = []   # [kind, id]
+var _preload_wait := 0.0
 
-func _request_mob_scenes() -> void:
-	if _mob_scenes_requested:
-		return
-	_mob_scenes_requested = true
+func _queue_preloads() -> void:
 	for path in HPProtocol.MOB_SCENES.values():
 		if ResourceLoader.exists(String(path)):
-			# No sub-threads: that mode can deadlock against a main-thread load of a
-			# shared dependency (the creature view below waits on these).
-			ResourceLoader.load_threaded_request(String(path), "PackedScene", false)
+			_preload_queue.append(["mob", String(path)])
+	for spell_id in preload("res://scripts/spells/skill_fx.gd").VFX.SPELLS.keys():
+		_preload_queue.append(["spell", String(spell_id)])
+
+func _preload_next(delta: float) -> void:
+	if _preload_queue.is_empty():
+		return
+	_preload_wait -= delta
+	if _preload_wait > 0.0 or get_tree().root.has_node("WorldLoader"):
+		return
+	if map_controller != null and bool(map_controller.get("busy")):
+		return
+	_preload_wait = PRELOAD_EVERY
+	var next: Array = _preload_queue.pop_front()
+	if next[0] == "mob":
+		if not _mob_scene_cache.has(next[1]):
+			var scene := load(String(next[1])) as PackedScene
+			if scene != null:
+				_mob_scene_cache[next[1]] = scene
+	else:
+		preload("res://scripts/spells/skill_fx.gd").warm_spell(String(next[1]))
 
 ## Creature scenes stay loaded for the life of the world. Nothing else held
 ## them: once the last troll of a pack despawned the PackedScene was freed, and
@@ -568,11 +596,7 @@ func _mob_scene(variant: int) -> PackedScene:
 	var cached: PackedScene = _mob_scene_cache.get(path)
 	if cached != null:
 		return cached
-	var scene: PackedScene = null
-	if ResourceLoader.load_threaded_get_status(path) != ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
-		scene = ResourceLoader.load_threaded_get(path) as PackedScene
-	else:
-		scene = load(path) as PackedScene
+	var scene := load(path) as PackedScene
 	if scene != null:
 		_mob_scene_cache[path] = scene
 	return scene
@@ -852,7 +876,8 @@ func _aimed_body(caster, aim: Vector3) -> Node3D:
 		if bool(record.get("dead", false)):
 			continue
 		var kind := int(record.get("kind", 0))
-		if kind != HPProtocol.Kind.MOB and kind != HPProtocol.Kind.PLAYER 				and kind != HPProtocol.Kind.DUMMY and kind != HPProtocol.Kind.MONOLITH:
+		if kind != HPProtocol.Kind.MOB and kind != HPProtocol.Kind.PLAYER \
+				and kind != HPProtocol.Kind.DUMMY and kind != HPProtocol.Kind.MONOLITH:
 			continue
 		var node = record.get("node")
 		if node == null or not is_instance_valid(node) or not (node is Node3D) or node == caster:
@@ -890,7 +915,8 @@ func _on_cast_landed(cast_id: int, _caster_uid: int, spell_id: String, hits: Arr
 	_bolt_views.erase(cast_id)
 	# A single-target bolt that the authority says hit ends now, even if its view
 	# has not reached the body yet; area blasts and misses draw their own end.
-	if not hits.is_empty() and HPRules.delivery(spell_id) != "projectile_aoe" 			and view != null and is_instance_valid(view) and view.has_method("end_on_landed"):
+	if not hits.is_empty() and HPRules.delivery(spell_id) != "projectile_aoe" \
+			and view != null and is_instance_valid(view) and view.has_method("end_on_landed"):
 		view.end_on_landed()
 	if _bolt_views.size() > 64:
 		for key in _bolt_views.keys():

@@ -124,9 +124,9 @@ func set_value(current: float, maximum: float) -> void:
 		MIN_DURATION, MAX_DURATION)
 	var generation := _generation
 	_tween = _host.create_tween()
-	_tween.tween_method(
-		func(displayed: float) -> void: _write_lag(displayed, generation),
-		lag.value, bar.value, duration)
+	# A bound method, not a lambda: a lambda captures this RefCounted and the
+	# bar was then never freed (every StatBar leaked at exit).
+	_tween.tween_method(_write_lag.bind(generation), lag.value, bar.value, duration)
 
 ## Jump both layers to the current value with no animation (bind time, respawn,
 ## map transfer): a fresh bind must never animate in from a previous life's bar.

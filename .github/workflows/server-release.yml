@@ -67,7 +67,7 @@ jobs:
     outputs:
       release_id: ${{ steps.id.outputs.release_id }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # The world tree keeps its models in Git LFS, served by our own LFS
       # server (lfs.agsilvery.com -> Cloudflare R2, see .lfsconfig; the runner

@@ -73,6 +73,9 @@ static func build(preset: String) -> Dictionary:
 			done.append(String(quest.get("id", "")))
 			house_rep += int(quest.get("reward_house_rep", 0))
 
+	# Full health and mana with the gear on: the bare base numbers left a
+	# geared tester spawning hurt (2231 / 2570).
+	var full := HPEquipment.stats(base_hp, base_mana, equipment, {})
 	return {
 		"id": 1,
 		"name": "Tester",
@@ -81,10 +84,10 @@ static func build(preset: String) -> Dictionary:
 		"exp": 0,
 		"base_max_hp": base_hp,
 		"base_max_mana": base_mana,
-		"max_hp": base_hp,
-		"current_hp": base_hp,
-		"max_mana": base_mana,
-		"current_mana": base_mana,
+		"max_hp": int(full.max_hp),
+		"current_hp": int(full.max_hp),
+		"max_mana": int(full.max_mana),
+		"current_mana": int(full.max_mana),
 		"galleons": 10000000,
 		"wand_tier": 0,
 		"rot_y": PI,

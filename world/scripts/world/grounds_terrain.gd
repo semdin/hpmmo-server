@@ -134,7 +134,8 @@ func apply_quality(preset: Dictionary) -> void:
 		for l in ranges.size():
 			if not is_equal_approx(asset.get_lod_range(l), float(ranges[l])):
 				assets_change = true
-		if asset.last_shadow_lod != int(entry["shadow_lod"]) 				or (int(entry["cast"]) >= 0 and asset.cast_shadows != int(entry["cast"])):
+		if asset.last_shadow_lod != int(entry["shadow_lod"]) \
+				or (int(entry["cast"]) >= 0 and asset.cast_shadows != int(entry["cast"])):
 			assets_change = true
 		wanted.append(entry)
 	var planted := _vegetation_density >= 0.0

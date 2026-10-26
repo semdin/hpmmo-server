@@ -154,6 +154,58 @@ func _ready() -> void:
 	_apply_custom_cursor()
 	call_deferred("_apply_saved_settings")
 
+## Quitting: the custom cursor and the static caches (textures, materials,
+## shaders, fonts held by `static var`s) are released here, while the
+## RenderingServer still exists. Left to the engine they are freed after it,
+## with the scripts, and every quit printed "RID allocations ... leaked at exit".
+## The game's own scene has already left the tree when this autoload does.
+func _exit_tree() -> void:
+	if DisplayServer.get_name() != "headless":
+		Input.set_custom_mouse_cursor(null)
+	release_static_caches()
+
+## Every `static var` that holds an engine resource or object, by script. The
+## scripts are named by path and released only when they are loaded: naming the
+## classes here compiled them (and their model preloads) into every boot,
+## the dedicated server's and the import pass's too.
+const STATIC_CACHES := {
+	"res://scripts/ui/hud_kit.gd": ["_fonts", "_boxes"],
+	"res://scripts/ui/ui_theme.gd": ["_icons", "_fonts", "_palette", "_theme"],
+	"res://scripts/ui/arcane_skin.gd": ["_textures"],
+	"res://scripts/ui/gauge_flow.gd": ["_shader"],
+	"res://scripts/ui/hud_world_map.gd": ["_caverns_tex", "_caverns_rooms"],
+	"res://scripts/ui/hud_action_bar.gd": ["spell_order"],
+	"res://scripts/ui/game_settings.gd": ["_instance"],
+	"res://scripts/ui/hit_feedback.gd": ["_instance"],
+	"res://scripts/ui/world_labels.gd": ["_instance"],
+	"res://scripts/entities/hero_appearance.gd": ["_cloak_materials", "_dressed_material"],
+	"res://scripts/entities/monolith/monolith_beacons.gd": ["_shader"],
+	"res://scripts/entities/mobs/mob_base.gd": ["_wake_mobs", "_pack_index"],
+	"res://scripts/fx/fire_card.gd": ["_materials"],
+	"res://scripts/fx/status_fx.gd": ["_materials"],
+	"res://scripts/assets/pbr_kit.gd": ["_set_cache", "_material_cache", "_scene_cache", "_queued", "_flat_cache"],
+	"res://scripts/assets/material_kit.gd": ["_cache"],
+	"res://scripts/assets/static_batch.gd": ["_ao_cache"],
+	"res://scripts/spells/skill_fx.gd": ["_warm_cache", "_predicted", "_warmed", "_active"],
+	"res://scripts/world/castle/castle_blockout.gd": ["_grid"],
+	"res://scripts/world/waypoint_router.gd": ["_grid"],
+	"res://scripts/world/grounds_terrain.gd": ["_active"],
+	"res://addons/hpmmo_sim/snapshots.gd": ["_index_owner", "_loose"],
+	"res://addons/hpmmo_sim/equipment.gd": ["_uid_rng"],
+}
+
+static func release_static_caches() -> void:
+	for path in STATIC_CACHES:
+		if not ResourceLoader.has_cached(path):
+			continue   # never loaded in this run: nothing to release
+		var script: Script = load(path)
+		for field in STATIC_CACHES[path]:
+			var value = script.get(field)
+			if value is Dictionary or value is Array:
+				value.clear()
+			else:
+				script.set(field, null)
+
 ## The saved interface scale and volumes take effect at launch - the scale used
 ## to apply only once the slider was touched, so a fresh start showed "1.00"
 ## while drawing the interface larger.

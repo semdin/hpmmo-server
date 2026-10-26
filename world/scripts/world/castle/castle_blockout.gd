@@ -205,7 +205,8 @@ static func kit_material(slot: String) -> Material:
 			books.cull_mode = BaseMaterial3D.CULL_DISABLED
 			books.roughness = 0.85
 			return books
-		"cloth_red", "cloth_blue", "cloth_green", "cloth_yellow", 				"cloth_red_dark", "cloth_blue_dark", "cloth_green_dark", "cloth_yellow_dark":
+		"cloth_red", "cloth_blue", "cloth_green", "cloth_yellow", \
+				"cloth_red_dark", "cloth_blue_dark", "cloth_green_dark", "cloth_yellow_dark":
 			var base := {"cloth_red": Color(0.55, 0.08, 0.07), "cloth_blue": Color(0.1, 0.18, 0.5),
 				"cloth_green": Color(0.06, 0.3, 0.16), "cloth_yellow": Color(0.78, 0.58, 0.12)}
 			var dark := slot.ends_with("_dark")
@@ -268,7 +269,8 @@ static func kit_material(slot: String) -> Material:
 ## material cache - the grounds use it too - is untouched.
 static func kit_material_for_quality(slot: String) -> Material:
 	var m := kit_material(slot)
-	if m is ShaderMaterial and QualityPreset.current() == "low" 			and (m as ShaderMaterial).shader == PBR.SHADER:
+	if m is ShaderMaterial and QualityPreset.current() == "low" \
+			and (m as ShaderMaterial).shader == PBR.SHADER:
 		m = m.duplicate()
 		(m as ShaderMaterial).set_shader_parameter("lite", true)
 	return m

@@ -196,6 +196,19 @@ def http_json_retry(url: str, **kwargs):
 DRAIN_SEQUENCE = ["ANNOUNCING", "DRAINING", "SAVING", "DISCONNECTING", "MAINTENANCE"]
 
 
+class _StubServer(http.server.ThreadingHTTPServer):
+    """The stub servers' HTTP server. The controller hangs up on purpose (curl
+    timeouts while a world "boots"); the stock server printed every such reset
+    as an exception traceback in a passing run."""
+
+    daemon_threads = True
+
+    def handle_error(self, request, client_address):
+        if isinstance(sys.exc_info()[1], (ConnectionResetError, BrokenPipeError, ConnectionAbortedError)):
+            return
+        super().handle_error(request, client_address)
+
+
 class _JsonHandler(http.server.BaseHTTPRequestHandler):
     """HTTP/1.1 with small JSON helpers, shared by the two stub servers below
     (the world's admin port and the rehearsal's control port)."""
@@ -350,8 +363,7 @@ class FakeAdmin:
                     return
                 self._json(404, {"error": "not found"})
 
-        httpd = http.server.ThreadingHTTPServer(("127.0.0.1", self.port), Handler)
-        httpd.daemon_threads = True
+        httpd = _StubServer(("127.0.0.1", self.port), Handler)
         return httpd
 
     def _make_ctl_server(self):
@@ -369,8 +381,7 @@ class FakeAdmin:
                     return
                 self._json(404, {"error": "not found"})
 
-        httpd = http.server.ThreadingHTTPServer(("127.0.0.1", self.ctl_port), Handler)
-        httpd.daemon_threads = True
+        httpd = _StubServer(("127.0.0.1", self.ctl_port), Handler)
         return httpd
 
     def _start_admin_server(self, generation: int = -1) -> None:
@@ -549,8 +560,7 @@ class FakeApi:
                 else:
                     self._json(404, {"error": "not found"})
 
-        httpd = http.server.ThreadingHTTPServer(("127.0.0.1", self.port), Handler)
-        httpd.daemon_threads = True
+        httpd = _StubServer(("127.0.0.1", self.port), Handler)
         return httpd
 
     @property

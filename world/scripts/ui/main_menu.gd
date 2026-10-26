@@ -20,7 +20,9 @@ extends Control
 ## Command line (tests, tools): --solo/--offline, --user U, --pass P,
 ## --autologin, --no-autologin, --ip/--server HOST, --port N, --api-port=N,
 ## --test-char=<level|trial|corridor|max> (with --solo: a levelled, geared
-## developer character, see TestCharacter).
+## developer character, see TestCharacter), --dev-join=Name (straight into a
+## local dev world server, 127.0.0.1:7777 unless --server/--port say otherwise;
+## see `dev.ps1 local`).
 
 const DEFAULT_SERVER_IP := "185.118.141.74"
 const DEFAULT_GAME_PORT := 7777
@@ -953,6 +955,45 @@ func _await_game_connection(timeout_seconds: float, refusal: Dictionary = {}) ->
 		waited += 0.1
 	return NetworkManager.is_connected_to_game
 
+## ================================================================ dev join
+
+## `--dev-join=Name`: join a local dev world server (no account service) under
+## a display name and go straight into the world - two of these against
+## `dev.ps1 local` are a local multiplayer session (party, duel, trade checks).
+func _dev_join(dev_name: String, args: PackedStringArray) -> void:
+	var host := "127.0.0.1"
+	var port := DEFAULT_GAME_PORT
+	for i in range(args.size()):
+		if (args[i] == "--server" or args[i] == "--ip") and i + 1 < args.size():
+			host = args[i + 1]
+		elif args[i] == "--port" and i + 1 < args.size():
+			port = int(args[i + 1])
+		elif args[i].begins_with("--dev-window="):
+			# "slot/count": this window takes its column of the screen, so the
+			# local players sit side by side (the project starts fullscreen,
+			# which Godot's own --windowed does not override).
+			var r := args[i].substr("--dev-window=".length()).split("/")
+			if r.size() == 2 and int(r[1]) > 0:
+				var area := DisplayServer.screen_get_usable_rect()
+				var w := area.size.x / int(r[1])
+				DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+				DisplayServer.window_set_size(Vector2i(w - 16, area.size.y - 48))
+				DisplayServer.window_set_position(area.position + Vector2i(w * int(r[0]) + 8, 36))
+	GameSettings.use_account("dev_" + dev_name.to_lower())
+	NetworkManager.local_player_name = dev_name
+	_set_busy(true, tr("Connecting to the world…"))
+	var err := NetworkManager.join_game(host, port, dev_name)
+	if err == OK and await _await_game_connection(15.0):
+		# The sheet the dev server built (HPMMO_DEV_TEST_CHAR) plays the part of
+		# the character select's choice: the world spawns the body where it is
+		# and boots its map, as a real login does.
+		if not SimNet.pending_character.is_empty():
+			NetworkManager.local_character_data = SimNet.pending_character
+		WorldLoader.enter_world(get_tree())
+		return
+	_set_busy(false)
+	_set_status(tr("The game server did not respond. Try again a little later."), "error")
+
 ## ================================================================ solo / offline
 
 func _on_solo_pressed() -> void:
@@ -1097,6 +1138,10 @@ func _handle_cmdline_args() -> void:
 		print("[MainMenu] Command-line flag --solo detected, starting offline mode...")
 		call_deferred("_on_solo_pressed")
 		return
+	for arg in args + OS.get_cmdline_user_args():
+		if arg.begins_with("--dev-join="):
+			call_deferred("_dev_join", arg.substr("--dev-join=".length()).strip_edges(), args)
+			return
 
 	var user_val := ""
 	var pass_val := ""

@@ -36,11 +36,15 @@ const WARNING_SCENE := "res://scenes/spells/fx_boss_warning.tscn"
 const TRAIL_SCENE := "res://scenes/spells/fx_broom_trail.tscn"
 
 ## Predicted casts, keyed "instance_id:cast_seq" -> effect node. A rejected cast
-## removes its entry; nothing else is ever removed.
+## removes its entry; entries whose effect has ended are pruned as new ones
+## arrive (accepted casts were never removed: one entry per cast, all session).
 static var _predicted: Dictionary = {}
 static var _active: Array = []
 ## Spells whose later-stage textures were already queued for loading.
 static var _warmed: Dictionary = {}
+## What warm_spell loaded, held for the session (a warmed sheet could drop out
+## of memory again before the impact frame it was warmed for).
+static var _warm_cache: Dictionary = {}   # path -> Resource
 
 
 static func quality() -> String:
@@ -111,9 +115,12 @@ static func spawn_stage(world: Node3D, spell_id: String, stage: String, origin: 
 	return effect
 
 
-## Start loading a spell's later stages (bolt, impact, end) in the background the
-## moment it is cast: a 2048 impact sheet read from disk on the impact frame
-## shows up late, after the damage numbers.
+## Load a spell's later stages (bolt, impact, end) ahead of them: a 2048 impact
+## sheet read from disk on the impact frame shows up late, after the damage
+## numbers. The world warms every spell after it is up (game_world
+## _preload_next), so a cast normally finds them loaded. Main-thread loads: a
+## background load racing the main thread's own loads froze clients
+## (see game_world._queue_preloads).
 static func warm_spell(spell_id: String) -> void:
 	if DisplayServer.get_name() == "headless" or _warmed.has(spell_id):
 		return
@@ -124,8 +131,8 @@ static func warm_spell(spell_id: String) -> void:
 				continue
 			for key in ["atlas", "tex", "mesh"]:
 				var path := VFX.asset_path(String(raw.get(key, "")))
-				if path != "" and not ResourceLoader.has_cached(path):
-					ResourceLoader.load_threaded_request(path)
+				if path != "" and not _warm_cache.has(path) and ResourceLoader.exists(path):
+					_warm_cache[path] = load(path)
 
 
 static func _track(effect: Node3D) -> void:
@@ -221,6 +228,10 @@ static func play_predicted_cast(caster: Node3D, spell_id: String, cast_seq: int)
 		origin = caster.global_position + Vector3.UP
 	var effect := spawn_stage(world, spell_id, "cast", origin, aim, caster, _cast_options(caster, spell_id))
 	if effect != null:
+		if _predicted.size() >= 32:
+			for key in _predicted.keys():
+				if not is_instance_valid(_predicted[key]):
+					_predicted.erase(key)
 		_predicted["%d:%d" % [caster.get_instance_id(), cast_seq]] = effect
 	var manager := audio_manager()
 	if manager != null:

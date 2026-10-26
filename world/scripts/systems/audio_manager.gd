@@ -1185,7 +1185,7 @@ func _music_target() -> Dictionary:
 func _refresh_music() -> void:
 	var target := _combat_target()
 	if combat_music_active() and target != null:
-		if bool(target.get("is_boss")):
+		if target.get("is_boss") == true:   # a dummy or a monolith has no is_boss
 			notify_boss(int(target.get("uid")) if "uid" in target else 0)
 		else:
 			notify_combat()

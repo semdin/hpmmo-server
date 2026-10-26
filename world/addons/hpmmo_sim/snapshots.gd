@@ -103,7 +103,8 @@ static func interest_set(authority, peer_id: int, center: Vector3) -> Array:
 					var in_range := false
 					for uid in members:
 						var node = (authority.entities.get(uid, {}) as Dictionary).get("node")
-						if node != null and is_instance_valid(node) 								and (node as Node3D).global_position.distance_squared_to(center) <= r2:
+						if node != null and is_instance_valid(node) \
+								and (node as Node3D).global_position.distance_squared_to(center) <= r2:
 							in_range = true
 							break
 					if not in_range:

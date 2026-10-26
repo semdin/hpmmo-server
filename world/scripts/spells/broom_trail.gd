@@ -355,7 +355,8 @@ func _rebuild() -> void:
 		# little on a slow wave, so a straight flight leaves a wavering wisp of
 		# air rather than a ruler-straight line.
 		var drift := age * age * (0.35 + 0.4 * _gust(271.0))
-		point += side * sin(age * 7.0 - _time * 2.3 + _gust(311.0) * 3.0) * drift 				+ Vector3.UP * sin(age * 5.0 - _time * 1.7) * drift * 0.5
+		point += side * sin(age * 7.0 - _time * 2.3 + _gust(311.0) * 3.0) * drift \
+				+ Vector3.UP * sin(age * 5.0 - _time * 1.7) * drift * 0.5
 		side *= width * taper * ripple * lerpf(0.4, 1.0, clampf(_speed / 8.0, 0.0, 1.0)) * (1.0 + age * 1.6)
 		# Brightness breaks up along the length (patchy air, not a solid beam).
 		var patch := lerpf(0.45, 1.0, clampf(0.5 + 0.5 * sin(age * 13.0 - _time * 4.0 + _gust(353.0) * 6.0), 0.0, 1.0))

@@ -192,13 +192,14 @@ var last_server: Array = []
 
 ## Join an existing game via IP and port. This process becomes a pure client: it
 ## decides nothing and asks the world server for everything.
-func join_game(address: String = "185.118.141.74", port: int = DEFAULT_PORT) -> Error:
+func join_game(address: String = "185.118.141.74", port: int = DEFAULT_PORT, dev_name: String = "") -> Error:
 	disconnect_game()
 	last_server = [address, port]
 	SimAuthority.configure(SimAuthority.Role.CLIENT)
 	# The world server resolves this token through the account service; without it
-	# the join is refused.
-	var error := SimNet.join(address, port, DatabaseManager.session_token)
+	# the join is refused. A local dev server (HPMMO_ALLOW_DEV_JOIN, no account
+	# service) takes a display name instead (`--dev-join=Name`).
+	var error := SimNet.join(address, port, dev_name if dev_name != "" else DatabaseManager.session_token)
 	if error != OK:
 		emit_signal("connection_status_changed", "Failed to connect to %s:%d" % [address, port])
 		emit_signal("connection_failed")

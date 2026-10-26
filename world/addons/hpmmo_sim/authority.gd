@@ -1015,7 +1015,8 @@ func _aim_target_uid(record: Dictionary, aim: Vector3) -> int:
 		if target.is_empty() or bool(target.get("dead", false)):
 			continue
 		var kind := int(target.get("kind", 0))
-		if kind != HPProtocol.Kind.MOB and kind != HPProtocol.Kind.PLAYER 				and kind != HPProtocol.Kind.DUMMY and kind != HPProtocol.Kind.MONOLITH:
+		if kind != HPProtocol.Kind.MOB and kind != HPProtocol.Kind.PLAYER \
+				and kind != HPProtocol.Kind.DUMMY and kind != HPProtocol.Kind.MONOLITH:
 			continue
 		if map_id != "" and String(target.get("map_id", HPProtocol.DEFAULT_MAP)) != map_id:
 			continue
@@ -2336,7 +2337,8 @@ func _damageable_targets(caster_uid: int, center: Vector3 = Vector3.INF, radius:
 	var caster_map := String(entities.get(caster_uid, {}).get("map_id", ""))
 	# A bounded query on a known map asks the spatial index for candidates;
 	# only an unbounded or map-less one walks every entity.
-	var candidates: Array = HPSnapshots.nearby(self, caster_map, center, radius) 		if caster_map != "" and center.is_finite() and radius < 1.0e6 else entities.keys()
+	var candidates: Array = HPSnapshots.nearby(self, caster_map, center, radius) \
+		if caster_map != "" and center.is_finite() and radius < 1.0e6 else entities.keys()
 	for uid in candidates:
 		var record: Dictionary = entities.get(uid, {})
 		if record.is_empty() or uid == caster_uid or bool(record.get("dead", false)):
@@ -2492,7 +2494,8 @@ func _apply_damage(target: Dictionary, raw: int, spell_id: String, attacker: Dic
 	# it, so a stale value here would spawn the wrong number of waves.
 	_sync_node_health(target)
 	_apply_status_on_hit(target, spell_id, attacker)
-	var procs := _roll_cc_procs(target, attacker, amount) 		if player_hits_mob and amount > 0 and not HPRules.is_damage_over_time(spell_id) and int(target["hp"]) > 0 else {}
+	var procs := _roll_cc_procs(target, attacker, amount) \
+		if player_hits_mob and amount > 0 and not HPRules.is_damage_over_time(spell_id) and int(target["hp"]) > 0 else {}
 	hit_flags |= int(procs.get("flags", 0))
 	_notify_damage(target, spell_id, attacker, procs)
 	emit_signal("entity_damaged", int(target["uid"]), amount, int(target["hp"]), spell_id, int(attacker.get("uid", 0)))
@@ -2820,7 +2823,8 @@ func _advance_effects() -> void:
 		if record.is_empty():
 			_ticking.erase(uid)
 			continue
-		if int(record.get("burn_until_tick", 0)) == 0 and int(record.get("ward_until_tick", 0)) == 0 and int(record.get("bleed_until_tick", 0)) == 0 				and int(record.get("kind", 0)) != HPProtocol.Kind.LOOT:
+		if int(record.get("burn_until_tick", 0)) == 0 and int(record.get("ward_until_tick", 0)) == 0 and int(record.get("bleed_until_tick", 0)) == 0 \
+				and int(record.get("kind", 0)) != HPProtocol.Kind.LOOT:
 			_ticking.erase(uid)
 			continue
 		if bool(record.get("dead", false)):

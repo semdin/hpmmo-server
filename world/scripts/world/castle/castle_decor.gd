@@ -298,7 +298,8 @@ static func _moonlight(root: Node3D, quality: String) -> void:
 	moon.rotation_degrees = Vector3(-32.0, -20.0, 0.0)   # travels north-east
 	# Shadowed on every preset: an unshadowed moon floods the floors evenly.
 	moon.shadow_enabled = true
-	moon.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS if quality == "low" 		else DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+	moon.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS if quality == "low" \
+		else DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
 	moon.directional_shadow_max_distance = 60.0 if quality == "low" else 120.0
 	moon.shadow_bias = 0.04
 	root.add_child(moon)

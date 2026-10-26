@@ -194,6 +194,9 @@ func join(address: String, port: int = DEFAULT_PORT, token: String = "") -> Erro
 
 var join_token: String = ""
 
+## The developer character builder (`--test-char`), used by dev joins only.
+const DEV_TEST_CHARACTER := "res://scripts/server/test_character.gd"
+
 ## Client -> server: ask to play `character_id` on this session (Release gates
 ## character-bind). The session must already be joined; the answer arrives as the
 ## `character_bound` signal, and the server validates ownership through the
@@ -433,6 +436,24 @@ func sim_join(token: String, protocol_version: int, client_version: String) -> v
 			var parts := spawn.split(",")
 			if parts.size() == 3:
 				identity["spawn"] = [float(parts[0]), float(parts[1]), float(parts[2])]
+		# Optional test character (HPMMO_DEV_TEST_CHAR=<preset>, the presets of
+		# `--test-char`): a levelled, geared, never-saved body for local
+		# multiplayer checks (dev.ps1 local).
+		var preset := OS.get_environment("HPMMO_DEV_TEST_CHAR").strip_edges()
+		if preset != "" and ResourceLoader.exists(DEV_TEST_CHARACTER):
+			var sheet: Dictionary = load(DEV_TEST_CHARACTER).build(preset)
+			sheet["name"] = dev_name
+			sheet.erase("id")
+			# A fresh sheet has no position: start where a new wizard does, or at
+			# the HPMMO_DEV_SPAWN point (as if the character had logged out
+			# there - e.g. inside the caverns, to check a boot onto that map).
+			var at := HPMaps.default_spawn(HPProtocol.DEFAULT_MAP)
+			if identity.get("spawn") is Array:
+				var p: Array = identity["spawn"]
+				at = Vector3(float(p[0]), float(p[1]), float(p[2]))
+			sheet["pos"] = [at.x, at.y, at.z]
+			sheet["map_id"] = HPMaps.map_for_point(at)
+			identity["character"] = sheet
 		print("[SimNet] DEV JOIN (no auth backend): peer %d as '%s'" % [peer_id, dev_name])
 	else:
 		sim_join_result.rpc_id(peer_id, false, "no_auth_backend", 0, {}, SimAuthority.sim_tick, 0)

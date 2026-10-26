@@ -65,16 +65,8 @@ func quad(key: String, a: Vector3, b: Vector3, c: Vector3, d: Vector3, inside: V
 
 ## Box rotated by rot_y around its centre.
 func box(center: Vector3, size: Vector3, rot_y: float, key: String, collide: bool = true) -> void:
-	var h := size * 0.5
 	var basis := Basis(Vector3.UP, rot_y)
-	var p := func(x: float, y: float, z: float) -> Vector3:
-		return center + basis * Vector3(x * h.x, y * h.y, z * h.z)
-	quad(key, p.call(1, -1, 1), p.call(1, -1, -1), p.call(1, 1, -1), p.call(1, 1, 1), center)
-	quad(key, p.call(-1, -1, -1), p.call(-1, -1, 1), p.call(-1, 1, 1), p.call(-1, 1, -1), center)
-	quad(key, p.call(-1, 1, 1), p.call(1, 1, 1), p.call(1, 1, -1), p.call(-1, 1, -1), center)
-	quad(key, p.call(-1, -1, -1), p.call(1, -1, -1), p.call(1, -1, 1), p.call(-1, -1, 1), center)
-	quad(key, p.call(-1, -1, 1), p.call(1, -1, 1), p.call(1, 1, 1), p.call(-1, 1, 1), center)
-	quad(key, p.call(1, -1, -1), p.call(-1, -1, -1), p.call(-1, 1, -1), p.call(1, 1, -1), center)
+	_box_faces(key, center, basis, size * 0.5)
 	if collide and _with_collision:
 		var s := BoxShape3D.new()
 		s.size = size
@@ -136,20 +128,20 @@ func gable(base_center: Vector3, size_xz: Vector2, height: float, rot_y: float, 
 	var basis := Basis(Vector3.UP, rot_y)
 	var hx := size_xz.x * 0.5 + overhang * 0.5
 	var hz := size_xz.y * 0.5 + overhang
-	var p := func(x: float, y: float, z: float) -> Vector3:
-		return base_center + basis * Vector3(x, y, z)
+	var o := Vector3.ONE   # unscaled corners: _c with half extents of 1
+	var b := base_center
 	var inside := base_center + Vector3.UP * height * 0.3
-	var ra: Vector3 = p.call(-hx, height, 0)
-	var rb: Vector3 = p.call(hx, height, 0)
-	quad(key, p.call(-hx, 0, hz), p.call(hx, 0, hz), rb, ra, inside)
-	quad(key, p.call(hx, 0, -hz), p.call(-hx, 0, -hz), ra, rb, inside)
-	quad(key, p.call(-hx, 0, -hz), p.call(hx, 0, -hz), p.call(hx, 0, hz), p.call(-hx, 0, hz), base_center + Vector3.UP)
+	var ra := _c(b, basis, o, -hx, height, 0)
+	var rb := _c(b, basis, o, hx, height, 0)
+	quad(key, _c(b, basis, o, -hx, 0, hz), _c(b, basis, o, hx, 0, hz), rb, ra, inside)
+	quad(key, _c(b, basis, o, hx, 0, -hz), _c(b, basis, o, -hx, 0, -hz), ra, rb, inside)
+	quad(key, _c(b, basis, o, -hx, 0, -hz), _c(b, basis, o, hx, 0, -hz), _c(b, basis, o, hx, 0, hz), _c(b, basis, o, -hx, 0, hz), base_center + Vector3.UP)
 	var gk := gable_key if gable_key != "" else key
 	var gx := size_xz.x * 0.5
 	var gz := size_xz.y * 0.5
 	var h_end := height * (gz / hz)
-	tri(gk, p.call(gx, 0, gz), p.call(gx, 0, -gz), p.call(gx, h_end, 0), inside)
-	tri(gk, p.call(-gx, 0, -gz), p.call(-gx, 0, gz), p.call(-gx, h_end, 0), inside)
+	tri(gk, _c(b, basis, o, gx, 0, gz), _c(b, basis, o, gx, 0, -gz), _c(b, basis, o, gx, h_end, 0), inside)
+	tri(gk, _c(b, basis, o, -gx, 0, -gz), _c(b, basis, o, -gx, 0, gz), _c(b, basis, o, -gx, h_end, 0), inside)
 
 
 ## Crenellated parapet along a wall top from a to b (merlons every `pitch`).
@@ -172,15 +164,24 @@ func tower_battlements(center_top: Vector3, radius: float, key: String, count: i
 
 ## A box with an arbitrary orientation (no collision): slanted mouldings.
 func obox(center: Vector3, size: Vector3, basis: Basis, key: String) -> void:
-	var h := size * 0.5
-	var p := func(x: float, y: float, z: float) -> Vector3:
-		return center + basis * Vector3(x * h.x, y * h.y, z * h.z)
-	quad(key, p.call(1, -1, 1), p.call(1, -1, -1), p.call(1, 1, -1), p.call(1, 1, 1), center)
-	quad(key, p.call(-1, -1, -1), p.call(-1, -1, 1), p.call(-1, 1, 1), p.call(-1, 1, -1), center)
-	quad(key, p.call(-1, 1, 1), p.call(1, 1, 1), p.call(1, 1, -1), p.call(-1, 1, -1), center)
-	quad(key, p.call(-1, -1, -1), p.call(1, -1, -1), p.call(1, -1, 1), p.call(-1, -1, 1), center)
-	quad(key, p.call(-1, -1, 1), p.call(1, -1, 1), p.call(1, 1, 1), p.call(-1, 1, 1), center)
-	quad(key, p.call(1, -1, -1), p.call(-1, -1, -1), p.call(-1, 1, -1), p.call(1, 1, -1), center)
+	_box_faces(key, center, basis, size * 0.5)
+
+
+## The six faces of a box (half extents `h`, oriented by `basis`). A helper
+## method, not a lambda: a lambda in an instance method captures this kit, and a
+## RefCounted captured that way was never freed (17 kits leaked at every exit).
+func _box_faces(key: String, center: Vector3, basis: Basis, h: Vector3) -> void:
+	quad(key, _c(center, basis, h, 1, -1, 1), _c(center, basis, h, 1, -1, -1), _c(center, basis, h, 1, 1, -1), _c(center, basis, h, 1, 1, 1), center)
+	quad(key, _c(center, basis, h, -1, -1, -1), _c(center, basis, h, -1, -1, 1), _c(center, basis, h, -1, 1, 1), _c(center, basis, h, -1, 1, -1), center)
+	quad(key, _c(center, basis, h, -1, 1, 1), _c(center, basis, h, 1, 1, 1), _c(center, basis, h, 1, 1, -1), _c(center, basis, h, -1, 1, -1), center)
+	quad(key, _c(center, basis, h, -1, -1, -1), _c(center, basis, h, 1, -1, -1), _c(center, basis, h, 1, -1, 1), _c(center, basis, h, -1, -1, 1), center)
+	quad(key, _c(center, basis, h, -1, -1, 1), _c(center, basis, h, 1, -1, 1), _c(center, basis, h, 1, 1, 1), _c(center, basis, h, -1, 1, 1), center)
+	quad(key, _c(center, basis, h, 1, -1, -1), _c(center, basis, h, -1, -1, -1), _c(center, basis, h, -1, 1, -1), _c(center, basis, h, 1, 1, -1), center)
+
+
+## A box corner: `center` + `basis` * (x, y, z) scaled by the half extents.
+static func _c(center: Vector3, basis: Basis, h: Vector3, x: float, y: float, z: float) -> Vector3:
+	return center + basis * Vector3(x * h.x, y * h.y, z * h.z)
 
 
 static func _hash01(v: Vector3) -> float:

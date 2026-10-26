@@ -117,7 +117,9 @@ func _physics_process(delta: float) -> void:
 		hit = {}
 	# A homing bolt skims over ground between caster and target (the
 	# authority's HOMING_GROUND_NORMAL_Y); walls still stop it.
-	if homing != null and not hit.is_empty() and hit.collider != homing 			and not (hit.collider is Node and (hit.collider as Node).has_method("take_damage")) 			and (hit.normal as Vector3).y >= SimAuthority.HOMING_GROUND_NORMAL_Y:
+	if homing != null and not hit.is_empty() and hit.collider != homing \
+			and not (hit.collider is Node and (hit.collider as Node).has_method("take_damage")) \
+			and (hit.normal as Vector3).y >= SimAuthority.HOMING_GROUND_NORMAL_Y:
 		hit = {}
 	if not hit.is_empty():
 		global_position = hit.position
@@ -184,7 +186,8 @@ func _handle_hit(target: Node) -> void:
 	# A view that reached a damageable body leaves the impact to the authority's
 	# `cast_landed` (game_world draws it on each victim); drawing it here too put
 	# two bursts on every hit. Ground, walls and area blasts are drawn here.
-	var victim_hit := visual_only and target != null and is_instance_valid(target) 		and target.has_method("take_damage") and HPRules.delivery(spell_id) != "projectile_aoe"
+	var victim_hit := visual_only and target != null and is_instance_valid(target) \
+		and target.has_method("take_damage") and HPRules.delivery(spell_id) != "projectile_aoe"
 	if not victim_hit:
 		SkillFX.play_impact(get_parent(), global_position, spell_id, target, direction)
 	if travel_effect != null and is_instance_valid(travel_effect):

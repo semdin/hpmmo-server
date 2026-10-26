@@ -639,7 +639,8 @@ func _physics_process(delta: float) -> void:
 		velocity.y = 0
 	# A creature standing still on the ground has nothing to slide: skipping the
 	# collision pass for idle bodies is most of a dense hunting ground's cost.
-	var standing := state == State.IDLE and attack_phase == AttackPhase.NONE and is_on_floor() 		and velocity.x == 0.0 and velocity.z == 0.0 and knockback_velocity.length_squared() < 0.01
+	var standing := state == State.IDLE and attack_phase == AttackPhase.NONE and is_on_floor() \
+		and velocity.x == 0.0 and velocity.z == 0.0 and knockback_velocity.length_squared() < 0.01
 	if not standing:
 		move_and_slide()
 	var real := get_real_velocity() if not standing else Vector3.ZERO

@@ -463,7 +463,8 @@ func _process(delta: float) -> void:
 	for index in range(packs.size()):
 		if packs[index].timer >= 0:
 			packs[index].timer -= step
-			if _is_world_boss(packs[index]) and packs[index].timer <= 60.0 					and not bool(packs[index].get("announced_soon", false)):
+			if _is_world_boss(packs[index]) and packs[index].timer <= 60.0 \
+					and not bool(packs[index].get("announced_soon", false)):
 				packs[index]["announced_soon"] = true
 				var soon := _world_boss_data(packs[index])
 				soon["seconds"] = int(ceil(packs[index].timer))

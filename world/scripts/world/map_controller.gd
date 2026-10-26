@@ -650,7 +650,7 @@ func _load_map(map_id: String) -> bool:
 		return await _load_instance(map_id)
 	if map_id != MAP_INTERIOR:
 		return false
-	var packed := await _load_threaded(INTERIOR_PATH)
+	var packed := await _load_scene(INTERIOR_PATH)
 	if packed == null:
 		return false
 	_loading_screen.set_progress(78.0, tr("Lighting the torches…"))
@@ -760,7 +760,7 @@ var _instance_node: Node3D = null
 
 func _load_instance(map_id: String) -> bool:
 	var path := HPMaps.map_scene(map_id)
-	var packed := await _load_threaded(path)
+	var packed := await _load_scene(path)
 	if packed == null:
 		return false
 	_instance_node = packed.instantiate()
@@ -839,28 +839,20 @@ func _free_interior() -> void:
 	_interior = null
 	await get_tree().process_frame
 
-## Threaded load (poll the request instead of blocking the
-## loading screen). Falls back to a blocking load if the request is refused.
-func _load_threaded(path: String) -> PackedScene:
+## A map scene, loaded on the main thread once the loading screen has been
+## drawn (the bar holds still for the load). It used to be a threaded load:
+## background loads racing the main thread's own (creature views, the Mac
+## shader warm-up) can wait on each other for good - see
+## game_world._queue_preloads - and a few frozen frames behind a loading
+## screen are the price of a load that always finishes.
+func _load_scene(path: String) -> PackedScene:
 	if not ResourceLoader.exists(path):
 		return null
-	var error := ResourceLoader.load_threaded_request(path)
-	if error != OK:
-		return load(path) as PackedScene
-	while true:
-		var progress := []
-		var status := ResourceLoader.load_threaded_get_status(path, progress)
-		match status:
-			ResourceLoader.THREAD_LOAD_IN_PROGRESS:
-				if progress.size() > 0 and _loading_screen != null:
-					_loading_screen.set_progress(20.0 + float(progress[0]) * 55.0)
-				await get_tree().process_frame
-			ResourceLoader.THREAD_LOAD_LOADED:
-				var resource := ResourceLoader.load_threaded_get(path)
-				return resource as PackedScene
-			_:
-				return null
-	return null
+	if _loading_screen != null:
+		_loading_screen.set_progress(40.0)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	return load(path) as PackedScene
 
 func _directional_lights(root: Node) -> Array:
 	var out: Array = []
