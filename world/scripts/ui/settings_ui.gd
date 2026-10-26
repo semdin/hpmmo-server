@@ -2,14 +2,15 @@ extends Control
 class_name SettingsUI
 
 const QualityPreset = preload("res://scripts/world/quality_preset.gd")
+const GameCredits = preload("res://scripts/ui/game_credits.gd")
 
 ## Settings, opened from the Esc menu: graphics quality, interface scale, mouse
 ## sensitivity, screen shake and flash, the four volume buses and key
 ## rebinding - persisted under `user://` by `GameSettings`.
 ##
-## Three tabs (Graphics, Audio, Controls) in one window sized to the screen, so
-## nothing spills off it the way the single long panel did; the key list scrolls
-## inside its tab.
+## Four tabs (Graphics, Audio, Controls, Credits) in one window sized to the
+## screen, so nothing spills off it the way the single long panel did; the key
+## list and the credits scroll inside their tabs.
 ##
 ## While open it registers as a UI input blocker, so keys typed here can never
 ## also cast a spell or mount the broom. Key capture is explicit: a row listens
@@ -103,7 +104,8 @@ func _build() -> void:
 	var pages := MarginContainer.new()
 	pages.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_window.body.add_child(pages)
-	for spec in [["graphics", tr("General")], ["audio", tr("Audio")], ["controls", tr("Controls")]]:
+	for spec in [["graphics", tr("General")], ["audio", tr("Audio")], ["controls", tr("Controls")],
+			["credits", tr("Credits")]]:
 		var key := String(spec[0])
 		var b := HudKit.button(String(spec[1]), 15)
 		b.toggle_mode = true
@@ -206,6 +208,9 @@ func _build() -> void:
 		rows.add_child(stripe)
 		_bind_buttons[action] = button
 		index += 1
+
+	# --- credits ---
+	(_pages["credits"] as VBoxContainer).add_child(GameCredits.build())
 
 	# --- footer ---
 	var footer := HBoxContainer.new()

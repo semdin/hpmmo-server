@@ -740,6 +740,10 @@ msgid "Safe area · Combat disabled"
 msgstr "Güvenli bölge · Savaş kapalı"
 
 #: scripts/ui/combat_feedback.gd
+msgid "Safe area · Duel in progress"
+msgstr "Güvenli bölge · Düello sürüyor"
+
+#: scripts/ui/combat_feedback.gd
 msgid "%s - casting... %.0f%%"
 msgstr "%s - yapılıyor... %%%.0f"
 
@@ -750,6 +754,102 @@ msgstr "%s - salınıyor..."
 #: scripts/ui/combat_feedback.gd
 msgid "%s - recovering... %.1fs"
 msgstr "%s - toparlanıyor... %.1f sn"
+
+#: scripts/ui/game_credits.gd
+msgid "Licensed assets"
+msgstr "Lisanslı varlıklar"
+
+#: scripts/ui/game_credits.gd
+msgid "Food, tableware and kitchen tools on the castle tables. Changed for this game: simplified, re-textured and arranged into table settings."
+msgstr "Şato masalarındaki yiyecekler, sofra takımları ve mutfak aletleri. Bu oyun için değiştirildi: sadeleştirildi, yeniden dokulandı ve sofra düzenine yerleştirildi."
+
+#: scripts/ui/game_credits.gd
+msgid "Terrain of the castle grounds"
+msgstr "Şato arazisinin zemini"
+
+#: scripts/ui/game_credits.gd
+msgid "Game engine. Its licence and third-party notices are at the end of this page."
+msgstr "Oyun motoru. Lisansı ve üçüncü taraf bildirimleri bu sayfanın sonunda."
+
+#: scripts/ui/game_credits.gd
+msgid "Fonts"
+msgstr "Yazı tipleri"
+
+#: scripts/ui/game_credits.gd
+msgid "Titles"
+msgstr "Başlıklar"
+
+#: scripts/ui/game_credits.gd
+msgid "Body text"
+msgstr "Metinler"
+
+#: scripts/ui/game_credits.gd
+msgid "Interface lettering"
+msgstr "Arayüz yazıları"
+
+#: scripts/ui/game_credits.gd
+msgid "Free assets (CC0)"
+msgstr "Ücretsiz varlıklar (CC0)"
+
+#: scripts/ui/game_credits.gd
+msgid "Stone, wood, roof and cave textures; trees, ferns and rocks"
+msgstr "Taş, ahşap, çatı ve mağara dokuları; ağaçlar, eğrelti otları ve kayalar"
+
+#: scripts/ui/game_credits.gd
+msgid "Grass and rock textures of the terrain"
+msgstr "Arazinin çim ve kaya dokuları"
+
+#: scripts/ui/game_credits.gd
+msgid "Character animations"
+msgstr "Karakter animasyonları"
+
+#: scripts/ui/game_credits.gd
+msgid "The robed wizard"
+msgstr "Cüppeli büyücü"
+
+#: scripts/ui/game_credits.gd
+msgid "Flame and spark sprites"
+msgstr "Alev ve kıvılcım görselleri"
+
+#: scripts/ui/game_credits.gd
+msgid "Made with"
+msgstr "Kullanılan araçlar"
+
+#: scripts/ui/game_credits.gd
+msgid "Modelling, rigging and baking"
+msgstr "Modelleme, iskelet ve bake"
+
+#: scripts/ui/game_credits.gd
+msgid "Generated 3D models of characters, creatures and items"
+msgstr "Karakter, yaratık ve eşyaların üretilmiş 3D modelleri"
+
+#: scripts/ui/game_credits.gd
+msgid "Generated concept art, icons and spell effects"
+msgstr "Üretilmiş konsept çizimler, simgeler ve büyü efektleri"
+
+#: scripts/ui/game_credits.gd
+msgid "Generated spell-casting motion"
+msgstr "Üretilmiş büyü yapma hareketleri"
+
+#: scripts/ui/game_credits.gd
+msgid "Generated sound effects and music"
+msgstr "Üretilmiş ses efektleri ve müzik"
+
+#: scripts/ui/game_credits.gd
+msgid "HPMMO is built on the work of the people and tools below. Thank you."
+msgstr "HPMMO, aşağıdaki kişilerin ve araçların emeği üzerine kuruldu. Teşekkürler."
+
+#: scripts/ui/game_credits.gd
+msgid "Godot Engine licence"
+msgstr "Godot Engine lisansı"
+
+#: scripts/ui/game_credits.gd
+msgid "Third-party components of Godot Engine"
+msgstr "Godot Engine'in üçüncü taraf bileşenleri"
+
+#: scripts/ui/game_credits.gd
+msgid "Licence texts"
+msgstr "Lisans metinleri"
 
 #: scripts/ui/game_settings.gd
 msgid "unknown action"
@@ -2942,6 +3042,10 @@ msgstr "Ses"
 #: scripts/ui/settings_ui.gd
 msgid "Controls"
 msgstr "Kontroller"
+
+#: scripts/ui/settings_ui.gd
+msgid "Credits"
+msgstr "Emeği Geçenler"
 
 #: scripts/ui/settings_ui.gd
 msgid "Display"

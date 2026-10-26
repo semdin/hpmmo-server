@@ -38,6 +38,8 @@ SERVER_DIR = os.environ.get("HPMMO_SERVER_DIR", os.path.dirname(HERE))
 WORKSPACE = os.path.dirname(SERVER_DIR)
 CLIENT_DIR = os.environ.get("HPMMO_CLIENT_DIR", os.path.join(WORKSPACE, "client"))
 GODOT = os.environ.get("HPMMO_GODOT", "godot")
+# A kill reward reaches both clients within this many server ticks (1.5 s at 20 Hz).
+KILL_CREDIT_TRAVEL_TICKS = 30
 
 checks = 0
 failures = []
@@ -285,12 +287,21 @@ def test_agreement(out_dir, profile):
     ops_b = [r["op_id"] for r in fb.get("rewards", [])]
     check(len(ops_a) == len(set(ops_a)) and len(ops_b) == len(set(ops_b)),
           "[%s] no player was rewarded twice for one death" % profile)
-    kill_ops_a = [r["op_id"] for r in fa.get("rewards", []) if str(r.get("op_id", "")).startswith("kill:")]
-    kill_ops_b = [r["op_id"] for r in fb.get("rewards", []) if str(r.get("op_id", "")).startswith("kill:")]
-    kills_a = len({op.split(":")[1] for op in kill_ops_a})
-    kills_b = len({op.split(":")[1] for op in kill_ops_b})
-    check(kills_a == kills_b and kills_a > 0,
-          "[%s] both clients were credited for the same %d kill(s)" % (profile, kills_a))
+    # Each probe stops on its own clock, so a kill in the last moments can reach
+    # only the one still listening. Every kill one client was credited for before
+    # the earlier probe stopped (less the reward's travel time) must also be in the
+    # other's record. A kill is "<mob uid>:<death seq>" of op "kill:<uid>:<seq>:<player>".
+    def kill_ticks(f):
+        return {":".join(str(r["op_id"]).split(":")[1:3]): int(r.get("tick", 0))
+                for r in f.get("rewards", []) if str(r.get("op_id", "")).startswith("kill:")}
+    kills_a, kills_b = kill_ticks(fa), kill_ticks(fb)
+    cutoff = min(int(fa.get("final_tick", 0)), int(fb.get("final_tick", 0))) - KILL_CREDIT_TRAVEL_TICKS
+    early_a = {k for k, t in kills_a.items() if t <= cutoff}
+    early_b = {k for k, t in kills_b.items() if t <= cutoff}
+    check(early_a and early_a <= set(kills_b) and early_b <= set(kills_a),
+          "[%s] both clients were credited for the same %d kill(s) (%d / %d in all, %s only one)"
+          % (profile, len(early_a | early_b), len(kills_a), len(kills_b),
+             sorted((early_a - set(kills_b)) | (early_b - set(kills_a))) or "none"))
     granted_a = sum(int(r.get("exp", 0)) for r in fa.get("rewards", []))
     gained_a = int(fa.get("exp_end", 0)) - int(fa.get("exp_start", 0))
     leveled = int(fa.get("level_end", 0)) > int(fa.get("level_start", 0))
