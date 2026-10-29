@@ -1,7 +1,7 @@
 {
- "generated": "2026-10-29",
+ "generated": "2026-10-30",
  "source_repository": "hpmmo-client",
- "source_revision": "30814de69ffe24d3e22ea2feafc179e2edc42c06",
+ "source_revision": "8b18af57d980f1da2183a87e1027f8291ff19dc6",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/audio/sound_library.json": "d2a765cd871e502a092152ce57c3223f2080dd54434bb72a548fcc3d071a4b17",
@@ -27,7 +27,7 @@
   "assets/models/characters/dark_wizard.glb": "93e6e25213009952276d9cf34f5d96a243767334c66f280db0433ddfabb91545",
   "assets/models/characters/dark_wizard_rogue_texture.png": "a4032e877c3b91939f5cdbb630349c1998fdbc3211bbd587c111125500fe4cc5",
   "assets/models/characters/face_masks.png": "e117dd9149218c127b2b646ade0526b6d4f4bda9c9661b91e375df46f5fd0fc5",
-  "assets/models/characters/hero_wizard.glb": "87ca583ae513152492e8894d8a1364d2898cc0a64d08ed80b5c8651657bc4758",
+  "assets/models/characters/hero_wizard.glb": "58c8559ba3a5ee461a016be30b18a9670c3a7639b824593c96baea43b72f7da0",
   "assets/models/characters/hero_wizard_T_Eye_Brown.png": "d08e3356a83211bc6ca21fe3a8e39f4b5c1a3b8f85457fc2c0fb57be09935025",
   "assets/models/characters/hero_wizard_T_Hair_1_BaseColor.png": "bc7aa863bd22ab0a995cd838cceb4d3a5186ee54ee2fb0108fad85d20c057e6e",
   "assets/models/characters/hero_wizard_T_Hair_1_Normal.png": "57fd0ad8c96a4d01b38769637e066cecaa285b456f6e48ce00863754a457affb",
@@ -633,7 +633,7 @@
   "scripts/entities/broom_flight.gd": "3d3c742966ae2df2847391057ebec1c3b5bf5b69582d2bd3aa98867835c342de",
   "scripts/entities/broom_grip_modifier.gd": "e800b8667d23d9e77c9a80c3b3b351b45ac1b67e00c5f0c9a929be54d87670db",
   "scripts/entities/cast_layer_modifier.gd": "83f8e7b8b3cd6b6598316adce94dedd64ea3dc0db44413de9a571cb8da1063ea",
-  "scripts/entities/cloak_deformer.gd": "ece63ef4544af9a00dd0d05750926d21967e1fb2352834df3a689b1dcf8d3899",
+  "scripts/entities/cloak_deformer.gd": "4349f94f81ca747ec24f4f6ed20b3607d91664c3c9b984df18ce7a84099854c0",
   "scripts/entities/hero_animation.gd": "3edf23127fbf35db0a3c680be5667c41e3395fde3772955ab3b2dbfdfd369d92",
   "scripts/entities/hero_appearance.gd": "e520ecb9dbcf142ad9df241ddc0081855a4c936941554976e8459a2d5696ec2b",
   "scripts/entities/hero_bones.gd": "052021ae27b5ebd455e5b005a4cacdb2c663df027c97e514876bdc5237c541cc",

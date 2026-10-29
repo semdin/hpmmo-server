@@ -3,7 +3,7 @@ class_name CloakDeformer
 
 ## Moves the worn cloak. The cloak mesh (art/cloaks/scripts/build_cloak_sim.py)
 ## is skinned to the body's GameRig at the collar and mantle and, below, to
-## seven chains of Cloak_<c>_<k> bones hanging down the sheet. This node adds
+## nine chains of Cloak_<c>_<k> bones hanging down the sheet. This node adds
 ## those bones to the body's Skeleton3D and swings them with a
 ## SpringBoneSimulator3D: the chains trail behind a run, sway, stream back on
 ## the broom, and capsules on the legs, arms, back and seat push them away.
@@ -11,7 +11,7 @@ class_name CloakDeformer
 ## per-vertex capsule push in the shader ripped the hem into strips).
 ## Lives as a child of the EquippedCloak mesh, which sits under the Skeleton3D.
 
-const CHAINS := 7
+const CHAINS := 9               # two of them over the arms, next to the front edges
 const CHAIN_BONES := 6          # joints per chain, the last one the hem tip
 const CHAIN_PARENT := "UpperChest"
 ## The hips plane sits this much deeper than the seat joints: the pelvis tilts
@@ -19,6 +19,26 @@ const CHAIN_PARENT := "UpperChest"
 ## the calves like a board.
 const HIPS_SLACK := 0.06
 const SHAFT_PARKED := Vector3(0.0, -100.0, 0.0)
+## The front-edge chains hang in front of the arms. In a run the pumping arm
+## caught an edge, whipped it round itself and came out over the fabric
+## (pushing the edges back behind the arms - collision planes, a back-leaning
+## gravity - flipped and crumpled the cloak). Instead each edge chain swings
+## with its arm: the root turns about the body's side axis by its EDGE_FOLLOW
+## share of the upper arm's forward/back swing from its hanging angle (capped
+## at EDGE_SWING_MAX, so a raised casting arm does not lift the cloak), and the
+## springs carry the rest - the edge stays in front of the arm. The chain over
+## the arm follows less.
+const EDGE_FOLLOW := {0: 0.8, 1: 0.5, CHAINS - 2: 0.5, CHAINS - 1: 0.8}
+const EDGE_SWING_MAX := deg_to_rad(45.0)
+## Running, the cloak lifts off the body like it streams on the broom: back
+## and a little up (RUN_LIFT, per unit of the wind), and the side chains out
+## to the sides (SIDE_LIFT, a lean of their gravity), so air shows between it
+## and the body.
+const RUN_LIFT := Vector2(1.2, 0.2)
+const SIDE_LIFT := 0.8
+## Extra gravity on the chains at full flying speed.
+const RIDE_SAG := 3.0
+const EDGE_HANG := deg_to_rad(4.0)   # the upper arm hangs this far forward in the idle
 
 var mesh: MeshInstance3D
 var skeleton: Skeleton3D
@@ -35,6 +55,11 @@ var _bones: Dictionary = {}
 var _planes: Array[SpringBoneCollisionPlane3D] = []
 var _plane_offsets: Array[Vector3] = []
 var _planes_parked := false
+## Per edge chain: [root bone, its rest rotation, upper arm, lower arm, share].
+var _edge_roots: Array = []
+## Per chain: its horizontal outward direction (skeleton space) scaled by
+## how far to the side it hangs (0 at the spine, 1 at the flank).
+var _outward: Array[Vector3] = []
 var _riding := 0.0
 var _wind := 0.0
 var _time := 0.0
@@ -76,6 +101,17 @@ func _ready() -> void:
 	rider = node
 	process_priority = 100
 	_build_springs()
+	var spine := _rest("Hips")
+	for c in CHAINS:
+		var out := _rest("Cloak_%d_3" % c) - spine
+		out.y = 0.0
+		out = out.normalized()
+		_outward.append(out * absf(out.x))
+	for c in EDGE_FOLLOW:
+		var root := skeleton.find_bone("Cloak_%d_0" % c)
+		var side := "Left" if skeleton.get_bone_global_rest(root).origin.x > 0.0 else "Right"
+		_edge_roots.append([root, skeleton.get_bone_rest(root).basis.get_rotation_quaternion(),
+				skeleton.find_bone(side + "UpperArm"), skeleton.find_bone(side + "LowerArm"), EDGE_FOLLOW[c]])
 
 
 func _exit_tree() -> void:
@@ -122,12 +158,12 @@ func _build_springs() -> void:
 		limbs.append(_capsule(s + "LowerLeg", _rest(s + "LowerLeg"), _rest(s + "Foot"), 0.065))
 		# fat enough that the fabric between two chains clears the elbow and
 		# the hand when the arms swing back
-		limbs.append(_capsule(s + "UpperArm", _rest(s + "UpperArm"), _rest(s + "LowerArm"), 0.075))
+		limbs.append(_capsule(s + "UpperArm", _rest(s + "UpperArm"), _rest(s + "LowerArm"), 0.09))
 		# down past the wrist to the fingertips: the hand swinging back in the
 		# run cut through the fabric below a capsule that stopped at the wrist
 		var wrist := _rest(s + "Hand")
 		var fingertips := wrist + (wrist - _rest(s + "LowerArm")).normalized() * 0.17
-		limbs.append(_capsule(s + "LowerArm", _rest(s + "LowerArm"), fingertips, 0.07))
+		limbs.append(_capsule(s + "LowerArm", _rest(s + "LowerArm"), fingertips, 0.085))
 	shaft = _capsule("Hips", Vector3.ZERO, Vector3.UP, 0.05)
 	shaft.position_offset = SHAFT_PARKED
 	limbs.append(shaft)
@@ -235,11 +271,34 @@ func _process(delta: float) -> void:
 	back = back.normalized() if back.length() > 0.01 else Vector3.ZERO
 	_place_shaft(mounted)
 	_park_planes(_riding > 0.5)
-	# Riding, the airstream holds the cape out behind the rider, above the
-	# brush but below the horizontal; hovering it still lifts off the broom
-	# (hanging slack, it lay in the bristles).
-	springs.external_force = back * (_wind * 0.15 * (1.0 - _riding) + _riding * (1.6 + 3.0 * _wind)) + Vector3.UP * (_riding * (0.7 + 1.3 * _wind))
+	_follow_arms()
+	# Riding, the airstream holds the cape out behind the rider, sloping down
+	# onto the brush (the bristle capsule keeps it out of it); hovering it
+	# still lifts a little off the broom (hanging slack, it lay in the
+	# bristles). 0.7 + 1.3 up held it out level with the shoulders; flying
+	# the up share now turns into a slight push down at speed (0.3 + 0.5 stood the cape out
+	# like a shelf at full speed, and hovering its hem touched the brush).
+	var on_foot := _wind * (1.0 - _riding)
+	springs.external_force = back * (on_foot * RUN_LIFT.x + _riding * (1.6 + 0.9 * _wind)) + Vector3.UP * (on_foot * RUN_LIFT.y + _riding * (0.6 - 0.9 * _wind))
 	_flutter(delta, back)
+
+
+## Swing each edge chain's root with its upper arm (see EDGE_FOLLOW). The
+## arm's forward/back angle is read in the upper chest's frame (a leaning or
+## twisting run does not count as a swing) from the animated pose; the turn is
+## built in the skeleton's rest frame (front +Z, side X) and put into the
+## root's parent space, so the springs hang the chain from it.
+func _follow_arms() -> void:
+	var chest := skeleton.find_bone(CHAIN_PARENT)
+	var chest_rest := skeleton.get_bone_global_rest(chest).basis
+	var turned := skeleton.get_bone_global_pose(chest).basis * chest_rest.inverse()
+	for edge in _edge_roots:
+		var arm := skeleton.get_bone_global_pose(edge[3]).origin - skeleton.get_bone_global_pose(edge[2]).origin
+		var local := turned.inverse() * arm
+		var swing := atan2(local.z, -local.y)
+		var turn := clampf(swing - EDGE_HANG, -EDGE_SWING_MAX, EDGE_SWING_MAX) * float(edge[4]) * (1.0 - _riding)
+		var in_parent := Quaternion(chest_rest.inverse() * Basis(Vector3.RIGHT, -turn) * chest_rest)
+		skeleton.set_bone_pose_rotation(edge[0], in_parent * (edge[1] as Quaternion))
 
 
 ## The cloth never hangs dead in the air: each chain's gravity tilts across
@@ -252,12 +311,17 @@ func _flutter(delta: float, back: Vector3) -> void:
 	# hanging, the fabric faces back; streaming behind a fast broom it lies
 	# flat and faces up
 	var stream := _riding * _wind
-	var across := (back * (1.0 - 0.6 * stream) + Vector3.UP * (0.8 * stream)).normalized()
+	var across := (back * (1.0 - 0.6 * stream) + Vector3.UP * (0.5 * stream)).normalized()
 	var rate := 3.2 + 4.0 * _wind
+	var run := smoothstep(0.3, 0.7, _wind) * (1.0 - _riding)
 	for c in CHAINS:
 		var phase := _time * rate - float(c) * 0.75
 		var wave := sin(phase) * 0.65 + sin(phase * 1.73 + float(c) * 1.3) * 0.35
-		springs.set_gravity_direction(c, (Vector3.DOWN + across * (wave * amount)).normalized())
+		var out := skeleton.global_basis * _outward[c] * (SIDE_LIFT * run)
+		springs.set_gravity_direction(c, (Vector3.DOWN + across * (wave * amount) + out).normalized())
+		# flying, the cape sags heavier toward the brush (at the hanging
+		# gravity the airstream held it out flat, sides and all)
+		springs.set_gravity(c, 4.0 + RIDE_SAG * stream)
 
 
 ## Lay the shaft capsule along the broom from the grip to the tail (in the
