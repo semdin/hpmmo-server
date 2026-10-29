@@ -16,6 +16,16 @@ var spent := false
 var visual_only := false
 var _base_scale := Vector3.ONE
 var _reflection_grace := 0.0
+## Where the bolt really is on its straight (or homing) path; every hit test
+## uses it. The node itself is drawn off it by the curve (`_bend`), so a spell
+## that bends (vfx_library `curve`) arcs to the same point at the same moment.
+var _path_pos := Vector3.ZERO
+var _travelled := 0.0
+var _curve_length := 1.0
+var _curve_amp := 0.0
+var _curve_side := Vector3.ZERO
+## The drawn direction of travel (the curve's tangent), read by the travel stage.
+var visual_direction := Vector3.FORWARD
 @onready var mesh: MeshInstance3D = $MeshInstance3D
 @onready var light: OmniLight3D = $OmniLight3D
 @onready var travel_slot: Node3D = get_node_or_null("TravelFx")
@@ -28,16 +38,24 @@ func _ready() -> void:
 	area_entered.connect(_on_area_entered)
 	collision_mask = 3
 
-func setup(source: Node3D, id: String, aim: Vector3, target: Node3D = null, bonus_mult: float = 1.0) -> void:
+## `end_point` is where the cast was aimed (the curve's far end); without one
+## the curve spans a typical flight.
+func setup(source: Node3D, id: String, aim: Vector3, target: Node3D = null, bonus_mult: float = 1.0,
+		end_point: Vector3 = Vector3.INF) -> void:
 	caster = source
 	spell_id = id
 	direction = aim.normalized() if aim.length_squared() > 0.001 else Vector3.FORWARD
+	visual_direction = direction
 	target_node = target
+	_path_pos = global_position
+	_setup_curve(end_point)
 	var data: Dictionary = GameData.SPELLS.get(id, {})
 	damage = int(data.get("damage", 40) * bonus_mult)
 	speed = float(data.get("projectile_speed", 40))
 	max_lifetime = float(data.get("range", 36)) / speed
 	spell_color = data.get("color", Color.WHITE)
+	if bool((VFX.SPELLS.get(id, {}) as Dictionary).get("house_colour", false)):
+		spell_color = VFX.colours_for(id, source)[0]
 	# These wand bolts are entirely light layers. A second, full-size imported
 	# carrier obscured the streak and read as a flying solid block.
 	mesh.visible = false # The travel composition owns every spell's visible body.
@@ -61,13 +79,37 @@ func setup(source: Node3D, id: String, aim: Vector3, target: Node3D = null, bonu
 	mesh.material_override = mat
 	_base_scale = Vector3(0.7, 0.7, 1.0) if id == "basic_cast" else Vector3(1.1, 1.1, 1.0)
 	light.light_color = spell_color
-	light.light_energy = 1.5
-	light.omni_range = 4.0
+	# the basic flick is one small spark: it barely lights what it passes
+	light.light_energy = 0.6 if id == "basic_cast" else 1.5
+	light.omni_range = 2.5 if id == "basic_cast" else 4.0
 	light.visible = SkillFX.quality() != "low"
 	look_at(global_position + direction, Rules.safe_up(direction))
 	travel_effect = SkillFX.spawn_stage(travel_slot if travel_slot != null else get_parent(),
 		id, "travel", global_position, direction, caster, {"follow_target": self})
 	SkillFX.play_cast(get_parent(), caster, id, global_position, direction)
+
+## A sideways bend for a spell whose table asks for one: a random angle around
+## the flight (rarely much below it, so it does not dive into the floor), sized
+## by the flight's length.
+func _setup_curve(end_point: Vector3) -> void:
+	var bend := float((VFX.SPELLS.get(spell_id, {}) as Dictionary).get("curve", 0.0))
+	if bend <= 0.0:
+		return
+	var end := end_point
+	if target_node != null and is_instance_valid(target_node):
+		end = target_node.global_position + Vector3.UP * SimAuthority.AIM_CHEST_HEIGHT
+	_curve_length = maxf(1.0, global_position.distance_to(end)) if end.is_finite() else 15.0
+	_curve_amp = clampf(bend * _curve_length, 0.25, 1.5)
+	var right := direction.cross(Vector3.UP)
+	right = right.normalized() if right.length_squared() > 0.0001 else Vector3.RIGHT
+	var up := right.cross(direction).normalized()
+	var angle := randf_range(-0.15 * PI, 1.15 * PI)
+	_curve_side = (right * cos(angle) + up * sin(angle)).normalized()
+
+func _bend() -> Vector3:
+	if _curve_amp <= 0.0:
+		return Vector3.ZERO
+	return _curve_side * _curve_amp * sin(PI * clampf(_travelled / _curve_length, 0.0, 1.0))
 
 func _physics_process(delta: float) -> void:
 	if spent:
@@ -75,6 +117,7 @@ func _physics_process(delta: float) -> void:
 	lifetime += delta
 	_reflection_grace = maxf(0, _reflection_grace - delta)
 	if lifetime >= max_lifetime:
+		global_position = _path_pos
 		if HPRules.delivery(spell_id) == "projectile_aoe":
 			_handle_hit(null)
 		else:
@@ -86,13 +129,14 @@ func _physics_process(delta: float) -> void:
 	# Aimed at a body: steer onto its chest every frame, as the authority's bolt
 	# does, so a target up or down a slope is met on screen where it is hit.
 	var homing := _homing_target()
+	var from := _path_pos
 	if homing != null:
 		var chest := homing.global_position + Vector3.UP * SimAuthority.AIM_CHEST_HEIGHT
-		if (chest - global_position).length_squared() > 0.0001:
-			direction = (chest - global_position).normalized()
-	var next := global_position + direction * speed * delta
+		if (chest - from).length_squared() > 0.0001:
+			direction = (chest - from).normalized()
+	var next := from + direction * speed * delta
 	# Swept ray prevents fast spells tunnelling through thin walls/enemies.
-	var query := PhysicsRayQueryParameters3D.create(global_position, next, 3)
+	var query := PhysicsRayQueryParameters3D.create(from, next, 3)
 	var excluded: Array[RID] = [get_rid()]
 	for npc in get_tree().get_nodes_in_group("npcs"):
 		excluded.append(npc.get_rid())
@@ -122,11 +166,19 @@ func _physics_process(delta: float) -> void:
 			and (hit.normal as Vector3).y >= SimAuthority.HOMING_GROUND_NORMAL_Y:
 		hit = {}
 	if not hit.is_empty():
-		global_position = hit.position
+		_path_pos = hit.position
+		global_position = _path_pos
 		_on_body_entered(hit.collider)
+		if spent:
+			return
 	else:
-		global_position = next
-	look_at(global_position + direction, Rules.safe_up(direction))
+		_path_pos = next
+	_travelled += from.distance_to(_path_pos)
+	var drawn_from := global_position
+	global_position = _path_pos + _bend()
+	var drawn := global_position - drawn_from
+	visual_direction = drawn.normalized() if drawn.length_squared() > 0.000001 else direction
+	look_at(global_position + visual_direction, Rules.safe_up(visual_direction))
 	# a gentle pulse, never an abrupt on/off
 	mesh.scale = _base_scale * (1 + sin(lifetime * 18.0) * 0.06)
 
@@ -143,6 +195,8 @@ func _homing_target() -> Node3D:
 ## The area brushed a body. A homing bolt leaves scenery to the swept ray
 ## (which tells a hump it skims from a wall it stops at).
 func _on_overlap(body: Node3D) -> void:
+	if _curve_amp > 0.0:
+		return   # a curving bolt's body is off its path; the swept ray decides
 	if _homing_target() != null and body != target_node and not body.has_method("take_damage"):
 		return
 	_on_body_entered(body)
@@ -166,6 +220,8 @@ func _reflect_projectile(owner_node: Node3D) -> void:
 		return
 	direction = -direction
 	caster = owner_node
+	_curve_amp = 0.0   # a reflected bolt flies straight back
+	global_position = _path_pos
 	_reflection_grace = 0.12
 	speed *= 1.1
 
@@ -189,7 +245,7 @@ func _handle_hit(target: Node) -> void:
 	var victim_hit := visual_only and target != null and is_instance_valid(target) \
 		and target.has_method("take_damage") and HPRules.delivery(spell_id) != "projectile_aoe"
 	if not victim_hit:
-		SkillFX.play_impact(get_parent(), global_position, spell_id, target, direction)
+		SkillFX.play_impact(get_parent(), global_position, spell_id, target, direction, caster)
 	if travel_effect != null and is_instance_valid(travel_effect):
 		_end_travel("spent")
 	queue_free()
@@ -201,7 +257,7 @@ func detonate_at(pos: Vector3) -> void:
 		return
 	spent = true
 	global_position = pos
-	SkillFX.play_impact(get_parent(), pos, spell_id, null, direction)
+	SkillFX.play_impact(get_parent(), pos, spell_id, null, direction, caster)
 	if travel_effect != null and is_instance_valid(travel_effect):
 		_end_travel("spent")
 	queue_free()

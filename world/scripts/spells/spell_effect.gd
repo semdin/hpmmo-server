@@ -59,6 +59,8 @@ var _follow_carried := false
 var _follow_owned := false
 var _retiring := false
 var _retire_at := 0.0
+## The spell's second colour (layers with `"colour": "accent"`), see VFX.colours_for.
+var _accent := Color.WHITE
 
 func _ready() -> void:
 	set_process(true)
@@ -110,7 +112,10 @@ func setup(p_spell: String, p_stage: String, p_quality: String, p_origin: Vector
 	if _live(follow_target):
 		_follow_anchor = follow_target.global_position
 		_follow_carried = follow_target.is_ancestor_of(self)
-	var colour := VFX.spell_colour(spell_id)
+	# `colour_source` is the caster for a stage spawned without one (an impact).
+	var colours := VFX.colours_for(spell_id, opts.get("colour_source", caster))
+	var colour: Color = colours[0]
+	_accent = colours[1]
 	var layers := VFX.layers_for(spell_id, stage, quality)
 	var authored_length := float(_stage_data().get("length", 0.0))
 	# A status effect's authoritative length wins over the authored one, and the
@@ -162,7 +167,10 @@ func _build_layer(layer: Dictionary, colour: Color) -> Node3D:
 	return null
 
 func _layer_colour(layer: Dictionary, colour: Color) -> Color:
-	if bool(layer.get("colour", false)):
+	var wanted = layer.get("colour", false)
+	if typeof(wanted) == TYPE_STRING and wanted == "accent":
+		return _accent
+	if bool(wanted):
 		return colour
 	return Color.WHITE
 
@@ -374,6 +382,8 @@ func _build_ribbon(layer: Dictionary, colour: Color) -> Node3D:
 	material.set_shader_parameter("streak", load(VFX.asset_path(String(layer.get("tex", "vfx_energy_streak")))))
 	material.set_shader_parameter("tint", _layer_colour(layer, colour))
 	material.set_shader_parameter("edge_softness", 0.6)
+	material.set_shader_parameter("kinked", bool(layer.get("kinked", false)))
+	material.set_shader_parameter("seed", randf() * 100.0)
 	node.material_override = material
 	add_child(node)
 	# Vertices below are world positions; inherit neither spawn translation nor rotation.
@@ -592,9 +602,11 @@ func _update_ribbon(node: MeshInstance3D, delta: float) -> void:
 		var fade := (1.0 - age) * (1.0 - clampf(travelled / max_length, 0.0, 1.0))
 		mesh.surface_set_color(Color(1, 1, 1, fade))
 		mesh.surface_set_uv(Vector2(age, 0.0))
+		mesh.surface_set_uv2(Vector2(travelled, 0.0))
 		mesh.surface_add_vertex(point - side)
 		mesh.surface_set_color(Color(1, 1, 1, fade))
 		mesh.surface_set_uv(Vector2(age, 1.0))
+		mesh.surface_set_uv2(Vector2(travelled, 0.0))
 		mesh.surface_add_vertex(point + side)
 	mesh.surface_end()
 

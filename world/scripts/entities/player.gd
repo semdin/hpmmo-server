@@ -1998,16 +1998,14 @@ func wand_tip_position() -> Vector3:
 ## the bolt goes to the ground or wall point the cursor shows, and the server
 ## ends it there (an area spell bursts there).
 func get_mouse_aim_point() -> Vector3:
-	if is_instance_valid(current_target) and CombatRules.can_damage(self, current_target):
-		return current_target.global_position + Vector3.UP * TARGET_AIM_HEIGHT
+	var body := mouse_aim_body()
+	if body != null:
+		return body.global_position + Vector3.UP * TARGET_AIM_HEIGHT
 	if not is_instance_valid(camera):
 		return global_position + visuals.global_basis.z * 20.0 + Vector3.UP
 	var mouse_pos := get_viewport().get_mouse_position()
 	var origin := camera.project_ray_origin(mouse_pos)
 	var ray := camera.project_ray_normal(mouse_pos)
-	var body := _hostile_under_cursor(mouse_pos, origin, ray)
-	if body != null:
-		return body.global_position + Vector3.UP * TARGET_AIM_HEIGHT
 	var query := PhysicsRayQueryParameters3D.create(origin, origin + ray * 200.0, 1)
 	query.exclude = [get_rid()]
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
@@ -2018,6 +2016,16 @@ func get_mouse_aim_point() -> Vector3:
 		return ground
 	# Cursor on the sky: keep its direction, from the caster's cast height.
 	return origin + ray * 60.0
+
+## The body a cast goes at: the locked target, else the hostile under the
+## cursor; null when the cast goes to the ground or the air.
+func mouse_aim_body() -> Node3D:
+	if is_instance_valid(current_target) and CombatRules.can_damage(self, current_target):
+		return current_target
+	if not is_instance_valid(camera):
+		return null
+	var mouse_pos := get_viewport().get_mouse_position()
+	return _hostile_under_cursor(mouse_pos, camera.project_ray_origin(mouse_pos), camera.project_ray_normal(mouse_pos))
 
 ## The hostile body the cursor is on, or within AIM_ASSIST_PX of on screen
 ## (nearest to the cursor wins), so a click a hair beside a mob still aims at it.
@@ -2099,7 +2107,11 @@ func cast_spell(spell_id: String) -> void:
 	# `aim_hit` is also the cast's aiming target: the animation turns the casting
 	# arm onto it (see _play_cast_animation) and the spell leaves the wand's head
 	# there (skill_fx.emission_origin reads the live tip).
-	var aim_hit := get_mouse_aim_point()
+	# The body is named to the authority too (v29): it sees that body a ping
+	# later and somewhere else, and would otherwise not know what was aimed at.
+	var aim_body := mouse_aim_body()
+	var aim_hit := aim_body.global_position + Vector3.UP * TARGET_AIM_HEIGHT if aim_body != null else get_mouse_aim_point()
+	var target_uid := int(aim_body.get_meta("sim_uid", 0)) if aim_body != null else 0
 
 	# Wizard instantly faces the mouse aim direction on ground
 	var face_dir := (aim_hit - global_position)
@@ -2111,31 +2123,45 @@ func cast_spell(spell_id: String) -> void:
 	# damage multiplier is the server's combo counter.
 	# The chain is 3 steps (flick, backhand, overhead finisher); the window and
 	# step count are the same data the server's `_advance_combo` reads, so the
-	# predicted gesture matches the multiplier the server applies.
+	# predicted gesture matches the multiplier the server applies. Like the
+	# server, only a cast at a body moves the chain on; a flick at the ground
+	# is the first step, and a miss (on_basic_cast_missed) starts it over.
 	var anim_name := "Spellcast_Shoot"
 	var gesture_combo := 0
 	var combo_before := basic_combo_index
 	if spell_id == "basic_cast":
 		var steps := maxi(1, HPRules.combo_multipliers("basic_cast").size())
-		gesture_combo = basic_combo_index % steps
-		basic_combo_timer = HPRules.combo_window("basic_cast")
-		basic_combo_index = (gesture_combo + 1) % steps
+		if target_uid != 0:
+			gesture_combo = basic_combo_index % steps
+			basic_combo_timer = HPRules.combo_window("basic_cast")
+			basic_combo_index = (gesture_combo + 1) % steps
+		else:
+			basic_combo_index = 0
 
 	_cast_lock = float(s_data.get("cast_lock", 0.28))
 	_committed_until = maxf(_committed_until, float(COMMITTED_SPELLS.get(spell_id, 0.0)))
 	if anim_name.begins_with("1H_Melee") or anim_name == "Melee_Chop_A":
 		_committed_until = maxf(_committed_until, COMMITTED_MELEE)
 	_cast_seq += 1
-	_predicted_casts[_cast_seq] = {"spell_id": spell_id, "aim": aim_hit, "combo_before": combo_before}
+	# The cooldown runs from the press, as the server's does from the request's
+	# arrival. Started on the answer instead, a held button re-fired a ping early
+	# on a slow line and the server refused it (the swing vanished mid-chain).
+	var cooldown_before := float(spell_cooldowns.get(spell_id, 0.0))
+	var cd := HPRules.cooldown_for(spell_id, house, skill_level(spell_id), derived_stats)
+	if cd > 0.0:
+		spell_cooldowns[spell_id] = cd
+	_predicted_casts[_cast_seq] = {"spell_id": spell_id, "aim": aim_hit, "combo_before": combo_before, "cooldown_before": cooldown_before}
 	_play_cast_animation(anim_name, aim_hit, spell_id, gesture_combo)
 	if spell_id == "protego":
 		_activate_protego_preview()
 	# spell-effect hook: predicted PRESENTATION only (wand flash + cast sound), keyed
 	# by cast_seq so a rejection removes exactly this and nothing else. It cannot
-	# produce damage, a hit or a reward: the authority already owns those.
-	preload("res://scripts/spells/skill_fx.gd").play_predicted_cast(self, spell_id, _cast_seq)
+	# produce damage, a hit or a reward: the authority already owns those. The
+	# basic flick's sparks wait for the wand's release (_play_cast_animation).
+	if spell_id != "basic_cast":
+		preload("res://scripts/spells/skill_fx.gd").play_predicted_cast(self, spell_id, _cast_seq)
 
-	SimNet.submit_cast(self, spell_id, aim_hit, _cast_seq)
+	SimNet.submit_cast(self, spell_id, aim_hit, _cast_seq, target_uid)
 
 ## Called when the authority answers a cast request. Accepting only arms the UI
 ## feedback (mana and cooldowns are mirrored when the authority's stats arrive);
@@ -2147,13 +2173,11 @@ func on_cast_answer(cast_seq: int, _cast_id: int, ok: bool, reason: String) -> v
 	_predicted_casts.erase(cast_seq)
 	var spell_id := String(prediction.get("spell_id", ""))
 	if ok:
-		var cd := HPRules.cooldown_for(spell_id, house, skill_level(spell_id), derived_stats)
-		if cd > 0.0:
-			spell_cooldowns[spell_id] = cd
-		emit_signal("spell_cast_signal", spell_id, cd)
+		emit_signal("spell_cast_signal", spell_id, HPRules.cooldown_for(spell_id, house, skill_level(spell_id), derived_stats))
 		return
 	# spell-effect hook: a rejected cast removes its predicted feedback.
 	preload("res://scripts/spells/skill_fx.gd").cancel_predicted(self, cast_seq)
+	spell_cooldowns[spell_id] = float(prediction.get("cooldown_before", 0.0))
 	# The server did not advance its chain for a refused cast, so neither do we.
 	if spell_id == "basic_cast":
 		basic_combo_index = int(prediction.get("combo_before", 0))
@@ -2165,6 +2189,12 @@ func on_cast_answer(cast_seq: int, _cast_id: int, ok: bool, reason: String) -> v
 		hero_anim.end_cast()
 	_committed_until = 0.0
 	_reject_feedback(reason)
+
+## The authority says one of this player's basic bolts hit nothing: the chain
+## starts over, as it did on the server.
+func on_basic_cast_missed() -> void:
+	basic_combo_index = 0
+	basic_combo_timer = 0.0
 
 func _reject_feedback(reason: String) -> void:
 	# With a HUD attached, the combat feedback banner already words every
@@ -2199,6 +2229,7 @@ func _play_cast_animation(anim_name: String = "Spellcast_Shoot", aim: Variant = 
 	is_casting_anim = true
 	_cast_generation += 1
 	var generation := _cast_generation
+	var cast_seq := _cast_seq
 	# A wand cast is one-handed (the wand hand). The power spells add the off
 	# hand: wand raised back, both hands thrust together.
 	if spell in HEAVY_CAST_SPELLS:
@@ -2256,6 +2287,10 @@ func _play_cast_animation(anim_name: String = "Spellcast_Shoot", aim: Variant = 
 	if generation != _cast_generation or is_dead:
 		return
 	_on_animation_event("fx:wand_release")
+	if spell == "basic_cast" and is_local_player:
+		# The flick's sparks leave the wand as it snaps forward, not on the press
+		# (a refusal before this bumped the generation, so it never gets here).
+		preload("res://scripts/spells/skill_fx.gd").play_predicted_cast(self, spell, cast_seq)
 	await get_tree().create_timer(hold - release).timeout
 	if generation == _cast_generation and not is_dead:
 		is_casting_anim = false

@@ -677,7 +677,7 @@ func sim_input(seq: int, move: Vector2, yaw: float, jump: bool, descend: bool) -
 	SimAuthority.submit_input(sender, seq, move, yaw, jump, descend)
 
 @rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
-func sim_cast_request(spell_id: String, aim: Vector3, cast_seq: int) -> void:
+func sim_cast_request(spell_id: String, aim: Vector3, cast_seq: int, target_uid: int) -> void:
 	if is_client:
 		return
 	var peer_id := multiplayer.get_remote_sender_id()
@@ -690,7 +690,7 @@ func sim_cast_request(spell_id: String, aim: Vector3, cast_seq: int) -> void:
 	if not is_finite(aim.x) or not is_finite(aim.y) or not is_finite(aim.z):
 		sim_cast_result.rpc_id(peer_id, cast_seq, 0, false, HPProtocol.REJECT_STATE)
 		return
-	var result := SimAuthority.request_cast(peer_id, spell_id, aim, cast_seq)
+	var result := SimAuthority.request_cast(peer_id, spell_id, aim, cast_seq, target_uid)
 	sim_cast_result.rpc_id(peer_id, cast_seq, int(result.get("cast_id", 0)),
 		bool(result.get("ok", false)), String(result.get("reason", "")))
 
@@ -1282,14 +1282,15 @@ func _send_local_input() -> void:
 ## Single entry points used by client code in EVERY role. In role CLIENT the
 ## request travels to the server; in the authority roles it is answered locally
 ## by the same engine, so offline play exercises the identical code path.
-func submit_cast(player_node: Node, spell_id: String, aim: Vector3, cast_seq: int) -> Dictionary:
+## `target_uid` is the body the cast was aimed at (0: the ground or the air).
+func submit_cast(player_node: Node, spell_id: String, aim: Vector3, cast_seq: int, target_uid := 0) -> Dictionary:
 	if is_client:
-		_send_delayed(1, "sim_cast_request", [spell_id, aim, cast_seq], int(profile_values()["delay_ms"]))
+		_send_delayed(1, "sim_cast_request", [spell_id, aim, cast_seq, target_uid], int(profile_values()["delay_ms"]))
 		return {"ok": true, "reason": "sent", "cast_id": 0}
 	var record := SimAuthority.record_for(player_node)
 	if record.is_empty():
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
-	var result := SimAuthority.cast_for_record(record, spell_id, aim, cast_seq)
+	var result := SimAuthority.cast_for_record(record, spell_id, aim, cast_seq, target_uid)
 	SimAuthority.on_cast_result(cast_seq, int(result.get("cast_id", 0)),
 		bool(result.get("ok", false)), String(result.get("reason", "")))
 	return result

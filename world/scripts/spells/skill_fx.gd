@@ -142,8 +142,12 @@ static func _track(effect: Node3D) -> void:
 
 
 ## Play the cast stage of a spell. Kept signature-compatible with the prototype.
+## The local player's own casts are skipped: play_predicted_cast already drew
+## that flash, and the authority's release drew a second one on top of it.
 static func play_cast(world: Node3D, caster: Node3D, spell_id: String, spawn_pos: Vector3, dir: Vector3) -> void:
 	if not VFX.SPELLS.has(spell_id):
+		return
+	if is_instance_valid(caster) and caster.get("is_local_player") == true:
 		return
 	warm_spell(spell_id)
 	var aim := safe_direction(dir, Vector3.FORWARD)
@@ -166,10 +170,12 @@ static func _cast_options(caster: Node3D, spell_id: String) -> Dictionary:
 
 
 ## Play the impact stage. `victim` is optional: a burn sustain attaches to it.
-static func play_impact(world: Node3D, pos: Vector3, spell_id: String, victim: Node3D = null, incoming: Vector3 = Vector3.UP) -> void:
+## `caster` colours a spell drawn in its caster's house (VFX.colours_for).
+static func play_impact(world: Node3D, pos: Vector3, spell_id: String, victim: Node3D = null, incoming: Vector3 = Vector3.UP,
+		caster: Node3D = null) -> void:
 	if not VFX.SPELLS.has(spell_id):
 		return
-	var opts := {"target_position": pos}
+	var opts := {"target_position": pos, "colour_source": caster}
 	if victim != null:
 		opts["follow_target"] = victim
 	# A billboard burst centred ON a wall or a body is half buried in it: draw it

@@ -871,7 +871,7 @@ func _on_cast_released(cast_id: int, caster_uid: int, spell_id: String, origin: 
 	var aim = _cast_aims.get(cast_id)
 	_cast_aims.erase(cast_id)
 	var target: Node3D = _aimed_body(caster, aim) if aim is Vector3 else null
-	proj.setup(caster if caster is Node3D else null, spell_id, dir, target, 1.0)
+	proj.setup(caster if caster is Node3D else null, spell_id, dir, target, 1.0, aim if aim is Vector3 else Vector3.INF)
 	_bolt_views[cast_id] = proj
 
 ## The body a cast was aimed at - the client's copy of the authority's
@@ -920,9 +920,16 @@ func _on_cast_impact(cast_id: int, _caster_uid: int, _spell_id: String, pos: Vec
 	if view != null and is_instance_valid(view) and view.has_method("detonate_at"):
 		view.detonate_at(pos)
 
-func _on_cast_landed(cast_id: int, _caster_uid: int, spell_id: String, hits: Array) -> void:
+func _on_cast_landed(cast_id: int, caster_uid: int, spell_id: String, hits: Array) -> void:
 	var view = _bolt_views.get(cast_id)
 	_bolt_views.erase(cast_id)
+	var caster = SimAuthority.record_by_uid(caster_uid).get("node")
+	if not is_instance_valid(caster):
+		caster = null
+	# The authority broke this player's basic chain on a miss; so does its view.
+	if spell_id == "basic_cast" and hits.is_empty() and caster != null \
+			and caster.get("is_local_player") == true and caster.has_method("on_basic_cast_missed"):
+		caster.call("on_basic_cast_missed")
 	# A single-target bolt that the authority says hit ends now, even if its view
 	# has not reached the body yet; area blasts and misses draw their own end.
 	if not hits.is_empty() and HPRules.delivery(spell_id) != "projectile_aoe" \
@@ -945,7 +952,8 @@ func _on_cast_landed(cast_id: int, _caster_uid: int, spell_id: String, hits: Arr
 		# another full-radius blast on every victim duplicates the affected area.
 		if HPRules.delivery(spell_id) == "projectile_aoe":
 			continue
-		preload("res://scripts/spells/skill_fx.gd").play_impact(self, (victim as Node3D).global_position + Vector3.UP, spell_id)
+		preload("res://scripts/spells/skill_fx.gd").play_impact(self, (victim as Node3D).global_position + Vector3.UP, spell_id,
+			null, Vector3.UP, caster as Node3D)
 
 func _on_loot_spawned(uid: int, item_id: String, amount: int, pos: Vector3, items: Array = []) -> void:
 	# One chest, one marker. A chest that lands while the player is watching

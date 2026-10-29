@@ -98,35 +98,42 @@ const LAYER_PRESETS := {
 ## layer's life, `grow` scales it over life, `roll` gives each copy a random
 ## rotation so two copies never read as clones.
 const SPELLS := {
+	# The basic flick is a single spark in its caster's house (`house_colour`):
+	# a tiny white-hot head on a hair-thin wake, sparks in the house's second
+	# colour (vfx_library colours_for). Only sparks leave the wand, and the hit
+	# is a small spray of sparks - no burst, no lightning.
 	"basic_cast": {
 		"colour": Color(1.0, 0.72, 0.28),
+		"house_colour": true,
+		# The drawn bolt bends off the straight line (spell_projectile `curve`):
+		# sideways by this fraction of its flight, a new angle every cast.
+		"curve": 0.12,
 		"stages": {
 			"cast": {"layers": [
-				{"kind": "flipbook", "atlas": "vfx_wand_flash", "blend": "add", "core": true, "colour": true,
-					"size": 0.7, "life": 0.2, "fit": true, "roll": true, "grow": [0.7, 1.2]},
-				{"kind": "particles", "tex": "vfx_star_flare", "blend": "add", "colour": true, "optional": true,
-					"amount": 8, "life": 0.3, "speed": 3.0, "size": 0.07, "spread": 30.0, "gravity": -1.0, "forward": true},
-				{"kind": "light", "colour": true, "energy": 1.6, "range": 2.5, "life": 0.14},
-			], "length": 0.25, "audio": "spell_basic_cast_cast", "core": "cast_snap"},
+				{"kind": "sprite", "energy_shape": 0, "blend": "add", "core": true, "colour": true,
+					"size": 0.32, "life": 0.09, "fade": "out"},
+				{"kind": "particles", "tex": "vfx_star_flare", "blend": "add", "colour": "accent", "core": true,
+					"amount": 9, "life": 0.25, "speed": 3.2, "size": 0.1, "spread": 30.0, "gravity": -7.0, "forward": true},
+			], "length": 0.15, "audio": "spell_basic_cast_cast", "core": "cast_snap"},
 			"travel": {"layers": [
-				{"kind": "flipbook", "atlas": "vfx_energy_orb", "blend": "add", "core": true, "colour": true,
-					"size": 0.8, "life": 0.0, "loop": true, "roll": true},
-				{"kind": "ribbon", "tex": "vfx_energy_streak", "blend": "add", "core": true, "colour": true,
-					"width": 0.2, "length": 3.0, "life": 0.0, "follow": true},
-				{"kind": "particles", "tex": "vfx_star_flare", "blend": "add", "colour": true, "optional": true,
-					"amount": 14, "life": 0.35, "speed": 0.4, "size": 0.05, "spread": 180.0, "gravity": -0.5, "continuous": true},
+				{"kind": "sprite", "energy_shape": 0, "blend": "add", "core": true, "colour": true,
+					"size": 0.24, "life": 0.0, "flicker": true},
+				{"kind": "ribbon", "kinked": true, "blend": "add", "core": true, "colour": true,
+					"width": 0.11, "length": 1.3, "life": 0.0, "follow": true},
+				{"kind": "particles", "tex": "vfx_star_flare", "blend": "add", "colour": "accent", "core": true,
+					"amount": 8, "life": 0.3, "speed": 0.6, "size": 0.07, "spread": 180.0, "gravity": -6.0, "continuous": true},
 			], "length": 0.0, "audio": "spell_basic_cast_travel", "loop_audio": true},
 			"impact": {"layers": [
-				{"kind": "flipbook", "atlas": "vfx_burst_gold", "blend": "add", "core": true,
-					"size": 1.6, "life": 0.55, "fit": true, "roll": true},
-				{"kind": "flipbook", "atlas": "vfx_spark_burst", "blend": "add", "colour": true, "optional": true,
-					"size": 1.2, "life": 0.35, "fit": true, "roll": true},
-				{"kind": "light", "colour": true, "energy": 2.4, "range": 3.5, "life": 0.2},
-			], "length": 0.55, "audio": "spell_basic_cast_impact", "core": "impact_fleck"},
+				{"kind": "sprite", "energy_shape": 0, "blend": "add", "core": true, "colour": true,
+					"size": 0.7, "life": 0.12, "fade": "out"},
+				{"kind": "particles", "tex": "vfx_star_flare", "blend": "add", "colour": "accent", "core": true,
+					"amount": 18, "life": 0.38, "speed": 4.5, "size": 0.12, "spread": 180.0, "gravity": -9.0},
+				{"kind": "light", "colour": true, "energy": 1.2, "range": 2.2, "life": 0.1},
+			], "length": 0.32, "audio": "spell_basic_cast_impact", "core": "impact_fleck"},
 			"end": {"layers": [
-				{"kind": "flipbook", "atlas": "vfx_spark_burst", "blend": "add", "core": true, "colour": true,
-					"size": 0.6, "life": 0.25, "fit": true, "opacity": 0.6},
-			], "length": 0.25, "audio": "spell_basic_cast_end"},
+				{"kind": "sprite", "energy_shape": 0, "blend": "add", "core": true, "colour": true,
+					"size": 0.25, "life": 0.12, "fade": "out", "opacity": 0.7},
+			], "length": 0.15, "audio": "spell_basic_cast_end"},
 		},
 	},
 	"stupefy": {
@@ -468,6 +475,27 @@ static func stages_for(spell_id: String) -> Dictionary:
 
 static func spell_colour(spell_id: String) -> Color:
 	return (SPELLS.get(spell_id, {}) as Dictionary).get("colour", Color.WHITE)
+
+
+## [colour, accent] a spell is drawn in. A `house_colour` spell takes its
+## caster's house: the arcs its main colour, the sparks its second (a dark
+## second colour, Hufflepuff's black, cannot be added light, so the sparks
+## are a pale arc instead). Brightened to full value: the robes' dark shades
+## would vanish in additive light. Everything else keeps the table's colour.
+static func colours_for(spell_id: String, caster: Node = null) -> Array:
+	var base := spell_colour(spell_id)
+	var house := ""
+	if bool((SPELLS.get(spell_id, {}) as Dictionary).get("house_colour", false)) \
+			and caster != null and is_instance_valid(caster) and "house" in caster:
+		house = String(caster.get("house"))
+	var data: Dictionary = GameData.HOUSES.get(house, {})
+	if data.is_empty():
+		return [base, base.lightened(0.35)]
+	var primary: Color = data["primary_color"]
+	var second: Color = data["secondary_color"]
+	var colour := Color.from_hsv(primary.h, 0.78, 1.0)
+	var accent := Color.from_hsv(second.h, minf(second.s, 0.7), 1.0) if second.v > 0.4 else colour.lightened(0.55)
+	return [colour, accent]
 
 
 static func stage_length(spell_id: String, stage: String) -> float:

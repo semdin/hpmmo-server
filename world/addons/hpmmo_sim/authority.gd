@@ -158,6 +158,7 @@ var _autosave_accumulator_ms: int = 0
 var casts: Dictionary = {}           # cast_id -> cast record
 var projectiles: Array = []          # data-only swept projectiles (authoritative)
 var casts_by_node: Dictionary = {}   # instance_id -> cast_id (casting entity)
+var queued_casters: Dictionary = {}  # uid -> true while a buffered cast waits (_fire_queued_casts)
 
 ## Map transfer reservations: token -> reservation record.
 ## Nothing about a transfer is client-owned: the token references a server-side
@@ -193,6 +194,8 @@ const PROJECTILE_ASSIST_RADIUS := 0.55
 ## A cast aimed within this of a hostile body (horizontally) is aimed AT it: the
 ## bolt is re-aimed from the release point and steers onto that body's chest.
 const AIM_TARGET_RADIUS := 1.6
+## How far (flat metres) a named target may stand from the aim point (see _hinted_target).
+const AIM_HINT_SLACK := 4.5
 ## Chest height the client aims at (player.gd TARGET_AIM_HEIGHT).
 const AIM_CHEST_HEIGHT := 1.15
 ## A homing bolt passes over ground whose surface is flatter than this (normal.y)
@@ -871,7 +874,7 @@ func submit_input(peer_id: int, seq: int, move: Vector2, yaw: float, jump: bool,
 
 ## Cast request. Returns {ok, reason, cast_id}. Rejections are explicit so the
 ## client can drop its predicted feedback.
-func request_cast(peer_id: int, spell_id: String, aim: Vector3, cast_seq: int) -> Dictionary:
+func request_cast(peer_id: int, spell_id: String, aim: Vector3, cast_seq: int, target_hint := 0) -> Dictionary:
 	if not is_authority():
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
 	if mutations_frozen():
@@ -879,9 +882,11 @@ func request_cast(peer_id: int, spell_id: String, aim: Vector3, cast_seq: int) -
 	var record := player_record(peer_id)
 	if record.is_empty():
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
-	return cast_for_record(record, spell_id, aim, cast_seq)
+	return cast_for_record(record, spell_id, aim, cast_seq, target_hint)
 
-func cast_for_record(record: Dictionary, spell_id: String, aim: Vector3, cast_seq: int) -> Dictionary:
+## `target_hint` is the body the client says it aimed at (0: none); it is only
+## used when it passes `_hinted_target`.
+func cast_for_record(record: Dictionary, spell_id: String, aim: Vector3, cast_seq: int, target_hint := 0) -> Dictionary:
 	if mutations_frozen():
 		# Frozen: no new cast may start, no mana may be spent, no cooldown set.
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
@@ -922,6 +927,8 @@ func cast_for_record(record: Dictionary, spell_id: String, aim: Vector3, cast_se
 			record["queued_until_tick"] = sim_tick + int(ceil(float(HPProtocol.CAST_QUEUE_MS) / TICK_MS))
 			record["queued_aim"] = aim
 			record["queued_seq"] = cast_seq
+			record["queued_target"] = target_hint
+			queued_casters[int(record.get("uid", 0))] = true
 			return {"ok": true, "reason": "queued", "cast_id": 0}
 		return _reject_cast(record, cast_seq, HPProtocol.REJECT_COOLDOWN)
 
@@ -937,14 +944,23 @@ func cast_for_record(record: Dictionary, spell_id: String, aim: Vector3, cast_se
 	record["mana"] = int(record.get("mana", 0)) - cost
 	record["last_cast_seq"] = cast_seq
 	record["queued_spell"] = ""
+	var target_uid := _hinted_target(record, target_hint, aim)
+	if target_uid == 0:
+		target_uid = _aim_target_uid(record, aim)
 	var combo_mult := 1.0
 	var finisher := false
 	if spell_id == "basic_cast":
+		# The chain is built from hits: a flick at the ground or the air is
+		# always its first step and starts it over.
 		var multipliers: Array = HPRules.combo_multipliers("basic_cast")
-		var step := _advance_combo(record)
+		var step := 0
+		if target_uid != 0:
+			step = _advance_combo(record)
+		else:
+			record["combo_index"] = 0
 		combo_mult = float(multipliers[step])
 		finisher = step > 0 and step == multipliers.size() - 1
-	var cast_id := _begin_cast(record, spell_id, aim, combo_mult, finisher)
+	var cast_id := _begin_cast(record, spell_id, aim, combo_mult, finisher, target_uid)
 	_push_vitals(record)
 	return {"ok": true, "reason": HPProtocol.REJECT_OK, "cast_id": cast_id}
 
@@ -963,7 +979,7 @@ func _advance_combo(record: Dictionary) -> int:
 	record["combo_until_tick"] = sim_tick + window_ticks
 	return index
 
-func _begin_cast(record: Dictionary, spell_id: String, aim: Vector3, combo_mult: float, finisher := false) -> int:
+func _begin_cast(record: Dictionary, spell_id: String, aim: Vector3, combo_mult: float, finisher := false, target_uid := 0) -> int:
 	var node: Node3D = record["node"]
 	var cast_id := _next_cast_id
 	_next_cast_id += 1
@@ -989,7 +1005,7 @@ func _begin_cast(record: Dictionary, spell_id: String, aim: Vector3, combo_mult:
 		"origin": origin,
 		"dir": dir,
 		"aim": aim,
-		"target_uid": _aim_target_uid(record, aim),
+		"target_uid": target_uid,
 		"combo_mult": combo_mult,
 		"hit_flags": HPProtocol.HIT_FINISHER if finisher else 0,
 	}
@@ -999,8 +1015,39 @@ func _begin_cast(record: Dictionary, spell_id: String, aim: Vector3, combo_mult:
 	record["cooldowns"][spell_id] = sim_tick + int(ceil(HPRules.cooldown_for(spell_id, String(record.get("house", "")), trained, record) * HPProtocol.SIM_HZ))
 	casts_by_node[node.get_instance_id()] = cast_id
 	# Face the cast direction immediately, matching the client's aim behaviour.
-	emit_signal("cast_started", int(record["uid"]), cast_id, spell_id, aim, int(cast["release_tick"]))
+	# A cast at a body announces that body's chest as its aim: every client's
+	# bolt view (game_world._aimed_body) then steers onto the body this bolt
+	# homes on, not onto the spot the caster's lagged view clicked.
+	var shown_aim := _aim_target_chest(target_uid, record)
+	emit_signal("cast_started", int(record["uid"]), cast_id, spell_id, shown_aim if shown_aim.is_finite() else aim, int(cast["release_tick"]))
 	return cast_id
+
+## The body the client named as its target, when it is one this caster may hit:
+## alive, on the caster's map, in reach, and still near the aim point. The
+## client aims at the body it SEES, a ping and an interpolation delay behind the
+## authority's, so a running creature can be metres past the aim point here;
+## AIM_HINT_SLACK covers that without letting a client home on anything in range.
+func _hinted_target(record: Dictionary, target_uid: int, aim: Vector3) -> int:
+	if target_uid == 0 or target_uid == int(record.get("uid", 0)):
+		return 0
+	var target: Dictionary = entities.get(target_uid, {})
+	if target.is_empty() or bool(target.get("dead", false)):
+		return 0
+	var kind := int(target.get("kind", 0))
+	if kind != HPProtocol.Kind.MOB and kind != HPProtocol.Kind.PLAYER 			and kind != HPProtocol.Kind.DUMMY and kind != HPProtocol.Kind.MONOLITH:
+		return 0
+	if String(target.get("map_id", HPProtocol.DEFAULT_MAP)) != String(record.get("map_id", HPProtocol.DEFAULT_MAP)):
+		return 0
+	var node = target.get("node")
+	var caster_node = record.get("node")
+	if node == null or not is_instance_valid(node) or not (node is Node3D) 			or caster_node == null or not is_instance_valid(caster_node):
+		return 0
+	var at: Vector3 = (node as Node3D).global_position
+	if Vector2(aim.x - at.x, aim.z - at.z).length() > AIM_HINT_SLACK:
+		return 0
+	if not HPRules.can_damage(caster_node, node):
+		return 0
+	return target_uid
 
 ## The damageable body the client aimed at (its chest or feet within
 ## AIM_TARGET_RADIUS of `aim`), or 0 for a cast aimed at the ground / the air.
@@ -1868,6 +1915,37 @@ func _advance_casts() -> void:
 			finished.append(cast_id)
 	for cast_id in finished:
 		_end_cast(cast_id)
+	_fire_queued_casts()
+
+## Fire each buffered cast the tick its caster is ready: recovery over AND the
+## spell's cooldown run out. Firing only when a cast's recovery ended (as
+## before) lost every request buffered against a cooldown longer than the lock:
+## a held basic attack (lock 0.24 s, cooldown 0.55 s) arriving a little early
+## was answered "queued", swung on the client and never left the wand.
+func _fire_queued_casts() -> void:
+	if queued_casters.is_empty():
+		return
+	for uid in queued_casters.keys():
+		var record: Dictionary = entities.get(uid, {})
+		var queued := String(record.get("queued_spell", ""))
+		if record.is_empty() or queued == "":
+			queued_casters.erase(uid)
+			continue
+		if sim_tick > int(record.get("queued_until_tick", 0)):
+			record["queued_spell"] = ""
+			queued_casters.erase(uid)
+			emit_signal("cast_finished", 0, false, HPProtocol.REJECT_COOLDOWN)
+			continue
+		var ready_tick := maxi(int(record.get("cast_lock_until_tick", 0)),
+			int((record["cooldowns"] as Dictionary).get(queued, 0)))
+		if int(record.get("cast_id", 0)) != 0 or ready_tick > sim_tick:
+			continue
+		record["queued_spell"] = ""
+		queued_casters.erase(uid)
+		var result := cast_for_record(record, queued, record.get("queued_aim", Vector3.ZERO),
+			int(record.get("queued_seq", -1)), int(record.get("queued_target", 0)))
+		if not bool(result.get("ok", false)):
+			emit_signal("cast_finished", 0, false, String(result.get("reason", "")))
 
 func _end_cast(cast_id: int) -> void:
 	if not casts.has(cast_id):
@@ -1879,15 +1957,7 @@ func _end_cast(cast_id: int) -> void:
 		var node = record.get("node")
 		if node != null and is_instance_valid(node):
 			casts_by_node.erase(node.get_instance_id())
-		# Fire a queued cast (bounded input buffer) now that recovery ended.
-		var queued := String(record.get("queued_spell", ""))
-		if queued != "" and sim_tick <= int(record.get("queued_until_tick", 0)):
-			var aim: Vector3 = record.get("queued_aim", Vector3.ZERO)
-			var seq := int(record.get("queued_seq", -1))
-			record["queued_spell"] = ""
-			var result := cast_for_record(record, queued, aim, seq)
-			if not bool(result.get("ok", false)):
-				emit_signal("cast_finished", 0, false, String(result.get("reason", "")))
+		# A queued cast (bounded input buffer) fires from _fire_queued_casts.
 	casts.erase(cast_id)
 
 ## Interrupts: stun, disarm, death, mount. Damage is never applied by a cast that
@@ -2158,6 +2228,8 @@ func _projectile_impact(projectile: Dictionary, impact_uid: int, impact_pos: Vec
 			var applied := _apply_damage(record, raw, spell_id, caster, int(projectile.get("hit_flags", 0)))
 			if applied > 0:
 				hits.append({"uid": impact_uid, "amount": applied})
+	if spell_id == "basic_cast" and hits.is_empty():
+		caster["combo_index"] = 0   # a miss breaks the chain (the client mirrors it on cast_landed)
 	emit_signal("cast_landed", int(projectile["cast_id"]), int(caster["uid"]), spell_id, hits)
 
 

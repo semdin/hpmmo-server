@@ -115,7 +115,11 @@ class_name HPProtocol
 ## v28: appearance - `look` in player info (HPRules.clean_look: hair style and
 ##     colour, eye colour, skin tone, muscle/jaw/nose/cheeks/height sliders),
 ##     set by the owner with `sim_look_request(look)` and saved as `quests.look`.
-const PROTOCOL_VERSION := 28
+## v29: `sim_cast_request` gained a trailing `target_uid`: the body the client
+##     aimed at (0 for the ground or the air). The authority checks it and homes
+##     the bolt on it, so a moving creature seen a ping late is still met. The
+##     basic chain advances only on casts aimed at a body and breaks on a miss.
+const PROTOCOL_VERSION := 29
 
 ## Death choice (v18 `sim_respawn_request`).
 const RESPAWN_TOWN := 0
