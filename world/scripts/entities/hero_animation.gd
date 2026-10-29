@@ -128,6 +128,10 @@ func setup(animation_player: AnimationPlayer, skeleton_node: Skeleton3D, host: N
 	oneshot_node = AnimationNodeAnimation.new()
 	upper_node = AnimationNodeAnimation.new()
 	var os_blend := AnimationNodeBlend2.new()
+	# A branch at weight 0 is not processed unless synced, and the locomotion
+	# under a full one-shot froze mid-crossfade: after a dismount it still held
+	# the airborne arms-up pose of the drop and showed it as the one-shot faded.
+	os_blend.sync = true
 	var cast_blend := AnimationNodeBlend2.new()
 	_build_locomotion()
 	root.add_node("oneshot", oneshot_node, Vector2(-200, 150))

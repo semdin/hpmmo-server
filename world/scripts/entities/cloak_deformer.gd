@@ -27,9 +27,17 @@ var springs: SpringBoneSimulator3D
 ## The broom shaft while riding (parked far off on foot), so the streaming
 ## cloak lies over the wood instead of through it.
 var shaft: SpringBoneCollisionCapsule3D
+## The bristles (a fat capsule over the tail half): the thin shaft capsule let
+## the fabric between two chains sink into the brush.
+var bristles: SpringBoneCollisionCapsule3D
 var _bones: Dictionary = {}
+## The back planes and their on-foot offsets (parked while riding, see _park_planes).
+var _planes: Array[SpringBoneCollisionPlane3D] = []
+var _plane_offsets: Array[Vector3] = []
+var _planes_parked := false
 var _riding := 0.0
 var _wind := 0.0
+var _time := 0.0
 
 
 ## Add the cloak's chain bones (with their rest poses) from the cloak model's
@@ -112,11 +120,20 @@ func _build_springs() -> void:
 	for s in ["Left", "Right"]:
 		limbs.append(_capsule(s + "UpperLeg", _rest(s + "UpperLeg"), _rest(s + "LowerLeg"), 0.085))
 		limbs.append(_capsule(s + "LowerLeg", _rest(s + "LowerLeg"), _rest(s + "Foot"), 0.065))
-		limbs.append(_capsule(s + "UpperArm", _rest(s + "UpperArm"), _rest(s + "LowerArm"), 0.06))
-		limbs.append(_capsule(s + "LowerArm", _rest(s + "LowerArm"), _rest(s + "Hand"), 0.05))
+		# fat enough that the fabric between two chains clears the elbow and
+		# the hand when the arms swing back
+		limbs.append(_capsule(s + "UpperArm", _rest(s + "UpperArm"), _rest(s + "LowerArm"), 0.075))
+		# down past the wrist to the fingertips: the hand swinging back in the
+		# run cut through the fabric below a capsule that stopped at the wrist
+		var wrist := _rest(s + "Hand")
+		var fingertips := wrist + (wrist - _rest(s + "LowerArm")).normalized() * 0.17
+		limbs.append(_capsule(s + "LowerArm", _rest(s + "LowerArm"), fingertips, 0.07))
 	shaft = _capsule("Hips", Vector3.ZERO, Vector3.UP, 0.05)
 	shaft.position_offset = SHAFT_PARKED
 	limbs.append(shaft)
+	bristles = _capsule("Hips", Vector3.ZERO, Vector3.UP, 0.15)
+	bristles.position_offset = SHAFT_PARKED
+	limbs.append(bristles)
 	for c in CHAINS:
 		# The upper-chest plane at the shoulder-blade joints' depth, the hips
 		# plane at the seat joint's (the rest drape slopes in toward the calves
@@ -146,7 +163,23 @@ func _plane(bone: String, point: Vector3, normal: Vector3) -> Node:
 	shape.position_offset = local.origin
 	shape.rotation_offset = local.basis.get_rotation_quaternion()
 	springs.add_child(shape)
+	_planes.append(shape)
+	_plane_offsets.append(shape.position_offset)
 	return shape
+
+
+## Seated, the back planes tilt with the forward-leaning chest and the rolled
+## pelvis until they face up, and the chains had to lie on them: the cape
+## stood out level from the shoulders, hovering or not. On the broom the rider
+## leans away from the cape and the limb and shaft capsules are enough, so the
+## planes move out of the way (50 m to their open side).
+func _park_planes(parked: bool) -> void:
+	if parked == _planes_parked:
+		return
+	_planes_parked = parked
+	for i in _planes.size():
+		var plane := _planes[i]
+		plane.position_offset = _plane_offsets[i] - (plane.rotation_offset * Vector3.UP) * (50.0 if parked else 0.0)
 
 
 func _curve(top: float, bottom: float) -> Curve:
@@ -201,7 +234,30 @@ func _process(delta: float) -> void:
 	back.y = 0.0
 	back = back.normalized() if back.length() > 0.01 else Vector3.ZERO
 	_place_shaft(mounted)
-	springs.external_force = back * (_wind * 0.15 * (1.0 - _riding) + _riding * (2.0 + 4.0 * _wind)) + Vector3.UP * (_riding * 2.4 * _wind)
+	_park_planes(_riding > 0.5)
+	# Riding, the airstream holds the cape out behind the rider, above the
+	# brush but below the horizontal; hovering it still lifts off the broom
+	# (hanging slack, it lay in the bristles).
+	springs.external_force = back * (_wind * 0.15 * (1.0 - _riding) + _riding * (1.6 + 3.0 * _wind)) + Vector3.UP * (_riding * (0.7 + 1.3 * _wind))
+	_flutter(delta, back)
+
+
+## The cloth never hangs dead in the air: each chain's gravity tilts across
+## the fabric on its own phase, so a ripple runs from one edge to the other
+## (the springs carry it down to the hem). Strong on the broom - hovering too -
+## and faster with speed; on foot only a breath of it in a run.
+func _flutter(delta: float, back: Vector3) -> void:
+	_time += delta
+	var amount := _riding * (0.3 + 0.5 * _wind) + (1.0 - _riding) * 0.15 * _wind
+	# hanging, the fabric faces back; streaming behind a fast broom it lies
+	# flat and faces up
+	var stream := _riding * _wind
+	var across := (back * (1.0 - 0.6 * stream) + Vector3.UP * (0.8 * stream)).normalized()
+	var rate := 3.2 + 4.0 * _wind
+	for c in CHAINS:
+		var phase := _time * rate - float(c) * 0.75
+		var wave := sin(phase) * 0.65 + sin(phase * 1.73 + float(c) * 1.3) * 0.35
+		springs.set_gravity_direction(c, (Vector3.DOWN + across * (wave * amount)).normalized())
 
 
 ## Lay the shaft capsule along the broom from the grip to the tail (in the
@@ -212,13 +268,22 @@ func _place_shaft(mounted: bool) -> void:
 	var tail: Node3D = broom.get("tail_socket") if broom != null and is_instance_valid(broom) else null
 	if grip == null or tail == null or not is_instance_valid(grip) or not is_instance_valid(tail):
 		shaft.position_offset = SHAFT_PARKED
+		bristles.position_offset = SHAFT_PARKED
 		return
 	var to_skeleton := skeleton.global_transform.affine_inverse()
 	var a := to_skeleton * grip.global_position
 	var b := to_skeleton * tail.global_position
+	_lay(shaft, a, b)
+	# the brush: from a little behind the middle of the broom to the tip
+	_lay(bristles, a.lerp(b, 0.62), b.lerp(a, 0.08))
+
+
+## A capsule from a to b (skeleton space, the current pose), in the hips
+## bone's space where the springs read it next update.
+func _lay(capsule: SpringBoneCollisionCapsule3D, a: Vector3, b: Vector3) -> void:
 	var axis := (b - a).normalized()
 	var place := Transform3D(Basis(Quaternion(Vector3.UP, axis)), (a + b) * 0.5)
 	var local := skeleton.get_bone_global_pose(skeleton.find_bone("Hips")).affine_inverse() * place
-	shaft.height = a.distance_to(b) + shaft.radius * 2.0
-	shaft.position_offset = local.origin
-	shaft.rotation_offset = local.basis.get_rotation_quaternion()
+	capsule.height = a.distance_to(b) + capsule.radius * 2.0
+	capsule.position_offset = local.origin
+	capsule.rotation_offset = local.basis.get_rotation_quaternion()
