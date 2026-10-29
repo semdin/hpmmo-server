@@ -288,12 +288,44 @@ const SKIN_SHADER := preload("res://assets/shaders/hero_skin.gdshader")
 const HAIR_SHADER := preload("res://assets/shaders/hero_hair.gdshader")
 const EYE_SHADER := preload("res://assets/shaders/hero_eye.gdshader")
 const BROW_SHADER := preload("res://assets/shaders/hero_brow.gdshader")
+const BROW_PAINT_SHADER := preload("res://assets/shaders/hero_brow_paint.gdshader")
 const CLOTH_SHADER := preload("res://assets/shaders/hero_cloth.gdshader")
 ## Materials that are skin: the head's and the bare arms every outfit carries.
 const SKIN_MATERIALS := ["MI_Superhero_Male", "MI_Regular_Male"]
 ## Each hairstyle texture's mean luminance in linear colour (hero_hair.gdshader
 ## divides by it, so every style shows the picked colour at the same depth).
-const HAIR_REF_LUMA := {"SimpleParted": 0.2807, "Buzzed": 0.2807, "Long": 0.2692}
+const HAIR_REF_LUMA := {"SimpleParted": 0.2807, "Buzzed": 0.2807, "Long": 0.2692,
+	"Wavy": 0.0275, "Tousled": 0.0127, "Neat": 0.0123, "Ponytail": 0.013, "Curly": 0.008,
+	"Beard_Full": 0.2807}
+## The generated styles' temple shells (Hero_Hair_<style>_Temple, short
+## strands): above the strands' mean, so they sit a shade darker than the locks.
+const TEMPLE_REF_LUMA := 0.28
+## The head's scalp masks, one per hairstyle (build_rig.py), as one array.
+const SCALP_DIR := "res://assets/models/characters/scalp/"
+static var _scalp_masks: Texture2DArray = null
+## The head's beard area (face_masks.png R; build_rig.py) and the fine grain
+## that breaks the painted shade (art/characters/hero_q/skin_grain.py).
+const FACE_MASKS := "res://assets/models/characters/face_masks.png"
+const SKIN_GRAIN := "res://assets/models/characters/skin_grain.png"
+## HPRules.LOOK_BEARDS -> the painted shade's strength (beard_shade) and the
+## beard mesh shown ("" = none; the kit's beard).
+const BEARDS := {
+	"none": {"shade": 0.0, "mesh": ""},
+	"stubble": {"shade": 0.5, "mesh": ""},
+	"short": {"shade": 0.95, "mesh": ""},
+	"full": {"shade": 0.0, "mesh": "Hero_Beard_Full"},
+}
+## HPRules.LOOK_BROWS -> a painted brow (its tile on Hero_BrowPaint, 1-5) or
+## a brow mesh of the kit.
+const BROWS := {
+	"natural": {"paint": 1, "mesh": ""},
+	"bushy": {"paint": 2, "mesh": ""},
+	"arched": {"paint": 3, "mesh": ""},
+	"thin": {"paint": 4, "mesh": ""},
+	"angular": {"paint": 5, "mesh": ""},
+	"classic": {"paint": 0, "mesh": "Hero_Brows"},
+	"classic_straight": {"paint": 0, "mesh": "Hero_Brows_Regular"},
+}
 ## The iris of the Quaternius eye texture: one disc in the middle.
 const IRIS_CENTRE := Vector2(0.5, 0.5)
 const IRIS_RADIUS := 0.105
@@ -342,12 +374,23 @@ static func dress_parts(visuals: Node) -> void:
 static func _dressed(part: String, base: StandardMaterial3D) -> Material:
 	if _is_skin(base):
 		var skin := _shader_material(SKIN_SHADER, base)
-		# only the head carries the scalp masks (vertex colour)
+		skin.set_shader_parameter("has_normal", base.normal_enabled and base.normal_texture != null)
+		if base.roughness_texture != null:
+			skin.set_shader_parameter("roughness_tex", base.roughness_texture)
+			skin.set_shader_parameter("has_roughness", true)
+		# only the head carries the scalp masks and the beard areas
 		skin.set_shader_parameter("has_scalp", part == "Hero_Head")
+		if part == "Hero_Head":
+			skin.set_shader_parameter("scalp_tex", _scalp_array())
+		if part == "Hero_Head" and ResourceLoader.exists(FACE_MASKS):
+			skin.set_shader_parameter("face_mask_tex", load(FACE_MASKS))
+			skin.set_shader_parameter("grain_tex", load(SKIN_GRAIN))
+			skin.set_shader_parameter("has_face", true)
 		return skin
-	if part.begins_with("Hero_Hair_"):
+	if part.begins_with("Hero_Hair_") or part.begins_with("Hero_Beard_"):
 		var hair := _shader_material(HAIR_SHADER, base)
-		hair.set_shader_parameter("ref_luma", float(HAIR_REF_LUMA.get(part.trim_prefix("Hero_Hair_"), 0.28)))
+		var luma := TEMPLE_REF_LUMA if part.ends_with("_Temple") else float(HAIR_REF_LUMA.get(part.trim_prefix("Hero_").trim_prefix("Hair_"), 0.28))
+		hair.set_shader_parameter("ref_luma", luma)
 		return hair
 	if part == "Hero_Eyes":
 		var eye := _shader_material(EYE_SHADER, base)
@@ -355,7 +398,9 @@ static func _dressed(part: String, base: StandardMaterial3D) -> Material:
 		eye.set_shader_parameter("iris_b", IRIS_CENTRE)
 		eye.set_shader_parameter("iris_radius", IRIS_RADIUS)
 		return eye
-	if part == "Hero_Brows":
+	if part == "Hero_BrowPaint":
+		return _shader_material(BROW_PAINT_SHADER, base)
+	if part.begins_with("Hero_Brows"):
 		return _shader_material(BROW_SHADER, base)
 	for outfit: String in OUTFIT_PARTS:
 		if part.begins_with(String(OUTFIT_PARTS[outfit])):
@@ -365,6 +410,34 @@ static func _dressed(part: String, base: StandardMaterial3D) -> Material:
 	cloth.rim = CLOTH_RIM
 	cloth.rim_tint = CLOTH_RIM_TINT
 	return cloth
+
+
+## The scalp masks of HPRules.LOOK_HAIR_STYLES as layers in style order (layer
+## = style index); "none", or a style without a mask file, gets an empty layer.
+static func _scalp_array() -> Texture2DArray:
+	if _scalp_masks != null:
+		return _scalp_masks
+	var images: Array[Image] = []
+	var size := 512
+	for style: String in HPRules.LOOK_HAIR_STYLES:
+		var path := SCALP_DIR + "scalp_%s.png" % style
+		var img: Image = null
+		if style != "none" and ResourceLoader.exists(path):
+			img = (load(path) as Texture2D).get_image()
+			if img.is_compressed():
+				img.decompress()
+			size = img.get_width()
+		else:
+			img = Image.create(size, size, false, Image.FORMAT_L8)
+		img.convert(Image.FORMAT_L8)
+		if img.get_width() != size:
+			img.resize(size, size)
+		if not img.has_mipmaps():
+			img.generate_mipmaps()
+		images.append(img)
+	_scalp_masks = Texture2DArray.new()
+	_scalp_masks.create_from_images(images)
+	return _scalp_masks
 
 
 ## The cloth material of `outfit`'s texture variant over the model's own one.
@@ -426,23 +499,37 @@ static func apply_look(visuals: Node, raw_look: Dictionary) -> void:
 	var hair := Color.html(HPRules.LOOK_HAIR_COLORS[int(look["hair_color"])])
 	var skin := Color.html(HPRules.LOOK_SKIN_TONES[int(look["skin"])])
 	var iris := Color.html(HPRules.LOOK_EYE_COLORS[int(look["eyes"])])
-	var scalp := Color(0, 0, 0, 0)
-	var slot := HPRules.LOOK_HAIR_STYLES.find(style)
-	if slot >= 0 and slot < 3:
-		scalp[slot] = 1.0
+	var beard: Dictionary = BEARDS[String(HPRules.LOOK_BEARDS[int(look["beard"])])]
+	var brows: Dictionary = BROWS[String(HPRules.LOOK_BROWS[int(look["brows"])])]
+	var scalp_layer := -1.0 if style == "none" else float(HPRules.LOOK_HAIR_STYLES.find(style))
 	for node in visuals.find_children("Hero_*", "MeshInstance3D", true, false):
 		var mi := node as MeshInstance3D
 		var part := String(mi.name)
 		if part.begins_with("Hero_Hair_"):
-			mi.visible = part == "Hero_Hair_" + style
+			mi.visible = part == "Hero_Hair_" + style or part == "Hero_Hair_" + style + "_Temple"
 			mi.set_instance_shader_parameter("hair_color", hair)
 		elif part == "Hero_Eyes":
 			mi.set_instance_shader_parameter("iris_color", iris)
-		elif part == "Hero_Brows":
+		elif part.begins_with("Hero_Beard_"):
+			mi.visible = part == String(beard["mesh"])
+			mi.set_instance_shader_parameter("hair_color", hair)
+		elif part == "Hero_BrowPaint":
+			mi.visible = int(brows["paint"]) > 0
+			mi.set_instance_shader_parameter("brow_paint", float(brows["paint"]))
+			mi.set_instance_shader_parameter("hair_color", hair)
+		elif part.begins_with("Hero_Brows"):
+			mi.visible = part == String(brows["mesh"])
 			mi.set_instance_shader_parameter("hair_color", hair)
 		elif part == "Hero_Head":
 			mi.set_instance_shader_parameter("hair_color", hair)
-			mi.set_instance_shader_parameter("scalp_select", Vector3(scalp.r, scalp.g, scalp.b))
+			mi.set_instance_shader_parameter("scalp_layer", scalp_layer)
+			mi.set_instance_shader_parameter("beard_shade", float(beard["shade"]))
+			# tuck_<style>: the ears drawn under a style's locks (build_rig.py)
+			var head_mesh := mi.mesh as ArrayMesh
+			for shape in range(mi.get_blend_shape_count() if head_mesh != null else 0):
+				var shape_name := String(head_mesh.get_blend_shape_name(shape))
+				if shape_name.begins_with("tuck_"):
+					mi.set_blend_shape_value(shape, 1.0 if shape_name == "tuck_" + style else 0.0)
 		var worn := String(OUTFIT_PARTS[outfit])
 		for other: String in OUTFIT_PARTS.values():
 			if part.begins_with(other):

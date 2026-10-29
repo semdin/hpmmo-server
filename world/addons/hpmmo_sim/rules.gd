@@ -587,10 +587,17 @@ static func clean_attributes(raw: Variant) -> Dictionary:
 ## is a few small numbers; sliders are floats in their range. The client maps
 ## them onto the hero model (HeroAppearance.apply_look): hair meshes, shader
 ## tints and blend shapes.
-const LOOK_HAIR_STYLES := ["SimpleParted", "Buzzed", "Long", "none"]
+## New styles go at the end: a saved look keeps its index.
+const LOOK_HAIR_STYLES := ["SimpleParted", "Buzzed", "Long", "none", "Wavy", "Tousled", "Neat", "Ponytail", "Curly"]
 ## Outfits: the Hero_<Outfit>_* meshes of the hero model, each with two
 ## textures; the main cloth takes the wearer's house colour.
 const LOOK_OUTFITS := ["peasant", "peasant_2", "ranger", "ranger_3"]
+## Facial hair: a beard shade painted on the skin (stubble, short) or the kit's
+## beard mesh (full, Hero_Beard_Full); it takes the hair colour.
+const LOOK_BEARDS := ["none", "stubble", "short", "full"]
+## Eyebrows: five painted on the skin (Hero_BrowPaint tiles) and the kit's two
+## brow meshes (the Superhero head's own, the Regular ones).
+const LOOK_BROWS := ["natural", "bushy", "arched", "thin", "angular", "classic", "classic_straight"]
 const LOOK_HAIR_COLORS := ["2b1d16", "120d0b", "4b3122", "6e3b1f", "9a4f26", "b9874f", "dcc08a", "e9e4da", "7e7a76"]
 const LOOK_EYE_COLORS := ["6f8088", "4c78b0", "3f7d58", "6a4a2d", "a77f3d", "2e3d62", "8b8f93"]
 const LOOK_SKIN_TONES := ["ffffff", "f1ded3", "dcc0ab", "b8977f", "8f7160", "62503f"]
@@ -598,7 +605,7 @@ const LOOK_SKIN_TONES := ["ffffff", "f1ded3", "dcc0ab", "b8977f", "8f7160", "625
 const LOOK_SLIDERS := {"height": [-1.0, 1.0]}
 
 static func default_look() -> Dictionary:
-	return {"hair": 0, "hair_color": 0, "eyes": 0, "skin": 0, "outfit": 0, "height": 0.0}
+	return {"hair": 0, "hair_color": 0, "eyes": 0, "skin": 0, "outfit": 0, "beard": 0, "brows": 0, "height": 0.0}
 
 ## A saved/received look reduced to known keys with valid values; anything
 ## missing or out of range falls back to the default, so an old save or a
@@ -609,7 +616,8 @@ static func clean_look(raw: Variant) -> Dictionary:
 		return out
 	var src := raw as Dictionary
 	for key_size in [["hair", LOOK_HAIR_STYLES.size()], ["hair_color", LOOK_HAIR_COLORS.size()],
-			["eyes", LOOK_EYE_COLORS.size()], ["skin", LOOK_SKIN_TONES.size()], ["outfit", LOOK_OUTFITS.size()]]:
+			["eyes", LOOK_EYE_COLORS.size()], ["skin", LOOK_SKIN_TONES.size()], ["outfit", LOOK_OUTFITS.size()],
+			["beard", LOOK_BEARDS.size()], ["brows", LOOK_BROWS.size()]]:
 		var key: String = key_size[0]
 		if src.has(key) and (src[key] is int or src[key] is float):
 			out[key] = clampi(int(src[key]), 0, int(key_size[1]) - 1)

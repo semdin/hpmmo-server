@@ -2436,8 +2436,72 @@ msgid "Long"
 msgstr "Uzun"
 
 #: scripts/ui/look_editor.gd
+msgid "Wavy"
+msgstr "Dalgalı"
+
+#: scripts/ui/look_editor.gd
+msgid "Tousled"
+msgstr "Dağınık"
+
+#: scripts/ui/look_editor.gd
+msgid "Neat Comb"
+msgstr "Taranmış"
+
+#: scripts/ui/look_editor.gd
+msgid "Ponytail"
+msgstr "At Kuyruğu"
+
+#: scripts/ui/look_editor.gd
+msgid "Curly"
+msgstr "Kıvırcık"
+
+#: scripts/ui/look_editor.gd
 msgid "Shaved"
 msgstr "Kazınmış"
+
+#: scripts/ui/look_editor.gd
+msgid "Clean-shaven"
+msgstr "Sakalsız"
+
+#: scripts/ui/look_editor.gd
+msgid "Stubble"
+msgstr "Sakal Gölgesi"
+
+#: scripts/ui/look_editor.gd
+msgid "Short Beard"
+msgstr "Kısa Sakal"
+
+#: scripts/ui/look_editor.gd
+msgid "Full Beard"
+msgstr "Gür Sakal"
+
+#: scripts/ui/look_editor.gd
+msgid "Natural Brows"
+msgstr "Doğal Kaş"
+
+#: scripts/ui/look_editor.gd
+msgid "Bushy Brows"
+msgstr "Gür Kaş"
+
+#: scripts/ui/look_editor.gd
+msgid "Arched Brows"
+msgstr "Kemerli Kaş"
+
+#: scripts/ui/look_editor.gd
+msgid "Thin Brows"
+msgstr "İnce Kaş"
+
+#: scripts/ui/look_editor.gd
+msgid "Sharp Brows"
+msgstr "Keskin Kaş"
+
+#: scripts/ui/look_editor.gd
+msgid "Classic Brows"
+msgstr "Klasik Kaş"
+
+#: scripts/ui/look_editor.gd
+msgid "Classic Straight Brows"
+msgstr "Klasik Düz Kaş"
 
 #: scripts/ui/look_editor.gd
 msgid "Tunic"
@@ -2470,6 +2534,10 @@ msgstr "Kıyafet"
 #: scripts/ui/look_editor.gd
 msgid "Hairstyle"
 msgstr "Saç Modeli"
+
+#: scripts/ui/look_editor.gd
+msgid "Facial hair"
+msgstr "Sakal ve Kaş"
 
 #: scripts/ui/look_editor.gd
 msgid "Hair colour"
@@ -6228,9 +6296,6 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "Cropped"
 #~ msgstr "Kısa Kesim"
 
-#~ msgid "Curly"
-#~ msgstr "Kıvırcık"
-
 #~ msgid "Dark Monoliths fall in the western forests (Forest Edge, Acromantula Thicket, Snatcher Woods, Crypt Hollow). Follow the tall green light or find them on your map (M), then break one with others before its waves overrun you."
 #~ msgstr "Karanlık Metin Taşları batı ormanlarına düşer (Orman Kıyısı, Akromantula Çalılığı, Kapkaççı Korusu, Mahzen Çukuru). Yükselen yeşil ışığı izle ya da haritanda bul (M), sonra dalgaları seni ezmeden diğerleriyle birlikte birini kır."
 
@@ -6255,8 +6320,14 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "Find the snatcher captain's camp deep in the southern woods. Do not engage alone."
 #~ msgstr "Güney korusunun derinliklerinde kapkaççı kaptanının kampını bul. Yalnız saldırma."
 
+#~ msgid "Fine Brows"
+#~ msgstr "İnce Kaş"
+
 #~ msgid "Frost nova. Hurls a spinning ice crystal that bursts into shards and freezing mist, freezing every enemy in the blast for up to 1.6 seconds. Requires level 20."
 #~ msgstr "Buz patlaması. Dönen bir buz kristali fırlatır; kristal parçalara ve dondurucu bir sise dönüşerek patlar, patlamadaki her düşmanı 1,6 saniyeye kadar dondurur. 20. seviye gerekir."
+
+#~ msgid "Goatee"
+#~ msgstr "Keçi Sakal"
 
 #~ msgid "Hagrid"
 #~ msgstr "Hagrid"
@@ -6294,9 +6365,6 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "Nose"
 #~ msgstr "Burun"
 
-#~ msgid "Ponytail"
-#~ msgstr "At Kuyruğu"
-
 #~ msgid "Press O near Ollivander, drag your wand onto the anvil and refine it with Phoenix Ash and Galleons."
 #~ msgstr "Ollivander'ın yanında O'ya bas, asanı örse sürükle ve Anka Külü ile Galleon kullanarak yükselt."
 
@@ -6318,6 +6386,9 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "Slicked Back"
 #~ msgstr "Geriye Taranmış"
 
+#~ msgid "Straight Brows"
+#~ msgstr "Düz Kaş"
+
 #~ msgid "The Matriarch nests in Spider Hollow in the far north-west."
 #~ msgstr "Ana, çok kuzeybatıdaki Örümcek Çukuru'nda yuvalanıyor."
 
@@ -6327,11 +6398,11 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "The snatchers have a camp in the woods south of the castle. Drive them out."
 #~ msgstr "Kapkaççıların şatonun güneyindeki koruda bir kampı var. Onları oradan sür."
 
+#~ msgid "Thick Brows"
+#~ msgstr "Kalın Kaş"
+
 #~ msgid "Tied Back"
 #~ msgstr "Arkada Toplu"
-
-#~ msgid "Tousled"
-#~ msgstr "Dağınık"
 
 #~ msgid "Ultimate forbidden sorcery. Calls forth blinding emerald lightning that disintegrates targets in a wide blast radius."
 #~ msgstr "Nihai yasak büyücülük. Geniş bir patlama alanındaki hedefleri parçalayan kör edici zümrüt şimşekler çağırır."
