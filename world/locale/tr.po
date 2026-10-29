@@ -599,6 +599,10 @@ msgstr "BÜYÜCÜLERİN  (%d / 2)"
 msgid "%s\nLevel %d  ·  %s"
 msgstr "%s\nSeviye %d  ·  %s"
 
+#: scripts/ui/character_select.gd
+msgid "Edit Appearance"
+msgstr "Görünümü Düzenle"
+
 #: scripts/ui/combat_feedback.gd
 msgid "Equip a wand first"
 msgstr "Önce bir asa kuşan"
@@ -1735,7 +1739,7 @@ msgstr "Oyundan Çık"
 msgid "You cannot leave while defeated."
 msgstr "Yenik düşmüşken ayrılamazsın."
 
-#: scripts/ui/hud_game_menu.gd scripts/ui/inventory_arcane.gd scripts/ui/ollivander_ui.gd scenes/main/character_select.tscn
+#: scripts/ui/hud_game_menu.gd scripts/ui/inventory_arcane.gd scripts/ui/look_editor.gd scripts/ui/ollivander_ui.gd scenes/main/character_select.tscn
 msgid "Cancel"
 msgstr "İptal"
 
@@ -2418,6 +2422,78 @@ msgstr "%d Can yeniler"
 #: scripts/ui/item_tooltip.gd
 msgid "Restores %d Mana"
 msgstr "%d Mana yeniler"
+
+#: scripts/ui/look_editor.gd
+msgid "Side Part"
+msgstr "Yandan Ayrık"
+
+#: scripts/ui/look_editor.gd
+msgid "Buzzed"
+msgstr "Çok Kısa"
+
+#: scripts/ui/look_editor.gd
+msgid "Long"
+msgstr "Uzun"
+
+#: scripts/ui/look_editor.gd
+msgid "Shaved"
+msgstr "Kazınmış"
+
+#: scripts/ui/look_editor.gd
+msgid "Tunic"
+msgstr "Tunik"
+
+#: scripts/ui/look_editor.gd
+msgid "Travel Tunic"
+msgstr "Yolcu Tuniği"
+
+#: scripts/ui/look_editor.gd
+msgid "Ranger"
+msgstr "Korucu"
+
+#: scripts/ui/look_editor.gd
+msgid "Scout"
+msgstr "İzci"
+
+#: scripts/ui/look_editor.gd
+msgid "Height"
+msgstr "Boy"
+
+#: scripts/ui/look_editor.gd
+msgid "APPEARANCE"
+msgstr "GÖRÜNÜM"
+
+#: scripts/ui/look_editor.gd
+msgid "Outfit"
+msgstr "Kıyafet"
+
+#: scripts/ui/look_editor.gd
+msgid "Hairstyle"
+msgstr "Saç Modeli"
+
+#: scripts/ui/look_editor.gd
+msgid "Hair colour"
+msgstr "Saç Rengi"
+
+#: scripts/ui/look_editor.gd
+msgid "Eye colour"
+msgstr "Göz Rengi"
+
+#: scripts/ui/look_editor.gd
+msgid "Skin tone"
+msgstr "Ten Rengi"
+
+#: scripts/ui/look_editor.gd
+msgid "Random"
+msgstr "Rastgele"
+
+#: scripts/ui/look_editor.gd
+msgid "Reset"
+msgstr "Sıfırla"
+
+#: scripts/ui/look_editor.gd
+msgid "Save"
+msgstr "Kaydet"
 
 #: scripts/ui/loot_window.gd
 msgid "Take all"
@@ -6134,11 +6210,26 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "Break a Dark Monolith (follow the purple beams), refine your wand (O), then fly to the Quidditch Pitch (Shift to mount)."
 #~ msgstr "Bir Karanlık Metin Taşı kır (mor ışınları izle), asanı yükselt (O), sonra Quidditch Sahası'na uç (binmek için Shift)."
 
+#~ msgid "Build"
+#~ msgstr "Yapı"
+
+#~ msgid "Bun"
+#~ msgstr "Topuz"
+
+#~ msgid "Cheeks"
+#~ msgstr "Yanak"
+
 #~ msgid "Conjures a silver stag that charges through a wide cone. Dementors take triple damage and the stag breaks a dementor's attack, kiss included. Requires level 40."
 #~ msgstr "Geniş bir koni boyunca saldıran gümüş bir geyik çağırır. Ruh Emiciler üç kat hasar alır ve geyik bir Ruh Emici'nin saldırısını, öpücüğü dahil, bozar. Seviye 40 gerekir."
 
 #~ msgid "Corpses bewitched to serve a dark wizard. Slow, relentless and terrified of fire."
 #~ msgstr "Kara bir büyücüye hizmet etmek için büyülenmiş cesetler. Yavaş, amansız ve ateşten ödleri kopar."
+
+#~ msgid "Cropped"
+#~ msgstr "Kısa Kesim"
+
+#~ msgid "Curly"
+#~ msgstr "Kıvırcık"
 
 #~ msgid "Dark Monoliths fall in the western forests (Forest Edge, Acromantula Thicket, Snatcher Woods, Crypt Hollow). Follow the tall green light or find them on your map (M), then break one with others before its waves overrun you."
 #~ msgstr "Karanlık Metin Taşları batı ormanlarına düşer (Orman Kıyısı, Akromantula Çalılığı, Kapkaççı Korusu, Mahzen Çukuru). Yükselen yeşil ışığı izle ya da haritanda bul (M), sonra dalgaları seni ezmeden diğerleriyle birlikte birini kır."
@@ -6194,8 +6285,17 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "Inferi stalk the Forest Edge past Hagrid's hut. Fire (Incendio) hurts them twice as much."
 #~ msgstr "Inferius'lar Hagrid'in kulübesinin ötesinde, Orman Kıyısı'nda dolaşıyor. Ateş (Incendio) onlara iki kat zarar verir."
 
+#~ msgid "Jaw"
+#~ msgstr "Çene"
+
 #~ msgid "Monolith on the Moor"
 #~ msgstr "Bozkırdaki Metin Taşı"
+
+#~ msgid "Nose"
+#~ msgstr "Burun"
+
+#~ msgid "Ponytail"
+#~ msgstr "At Kuyruğu"
 
 #~ msgid "Press O near Ollivander, drag your wand onto the anvil and refine it with Phoenix Ash and Galleons."
 #~ msgstr "Ollivander'ın yanında O'ya bas, asanı örse sürükle ve Anka Külü ile Galleon kullanarak yükselt."
@@ -6206,8 +6306,17 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "Professor Fig waits beside the courtyard fountain (gold ! marker). Walk up and click to talk."
 #~ msgstr "Profesör Fig avludaki çeşmenin yanında bekliyor (altın ! işareti). Yanına git ve konuşmak için tıkla."
 
+#~ msgid "Ranger (Hood)"
+#~ msgstr "Korucu (Kapüşon)"
+
 #~ msgid "Report to Hagrid at his hut"
 #~ msgstr "Kulübesinde Hagrid'e rapor ver"
+
+#~ msgid "Side Fringe"
+#~ msgstr "Yan Perçem"
+
+#~ msgid "Slicked Back"
+#~ msgstr "Geriye Taranmış"
 
 #~ msgid "The Matriarch nests in Spider Hollow in the far north-west."
 #~ msgstr "Ana, çok kuzeybatıdaki Örümcek Çukuru'nda yuvalanıyor."
@@ -6217,6 +6326,12 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 
 #~ msgid "The snatchers have a camp in the woods south of the castle. Drive them out."
 #~ msgstr "Kapkaççıların şatonun güneyindeki koruda bir kampı var. Onları oradan sür."
+
+#~ msgid "Tied Back"
+#~ msgstr "Arkada Toplu"
+
+#~ msgid "Tousled"
+#~ msgstr "Dağınık"
 
 #~ msgid "Ultimate forbidden sorcery. Calls forth blinding emerald lightning that disintegrates targets in a wide blast radius."
 #~ msgstr "Nihai yasak büyücülük. Geniş bir patlama alanındaki hedefleri parçalayan kör edici zümrüt şimşekler çağırır."

@@ -29,6 +29,9 @@ var _sync_timer: float = 0.0
 
 var local_player_name: String = "Wizard"
 var local_player_house: String = "Gryffindor"
+## A look picked on the character screen, sent with the next world join
+## (game_world: SimNet.submit_look) and then cleared.
+var pending_look: Dictionary = {}
 var local_account_id: int = 0
 var local_character_id: int = 0
 var local_character_data: Dictionary = {}

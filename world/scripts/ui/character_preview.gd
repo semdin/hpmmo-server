@@ -36,7 +36,8 @@ func _ready() -> void:
 
 func show_player(player: Node) -> void:
 	if view == null or not is_instance_valid(player): return
-	var key := "%s:%s" % [player.house, str(player.equipment)]
+	var look: Dictionary = player.get("look") if player.get("look") is Dictionary else {}
+	var key := "%s:%s:%s" % [player.house, str(player.equipment), str(look)]
 	if key == _key: return
 	_key = key
 	if is_instance_valid(model):
@@ -47,6 +48,7 @@ func show_player(player: Node) -> void:
 	model = Node3D.new()
 	view.add_child(model)
 	HeroAppearance.spawn(model,GameData.HOUSES[player.house].primary_color)
+	HeroAppearance.apply_look(model, look)
 	HeroAppearance.show_equipped_wand(model,player.equipment.get("main_hand",{}))
 	HeroAppearance.show_cloak(model,player.equipment.get("chest",{}))
 

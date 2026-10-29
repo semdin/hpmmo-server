@@ -820,6 +820,16 @@ func sim_quest_claim(quest_id: String) -> void:
 	if not bool(result.get("ok", false)):
 		sim_notice.rpc_id(multiplayer.get_remote_sender_id(), "quest", String(result.get("reason", "")))
 
+## v28 appearance: the owner's picked look (creation screen, later changes).
+## Other players get it through player info.
+@rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
+func sim_look_request(look: Dictionary) -> void:
+	if is_client:
+		return
+	if not _allow(multiplayer.get_remote_sender_id(), "world"):
+		return
+	SimAuthority.request_look(multiplayer.get_remote_sender_id(), look)
+
 ## v17 status points: spend one on Vitality / Intellect / Strength / Agility.
 @rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
 func sim_attribute_request(stat: String) -> void:
@@ -1344,6 +1354,16 @@ func submit_quest_claim(player_node: Node, quest_id: String) -> Dictionary:
 	if record.is_empty():
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
 	return SimAuthority.quest_claim_for_record(record, quest_id)
+
+## Set the character's appearance. Same shape as submit_quest_claim.
+func submit_look(player_node: Node, look: Dictionary) -> Dictionary:
+	if is_client:
+		sim_look_request.rpc_id(1, HPRules.clean_look(look))
+		return HPProtocol.accept()
+	var record := SimAuthority.record_for(player_node)
+	if record.is_empty():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	return SimAuthority.look_for_record(record, look)
 
 ## Spend a status point (the character window).
 func submit_attribute(player_node: Node, stat: String) -> Dictionary:

@@ -581,6 +581,45 @@ static func clean_attributes(raw: Variant) -> Dictionary:
 				out[id] = value
 	return out
 
+# ------------------------------------------------------------------ look
+## A character's appearance (v28): picked at creation, saved as `quests.look`,
+## shown to every player through player info. Palettes are indices so a look
+## is a few small numbers; sliders are floats in their range. The client maps
+## them onto the hero model (HeroAppearance.apply_look): hair meshes, shader
+## tints and blend shapes.
+const LOOK_HAIR_STYLES := ["SimpleParted", "Buzzed", "Long", "none"]
+## Outfits: the Hero_<Outfit>_* meshes of the hero model, each with two
+## textures; the main cloth takes the wearer's house colour.
+const LOOK_OUTFITS := ["peasant", "peasant_2", "ranger", "ranger_3"]
+const LOOK_HAIR_COLORS := ["2b1d16", "120d0b", "4b3122", "6e3b1f", "9a4f26", "b9874f", "dcc08a", "e9e4da", "7e7a76"]
+const LOOK_EYE_COLORS := ["6f8088", "4c78b0", "3f7d58", "6a4a2d", "a77f3d", "2e3d62", "8b8f93"]
+const LOOK_SKIN_TONES := ["ffffff", "f1ded3", "dcc0ab", "b8977f", "8f7160", "62503f"]
+## slider -> [min, max]
+const LOOK_SLIDERS := {"height": [-1.0, 1.0]}
+
+static func default_look() -> Dictionary:
+	return {"hair": 0, "hair_color": 0, "eyes": 0, "skin": 0, "outfit": 0, "height": 0.0}
+
+## A saved/received look reduced to known keys with valid values; anything
+## missing or out of range falls back to the default, so an old save or a
+## crafted request can never name a mesh or colour that does not exist.
+static func clean_look(raw: Variant) -> Dictionary:
+	var out := default_look()
+	if not (raw is Dictionary):
+		return out
+	var src := raw as Dictionary
+	for key_size in [["hair", LOOK_HAIR_STYLES.size()], ["hair_color", LOOK_HAIR_COLORS.size()],
+			["eyes", LOOK_EYE_COLORS.size()], ["skin", LOOK_SKIN_TONES.size()], ["outfit", LOOK_OUTFITS.size()]]:
+		var key: String = key_size[0]
+		if src.has(key) and (src[key] is int or src[key] is float):
+			out[key] = clampi(int(src[key]), 0, int(key_size[1]) - 1)
+	for key in LOOK_SLIDERS:
+		if src.has(key) and (src[key] is int or src[key] is float):
+			var span: Array = LOOK_SLIDERS[key]
+			# two decimals: a look travels in every player-info packet
+			out[key] = snappedf(clampf(float(src[key]), float(span[0]), float(span[1])), 0.01)
+	return out
+
 static func attribute_points_available(character_level: int, attributes: Dictionary) -> int:
 	var spent := 0
 	for id in attributes:

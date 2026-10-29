@@ -30,7 +30,7 @@ const UPPER_LAYER := 1
 ## caller has to guess, and every clip not listed is a one-shot.
 const LOOPING := [
 	"Idle", "Walk_A", "Running_A", "Walk_Back", "Strafe_L", "Strafe_R",
-	"Fall", "Fall_Loop", "Cast_Idle", "Cast_Idle_Loop", "Sit_Chair_Idle",
+	"Fall", "Fall_Loop", "Jump_Air", "Cast_Idle", "Cast_Idle_Loop", "Sit_Chair_Idle",
 	"Broom_Seated_Idle", "Broom_Cruise", "Broom_Accelerate",
 	"Broom_Bank_L", "Broom_Bank_R", "Broom_Climb", "Broom_Dive", "Broom_Brake",
 	"Stun_Loop",
@@ -48,7 +48,7 @@ const ALIASES := {
 ## the stride as soon as it is actually travelling: a full-weight landing pose
 ## held under an 8 m/s run read as the hero sliding across the ground (measured
 ## 1.2 s of planted feet after every dismount and every running jump).
-const MOTION_INTERRUPTIBLE := ["Land", "Dismount_Broom", "Broom_Land"]
+const MOTION_INTERRUPTIBLE := ["Land", "Land_Soft", "Dismount_Broom", "Broom_Land"]
 ## Ground speed (m/s) above which those one-shots yield to locomotion.
 const INTERRUPT_SPEED := 1.2
 
@@ -66,9 +66,22 @@ var _ground_target := Vector2.ZERO
 var _ground_blend := Vector2.ZERO
 var _ground_speed := 0.0
 var _ground_rate := 1.0
-const WALK_BLEND := 0.42
+## Ground speeds the clips were authored at, measured as the planted toe's
+## sweep (art/characters/hero_v2/rig/clip_sheet.py) on the Mixamo takes
+## (art/hero/mixamo/README.md): Walk_A 1.02 m/s, Running_A 5.62 m/s, the two
+## running strafes 4.51 / 3.50 m/s (one speed for both: their mean) and
+## Walk_Back (a backward run) 3.22 m/s. Played at these speeds the feet stay
+## planted; the time scale stretches the cycle for any other speed.
+const WALK_NATURAL_SPEED := 1.02
+const RUN_NATURAL_SPEED := 5.62
+const STRAFE_NATURAL_SPEED := 4.0
+const BACK_NATURAL_SPEED := 3.22
+## The strafes and the backpedal only play while a cast holds the facing and
+## the body keeps its 6.5 m/s run: up to 2.4x keeps their feet planted.
+const MAX_GROUND_RATE := 2.4
+const WALK_BLEND := WALK_NATURAL_SPEED / RUN_NATURAL_SPEED
 const GROUND_BLEND_SECONDS := 0.18
-const RUN_REFERENCE_SPEED := 5.5
+const RUN_REFERENCE_SPEED := RUN_NATURAL_SPEED
 var oneshot_node: AnimationNodeAnimation
 var upper_node: AnimationNodeAnimation
 var skeleton: Skeleton3D
@@ -145,7 +158,7 @@ func setup(animation_player: AnimationPlayer, skeleton_node: Skeleton3D, host: N
 		var anim := _animation(name)
 		if anim:
 			anim.loop_mode = Animation.LOOP_LINEAR
-	for one_shot in ["Jump_Start", "Land", "Mount_Broom", "Dismount_Broom", "Revive",
+	for one_shot in ["Jump_Start", "Land", "Land_Soft", "Mount_Broom", "Dismount_Broom", "Revive",
 			"Death_A", "Hit_A", "Hit_B", "Interact", "Melee_Chop_A", "Melee_Chop_B",
 			"Spellcast_Shoot", "Spellcast_Raise", "Spellcast_Heavy", "Cast_Exit", "Broom_Takeoff", "Broom_Land"]:
 		var anim := _animation(one_shot)
@@ -335,9 +348,15 @@ func _tick_ground(delta: float) -> void:
 	# A bounded blend also finishes completely at rest, keeping planted idle feet.
 	_ground_blend = _ground_blend.move_toward(_ground_target, delta / GROUND_BLEND_SECONDS)
 	tree.set("parameters/ground/blend_position", _ground_blend)
-	var gait := smoothstep(WALK_BLEND, 1.0, absf(_ground_blend.x) + absf(_ground_blend.y))
-	var nominal_speed := lerpf(2.4, 5.5, gait)
-	var rate := clampf(_ground_speed / nominal_speed, 0.55, 1.65)
+	var spread := absf(_ground_blend.x) + absf(_ground_blend.y)
+	var gait := smoothstep(WALK_BLEND, 1.0, spread)
+	# Each direction's clip has its own authored speed; weigh them like the
+	# blend space does so the planted foot keeps up whichever way the body moves.
+	var side := absf(_ground_blend.x) / maxf(0.001, spread)
+	var back := maxf(0.0, -_ground_blend.y) / maxf(0.001, spread)
+	var nominal_speed := lerpf(WALK_NATURAL_SPEED, RUN_NATURAL_SPEED, gait) * (1.0 - side - back) \
+		+ STRAFE_NATURAL_SPEED * side + BACK_NATURAL_SPEED * back
+	var rate := clampf(_ground_speed / nominal_speed, 0.55, MAX_GROUND_RATE)
 	if _ground_target == Vector2.ZERO:
 		rate = 1.0
 	_ground_rate = lerpf(_ground_rate, rate, 1.0 - exp(-14.0 * delta))

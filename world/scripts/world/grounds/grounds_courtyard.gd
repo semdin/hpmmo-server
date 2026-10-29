@@ -188,6 +188,19 @@ static func _ground_cover(root: Node3D, c: Vector3) -> void:
 		mi.material_override = mats[key]
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root.add_child(mi)
+		# The cover sits 6-16 cm above the terrain (so the terrain's bumps never
+		# poke through it); a body standing on the terrain sank its feet into the
+		# flagstones. Bodies stand on the cover itself.
+		var shape := ConcavePolygonShape3D.new()
+		shape.set_faces(mi.mesh.get_faces())
+		var body := StaticBody3D.new()
+		body.name = "CoverBody_%s" % key
+		body.collision_layer = 1
+		body.collision_mask = 0
+		var collider := CollisionShape3D.new()
+		collider.shape = shape
+		body.add_child(collider)
+		root.add_child(body)
 
 
 # ------------------------------------------------------------------ built

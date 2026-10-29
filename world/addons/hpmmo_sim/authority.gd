@@ -372,6 +372,7 @@ func register_player(node: Node3D, character_id: int, peer_id: int, account_id: 
 		"galleons": int(node.get("galleons")),
 		"wand_tier": int(node.get("wand_tier")),
 		"house_rep": _node_house_rep(node),
+		"look": HPRules.clean_look(node.get("look")) if "look" in node else HPRules.default_look(),
 		"mounted": false,
 		"ward_until_tick": 0,
 		# Crowd control a creature laid on the player (troll slam, a shove):
@@ -471,6 +472,8 @@ func apply_character_binding(record: Dictionary, character: Dictionary) -> Strin
 		node.set("house", String(character["house"]))
 		record["house"] = String(character["house"])
 	node.call("restore_character", character)
+	if "look" in node:
+		record["look"] = HPRules.clean_look(node.get("look"))
 	refresh_equipment(record)
 	(node as Node3D).global_position = pos
 	if "velocity" in node:
@@ -3759,6 +3762,36 @@ func attribute_up_for_record(record: Dictionary, stat: String) -> Dictionary:
 		persistence.save_player(record)
 	return HPProtocol.accept()
 
+# ------------------------------------------------------------------ look
+
+## v28: the owner sets its character's appearance (the creation screen sends
+## the picked look on the first join; later changes go through the same
+## request). The look is cleaned here, stored on the body (`quests.look`) and
+## reaches every other player through player info (its rev includes the look).
+func request_look(peer_id: int, look: Dictionary) -> Dictionary:
+	if not is_authority() or mutations_frozen():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	var record := player_record(peer_id)
+	if record.is_empty():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	return look_for_record(record, look)
+
+func look_for_record(record: Dictionary, look: Dictionary) -> Dictionary:
+	if not is_authority() or record.is_empty():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	var node = record.get("node")
+	if node == null or not is_instance_valid(node) or not ("look" in node):
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	var clean := HPRules.clean_look(look)
+	if clean == HPRules.clean_look(record.get("look", {})):
+		return HPProtocol.accept()
+	node.set("look", clean)
+	record["look"] = clean
+	touch(record)
+	if persistence != null:
+		persistence.save_player(record)
+	return HPProtocol.accept()
+
 # ------------------------------------------------------------------ quests
 ##
 ## The quest chain (HPRules.quest_chain) is walked here and nowhere else: the
@@ -4780,11 +4813,14 @@ static func mob_info_of(record: Dictionary) -> Dictionary:
 		"elite": bool(record.get("is_elite", false)), "rev": int(record.get("meta_rev", 0)),
 		"parts_down": (record.get("parts_down", []) as Array).duplicate()}
 
-## What a client needs to label another player (v18 `sim_player_info`; v26 `ga`).
+## What a client needs to label another player (v18 `sim_player_info`; v26 `ga`;
+## v28 `look`, the appearance HeroAppearance.apply_look draws).
 func player_info_of(record: Dictionary) -> Dictionary:
 	var info := {"name": String(record.get("name", "")), "house": String(record.get("house", "")),
-		"level": int(record.get("level", 1)), "gear": record.get("gear", {}), "ga": is_ga(record)}
-	info["rev"] = ("%s|%s|%d|%d|%s" % [info["name"], info["house"], info["level"], int(record.get("gear_sig", 0)), str(info["ga"])]).hash()
+		"level": int(record.get("level", 1)), "gear": record.get("gear", {}), "ga": is_ga(record),
+		"look": record.get("look", HPRules.default_look())}
+	info["rev"] = ("%s|%s|%d|%d|%s|%s" % [info["name"], info["house"], info["level"], int(record.get("gear_sig", 0)),
+		str(info["ga"]), str(info["look"])]).hash()
 	return info
 
 # ------------------------------------------------------------- GA and weather
@@ -4904,6 +4940,7 @@ func _merge_player_info(record: Dictionary, info: Dictionary) -> void:
 	record["house"] = String(info.get("house", record.get("house", "")))
 	record["level"] = int(info.get("level", record.get("level", 1)))
 	record["ga"] = bool(info.get("ga", false))
+	record["look"] = HPRules.clean_look(info.get("look", {}))
 	if info.get("gear") is Dictionary:
 		record["gear"] = (info["gear"] as Dictionary).duplicate(true)
 	emit_signal("player_info", int(record.get("uid", 0)), info)

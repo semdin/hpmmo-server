@@ -28,6 +28,7 @@ its own state. `server_relay` is off, so clients cannot address each other.
 | `sim_talk_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | npc_name: String |
 | `sim_skill_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | spell_id: String |
 | `sim_quest_claim` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | quest_id: String |
+| `sim_look_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | look: Dictionary |
 | `sim_attribute_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | stat: String |
 | `sim_chat_request` | `any_peer, call_remote, reliable, HPProtocol.CH_INTENT` | text: String |
 | `sim_dungeon_state` | `authority, call_remote, reliable, HPProtocol.CH_EVENT` | map_id: String, state: Dictionary |

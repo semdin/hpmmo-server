@@ -112,7 +112,10 @@ class_name HPProtocol
 ##     `sim_duel_state(state)` gives each duelist the sides, countdown, arena and
 ##     result. Player-versus-player damage exists only between duel foes, so a
 ##     v26 client would never target (or predict hits on) its foe.
-const PROTOCOL_VERSION := 27
+## v28: appearance - `look` in player info (HPRules.clean_look: hair style and
+##     colour, eye colour, skin tone, muscle/jaw/nose/cheeks/height sliders),
+##     set by the owner with `sim_look_request(look)` and saved as `quests.look`.
+const PROTOCOL_VERSION := 28
 
 ## Death choice (v18 `sim_respawn_request`).
 const RESPAWN_TOWN := 0

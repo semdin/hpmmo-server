@@ -9,10 +9,14 @@ class_name HeroAppearance
 ## KayKit model (`wizard.glb`) and tinted a `Mage_Cape` node that only that model
 ## has, so the podium showed a character nobody could ever play.
 ##
-## The body (art/hero, Rigify-rigged) is ONE baked PBR surface, `Hero_Body`, so
-## there is no separate trim/robe material to recolour. The tint stays keyed on
-## material name: a body that ships `Hero_Trim` / `Hero_Robe` slots (or a future
-## house-mask material) is tinted, and the current body is left as authored.
+## The hero (art/characters/hero_q: the free Quaternius kit - Modular
+## Character Outfits, the Universal Base Characters head and hairstyles, all on
+## the Universal rig with GameRig bone names) is several skinned meshes on one
+## skeleton: `Hero_Head`, `Hero_Eyes`, `Hero_Brows`, `Hero_Hair_<style>` and the
+## outfit parts `Hero_<Outfit>_<part>`; the look picks which are shown. There is
+## no trim/robe material to recolour yet; the tint stays keyed on material name,
+## so a body that ships `Hero_Trim` / `Hero_Robe` slots (or a house-mask
+## material) is tinted and the current one is left as authored.
 
 const MODEL := preload("res://assets/models/characters/hero_wizard.glb")
 const WAND := preload("res://assets/models/props/wand.gltf")
@@ -25,13 +29,25 @@ const WandGripModifierScript = preload("res://scripts/entities/wand_grip_modifie
 ## the bottom of the fist and the tip leads it, which is how a wand is held.
 const WAND_SCALE := 0.4
 const WAND_TIP_LOCAL := Vector3(0.0, 0.7004468, 0.0)
-## The handle crosses the palm from pinky to index, not down the forearm.
+## The wand leaves the fist between thumb and index and leans out along the
+## hand: a pointer, not a hammer. Straight across the palm (pinky -> index) the
+## aim had to bend the wrist ~70 degrees sideways to point it at a target.
+const WAND_LEAN_DEG := 18.0
+## The handle sits in the index end of the fist's tunnel: this far from the
+## knuckles' centre toward the index (across the palm) and out of the palm,
+## so the tip leaves between the thumb and the index knuckle, not through
+## the curled fingers.
+const WAND_SEAT := Vector2(0.018, 0.006)
+
 static func wand_axis_in_wrist(skeleton: Skeleton3D) -> Vector3:
-	return RigIK.grip_frame(skeleton, "R").basis.x
+	var grip := RigIK.grip_frame(skeleton, "R")
+	var lean := deg_to_rad(WAND_LEAN_DEG)
+	return (grip.basis.x * cos(lean) + grip.basis.y * sin(lean)).normalized()
 
 static func wand_grip_transform(skeleton: Skeleton3D) -> Transform3D:
 	var grip := RigIK.grip_frame(skeleton, "R")
-	return Transform3D(Basis(Quaternion(Vector3.UP, grip.basis.x)), grip.origin)
+	var seat := grip.origin + grip.basis.x * WAND_SEAT.x + grip.basis.z * WAND_SEAT.y
+	return Transform3D(Basis(Quaternion(Vector3.UP, wand_axis_in_wrist(skeleton))), seat)
 
 
 static func _bone_index(skeleton: Skeleton3D, bone: String) -> int:
@@ -131,7 +147,7 @@ const CLOAK_MODEL := "res://assets/models/cloaks/cloak_base.glb"
 static var _cloak_materials: Dictionary = {}
 
 ## Draw the worn chest item's cloak, or none. Every cloak item shares one
-## skinned mesh (art/cloaks/scripts/build_cloak.py, bound to the same GameRig as
+## skinned mesh (art/cloaks/scripts/build_cloak_sim.py, bound to the same GameRig as
 ## the body) and names its own fabric (items.json `cloak_texture`). The mesh is
 ## moved under the body's Skeleton3D, where its skin binds by bone name, so it
 ## rides every clip, the cast layer and the broom grip like the body does.
@@ -153,8 +169,13 @@ static func show_cloak(root: Node, entry: Dictionary) -> void:
 		return
 	var source := scene.instantiate()
 	var mesh := source.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
+	# the panel's chain bones come from the cloak model's own skeleton
+	var chains := CloakDeformerScript.ensure_bones(skeleton, mesh.get_parent() as Skeleton3D)
 	mesh.get_parent().remove_child(mesh)
 	source.free()
+	if not chains:
+		mesh.free()
+		return
 	mesh.name = "EquippedCloak"
 	mesh.set_meta("cloak_texture", texture_path)
 	mesh.layers |= CHARACTER_LAYER
@@ -163,8 +184,8 @@ static func show_cloak(root: Node, entry: Dictionary) -> void:
 	mesh.transform = Transform3D.IDENTITY
 	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	mesh.material_override = _cloak_material(texture_path)
-	# The shell would let the arms and the broom shaft through: the deformer
-	# feeds their capsules to the cloak shader every frame.
+	# The deformer swings the panel's chain bones (spring bones, with the
+	# legs, arms and back as colliders).
 	var deformer := CloakDeformerScript.new()
 	deformer.name = "CloakDeformer"
 	mesh.add_child(deformer)
@@ -190,10 +211,6 @@ static func _skeleton(root: Node) -> Skeleton3D:
 		var found := _skeleton(child)
 		if found: return found
 	return null
-
-const BODY_SURFACE := "Hero_Body"
-const MATERIAL_TRIM := "Hero_Trim"
-const MATERIAL_ROBE := "Hero_Robe"
 
 ## A stationary hero's breathing clip, in preference order. The body carries
 ## `Idle`; the others are seat/loop fallbacks if the animation set changes.
@@ -225,6 +242,9 @@ static func spawn(anchor: Node3D, primary: Color) -> Node3D:
 	body.position = Vector3.ZERO
 	body.rotation = Vector3.ZERO
 	apply_house_tint(body, primary)
+	# every hairstyle ships in the model: show the default look until the
+	# owner's look arrives
+	apply_look(body, HPRules.default_look())
 	var player := find_anim_player(body)
 	var clip := idle_clip(player)
 	if clip != "":
@@ -232,38 +252,19 @@ static func spawn(anchor: Node3D, primary: Color) -> Node3D:
 	return body
 
 
-## Tint the robe and trim surfaces of the `Hero_Body` mesh inside `visuals`.
-##
-## House variation is material-only, so this is the single definition of what a
-## house looks like on the body. `visuals` may be the model root or any ancestor
-## of it; the body node is found by name.
+## Dress the hero under `visuals` in its house: the main cloth of every outfit
+## takes `primary` (hero_cloth.gdshader `house_color`). The single definition of
+## what a house looks like on the body; `visuals` may be the model root or any
+## ancestor of it.
 static func apply_house_tint(visuals: Node, primary: Color) -> void:
 	if visuals == null:
 		return
-	var body := visuals.find_child(BODY_SURFACE, true, false)
-	if not (body is MeshInstance3D):
-		return
-	var mesh_instance := body as MeshInstance3D
-	dress_body(mesh_instance)
-	var mesh: Mesh = mesh_instance.mesh
-	if mesh == null:
-		return
-	for surface in range(mesh.get_surface_count()):
-		var material := mesh.surface_get_material(surface)
-		if not (material is StandardMaterial3D):
-			continue
-		var base := material as StandardMaterial3D
-		match base.resource_name:
-			MATERIAL_TRIM:
-				var trim := base.duplicate() as StandardMaterial3D
-				trim.albedo_color = primary
-				trim.metallic = 0.0
-				trim.roughness = 0.87
-				mesh_instance.set_surface_override_material(surface, trim)
-			MATERIAL_ROBE:
-				var robe := base.duplicate() as StandardMaterial3D
-				robe.albedo_color = Color("242936").lerp(primary.darkened(0.65), 0.16)
-				mesh_instance.set_surface_override_material(surface, robe)
+	dress_parts(visuals)
+	for node in visuals.find_children("Hero_*", "MeshInstance3D", true, false):
+		var part := String(node.name)
+		for prefix: String in OUTFIT_PARTS.values():
+			if part.begins_with(prefix):
+				(node as MeshInstance3D).set_instance_shader_parameter("house_color", primary)
 
 
 ## ---------------------------------------------------------------- lighting
@@ -278,30 +279,213 @@ const CHARACTER_LAYER := 1 << 19
 const FILL_ENERGY := 0.28
 const FILL_COLOR := Color(0.92, 0.95, 1.0)
 ## Woven cloth scatters light at grazing angles; a little rim gives the
-## silhouette an edge against the background.
-## The body is ONE material (cloth and skin share the atlas), so the rim also
-## lands on the face: at 0.3 it washed the cheeks and brow out to a grey sheen.
+## silhouette an edge against the background. Only the outfit gets it: on the
+## face a rim of 0.3 washed the cheeks and brow out to a grey sheen.
 const CLOTH_RIM := 0.1
 const CLOTH_RIM_TINT := 0.25
+## Parts drawn by the look shaders (colours per hero as instance uniforms).
+const SKIN_SHADER := preload("res://assets/shaders/hero_skin.gdshader")
+const HAIR_SHADER := preload("res://assets/shaders/hero_hair.gdshader")
+const EYE_SHADER := preload("res://assets/shaders/hero_eye.gdshader")
+const BROW_SHADER := preload("res://assets/shaders/hero_brow.gdshader")
+const CLOTH_SHADER := preload("res://assets/shaders/hero_cloth.gdshader")
+## Materials that are skin: the head's and the bare arms every outfit carries.
+const SKIN_MATERIALS := ["MI_Superhero_Male", "MI_Regular_Male"]
+## Each hairstyle texture's mean luminance in linear colour (hero_hair.gdshader
+## divides by it, so every style shows the picked colour at the same depth).
+const HAIR_REF_LUMA := {"SimpleParted": 0.2807, "Buzzed": 0.2807, "Long": 0.2692}
+## The iris of the Quaternius eye texture: one disc in the middle.
+const IRIS_CENTRE := Vector2(0.5, 0.5)
+const IRIS_RADIUS := 0.105
+## HPRules.LOOK_OUTFITS -> the mesh-name prefix of its parts.
+const OUTFIT_PARTS := {"peasant": "Hero_Peasant_", "peasant_2": "Hero_Peasant_",
+	"ranger": "Hero_Ranger_", "ranger_3": "Hero_Ranger_"}
+## Per outfit: its texture (empty: the one in the model), the main cloth's
+## colour and the dye's brightness; the dyed texels are mask_<outfit>.png
+## (art/characters/hero_q/house_masks.py).
+const OUTFIT_DIR := "res://assets/models/characters/outfits/"
+const OUTFIT_LOOKS := {
+	"peasant": {"texture": "", "key": Color("928b70"), "gain": 0.55},
+	"peasant_2": {"texture": "T_Peasant_2_BaseColor.png", "key": Color("2e2416"), "gain": 0.55},
+	"ranger": {"texture": "", "key": Color("3f5a22"), "gain": 0.75},
+	"ranger_3": {"texture": "T_Ranger_3_BaseColor.png", "key": Color("5c5545"), "gain": 0.6},
+}
+## Height slider: +-5 % of the whole body (the skeleton scales, so props and
+## sockets follow).
+const LOOK_HEIGHT_SPAN := 0.05
 
-static var _dressed_material: StandardMaterial3D = null
+## One dressed material per part surface, shared by every hero.
+static var _dressed_materials := {}
 
 
-## Put the body on the character layer and give its material the cloth rim.
-## Idempotent; every hero shares one dressed material.
-static func dress_body(body: MeshInstance3D) -> void:
-	if body.layers & CHARACTER_LAYER == 0:
-		set_character_layer(body)
-	var source := body.mesh.surface_get_material(0) if body.mesh else null
-	if not (source is StandardMaterial3D) or body.mesh.get_surface_count() != 1:
+## Put every hero part on the character layer and give each surface its look:
+## skin, hair, eye and brow surfaces get the look shaders, cloth a little rim.
+## Idempotent.
+static func dress_parts(visuals: Node) -> void:
+	for node in visuals.find_children("Hero_*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		var part := String(mi.name)
+		if mi.layers & CHARACTER_LAYER == 0:
+			set_character_layer(mi)
+		if mi.mesh == null:
+			continue
+		for surface in range(mi.mesh.get_surface_count()):
+			var source := mi.mesh.surface_get_material(surface)
+			if not (source is StandardMaterial3D) or mi.get_surface_override_material(surface) != null:
+				continue
+			var key := "%s/%d" % [part, surface]
+			if not _dressed_materials.has(key):
+				_dressed_materials[key] = _dressed(part, source as StandardMaterial3D)
+			mi.set_surface_override_material(surface, _dressed_materials[key])
+
+
+static func _dressed(part: String, base: StandardMaterial3D) -> Material:
+	if _is_skin(base):
+		var skin := _shader_material(SKIN_SHADER, base)
+		# only the head carries the scalp masks (vertex colour)
+		skin.set_shader_parameter("has_scalp", part == "Hero_Head")
+		return skin
+	if part.begins_with("Hero_Hair_"):
+		var hair := _shader_material(HAIR_SHADER, base)
+		hair.set_shader_parameter("ref_luma", float(HAIR_REF_LUMA.get(part.trim_prefix("Hero_Hair_"), 0.28)))
+		return hair
+	if part == "Hero_Eyes":
+		var eye := _shader_material(EYE_SHADER, base)
+		eye.set_shader_parameter("iris_a", IRIS_CENTRE)
+		eye.set_shader_parameter("iris_b", IRIS_CENTRE)
+		eye.set_shader_parameter("iris_radius", IRIS_RADIUS)
+		return eye
+	if part == "Hero_Brows":
+		return _shader_material(BROW_SHADER, base)
+	for outfit: String in OUTFIT_PARTS:
+		if part.begins_with(String(OUTFIT_PARTS[outfit])):
+			return _cloth_material(base, outfit)
+	var cloth := base.duplicate() as StandardMaterial3D
+	cloth.rim_enabled = true
+	cloth.rim = CLOTH_RIM
+	cloth.rim_tint = CLOTH_RIM_TINT
+	return cloth
+
+
+## The cloth material of `outfit`'s texture variant over the model's own one.
+static func _cloth_material(base: StandardMaterial3D, outfit: String) -> ShaderMaterial:
+	var look: Dictionary = OUTFIT_LOOKS[outfit]
+	var mat := _shader_material(CLOTH_SHADER, base)
+	if String(look["texture"]) != "":
+		mat.set_shader_parameter("albedo_tex", load(OUTFIT_DIR + String(look["texture"])))
+	mat.set_shader_parameter("mask_tex", load(OUTFIT_DIR + "mask_%s.png" % outfit))
+	mat.set_shader_parameter("has_normal", base.normal_enabled and base.normal_texture != null)
+	mat.set_shader_parameter("key_color", look["key"])
+	mat.set_shader_parameter("house_gain", float(look["gain"]))
+	mat.set_shader_parameter("rim_amount", CLOTH_RIM)
+	return mat
+
+
+## Put `outfit`'s cloth material on a visible outfit part (its skin surfaces
+## keep the skin shader).
+static func _wear_variant(mi: MeshInstance3D, part: String, outfit: String) -> void:
+	for surface in range(mi.mesh.get_surface_count()):
+		var source := mi.mesh.surface_get_material(surface)
+		if not (source is StandardMaterial3D) or _is_skin(source):
+			continue
+		var key := "%s/%d/%s" % [part, surface, outfit]
+		if not _dressed_materials.has(key):
+			_dressed_materials[key] = _cloth_material(source as StandardMaterial3D, outfit)
+		mi.set_surface_override_material(surface, _dressed_materials[key])
+
+
+static func _is_skin(material: Material) -> bool:
+	for name: String in SKIN_MATERIALS:
+		if String(material.resource_name).begins_with(name):
+			return true
+	return false
+
+
+static func _shader_material(shader: Shader, base: StandardMaterial3D) -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = shader
+	mat.set_shader_parameter("albedo_tex", base.albedo_texture)
+	if base.normal_enabled and base.normal_texture != null:
+		mat.set_shader_parameter("normal_tex", base.normal_texture)
+	return mat
+
+
+## ---------------------------------------------------------------- look
+
+## Draw `look` (HPRules.clean_look) on the hero under `visuals`: the outfit and
+## hairstyle (which meshes show), hair/skin/eye colours (instance uniforms of
+## the look shaders) and the height. Cheap enough to call on every change; a
+## remote body gets it with each player info.
+static func apply_look(visuals: Node, raw_look: Dictionary) -> void:
+	if visuals == null:
 		return
-	if _dressed_material == null:
-		_dressed_material = (source as StandardMaterial3D).duplicate()
-		_dressed_material.rim_enabled = true
-		_dressed_material.rim = CLOTH_RIM
-		_dressed_material.rim_tint = CLOTH_RIM_TINT
-	if body.get_surface_override_material(0) == null:
-		body.set_surface_override_material(0, _dressed_material)
+	dress_parts(visuals)
+	var look := HPRules.clean_look(raw_look)
+	var style := String(HPRules.LOOK_HAIR_STYLES[int(look["hair"])])
+	var outfit := String(HPRules.LOOK_OUTFITS[int(look["outfit"])])
+	var hair := Color.html(HPRules.LOOK_HAIR_COLORS[int(look["hair_color"])])
+	var skin := Color.html(HPRules.LOOK_SKIN_TONES[int(look["skin"])])
+	var iris := Color.html(HPRules.LOOK_EYE_COLORS[int(look["eyes"])])
+	var scalp := Color(0, 0, 0, 0)
+	var slot := HPRules.LOOK_HAIR_STYLES.find(style)
+	if slot >= 0 and slot < 3:
+		scalp[slot] = 1.0
+	for node in visuals.find_children("Hero_*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		var part := String(mi.name)
+		if part.begins_with("Hero_Hair_"):
+			mi.visible = part == "Hero_Hair_" + style
+			mi.set_instance_shader_parameter("hair_color", hair)
+		elif part == "Hero_Eyes":
+			mi.set_instance_shader_parameter("iris_color", iris)
+		elif part == "Hero_Brows":
+			mi.set_instance_shader_parameter("hair_color", hair)
+		elif part == "Hero_Head":
+			mi.set_instance_shader_parameter("hair_color", hair)
+			mi.set_instance_shader_parameter("scalp_select", Vector3(scalp.r, scalp.g, scalp.b))
+		var worn := String(OUTFIT_PARTS[outfit])
+		for other: String in OUTFIT_PARTS.values():
+			if part.begins_with(other):
+				mi.visible = part.begins_with(worn)
+				if mi.visible:
+					_wear_variant(mi, part, outfit)
+		if part == "Hero_Head" or part.ends_with("_Arms"):
+			mi.set_instance_shader_parameter("skin_tint", skin)
+	var skeleton := _skeleton(visuals)
+	if skeleton != null:
+		skeleton.scale = Vector3.ONE * (1.0 + LOOK_HEIGHT_SPAN * float(look.get("height", 0.0)))
+
+
+## The looks of this machine's own characters, by character id, so the
+## character screen can draw each one (the account service's list carries no
+## quests). Written whenever a look is known: the world join (the server's
+## look) and the character screen (`pending`: picked here, not yet sent - the
+## next world join sends it). Only a pending look is ever sent, so a stale
+## entry on another machine can never overwrite the saved one.
+const LOOK_CACHE := "user://character_looks.json"
+
+static func remember_look(character_id: int, look: Dictionary, pending := false) -> void:
+	if character_id <= 0:
+		return
+	var all := _read_look_cache()
+	all[str(character_id)] = {"look": HPRules.clean_look(look), "pending": pending}
+	var file := FileAccess.open(LOOK_CACHE, FileAccess.WRITE)
+	if file != null:
+		file.store_string(JSON.stringify(all))
+
+static func recall_look(character_id: int) -> Dictionary:
+	var entry = _read_look_cache().get(str(character_id), {})
+	return HPRules.clean_look(entry.get("look", {}) if entry is Dictionary else {})
+
+static func has_pending_look(character_id: int) -> bool:
+	var entry = _read_look_cache().get(str(character_id), {})
+	return entry is Dictionary and bool(entry.get("pending", false))
+
+static func _read_look_cache() -> Dictionary:
+	if not FileAccess.file_exists(LOOK_CACHE):
+		return {}
+	var parsed = JSON.parse_string(FileAccess.get_file_as_string(LOOK_CACHE))
+	return parsed if parsed is Dictionary else {}
 
 
 ## Put every mesh under `root` (itself included) on the character layer.

@@ -47,7 +47,7 @@ const AIM_EXTENSION := 0.97
 ## the hand to do something a hand cannot, so the correction is clamped rather
 ## than allowed to snap the wrist. The aim blends in with the cast layer's own
 ## weight, so it needs no ramp of its own.
-const AIM_MAX_WRIST_TWIST := 1.2
+const AIM_MAX_WRIST_TWIST := 0.6
 
 ## World-space point the casting arm points at, and whether the aim is in force.
 var aim_point := Vector3.ZERO

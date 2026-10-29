@@ -13,12 +13,11 @@ class_name HeroBones
 ## skeleton (rig_regression.gd re-checks them), not assumed from Blender rolls,
 ## because Rigify re-rolls the finger chains it generates:
 ##   * every bone's local +Y runs along the bone, toward its child;
-##   * the four fingers curl toward the palm for a rotation about their local +X
-##     of sign `CURL_SIGN`; the thumb closes across the palm with `THUMB_CURL_SIGN`;
-##   * the palm faces `palm_axis(side)` in that hand's own frame (the two hands
-##     are mirror images, so the sign differs per side);
 ##   * there are no metacarpal bones for the four fingers: `<Finger>Proximal`
 ##     starts at the knuckle and is parented straight to the hand.
+## Which way a finger curls and where the palm faces are NOT constants: rigs
+## roll finger bones differently (the Quaternius rig mirrors the finger X axes
+## between the hands), so RigIK derives both from the rest knuckles.
 
 const ROOT := "Root"
 const HIPS := "Hips"
@@ -33,15 +32,8 @@ const SPINE_CHAIN := [SPINE, CHEST, UPPER_CHEST]
 const FINGERS := ["Index", "Middle", "Ring", "Little"]
 const PHALANGES := ["Proximal", "Intermediate", "Distal"]
 const THUMB_SEGMENTS := ["ThumbMetacarpal", "ThumbProximal", "ThumbDistal"]
-const CURL_SIGN := -1.0
-const THUMB_CURL_SIGN := 1.0
 
 const _LOWER_PARTS := ["UpperLeg", "LowerLeg", "Foot", "Toes"]
-
-
-## Unit vector out of the palm, in the hand bone's local frame.
-static func palm_axis(side: String) -> Vector3:
-	return Vector3.RIGHT if side_name(side) == "Left" else Vector3.LEFT
 
 
 ## "L"/"Left" -> "Left", "R"/"Right" -> "Right".

@@ -72,6 +72,13 @@ var animation_events: Array[String] = []
 @export var house: String = "Gryffindor"
 @export var wand_tier: int = 0
 @export var is_local_player: bool = true
+## Appearance (v28, HPRules.clean_look): saved as `quests.look`, other players'
+## arrive through player info. Setting it redraws the body.
+var look: Dictionary = HPRules.default_look():
+	set(value):
+		look = HPRules.clean_look(value)
+		if is_inside_tree() and visuals != null:
+			HeroAppearance.apply_look(visuals, look)
 
 # Base Stats
 var level: int = 1
@@ -185,6 +192,12 @@ const FLOOR_SNAP_LENGTH := 0.45
 const AIR_GRACE := 0.14
 ## Only a real fall earns the landing one-shot; a crease does not.
 const LAND_MIN_AIR := 0.35
+## A jump from flat ground lands at JUMP_VELOCITY (8 m/s) after 0.67 s. Past
+## these the fall is a long one: the airborne flail plays and the landing
+## braces (a drop of ~1 m or more below the take-off).
+const HARD_FALL_SPEED := 9.6
+const LONG_FALL_AIR := 0.8
+var _peak_fall := 0.0
 ## Steep-slope sliding: downhill speed builds with this acceleration up to the cap.
 const STEEP_SLIDE_ACCEL := 14.0
 const STEEP_SLIDE_MAX := 7.5
@@ -269,9 +282,9 @@ const SPELL_CLIPS := {
 	"expelliarmus": {"clip": "Cast_Expelliarmus", "release": 0.128, "hold": 0.6},
 	"protego": {"clip": "Cast_Protego", "release": 0.128, "hold": 0.9, "aim": false},
 	"ultimate": {"clip": "Cast_Ultimate", "release": 0.158, "hold": 0.85},
-	"basic_cast:0": {"clip": "Cast_Basic1", "release": 0.182, "hold": 0.36},
-	"basic_cast:1": {"clip": "Cast_Basic2", "release": 0.182, "hold": 0.4, "aim": false},
-	"basic_cast:2": {"clip": "Cast_Basic3", "release": 0.179, "hold": 0.55},
+	"basic_cast:0": {"clip": "Cast_Basic1", "release": 0.222, "hold": 0.36},
+	"basic_cast:1": {"clip": "Cast_Basic2", "release": 0.231, "hold": 0.4, "aim": false},
+	"basic_cast:2": {"clip": "Cast_Basic3", "release": 0.222, "hold": 0.55},
 }
 const COMMITTED_MELEE := 0.45
 ## Deceleration (m/s^2) once a WALKING body's movement input is released. The
@@ -394,6 +407,8 @@ func _ready() -> void:
 	_setup_sockets()
 	
 	_setup_character_model()
+	if visuals != null:
+		HeroAppearance.apply_look(visuals, look)
 	if is_local_player and camera:
 		HeroAppearance.add_character_fill(camera)
 	if broom_particles:
@@ -700,9 +715,9 @@ func _unhandled_input(event: InputEvent) -> void:
 				if not _click_npc():
 					_inspect_click_target()
 		elif event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			camera_distance = clamp(camera_distance - 0.8, 3.0, 16.0)
+			camera_distance = clamp(camera_distance - _zoom_step(), CAMERA_MIN_DISTANCE, CAMERA_MAX_DISTANCE)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			camera_distance = clamp(camera_distance + 0.8, 3.0, 16.0)
+			camera_distance = clamp(camera_distance + _zoom_step(), CAMERA_MIN_DISTANCE, CAMERA_MAX_DISTANCE)
 		elif event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 			if _click_npc():
 				return   # NPCs are talked to, never shot at
@@ -1032,6 +1047,14 @@ func _physics_process(delta: float) -> void:
 		_pos_history.record(global_position)
 	_update_animation_state()
 
+## Wheel zoom: from a close look at the face out to an overview. Each notch
+## moves a share of the distance, so close up it is a fine step.
+const CAMERA_MIN_DISTANCE := 1.1
+const CAMERA_MAX_DISTANCE := 16.0
+
+func _zoom_step() -> float:
+	return clampf(camera_distance * 0.12, 0.15, 1.2)
+
 const BOOM_PROBE_RADIUS := 0.22
 ## Resolve the camera boom against the world with a sphere cast, then ease the
 ## length: in fast (never let the camera sit inside a wall) and out slowly (a
@@ -1052,7 +1075,7 @@ func _update_boom(delta: float) -> void:
 		params.exclude = [get_rid()]
 		var fractions := space.cast_motion(params)
 		if fractions.size() == 2 and fractions[0] < 1.0:
-			wanted = maxf(1.2, camera_distance * fractions[0] - 0.1)
+			wanted = maxf(minf(1.2, camera_distance), camera_distance * fractions[0] - 0.1)
 	var rate := 18.0 if wanted < _boom_length else 3.5
 	_boom_length = lerpf(_boom_length, wanted, 1.0 - exp(-rate * delta))
 	spring_arm.spring_length = _boom_length
@@ -1131,15 +1154,25 @@ func _update_animation_state() -> void:
 		else:
 			hero_anim.set_locomotion("swim", "Running_A")
 		return
+	# the fastest the body fell in this flight (the teleported ledge drop in
+	# the jump probe gives no take-off; this is updated on every airborne frame)
+	if not is_on_floor() and not is_mounted and not is_swimming:
+		_peak_fall = maxf(_peak_fall, -velocity.y)
 	if _is_airborne_for_animation():
 		if velocity.y > 0.5:
 			hero_anim.set_locomotion("air_up", "Jump_Start")
+		elif _air_time < LONG_FALL_AIR and _peak_fall < HARD_FALL_SPEED:
+			# a hop or a step down: the light airborne pose, not the long-fall flail
+			hero_anim.set_locomotion("air_hold", "Jump_Air")
 		else:
 			hero_anim.set_locomotion("air_down", "Fall")
 		return
 	if _was_airborne:
 		_was_airborne = false
-		hero_anim.play_oneshot("Land")
+		# a landing from a jump's own speed is a knee dip; faster (a drop of a
+		# metre or more past that) braces and crouches
+		hero_anim.play_oneshot("Land" if _peak_fall >= HARD_FALL_SPEED else "Land_Soft")
+		_peak_fall = 0.0
 	# Classify against the facing the body is heading FOR while it auto-faces its
 	# movement (reaching it takes several frames at 14 rad/s), and against the real
 	# facing when something else owns it - the camera during a right-click orbit, or
@@ -1160,7 +1193,11 @@ func _is_airborne_for_animation() -> bool:
 		return true
 	if _air_time < AIR_GRACE:
 		return false
-	# Ground just under the feet: a step down or a slope edge, not a fall.
+	# Ground just under the feet: a step down or a slope edge, not a fall. A
+	# body already falling fast is in the air whatever is under it (a 2.5 m
+	# drop stood in Idle to the ground: the probe found grass within 0.55 m).
+	if velocity.y < -4.0:
+		return true
 	var below := _ground_below(0.55)
 	return below.is_empty()
 
@@ -1460,6 +1497,7 @@ func _apply_mount_state(mounted: bool) -> void:
 	else:
 		remove_buff("broom")
 	if mounted:
+		_peak_fall = 0.0   # a fall ended on the broom lands nowhere
 		if hero_anim:
 			hero_anim.play_oneshot("Mount_Broom")
 		mount_state = MountState.FLYING
@@ -1552,11 +1590,18 @@ func _update_flight_pose(delta: float) -> void:
 	_flight_time += delta
 	_mount_blend = move_toward(_mount_blend, 1.0 if is_mounted else 0.0, delta * 3.2)
 	if broom_grip:
-		# Fades in with the mount, and yields while a get-on/get-off one-shot plays
-		# so the transition keeps the clip's own arms.
+		# Fades in with the mount. During the get-on clip the hands take the
+		# shaft as the leg swings over (the clip's own arms only approximate the
+		# wood, and with the grip waiting for the clip's end the hands hovered
+		# above the shaft and snapped to it a moment later); the get-off clip
+		# keeps its own arms.
 		var grip_target := _mount_blend
 		if hero_anim and hero_anim.has_oneshot():
-			grip_target = 0.0
+			if hero_anim.oneshot_clip == "Mount_Broom":
+				var elapsed := hero_anim.clip_length("Mount_Broom") - hero_anim.oneshot_left
+				grip_target = _mount_blend * smoothstep(0.25, 0.5, elapsed)
+			else:
+				grip_target = 0.0
 		broom_grip.target_weight = grip_target
 	# Two recursive tree searches per body per frame were most of this
 	# function: keep the nodes until they leave the tree (a re-equip rebuilds
@@ -1674,6 +1719,7 @@ func restore_quest_state(quests: Variant) -> void:
 		_quest_state["skills_v2"] = true
 	attributes = HPRules.clean_attributes(_quest_state.get("attributes", {}))
 	titles = (_quest_state.get("titles", []) as Array).duplicate() if _quest_state.get("titles") is Array else []
+	look = _quest_state.get("look", {})
 	skill_points = HPRules.skill_points_available(level, skill_levels, skill_bonus)
 	attribute_points = HPRules.attribute_points_available(level, attributes)
 
@@ -1695,6 +1741,7 @@ func persisted_quests() -> Dictionary:
 	out["skills_v2"] = true
 	out["attributes"] = attributes.duplicate()
 	out["titles"] = titles.duplicate()
+	out["look"] = look.duplicate()
 	return out
 
 ## Dungeon runs started today (`quests.dungeons`, authority-written).

@@ -41,6 +41,11 @@ var characters: Array = []
 var current_slot: int = 0 # 0 or 1 (max 2 characters)
 var selected_house: String = "Gryffindor"
 var current_char_node: Node3D = null
+## Appearance editing (LookEditor): -1 while a new wizard is being created,
+## else the id of the wizard whose look is being changed; -2 when closed.
+var _look_editor: LookEditor = null
+var _look_char_id := -2
+var _edit_look_btn: Button = null
 var current_anim_player: AnimationPlayer = null
 var is_switching: bool = false
 
@@ -55,7 +60,10 @@ func _ready() -> void:
 	logout_btn.pressed.connect(_on_logout_pressed)
 
 	confirm_create_btn.pressed.connect(_on_confirm_create_pressed)
-	cancel_create_btn.pressed.connect(func(): create_modal.hide())
+	cancel_create_btn.pressed.connect(func():
+		create_modal.hide()
+		_close_look_editor()
+		_update_slot_display(false))
 	gryf_btn.pressed.connect(func(): _select_modal_house("Gryffindor"))
 	slyth_btn.pressed.connect(func(): _select_modal_house("Slytherin"))
 	raven_btn.pressed.connect(func(): _select_modal_house("Ravenclaw"))
@@ -67,6 +75,7 @@ func _ready() -> void:
 	NetworkManager.server_disconnected_signal.connect(_on_session_lost)
 
 	_restyle()
+	_build_look_editor()
 	_select_modal_house("Gryffindor")
 	create_modal.hide()
 	create_modal.visibility_changed.connect(_layout)
@@ -240,6 +249,7 @@ func _spawn_podium_character(c_data: Dictionary) -> void:
 	if current_char_node == null:
 		return
 	current_anim_player = HeroAppearance.find_anim_player(current_char_node)
+	HeroAppearance.apply_look(current_char_node, _look_of(c_data))
 	# The podium wizard holds the same wand the world wizard does, built by the same
 	# helper - so the grip, the tip and the refinement aura cannot drift apart from
 	# the body the player is about to control. The wand's aura comes with it; the
@@ -270,6 +280,10 @@ func _on_enter_world_pressed() -> void:
 		return
 
 	var c = characters[current_slot]
+	_close_look_editor()
+	# A look picked here travels with the join (game_world sends it).
+	if HeroAppearance.has_pending_look(int(c.get("id", 0))):
+		NetworkManager.pending_look = HeroAppearance.recall_look(int(c.get("id", 0)))
 	var previous_text: String = enter_world_btn.text
 	enter_world_btn.disabled = true
 	enter_world_btn.text = tr("Loading World...")
@@ -327,6 +341,7 @@ func _on_new_char_pressed() -> void:
 	create_modal.show()
 	modal_status_label.text = ""
 	new_name_input.grab_focus()
+	_open_look_editor(-1, HPRules.default_look())
 
 func _select_modal_house(h_name: String) -> void:
 	selected_house = h_name
@@ -335,6 +350,9 @@ func _select_modal_house(h_name: String) -> void:
 		modal_house_desc.text = "%s - \"%s\"\n%s" % [data.name, data.motto, tr(String(data.trait))]
 		modal_house_desc.modulate = (data.primary_color as Color).lightened(0.45)
 
+	# the outfit's main cloth wears the house colour
+	if is_instance_valid(current_char_node) and GameData.HOUSES.has(h_name):
+		HeroAppearance.apply_house_tint(current_char_node, GameData.HOUSES[h_name].primary_color)
 	gryf_btn.flat = (h_name != "Gryffindor")
 	slyth_btn.flat = (h_name != "Slytherin")
 	raven_btn.flat = (h_name != "Ravenclaw")
@@ -355,9 +373,11 @@ func _on_confirm_create_pressed() -> void:
 			if bool(res.get("success", false)):
 				modal_status_label.text = tr("Character created!")
 				var new_char = res.get("character", {})
+				HeroAppearance.remember_look(int(new_char.get("id", 0)), _look_editor.look, true)
 				characters.append(new_char)
 				current_slot = characters.size() - 1
 				create_modal.hide()
+				_close_look_editor()
 				_update_slot_display(true)
 			else:
 				modal_status_label.text = tr("Error: %s") % str(res.get("message", tr("Could not be created")))
@@ -383,12 +403,13 @@ func _on_confirm_create_pressed() -> void:
 				{"id": "potion_health", "amount": 5, "tier": 0},
 				{"id": "potion_mana", "amount": 5, "tier": 0}
 			],
-			"quests": {}
+			"quests": {"look": _look_editor.look.duplicate()}
 		}
 		DatabaseManager.save_offline_character(new_char)
 		characters.append(new_char)
 		confirm_create_btn.disabled = false
 		create_modal.hide()
+		_close_look_editor()
 		current_slot = characters.size() - 1
 		_update_slot_display(true)
 
@@ -629,19 +650,27 @@ func _layout() -> void:
 	nav.offset_left = -half
 	nav.offset_right = half
 	var creating := create_modal.visible
-	nav.visible = not creating
-	_modal_shade.visible = creating
-	_roster_panel.visible = not creating
+	var editing := _look_editor != null and _look_editor.visible
+	nav.visible = not creating and not editing
+	# the podium stays lit: the look being picked is drawn on it
+	_modal_shade.visible = false
+	_roster_panel.visible = not creating and not editing
 	info.visible = not creating
+	if _edit_look_btn != null:
+		_edit_look_btn.visible = not creating and not editing and current_slot < characters.size()
+	if editing:
+		var ew := clampf(canvas.x * 0.26, 280.0, 340.0)
+		_look_editor.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		UILayout.place(_look_editor, Vector2(24.0, maxf(16.0, canvas.y * 0.5 - 330.0)), Vector2(ew, 0))
 	if creating:
-		var w := minf(600.0, canvas.x - 48.0)
+		var w := minf(560.0, canvas.x * 0.5 - 60.0)
 		var house_w := clampf((w - 80.0) / 4.0, 84.0, 110.0)
 		for b in [gryf_btn, slyth_btn, raven_btn, huff_btn]:
 			b.custom_minimum_size = Vector2(house_w, 84)
 		modal_house_desc.custom_minimum_size.x = w - 60.0
 		var h := minf(400.0, canvas.y - 32.0)
 		create_modal.set_anchors_preset(Control.PRESET_TOP_LEFT)
-		var at := ((canvas - Vector2(w, h)) * 0.5).floor()
+		var at := Vector2(canvas.x - w - 24.0, floorf((canvas.y - h) * 0.5))
 		UILayout.place(create_modal, at, Vector2(w, h))
 
 ## One card per slot: crest, name, level and house; the empty slot creates.
@@ -694,13 +723,120 @@ func _refresh_roster() -> void:
 				_on_new_char_pressed())
 		_roster.add_child(card)
 
-## Drag on the stage to turn the wizard on the dais.
+## Drag on the stage to turn the wizard on the dais; the wheel there moves the
+## camera in to the face and back out.
 func _input(event: InputEvent) -> void:
-	if create_modal.visible:
+	if create_modal.visible and not (_look_editor != null and _look_editor.visible):
 		return
+	var vp := get_viewport().get_visible_rect().size
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		var vp := get_viewport().get_visible_rect().size
 		var x: float = event.position.x
 		_drag_turn = event.pressed and x > vp.x * 0.3 and x < vp.x * 0.7 and event.position.y < vp.y - 120
+	elif event is InputEventMouseButton and event.pressed and _on_stage(event.position, vp) 			and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
+		var step := 0.12 if event.button_index == MOUSE_BUTTON_WHEEL_UP else -0.12
+		_zoom_target = clampf(_zoom_target + step, 0.0, 1.0)
 	elif event is InputEventMouseMotion and _drag_turn and is_instance_valid(model_anchor):
 		model_anchor.rotation.y += event.relative.x * 0.01
+
+
+func _on_stage(at: Vector2, vp: Vector2) -> bool:
+	return at.x > vp.x * 0.3 and at.x < vp.x * 0.7 and at.y < vp.y - 120
+
+
+## 0 = the whole wizard on the dais (the scene's camera), 1 = the face close up.
+var _zoom := 0.0
+var _zoom_target := 0.0
+var _camera_far := Transform3D()
+
+func _process(delta: float) -> void:
+	if not is_instance_valid(camera) or not is_instance_valid(model_anchor):
+		return
+	if _camera_far == Transform3D():
+		_camera_far = camera.transform
+	_zoom = lerpf(_zoom, _zoom_target, 1.0 - exp(-10.0 * delta))
+	if absf(_zoom - _zoom_target) < 0.001 and _zoom_target == 0.0 and _zoom < 0.001:
+		camera.transform = _camera_far
+		return
+	var face := camera.get_parent_node_3d().to_local(model_anchor.global_position + Vector3(0, 1.6, 0))
+	var far_look := _camera_far.origin - _camera_far.basis.z * 3.0
+	var t := smoothstep(0.0, 1.0, _zoom)
+	var look := far_look.lerp(face, t)
+	var near_origin := face + (_camera_far.origin - face).normalized() * 0.85
+	var origin := _camera_far.origin.lerp(near_origin, t)
+	camera.transform = Transform3D(Basis.looking_at(look - origin, Vector3.UP), origin)
+
+
+## ---------------------------------------------------------------- appearance
+
+## The look a wizard is drawn with here: an offline sheet carries it in its
+## quests; an online one comes from this machine's look cache (the account
+## list has no quests), default until first played.
+func _look_of(c: Dictionary) -> Dictionary:
+	var quests = c.get("quests", {})
+	if quests is Dictionary and (quests as Dictionary).has("look"):
+		return HPRules.clean_look(quests["look"])
+	return HeroAppearance.recall_look(int(c.get("id", 0)))
+
+
+func _build_look_editor() -> void:
+	_look_editor = LookEditor.new()
+	_look_editor.name = "LookEditor"
+	_look_editor.hide()
+	$CanvasLayer.add_child(_look_editor)
+	_look_editor.look_changed.connect(_preview_look)
+	_look_editor.confirmed.connect(_save_look)
+	_look_editor.cancelled.connect(func():
+		_close_look_editor()
+		_update_slot_display(false))
+	_look_editor.visibility_changed.connect(_layout)
+	_edit_look_btn = Button.new()
+	_edit_look_btn.text = tr("Edit Appearance")
+	_edit_look_btn.focus_mode = Control.FOCUS_NONE
+	HudKit.style_button(_edit_look_btn, 15)
+	_edit_look_btn.pressed.connect(func():
+		if current_slot < characters.size():
+			_open_look_editor(int(characters[current_slot].get("id", 0)), _look_of(characters[current_slot])))
+	enter_world_btn.get_parent().add_child(_edit_look_btn)
+	enter_world_btn.get_parent().move_child(_edit_look_btn, enter_world_btn.get_index())
+
+
+## `char_id` -1: the wizard being created (a fresh body on the dais).
+func _open_look_editor(char_id: int, look: Dictionary) -> void:
+	_look_char_id = char_id
+	_look_editor.set_edit_buttons(char_id != -1)
+	_look_editor.set_look(look)
+	_look_editor.show()
+	if char_id == -1:
+		_spawn_podium_character({"house": selected_house, "quests": {"look": look}})
+	_preview_look(look)
+	_layout()
+
+
+func _close_look_editor() -> void:
+	_look_char_id = -2
+	if _look_editor != null:
+		_look_editor.hide()
+	_layout()
+
+
+func _preview_look(look: Dictionary) -> void:
+	if is_instance_valid(current_char_node):
+		HeroAppearance.apply_look(current_char_node, look)
+
+
+## Save an existing wizard's new look: offline sheets keep it in their quests;
+## online it waits in the look cache and goes with the next world join.
+func _save_look(look: Dictionary) -> void:
+	if current_slot < characters.size():
+		var c: Dictionary = characters[current_slot]
+		if not DatabaseManager.session_active:
+			var quests = c.get("quests", {})
+			if not (quests is Dictionary):
+				quests = {}
+			quests["look"] = HPRules.clean_look(look)
+			c["quests"] = quests
+			DatabaseManager.save_offline_character(c)
+		else:
+			HeroAppearance.remember_look(int(c.get("id", 0)), look, true)
+	_close_look_editor()
+	_update_slot_display(false)

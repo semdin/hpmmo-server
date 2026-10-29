@@ -239,6 +239,14 @@ func _spawn_local_player() -> void:
 		# this scene afterwards), so bind the uid it assigned now.
 		SimAuthority.register_local_player(SimNet.local_uid, SimNet.pending_character)
 
+	# A look picked on the creation screen (or changed there later) travels
+	# with the first join: shown at once, kept by the authority (quests.look).
+	if not NetworkManager.pending_look.is_empty():
+		local_player.look = NetworkManager.pending_look
+		SimNet.submit_look(local_player, local_player.look)
+		NetworkManager.pending_look = {}
+	HeroAppearance.remember_look(int(NetworkManager.local_character_data.get("id", 0)), local_player.look)
+
 	hud.bind_player(local_player)
 	QuestManager.bind_player(local_player)
 	if local_player.has_signal("inventory_changed") and not local_player.inventory_changed.is_connected(_save_offline_state):
@@ -729,6 +737,8 @@ func _apply_player_info(view: Node, record: Dictionary) -> void:
 	view.is_ga = bool(record.get("ga", false))
 	if record.get("gear") is Dictionary and view.has_method("apply_appearance"):
 		view.apply_appearance(record["gear"])
+	if record.get("look") is Dictionary and "look" in view:
+		view.look = record["look"]
 	if view.is_inside_tree() and view.has_method("_update_nameplate"):
 		view._update_nameplate()
 
