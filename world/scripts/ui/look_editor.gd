@@ -1,8 +1,9 @@
 extends PanelContainer
 class_name LookEditor
 
-## The appearance panel of the character screen: outfit, hairstyle, beard,
-## brows, hair / eye / skin colour swatches and the height slider (HPRules.LOOK_*). Every change
+## The appearance panel of the character screen, two tabs: the look (outfit,
+## hairstyle, beard, brows, hair / eye / skin colour swatches, height) and the
+## face (face type and the face sliders) (HPRules.LOOK_*). Every change
 ## emits `look_changed` so the podium wizard is redrawn live
 ## (HeroAppearance.apply_look); `confirmed` / `cancelled` close an edit of an
 ## existing wizard (the create card has its own buttons).
@@ -10,6 +11,8 @@ class_name LookEditor
 signal look_changed(look: Dictionary)
 signal confirmed(look: Dictionary)
 signal cancelled
+## "look" or "face": the character screen frames the face for the face tab
+signal tab_changed(tab_name: String)
 
 # i18n-begin
 const HAIR_NAMES := {"SimpleParted": "Side Part", "Buzzed": "Buzzed", "Long": "Long", "Wavy": "Wavy",
@@ -18,7 +21,11 @@ const BEARD_NAMES := {"none": "Clean-shaven", "stubble": "Stubble", "short": "Sh
 const BROW_NAMES := {"natural": "Natural Brows", "bushy": "Bushy Brows", "arched": "Arched Brows",
 	"thin": "Thin Brows", "angular": "Sharp Brows", "classic": "Classic Brows", "classic_straight": "Classic Straight Brows"}
 const OUTFIT_NAMES := {"peasant": "Tunic", "peasant_2": "Travel Tunic", "ranger": "Ranger", "ranger_3": "Scout"}
-const SLIDER_NAMES := {"height": "Height"}
+const SLIDER_NAMES := {"height": "Height", "jaw": "Jaw", "chin": "Chin", "chin_height": "Chin Length",
+	"cheekbones": "Cheekbones", "cheeks": "Cheeks", "nose_length": "Nose Length", "nose_width": "Nose Width",
+	"nose_bridge": "Nose Bridge", "lips": "Lips", "brow_ridge": "Brow Ridge"}
+const FACE_NAMES := {"default": "Classic Face", "oval": "Oval Face", "round": "Round Face", "square": "Square Face",
+	"triangular": "Triangular Face", "diamond": "Diamond Face"}
 # i18n-end
 
 var look: Dictionary = HPRules.default_look()
@@ -26,6 +33,8 @@ var _hair_label: Label
 var _outfit_label: Label
 var _beard_label: Label
 var _brows_label: Label
+var _face_label: Label
+var _tabs := {}              # tab name -> [Button, VBoxContainer]
 var _swatches := {}          # look key -> Array[Button]
 var _sliders := {}           # look key -> HSlider
 var _buttons: HBoxContainer
@@ -47,18 +56,34 @@ func _init() -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
 
-	box.add_child(_caption(tr("Outfit")))
-	_outfit_label = _stepper(box, "outfit", HPRules.LOOK_OUTFITS.size())
-	box.add_child(_caption(tr("Hairstyle")))
-	_hair_label = _stepper(box, "hair", HPRules.LOOK_HAIR_STYLES.size())
-	box.add_child(_caption(tr("Facial hair")))
-	_beard_label = _stepper(box, "beard", HPRules.LOOK_BEARDS.size())
-	_brows_label = _stepper(box, "brows", HPRules.LOOK_BROWS.size())
+	var tab_row := HBoxContainer.new()
+	tab_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_child(tab_row)
+	var general := VBoxContainer.new()
+	general.add_theme_constant_override("separation", 8)
+	box.add_child(general)
+	var face := VBoxContainer.new()
+	face.add_theme_constant_override("separation", 8)
+	box.add_child(face)
+	for entry in [["look", tr("Look"), general], ["face", tr("Face"), face]]:
+		var tab := _small_button(entry[1])
+		var tab_name: String = entry[0]
+		tab.pressed.connect(func(): _show_tab(tab_name))
+		tab_row.add_child(tab)
+		_tabs[tab_name] = [tab, entry[2]]
+
+	general.add_child(_caption(tr("Outfit")))
+	_outfit_label = _stepper(general, "outfit", HPRules.LOOK_OUTFITS.size())
+	general.add_child(_caption(tr("Hairstyle")))
+	_hair_label = _stepper(general, "hair", HPRules.LOOK_HAIR_STYLES.size())
+	general.add_child(_caption(tr("Facial hair")))
+	_beard_label = _stepper(general, "beard", HPRules.LOOK_BEARDS.size())
+	_brows_label = _stepper(general, "brows", HPRules.LOOK_BROWS.size())
 
 	for entry in [["hair_color", tr("Hair colour"), HPRules.LOOK_HAIR_COLORS],
 			["eyes", tr("Eye colour"), HPRules.LOOK_EYE_COLORS],
 			["skin", tr("Skin tone"), HPRules.LOOK_SKIN_TONES]]:
-		box.add_child(_caption(entry[1]))
+		general.add_child(_caption(entry[1]))
 		var row := HFlowContainer.new()
 		row.add_theme_constant_override("h_separation", 6)
 		row.add_theme_constant_override("v_separation", 6)
@@ -71,13 +96,15 @@ func _init() -> void:
 			row.add_child(b)
 			buttons.append(b)
 		_swatches[entry[0]] = buttons
-		box.add_child(row)
+		general.add_child(row)
 
+	face.add_child(_caption(tr("Face type")))
+	_face_label = _stepper(face, "face", HPRules.LOOK_FACES.size())
 	for key: String in HPRules.LOOK_SLIDERS:
 		var span: Array = HPRules.LOOK_SLIDERS[key]
 		var row := HBoxContainer.new()
 		var name_label := _caption(tr(SLIDER_NAMES[key]))
-		name_label.custom_minimum_size = Vector2(78, 0)
+		name_label.custom_minimum_size = Vector2(118, 0)
 		row.add_child(name_label)
 		var slider := HSlider.new()
 		slider.min_value = float(span[0])
@@ -89,7 +116,9 @@ func _init() -> void:
 		slider.value_changed.connect(func(v: float): _set_value(slider_key, v))
 		row.add_child(slider)
 		_sliders[key] = slider
-		box.add_child(row)
+		# height is the body: it stays on the look tab
+		(general if key == "height" else face).add_child(row)
+	_show_tab("look")
 
 	var tools := HBoxContainer.new()
 	tools.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -121,6 +150,7 @@ func set_look(value: Dictionary, notify := false) -> void:
 	_outfit_label.text = tr(OUTFIT_NAMES.get(HPRules.LOOK_OUTFITS[int(look["outfit"])], "Outfit"))
 	_beard_label.text = tr(BEARD_NAMES.get(HPRules.LOOK_BEARDS[int(look["beard"])], "Beard"))
 	_brows_label.text = tr(BROW_NAMES.get(HPRules.LOOK_BROWS[int(look["brows"])], "Brows"))
+	_face_label.text = tr(FACE_NAMES.get(HPRules.LOOK_FACES[int(look["face"])], "Face"))
 	for key in _swatches:
 		var buttons: Array = _swatches[key]
 		for i in range(buttons.size()):
@@ -130,6 +160,14 @@ func set_look(value: Dictionary, notify := false) -> void:
 	_quiet = false
 	if notify:
 		look_changed.emit(look.duplicate())
+
+
+func _show_tab(tab_name: String) -> void:
+	for name: String in _tabs:
+		var on := name == tab_name
+		(_tabs[name][1] as Control).visible = on
+		(_tabs[name][0] as Button).modulate = Color.WHITE if on else Color(1, 1, 1, 0.55)
+	tab_changed.emit(tab_name)
 
 
 ## The Save / Cancel row belongs to editing an existing wizard.
@@ -146,6 +184,7 @@ func randomize_look() -> void:
 	l["outfit"] = randi() % HPRules.LOOK_OUTFITS.size()
 	l["beard"] = randi() % HPRules.LOOK_BEARDS.size()
 	l["brows"] = randi() % HPRules.LOOK_BROWS.size()
+	l["face"] = randi() % HPRules.LOOK_FACES.size()
 	for key: String in HPRules.LOOK_SLIDERS:
 		var span: Array = HPRules.LOOK_SLIDERS[key]
 		l[key] = randf_range(float(span[0]), float(span[1])) * 0.8

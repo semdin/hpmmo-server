@@ -602,10 +602,19 @@ const LOOK_HAIR_COLORS := ["2b1d16", "120d0b", "4b3122", "6e3b1f", "9a4f26", "b9
 const LOOK_EYE_COLORS := ["6f8088", "4c78b0", "3f7d58", "6a4a2d", "a77f3d", "2e3d62", "8b8f93"]
 const LOOK_SKIN_TONES := ["ffffff", "f1ded3", "dcc0ab", "b8977f", "8f7160", "62503f"]
 ## slider -> [min, max]
-const LOOK_SLIDERS := {"height": [-1.0, 1.0]}
+## Face sliders are MakeHuman targets on the head (face_<key>_neg/_pos shape
+## keys, art/characters/hero_q/face_morphs.py).
+const LOOK_SLIDERS := {"height": [-1.0, 1.0], "jaw": [-1.0, 1.0], "chin": [-1.0, 1.0], "chin_height": [-1.0, 1.0],
+	"cheekbones": [-1.0, 1.0], "cheeks": [-1.0, 1.0], "nose_length": [-1.0, 1.0], "nose_width": [-1.0, 1.0],
+	"nose_bridge": [-1.0, 1.0], "lips": [-1.0, 1.0], "brow_ridge": [-1.0, 1.0]}
+## Face types: MakeHuman whole-face targets (face_type_<name> shape keys).
+const LOOK_FACES := ["default", "oval", "round", "square", "triangular", "diamond"]
 
 static func default_look() -> Dictionary:
-	return {"hair": 0, "hair_color": 0, "eyes": 0, "skin": 0, "outfit": 0, "beard": 0, "brows": 0, "height": 0.0}
+	var look := {"hair": 0, "hair_color": 0, "eyes": 0, "skin": 0, "outfit": 0, "beard": 0, "brows": 0, "face": 0}
+	for key: String in LOOK_SLIDERS:
+		look[key] = 0.0
+	return look
 
 ## A saved/received look reduced to known keys with valid values; anything
 ## missing or out of range falls back to the default, so an old save or a
@@ -617,7 +626,7 @@ static func clean_look(raw: Variant) -> Dictionary:
 	var src := raw as Dictionary
 	for key_size in [["hair", LOOK_HAIR_STYLES.size()], ["hair_color", LOOK_HAIR_COLORS.size()],
 			["eyes", LOOK_EYE_COLORS.size()], ["skin", LOOK_SKIN_TONES.size()], ["outfit", LOOK_OUTFITS.size()],
-			["beard", LOOK_BEARDS.size()], ["brows", LOOK_BROWS.size()]]:
+			["beard", LOOK_BEARDS.size()], ["brows", LOOK_BROWS.size()], ["face", LOOK_FACES.size()]]:
 		var key: String = key_size[0]
 		if src.has(key) and (src[key] is int or src[key] is float):
 			out[key] = clampi(int(src[key]), 0, int(key_size[1]) - 1)

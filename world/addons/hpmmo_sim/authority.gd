@@ -1714,7 +1714,7 @@ func _tick_safe_spawns() -> void:
 		if node == null or not is_instance_valid(node):
 			continue
 		var body := node as Node3D
-		if body == null:
+		if body == null or not body.is_inside_tree():
 			continue
 		if body.has_method("is_on_floor") and not body.is_on_floor():
 			continue
@@ -1737,6 +1737,12 @@ func _physics_process(delta: float) -> void:
 		return
 	if simulation_paused():
 		return   # MAINTENANCE: the world is idle until the process is replaced
+	# A world being left (back to the character screen) is out of the tree
+	# for the frames before it is freed: its bodies have no position then, so
+	# nothing is advanced (every tick reads positions: fall floor, safe spawns,
+	# visit quests, auras ...).
+	if world != null and is_instance_valid(world) and not world.is_inside_tree():
+		return
 	_accumulator += delta
 	var steps := 0
 	while _accumulator >= HPProtocol.SIM_DT and steps < 5:
@@ -3612,7 +3618,9 @@ func _check_fall_protection() -> void:
 		if int(record.get("kind", 0)) != HPProtocol.Kind.PLAYER:
 			continue
 		var node = record.get("node")
-		if node == null or not is_instance_valid(node):
+		# out of the tree for the frames a world is left (back to the
+		# character screen) before it is freed: it has no position then
+		if node == null or not is_instance_valid(node) or not (node as Node3D).is_inside_tree():
 			continue
 		var map_id := String(record.get("map_id", HPProtocol.DEFAULT_MAP))
 		if (node as Node3D).global_position.y >= HPMaps.y_min(map_id):

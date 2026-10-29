@@ -298,8 +298,11 @@ const HAIR_REF_LUMA := {"SimpleParted": 0.2807, "Buzzed": 0.2807, "Long": 0.2692
 	"Wavy": 0.0275, "Tousled": 0.0127, "Neat": 0.0123, "Ponytail": 0.013, "Curly": 0.008,
 	"Beard_Full": 0.2807}
 ## The generated styles' temple shells (Hero_Hair_<style>_Temple, short
-## strands): above the strands' mean, so they sit a shade darker than the locks.
-const TEMPLE_REF_LUMA := 0.28
+## strands): the strands' mean, so they shade like the locks.
+const TEMPLE_REF_LUMA := 0.2218
+## How far a face type (HPRules.LOOK_FACES) goes: MakeHuman's whole-face
+## targets at full strength bloated the triangular and square faces.
+const FACE_TYPE_WEIGHT := 0.7
 ## The head's scalp masks, one per hairstyle (build_rig.py), as one array.
 const SCALP_DIR := "res://assets/models/characters/scalp/"
 static var _scalp_masks: Texture2DArray = null
@@ -515,6 +518,9 @@ static func apply_look(visuals: Node, raw_look: Dictionary) -> void:
 			mi.set_instance_shader_parameter("hair_color", hair)
 		elif part == "Hero_BrowPaint":
 			mi.visible = int(brows["paint"]) > 0
+			# blended, it still casts shadows as if opaque: the band over the
+			# brows shadowed the upper eyelids dark
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			mi.set_instance_shader_parameter("brow_paint", float(brows["paint"]))
 			mi.set_instance_shader_parameter("hair_color", hair)
 		elif part.begins_with("Hero_Brows"):
@@ -541,6 +547,27 @@ static func apply_look(visuals: Node, raw_look: Dictionary) -> void:
 	var skeleton := _skeleton(visuals)
 	if skeleton != null:
 		skeleton.scale = Vector3.ONE * (1.0 + LOOK_HEIGHT_SPAN * float(look.get("height", 0.0)))
+	# face sliders: face_<key>_neg / _pos shape keys on the head and the parts
+	# on the face (art/characters/hero_q/face_morphs.py)
+	for node in visuals.find_children("Hero_*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		if mi.get_blend_shape_count() == 0:
+			continue
+		for key: String in HPRules.LOOK_SLIDERS:
+			if key == "height":
+				continue
+			var v := float(look.get(key, 0.0))
+			var neg := mi.find_blend_shape_by_name("face_%s_neg" % key)
+			var pos := mi.find_blend_shape_by_name("face_%s_pos" % key)
+			if neg >= 0:
+				mi.set_blend_shape_value(neg, maxf(0.0, -v))
+			if pos >= 0:
+				mi.set_blend_shape_value(pos, maxf(0.0, v))
+		var face_type := String(HPRules.LOOK_FACES[int(look["face"])])
+		for type_name: String in HPRules.LOOK_FACES:
+			var k := mi.find_blend_shape_by_name("face_type_" + type_name)
+			if k >= 0:
+				mi.set_blend_shape_value(k, FACE_TYPE_WEIGHT if type_name == face_type else 0.0)
 
 
 ## The looks of this machine's own characters, by character id, so the

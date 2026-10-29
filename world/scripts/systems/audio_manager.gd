@@ -726,12 +726,23 @@ func _reset_scatter(sets: Array) -> void:
 		_scatter_next[set_name] = randf_range(float(gap[0]) * 0.3, float(gap[1]) * 0.6)
 
 
+## The local player is in a world: valid and inside the tree. For the frames
+## a world is being left (back to the character screen) it is out of the tree
+## before it is freed and has no position.
+func _player_in_world() -> bool:
+	return _local_player != null and is_instance_valid(_local_player) and _local_player is Node3D 		and (_local_player as Node3D).is_inside_tree()
+
+
+func _player_position() -> Vector3:
+	return (_local_player as Node3D).global_position if _player_in_world() else Vector3.ZERO
+
+
 func _process_scatter(delta: float) -> void:
 	if not audio_available() or _scatter_next.is_empty():
 		return
 	var listener := Vector3.ZERO
-	if is_instance_valid(_local_player) and _local_player is Node3D:
-		listener = (_local_player as Node3D).global_position
+	if _player_in_world():
+		listener = _player_position()
 	if _local_player != null and bool(_local_player.get("is_dead")):
 		return
 	for set_name in _scatter_next.keys():
@@ -776,9 +787,11 @@ func _is_outdoors() -> bool:
 ## room or the hunting region. A new zone must hold for two polls (one second)
 ## so walking along a region edge does not flip the soundtrack back and forth.
 func _autodetect_zone() -> void:
-	if _local_player == null or not is_instance_valid(_local_player):
+	# out of the tree while its world is being left (back to the character
+	# screen): no position until it is freed or re-entered
+	if not _player_in_world():
 		return
-	var pos: Vector3 = (_local_player as Node3D).global_position
+	var pos := _player_position()
 	var map_id := HPMaps.base_map(HPMaps.map_for_point(pos))
 	if _map_id != "" and map_id != _map_id and (map_id == "castle_interior" or _map_id == "castle_interior"):
 		play_sound_at("door_open" if map_id == "castle_interior" else "door_close", Vector3.ZERO, null, true)
@@ -848,7 +861,7 @@ func _connect_once(node: Node, signal_name: String, method: String) -> void:
 
 func _on_animation_event(event_name: String) -> void:
 	var text := String(event_name)
-	var at: Vector3 = (_local_player as Node3D).global_position if is_instance_valid(_local_player) and _local_player is Node3D else Vector3.ZERO
+	var at := _player_position()
 	if text.begins_with("footstep:"):
 		var surface := text.trim_prefix("footstep:")
 		if not has_sound("step_%s_1" % surface):
@@ -875,7 +888,7 @@ func _play_varied(key: String, at: Vector3, gain_scale: float) -> Node:
 
 
 func _on_player_mounted(mounted: bool) -> void:
-	var at: Vector3 = (_local_player as Node3D).global_position if is_instance_valid(_local_player) and _local_player is Node3D else Vector3.ZERO
+	var at := _player_position()
 	play_mount(mounted, at, _local_player)
 
 
@@ -1147,13 +1160,15 @@ func _combat_target() -> Node3D:
 	if _local_player == null or not is_instance_valid(_local_player):
 		return null
 	var target = _local_player.get("current_target")
-	if target == null or not is_instance_valid(target) or not (target is Node3D):
+	if target == null or not is_instance_valid(target) or not (target is Node3D) or not (target as Node3D).is_inside_tree():
 		return null
 	if target.get("is_dead"):
 		return null
 	if not (target.is_in_group("mobs") or target.is_in_group("targetable")):
 		return null
-	var here: Vector3 = (_local_player as Node3D).global_position
+	if not _player_in_world():
+		return null
+	var here := _player_position()
 	if here.distance_to((target as Node3D).global_position) > COMBAT_TARGET_RANGE:
 		return null
 	return target

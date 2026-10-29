@@ -2524,8 +2524,80 @@ msgid "Height"
 msgstr "Boy"
 
 #: scripts/ui/look_editor.gd
+msgid "Jaw"
+msgstr "Çene"
+
+#: scripts/ui/look_editor.gd
+msgid "Chin"
+msgstr "Çene Ucu"
+
+#: scripts/ui/look_editor.gd
+msgid "Chin Length"
+msgstr "Çene Boyu"
+
+#: scripts/ui/look_editor.gd
+msgid "Cheekbones"
+msgstr "Elmacık"
+
+#: scripts/ui/look_editor.gd
+msgid "Cheeks"
+msgstr "Yanak"
+
+#: scripts/ui/look_editor.gd
+msgid "Nose Length"
+msgstr "Burun Boyu"
+
+#: scripts/ui/look_editor.gd
+msgid "Nose Width"
+msgstr "Burun Genişliği"
+
+#: scripts/ui/look_editor.gd
+msgid "Nose Bridge"
+msgstr "Burun Kemeri"
+
+#: scripts/ui/look_editor.gd
+msgid "Lips"
+msgstr "Dudak"
+
+#: scripts/ui/look_editor.gd
+msgid "Brow Ridge"
+msgstr "Kaş Kemeri"
+
+#: scripts/ui/look_editor.gd
+msgid "Classic Face"
+msgstr "Klasik Yüz"
+
+#: scripts/ui/look_editor.gd
+msgid "Oval Face"
+msgstr "Oval Yüz"
+
+#: scripts/ui/look_editor.gd
+msgid "Round Face"
+msgstr "Yuvarlak Yüz"
+
+#: scripts/ui/look_editor.gd
+msgid "Square Face"
+msgstr "Kare Yüz"
+
+#: scripts/ui/look_editor.gd
+msgid "Triangular Face"
+msgstr "Üçgen Yüz"
+
+#: scripts/ui/look_editor.gd
+msgid "Diamond Face"
+msgstr "Elmas Yüz"
+
+#: scripts/ui/look_editor.gd
 msgid "APPEARANCE"
 msgstr "GÖRÜNÜM"
+
+#: scripts/ui/look_editor.gd
+msgid "Look"
+msgstr "Görünüm"
+
+#: scripts/ui/look_editor.gd
+msgid "Face"
+msgstr "Yüz"
 
 #: scripts/ui/look_editor.gd
 msgid "Outfit"
@@ -2550,6 +2622,10 @@ msgstr "Göz Rengi"
 #: scripts/ui/look_editor.gd
 msgid "Skin tone"
 msgstr "Ten Rengi"
+
+#: scripts/ui/look_editor.gd
+msgid "Face type"
+msgstr "Yüz Tipi"
 
 #: scripts/ui/look_editor.gd
 msgid "Random"
@@ -6284,9 +6360,6 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "Bun"
 #~ msgstr "Topuz"
 
-#~ msgid "Cheeks"
-#~ msgstr "Yanak"
-
 #~ msgid "Conjures a silver stag that charges through a wide cone. Dementors take triple damage and the stag breaks a dementor's attack, kiss included. Requires level 40."
 #~ msgstr "Geniş bir koni boyunca saldıran gümüş bir geyik çağırır. Ruh Emiciler üç kat hasar alır ve geyik bir Ruh Emici'nin saldırısını, öpücüğü dahil, bozar. Seviye 40 gerekir."
 
@@ -6355,9 +6428,6 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 
 #~ msgid "Inferi stalk the Forest Edge past Hagrid's hut. Fire (Incendio) hurts them twice as much."
 #~ msgstr "Inferius'lar Hagrid'in kulübesinin ötesinde, Orman Kıyısı'nda dolaşıyor. Ateş (Incendio) onlara iki kat zarar verir."
-
-#~ msgid "Jaw"
-#~ msgstr "Çene"
 
 #~ msgid "Monolith on the Moor"
 #~ msgstr "Bozkırdaki Metin Taşı"

@@ -234,6 +234,11 @@ func _update_slot_display(_animated: bool = true) -> void:
 		enter_world_btn.visible = false
 		_clear_podium_character()
 		_apply_rune_color(Color(0.4, 0.5, 0.7, 0.6))
+	# the edit button follows the slot (only _layout set it, before the roster
+	# had loaded, so it never showed for an existing wizard)
+	if _edit_look_btn != null:
+		var editing := _look_editor != null and _look_editor.visible
+		_edit_look_btn.visible = not create_modal.visible and not editing and current_slot < characters.size()
 
 func _spawn_podium_character(c_data: Dictionary) -> void:
 	_clear_podium_character()
@@ -723,20 +728,21 @@ func _refresh_roster() -> void:
 				_on_new_char_pressed())
 		_roster.add_child(card)
 
-## Drag on the stage to turn the wizard on the dais; the wheel there moves the
+## Right-drag on the stage to turn the wizard on the dais (sideways) and to
+## swing the camera over or under it (up / down); the wheel there moves the
 ## camera in to the face and back out.
 func _input(event: InputEvent) -> void:
 	if create_modal.visible and not (_look_editor != null and _look_editor.visible):
 		return
 	var vp := get_viewport().get_visible_rect().size
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		var x: float = event.position.x
-		_drag_turn = event.pressed and x > vp.x * 0.3 and x < vp.x * 0.7 and event.position.y < vp.y - 120
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT:
+		_drag_turn = event.pressed and _on_stage(event.position, vp)
 	elif event is InputEventMouseButton and event.pressed and _on_stage(event.position, vp) 			and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
 		var step := 0.12 if event.button_index == MOUSE_BUTTON_WHEEL_UP else -0.12
 		_zoom_target = clampf(_zoom_target + step, 0.0, 1.0)
 	elif event is InputEventMouseMotion and _drag_turn and is_instance_valid(model_anchor):
 		model_anchor.rotation.y += event.relative.x * 0.01
+		_pitch_target = clampf(_pitch_target + event.relative.y * 0.006, PITCH_MIN, PITCH_MAX)
 
 
 func _on_stage(at: Vector2, vp: Vector2) -> bool:
@@ -747,6 +753,12 @@ func _on_stage(at: Vector2, vp: Vector2) -> bool:
 var _zoom := 0.0
 var _zoom_target := 0.0
 var _camera_far := Transform3D()
+## The camera's swing over (+) or under (-) the wizard round what it looks at,
+## radians; right-drag up / down.
+const PITCH_MIN := -0.25
+const PITCH_MAX := 0.7
+var _pitch := 0.0
+var _pitch_target := 0.0
 
 func _process(delta: float) -> void:
 	if not is_instance_valid(camera) or not is_instance_valid(model_anchor):
@@ -754,7 +766,8 @@ func _process(delta: float) -> void:
 	if _camera_far == Transform3D():
 		_camera_far = camera.transform
 	_zoom = lerpf(_zoom, _zoom_target, 1.0 - exp(-10.0 * delta))
-	if absf(_zoom - _zoom_target) < 0.001 and _zoom_target == 0.0 and _zoom < 0.001:
+	_pitch = lerpf(_pitch, _pitch_target, 1.0 - exp(-10.0 * delta))
+	if absf(_zoom - _zoom_target) < 0.001 and _zoom_target == 0.0 and _zoom < 0.001 and absf(_pitch) < 0.0005 and _pitch_target == 0.0:
 		camera.transform = _camera_far
 		return
 	var face := camera.get_parent_node_3d().to_local(model_anchor.global_position + Vector3(0, 1.6, 0))
@@ -763,6 +776,12 @@ func _process(delta: float) -> void:
 	var look := far_look.lerp(face, t)
 	var near_origin := face + (_camera_far.origin - face).normalized() * 0.85
 	var origin := _camera_far.origin.lerp(near_origin, t)
+	# swing over / under round the point looked at (the wizard's middle far
+	# out, the face close up), about the camera's own side axis
+	var pivot := look if t > 0.0 else camera.get_parent_node_3d().to_local(model_anchor.global_position + Vector3(0, 1.0, 0))
+	var side := (look - origin).cross(Vector3.UP).normalized()
+	origin = pivot + (origin - pivot).rotated(side, -_pitch)
+	look = pivot + (look - pivot).rotated(side, -_pitch) if t <= 0.0 else look
 	camera.transform = Transform3D(Basis.looking_at(look - origin, Vector3.UP), origin)
 
 
@@ -789,6 +808,10 @@ func _build_look_editor() -> void:
 		_close_look_editor()
 		_update_slot_display(false))
 	_look_editor.visibility_changed.connect(_layout)
+	# the face tab frames the face (the wheel zoom's close end); the look tab
+	# and closing the editor step back to the whole wizard
+	_look_editor.tab_changed.connect(func(tab_name: String):
+		_zoom_target = 1.0 if tab_name == "face" else 0.0)
 	_edit_look_btn = Button.new()
 	_edit_look_btn.text = tr("Edit Appearance")
 	_edit_look_btn.focus_mode = Control.FOCUS_NONE
@@ -816,6 +839,7 @@ func _close_look_editor() -> void:
 	_look_char_id = -2
 	if _look_editor != null:
 		_look_editor.hide()
+		_look_editor.call("_show_tab", "look")
 	_layout()
 
 
