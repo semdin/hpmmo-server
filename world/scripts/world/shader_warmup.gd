@@ -1,15 +1,18 @@
 extends Node3D
 class_name ShaderWarmup
 
-## macOS only: draws every creature, a remote player and every spell stage once,
-## in front of the camera while the loading screen still covers it, so Metal
-## compiles their shaders there instead of in play.
+## Draws every creature, a remote player and every spell stage once, in front
+## of the camera while the loading screen still covers it, so the GPU driver
+## compiles their pipelines there instead of in play.
 ##
 ## Godot 4.7's Metal driver keeps no pipeline cache and our Linux export cannot
 ## bake Metal shaders, so on a Mac each new material compiled the first time it
 ## was drawn: seconds-long freezes on entering the world and on first sight of
-## a new creature kind (Apple M1, 1.0.68). Windows and Linux keep Vulkan's
-## pipeline cache and skip this (`--shader-warmup` forces it, for testing).
+## a new creature kind (Apple M1, 1.0.68). Vulkan (Windows, Linux) does keep a
+## pipeline cache, but a fight still compiled ~170 pipelines in its first
+## 30 s (perf_probe, Intel iGPU, 2026-10-30); warmed, half of them move to the
+## loading screen (~2.5 s) and the fight's p95 frame went 21 -> 15 ms. So every
+## platform warms now (`--no-shader-warmup` skips it, for comparisons).
 ##
 ##   WorldLoader: if ShaderWarmup.wanted(): warmup = ShaderWarmup.start(world)
 ##                ... wait for warmup.done ...
@@ -43,8 +46,7 @@ var _bodies: Array = []
 static func wanted() -> bool:
 	if DisplayServer.get_name() == "headless":
 		return false
-	var forced := "--shader-warmup" in OS.get_cmdline_args() or "--shader-warmup" in OS.get_cmdline_user_args()
-	return OS.get_name() == "macOS" or forced
+	return not ("--no-shader-warmup" in OS.get_cmdline_args() or "--no-shader-warmup" in OS.get_cmdline_user_args())
 
 static func start(world: Node) -> ShaderWarmup:
 	var warmup := ShaderWarmup.new()

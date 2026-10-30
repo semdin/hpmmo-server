@@ -403,7 +403,7 @@ static func _material(kind: String) -> Material:
 			mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 			mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD if kind != "drop" else BaseMaterial3D.BLEND_MODE_MIX
 			mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED if kind == "star" else BaseMaterial3D.BILLBOARD_PARTICLES
-			mat.albedo_texture = load(STAR_TEX if kind == "star" else GLOW_TEX)
+			mat.albedo_texture = SpellEffect.asset(STAR_TEX if kind == "star" else GLOW_TEX)
 			mat.albedo_color = Color(1.0, 0.85, 0.3) if kind == "star" else Color(1, 1, 1)
 			mat.vertex_color_use_as_albedo = kind != "star"
 			# The stun stars are an indicator: drawn over the crowd round the head.

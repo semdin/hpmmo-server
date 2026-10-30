@@ -33,6 +33,43 @@ static func _encode_entity(buffer: StreamPeerBuffer, record: Dictionary, node: N
 	buffer.put_u16(clampi(int(record.get("max_hp", 0)), 0, 65535))
 
 
+## Per-broadcast caches. Every peer near a crowd sees the same bodies, and the
+## same body used to be measured and encoded once per peer: positions and the
+## 31-byte encodings are now taken once per broadcast (`begin_broadcast`) and
+## reused for every peer it reaches. Only valid inside one broadcast - the
+## authority's own lookups (`nearby`) read live positions.
+static var _pos_cache: Dictionary = {}
+static var _bytes_cache: Dictionary = {}
+
+
+static func begin_broadcast() -> void:
+	_pos_cache.clear()
+	_bytes_cache.clear()
+
+
+## The body's position for this broadcast, or Vector3.INF when it has none.
+static func _pos(authority, uid: int) -> Vector3:
+	var at = _pos_cache.get(uid)
+	if at != null:
+		return at
+	var node = (authority.entities.get(uid, {}) as Dictionary).get("node")
+	var pos := (node as Node3D).global_position if node != null and is_instance_valid(node) else Vector3.INF
+	_pos_cache[uid] = pos
+	return pos
+
+
+static func _entity_bytes(authority, uid: int) -> PackedByteArray:
+	var cached = _bytes_cache.get(uid)
+	if cached != null:
+		return cached
+	var record: Dictionary = authority.entities[uid]
+	var buffer := StreamPeerBuffer.new()
+	buffer.big_endian = false
+	_encode_entity(buffer, record, record["node"], authority)
+	_bytes_cache[uid] = buffer.data_array
+	return buffer.data_array
+
+
 static func _rotation_y(node: Node3D) -> float:
 	var visuals = node.get("visuals")
 	if visuals is Node3D:
@@ -74,19 +111,50 @@ static func interest_set(authority, peer_id: int, center: Vector3) -> Array:
 			continue
 		if uid != own_uid and (bool(record.get("awaiting_bind", false)) or bool(record.get("awaiting_world", false))):
 			continue   # a login not yet placed at its spot, or still loading in
-		var node = record.get("node")
-		if node == null or not is_instance_valid(node):
+		var at := _pos(authority, uid)
+		if at == Vector3.INF:
 			continue
-		if uid == own_uid or (node as Node3D).global_position.distance_squared_to(center) <= r2:
+		if uid == own_uid or at.distance_squared_to(center) <= r2:
 			selected[uid] = true
+	for uid in _world_interest(authority, peer_id, peer_map, center):
+		if authority.entities.has(uid) and _pos(authority, uid) != Vector3.INF:
+			selected[uid] = true
+	var out: Array = selected.keys()
+	out.sort()
+	return out
+
+
+## The world part of a peer's interest set (static entities and creature
+## packs; players are always measured live). It is the expensive part - every
+## pack filed near the peer, member by member - and it changes slowly, so it is
+## kept for up to WORLD_INTEREST_REUSE broadcasts while the peer stays within
+## WORLD_INTEREST_DRIFT metres of where it was measured, on the same map and
+## index. A pack walking into range is picked up at most that much later.
+const WORLD_INTEREST_REUSE := 3
+const WORLD_INTEREST_DRIFT := 4.0
+static var _world_cache: Dictionary = {}   # peer_id -> {at, map, rev, age, uids}
+static var _reindexed := 0
+
+static func forget_peer(peer_id: int) -> void:
+	_world_cache.erase(peer_id)
+
+static func _world_interest(authority, peer_id: int, peer_map: String, center: Vector3) -> Array:
+	var rev := _index_revision * 100003 + _reindexed
+	var cached: Dictionary = _world_cache.get(peer_id, {})
+	if not cached.is_empty() and String(cached["map"]) == peer_map and int(cached["rev"]) == rev \
+			and int(cached["age"]) < WORLD_INTEREST_REUSE \
+			and (cached["at"] as Vector3).distance_to(center) <= WORLD_INTEREST_DRIFT:
+		cached["age"] = int(cached["age"]) + 1
+		return cached["uids"]
+	var radius := HPProtocol.INTEREST_RADIUS
+	var r2 := radius * radius
+	var selected: Dictionary = {}
 	for uid in _loose:
 		var record: Dictionary = authority.entities.get(uid, {})
 		if record.is_empty() or String(record.get("map_id", HPProtocol.DEFAULT_MAP)) != peer_map:
 			continue
-		var node = record.get("node")
-		if node == null or not is_instance_valid(node):
-			continue
-		if uid == own_uid or (node as Node3D).global_position.distance_squared_to(center) <= r2:
+		var at := _pos(authority, uid)
+		if at != Vector3.INF and at.distance_squared_to(center) <= r2:
 			selected[uid] = true
 	var grid: Dictionary = _grid.get(peer_map, {})
 	if not grid.is_empty():
@@ -102,20 +170,18 @@ static func interest_set(authority, peer_id: int, center: Vector3) -> Array:
 					var members: Array = _packs[key]
 					var in_range := false
 					for uid in members:
-						var node = (authority.entities.get(uid, {}) as Dictionary).get("node")
-						if node != null and is_instance_valid(node) \
-								and (node as Node3D).global_position.distance_squared_to(center) <= r2:
+						var at := _pos(authority, uid)
+						if at != Vector3.INF and at.distance_squared_to(center) <= r2:
 							in_range = true
 							break
 					if not in_range:
 						continue
 					for uid in members:
-						var node = (authority.entities.get(uid, {}) as Dictionary).get("node")
-						if node != null and is_instance_valid(node):
+						if _pos(authority, uid) != Vector3.INF:
 							selected[uid] = true
-	var out: Array = selected.keys()
-	out.sort()
-	return out
+	var uids: Array = selected.keys()
+	_world_cache[peer_id] = {"at": center, "map": peer_map, "rev": rev, "age": 0, "uids": uids}
+	return uids
 
 ## Candidate uids for "who could be within `radius` of `center` on `map_id`":
 ## every player on the map, the short static list, and the members of every
@@ -168,6 +234,7 @@ static func _ensure_index(authority) -> void:
 		return
 	_index_revision = revision
 	_index_owner = authority
+	var t_idx := HPProf.start()
 	_loose = []
 	_packs = {}
 	_pack_keys = {}
@@ -189,6 +256,7 @@ static func _ensure_index(authority) -> void:
 		(_packs[key] as Array).append(uid)
 	for key in _packs.keys():
 		_file_pack(authority, key)
+	HPProf.stop("index", t_idx)
 
 ## Every creature uid filed under `pack_id` (on any map or copy).
 static func pack_uids(authority, pack_id: int) -> Array:
@@ -202,6 +270,7 @@ static func pack_uids(authority, pack_id: int) -> Array:
 static func reindex_pack(authority, pack_id: int) -> void:
 	if authority != _index_owner:
 		return
+	_reindexed += 1
 	for key in _pack_keys.get(pack_id, []):
 		_file_pack(authority, key)
 
@@ -263,30 +332,29 @@ static func encode_for(authority, peer_id: int, center: Vector3, known: Dictiona
 	# remaining interest set; rotating the whole list also rotates the owner out.
 	var others := uids.duplicate()
 	if own_uid != 0 and others.has(own_uid):
-		var own: Dictionary = authority.entities[own_uid]
-		var own_node = own.get("node")
-		if is_instance_valid(own_node):
-			_encode_entity(buffer, own, own_node, authority)
+		if _pos(authority, own_uid) != Vector3.INF:
+			buffer.put_data(_entity_bytes(authority, own_uid))
 			sent += 1
 		others.erase(own_uid)
 	# The nearest bodies (other players count as half their distance) go in
 	# every snapshot; only the far remainder takes turns for the slots left.
 	# Rotating the whole set put a fight's own targets at 3-5 Hz in a crowd.
-	var keyed: Array = []
+	# Sorted as packed ints (distance in 1/16 m^2 above the uid's 32 bits):
+	# a native sort instead of a script comparator per pair.
+	var keyed := PackedInt64Array()
 	for uid in others:
-		var node = (authority.entities[uid] as Dictionary).get("node")
-		if node == null or not is_instance_valid(node):
+		var at := _pos(authority, uid)
+		if at == Vector3.INF:
 			continue
-		var d := (node as Node3D).global_position.distance_squared_to(center)
+		var d := at.distance_squared_to(center)
 		if int(authority.entities[uid].get("kind", 0)) == HPProtocol.Kind.PLAYER:
 			d *= 0.25
-		keyed.append([d, uid])
-	keyed.sort_custom(func(a, b): return float(a[0]) < float(b[0]))
+		keyed.append((int(d * 16.0) << 32) | (int(uid) & 0xffffffff))
+	keyed.sort()
 	var budget := HPProtocol.MAX_ENTITIES_PER_SNAPSHOT - sent
 	var nearest := mini(keyed.size(), PRIORITY_SLOTS if keyed.size() > budget else budget)
 	for i in range(nearest):
-		var record: Dictionary = authority.entities[keyed[i][1]]
-		_encode_entity(buffer, record, record["node"], authority)
+		buffer.put_data(_entity_bytes(authority, keyed[i] & 0xffffffff))
 		sent += 1
 	var rest := keyed.slice(nearest)
 	var start := int(known.get("__offset", 0)) % maxi(1, rest.size())
@@ -294,9 +362,8 @@ static func encode_for(authority, peer_id: int, center: Vector3, known: Dictiona
 	for i in range(rest.size()):
 		if sent >= HPProtocol.MAX_ENTITIES_PER_SNAPSHOT:
 			break
-		var record: Dictionary = authority.entities[rest[(start + i) % rest.size()][1]]
 		visited += 1
-		_encode_entity(buffer, record, record["node"], authority)
+		buffer.put_data(_entity_bytes(authority, rest[(start + i) % rest.size()] & 0xffffffff))
 		sent += 1
 	known["__offset"] = (start + visited) % maxi(1, rest.size())
 	buffer.seek(0)

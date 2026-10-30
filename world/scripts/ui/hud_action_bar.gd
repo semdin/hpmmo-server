@@ -121,12 +121,22 @@ func _draw() -> void:
 	for p in [plate.position, Vector2(plate.end.x, plate.position.y)]:
 		draw_circle(p + Vector2(0, 0.75), 3.0, HudKit.GOLD_LT)
 
+const SLOW_REFRESH := 0.25
+var _slow_wait := 0.0
+
 func _process(delta: float) -> void:
 	for i in range(4):
 		_quick_cd[i] = maxf(0.0, float(_quick_cd[i]) - delta)
 	if player == null or not is_instance_valid(player):
 		return
 	var dead: bool = player.is_dead
+	# The cooldown sweep moves every frame; the tooltip, the skill badge and
+	# the bag counts change rarely and were rebuilt (strings, a bag scan) for
+	# every slot every frame - they refresh four times a second.
+	_slow_wait -= delta
+	var slow := _slow_wait <= 0.0
+	if slow:
+		_slow_wait = SLOW_REFRESH
 	for s in spell_slots:
 		var spell_id := s.held_id
 		var spell: Dictionary = GameData.SPELLS.get(spell_id, {})
@@ -135,10 +145,11 @@ func _process(delta: float) -> void:
 		var total := maxf(0.01, HPRules.cooldown_for(spell_id, String(player.house), trained, player.derived_stats))
 		s.set_cooldown(cd, cd / total)
 		s.unusable = dead or int(player.current_mana) < int(spell.get("mana_cost", 0)) or trained <= 0
-		s.badge_text = ("" if trained <= 0 else HPRules.skill_level_label(trained)) if HPRules.skill_upgradeable(spell_id) else ""
-		var tip := _spell_tooltip(s.key_text, spell, trained, total)
-		if s.tooltip_text != tip:
-			s.tooltip_text = tip
+		if slow:
+			s.badge_text = ("" if trained <= 0 else HPRules.skill_level_label(trained)) if HPRules.skill_upgradeable(spell_id) else ""
+			var tip := _spell_tooltip(s.key_text, spell, trained, total)
+			if s.tooltip_text != tip:
+				s.tooltip_text = tip
 	for i in range(4):
 		var q := quick_slots[i]
 		var id := String(quick_items[i])
@@ -146,7 +157,9 @@ func _process(delta: float) -> void:
 			q.held_id = id
 			q.icon_texture = UITheme.icon_for(id) if id != "" else null
 			q.tooltip_text = _item_tooltip(QUICK_KEYS[i], id)
-		q.count = _count_of(id) if id != "" else -1
+			q.count = -2   # a new item is counted now, not at the next refresh
+		if slow or q.count == -2:
+			q.count = _count_of(id) if id != "" else -1
 		q.unusable = dead or (id != "" and q.count <= 0)
 		q.set_cooldown(float(_quick_cd[i]), float(_quick_cd[i]) / QUICK_COOLDOWN)
 

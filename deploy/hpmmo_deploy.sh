@@ -1242,6 +1242,19 @@ cmd_rollback() {  # reason
     exit 0
 }
 
+cmd_announce() {  # minutes
+    local minutes="$1" out
+    case "$minutes" in ''|*[!0-9]*) die 2 "--announce-update wants whole minutes, got '$minutes'" ;; esac
+    out="${HPMMO_STATE_DIR%/}/logs/.announce.json"
+    admin_request POST "${HPMMO_ADMIN_URL%/}/admin/announce" \
+        "$(printf '{"kind":"update_soon","minutes":%d}' "$minutes")" "$out" 5
+    if [ "$HTTP_CODE" = "200" ]; then
+        say "players told: an update in about $minutes minutes"
+    else
+        warn "the world did not take the announcement (HTTP ${HTTP_CODE:-none}); nothing else was changed"
+    fi
+}
+
 cmd_status() {
     local state="UNKNOWN" release="" previous="" since="" message=""
     if [ -f "$STATUS_FILE" ]; then
@@ -1295,6 +1308,10 @@ Usage:
   $PROG --rollback [--reason TEXT]
         Operator rollback: restore the previous release, restart it and keep
         maintenance ACTIVE.
+  $PROG --announce-update [MINUTES]
+        Tell the players in the world that an update restarts it in about
+        MINUTES (default 3). No state change; the release pipeline sends it
+        when a build starts. Fails quietly when the world does not answer.
   $PROG --status [--journal N]
         Print the current state, the active/previous release and the journal tail.
 
@@ -1312,7 +1329,7 @@ EOF
 
 # --- main --------------------------------------------------------------------
 main() {
-    local command="" artifact="" id="" reason="" gen_manifest=0 cold=0 arg cmd_countdown=""
+    local command="" artifact="" id="" reason="" gen_manifest=0 cold=0 arg cmd_countdown="" announce_minutes=3
 
     while [ $# -gt 0 ]; do
         case "$1" in
@@ -1322,6 +1339,8 @@ main() {
             --recover) command=recover; shift ;;
             --rollback) command=rollback; shift ;;
             --status) command=status; shift ;;
+            --announce-update) command=announce
+                case "${2:-}" in ''|-*) shift ;; *) announce_minutes="$2"; shift 2 ;; esac ;;
             --id) id="${2:-}"; shift 2 ;;
             --reason) reason="${2:-}"; shift 2 ;;
             --countdown) cmd_countdown="${2:-}"; shift 2 ;;
@@ -1356,6 +1375,7 @@ main() {
 
     case "$command" in
         status)   cmd_status ;;
+        announce) cmd_announce "$announce_minutes" ;;
         stage)    cmd_stage "$artifact" "$id" "$gen_manifest" ;;
         release)  [ -n "$id" ] || die 2 "--release needs a release id"; cmd_deploy "$id" "$reason" "$cold" ;;
         deploy)   [ -n "$artifact" ] || die 2 "--deploy needs an artifact"

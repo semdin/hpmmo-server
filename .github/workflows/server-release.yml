@@ -67,6 +67,15 @@ jobs:
     outputs:
       release_id: ${{ steps.id.outputs.release_id }}
     steps:
+      # Players hear about the restart when the build starts (a few minutes
+      # ahead), not only from the 30 s maintenance countdown at the end. A
+      # heads-up only: it changes nothing and never fails the build.
+      - name: Tell the players an update is coming
+        if: github.ref_name == 'main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy))
+        run: |
+          sudo -n /opt/hpmmo/bin/hpmmo_deploy.sh --announce-update 3 \
+            || echo "::warning::the update heads-up was not delivered"
+
       - uses: actions/checkout@v7
 
       # The world tree keeps its models in Git LFS, served by our own LFS

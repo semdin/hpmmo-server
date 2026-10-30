@@ -170,7 +170,10 @@ func setup(animation_player: AnimationPlayer, skeleton_node: Skeleton3D, host: N
 			anim.loop_mode = Animation.LOOP_NONE
 	# Finger bones must only rotate at knuckle joints, never translate away from parent joints.
 	# Strip spurious translation tracks on fingers from all imported clips to prevent mesh distortion.
-	if anim_player:
+	# Once per shared library (every hero body carries the same one).
+	var library := anim_player.get_animation_library("") if anim_player else null
+	if library != null and not library.has_meta(&"finger_tracks_stripped"):
+		library.set_meta(&"finger_tracks_stripped", true)
 		for anim_name in anim_player.get_animation_list():
 			var anim := anim_player.get_animation(anim_name)
 			if anim:
@@ -190,6 +193,12 @@ const EXTRA_CLIP_DIR := "res://assets/animations/hero/"
 static func merge_extra_clips(player: AnimationPlayer) -> int:
 	if player == null or not DirAccess.dir_exists_absolute(EXTRA_CLIP_DIR):
 		return 0
+	# Every hero shares the GLB's library: once it holds the extra clips, the
+	# next body must not load every clip GLB again only to find each clip there
+	# (~35 ms per wizard that came into view, on clients and the server).
+	var shared := player.get_animation_library("")
+	if shared != null and shared.has_meta(&"extra_clips_merged"):
+		return 0
 	var added := 0
 	var seen := {}
 	for file in DirAccess.get_files_at(EXTRA_CLIP_DIR):
@@ -203,6 +212,8 @@ static func merge_extra_clips(player: AnimationPlayer) -> int:
 		var scene := packed.instantiate()
 		added += merge_clips_from(player, scene.find_child("AnimationPlayer", true, false) as AnimationPlayer)
 		scene.free()
+	if shared != null:
+		shared.set_meta(&"extra_clips_merged", true)
 	return added
 
 ## Copy every clip of `source` the hero does not have yet into its default

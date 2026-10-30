@@ -33,6 +33,8 @@ func _ready() -> void:
 	# average each way. 120 frames halve that wait for a few % of one core on
 	# the 4-core box. HPMMO_SERVER_FPS overrides it.
 	Engine.max_fps = clampi(int(_env("HPMMO_SERVER_FPS", "120")), 30, 240)
+	# Section timers on the status line (see HPProf).
+	HPProf.enabled = true
 	print("=========================================================")
 	print(">>> [HPMMO WORLD SERVER] booting %s <<<" % HPProtocol.version_string())
 	print("=========================================================")
@@ -101,6 +103,7 @@ func _ready() -> void:
 	# HPMMO_LAZY_MAPS=1 keeps the old build-on-first-use.
 	if _env("HPMMO_LAZY_MAPS", "") != "1":
 		map_host.ensure_map_built(MapHost.MAP_INTERIOR)
+	_warm_player_body()
 	# Roster transitions are logged immediately (not only on the 5 s status
 	# tick): operations and the map transfer map tests need to see joins, leaves and
 	# entity counts without waiting for a timer.
@@ -131,6 +134,24 @@ func _ready() -> void:
 		", ".join(HPMaps.map_ids())])
 	print("[WorldServer] listening on :%d - waiting for players" % port)
 	print("=========================================================")
+
+## The first join after a boot built the first wizard cold (~150 ms) while
+## every connected player's tick waited. One throwaway body is built now
+## instead, and the scene stays referenced (a resource nobody holds leaves the
+## cache), so later joins instantiate it warm. A server body carries no
+## presentation (player.gd `_strip_presentation`), so nothing else needs it.
+var _warm_resources: Array = []
+
+func _warm_player_body() -> void:
+	var started := Time.get_ticks_usec()
+	var player_scene: PackedScene = load("res://scenes/entities/player/player.tscn")
+	_warm_resources.append(player_scene)
+	var body: Node3D = player_scene.instantiate()
+	body.name = "WarmupBody"
+	body.set("is_local_player", false)
+	world.add_child(body)
+	body.queue_free()
+	print("[WorldServer] player body warmed in %.1f ms" % ((Time.get_ticks_usec() - started) / 1000.0))
 
 ## One line per roster change: enough to prove "no duplicate character" and
 ## "the registry did not grow" without reading internals.
@@ -178,20 +199,23 @@ func _process(delta: float) -> void:
 		var record := SimAuthority.player_record(int(peer_id))
 		var node = record.get("node")
 		if node != null and is_instance_valid(node):
-			players.append("peer %d uid %d map=%s at (%.1f, %.1f, %.1f) hp %d exp %d" % [
+			players.append("peer %d uid %d map=%s at (%.1f, %.1f, %.1f) hp %d exp %d rtt %d" % [
 				int(peer_id), int(record.get("uid", 0)), String(record.get("map_id", "")),
 				(node as Node3D).global_position.x, (node as Node3D).global_position.y,
 				(node as Node3D).global_position.z, int(record.get("hp", 0)),
-				int(record.get("exp", 0))])
+				int(record.get("exp", 0)), SimNet.peer_rtt_ms(int(peer_id))])
 	# Frame cost: one physics step per sim tick, so physics_ms + process_ms
 	# near 1000 / SIM_HZ means the server cannot hold its tick rate (players
 	# then see their corrections pull them back).
-	print("[WorldServer] tick=%d state=%s entities=%d players=%d inputs=%d casts=%d physics_ms=%.1f process_ms=%.1f worst_frame_ms=%.0f hitches=%d | %s" % [
+	# `prof` is ms per second / slowest call per section (HPProf); `mobs` and
+	# `players` are the bodies' own physics frames, `net` the end-of-frame ENet
+	# service with the RPCs it dispatched.
+	print("[WorldServer] tick=%d state=%s entities=%d players=%d inputs=%d casts=%d physics_ms=%.1f process_ms=%.1f worst_frame_ms=%.0f hitches=%d prof: %s | %s" % [
 		SimAuthority.sim_tick, SimAuthority.maintenance_state(), SimAuthority.entities.size(),
 		SimAuthority.players_by_peer.size(), SimNet.inputs_received, SimNet.cast_requests_received,
 		Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0,
 		Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
-		_worst_frame_ms, _hitches,
+		_worst_frame_ms, _hitches, HPProf.report(),
 		" ; ".join(players)])
 	_worst_frame_ms = 0.0
 	_hitches = 0

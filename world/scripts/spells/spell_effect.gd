@@ -21,9 +21,26 @@ class_name SpellEffect
 signal finished(spell_id: String, stage: String)
 
 const VFX = preload("res://scripts/spells/vfx_library.gd")
-const SHADER_ALPHA := "res://assets/shaders/spell_layer.gdshader"
-const SHADER_ADD := "res://assets/shaders/spell_layer_add.gdshader"
-const RIBBON_SHADER := "res://assets/shaders/spell_ribbon.gdshader"
+const SHADER_ALPHA := preload("res://assets/shaders/spell_layer.gdshader")
+const SHADER_ADD := preload("res://assets/shaders/spell_layer_add.gdshader")
+const RIBBON_SHADER := preload("res://assets/shaders/spell_ribbon.gdshader")
+
+## Everything an effect is built from stays loaded for the session. The
+## shaders and textures were `load()`ed per effect, so once the last effect
+## using one was gone the next cast read (and compiled) it again: a bolt's
+## ribbon took up to ~10 ms and a cast up to ~17 ms, on the cast's frame
+## (perf_probe combat, 2026-10-30). Particle draw passes, the fade ramp and the
+## process materials of non-aimed particle layers are shared the same way.
+static var _resources: Dictionary = {}
+static var _particle_parts: Dictionary = {}
+static var _fade_ramp: GradientTexture1D = null
+
+static func asset(path: String) -> Resource:
+	var res = _resources.get(path)
+	if res == null and path != "" and ResourceLoader.exists(path):
+		res = load(path)
+		_resources[path] = res
+	return res
 
 var spell_id := "basic_cast"
 var stage := "cast"
@@ -184,13 +201,13 @@ func _material_for(layer: Dictionary, colour: Color) -> ShaderMaterial:
 		material.set_shader_parameter("aim", direction)
 		material.set_shader_parameter("opacity", float(layer.get("opacity", 1.0)))
 		return material
-	material.shader = load(SHADER_ADD if additive else SHADER_ALPHA)
+	material.shader = SHADER_ADD if additive else SHADER_ALPHA
 	var entry: Dictionary = VFX.asset(String(layer.get("atlas", layer.get("tex", ""))))
 	if layer.has("atlas") and entry.is_empty():
 		entry = VFX.asset(String(layer.get("atlas", "")))
 	var texture_path := String(entry.get("path", ""))
 	if texture_path != "":
-		var texture: Texture2D = load(texture_path)
+		var texture: Texture2D = asset(texture_path)
 		material.set_shader_parameter("atlas", texture)
 	material.set_shader_parameter("grid", entry.get("grid", Vector2.ONE))
 	material.set_shader_parameter("frame", float(layer.get("frame", 0)))
@@ -202,7 +219,7 @@ func _material_for(layer: Dictionary, colour: Color) -> ShaderMaterial:
 		material.set_shader_parameter("roll", randf() * TAU)
 	if layer.has("fracture"):
 		material.set_shader_parameter("erode", 0.0)
-		material.set_shader_parameter("erosion", load(VFX.asset_path("vfx_noise_erosion")))
+		material.set_shader_parameter("erosion", asset(VFX.asset_path("vfx_noise_erosion")))
 	return material
 
 func _build_flipbook(layer: Dictionary, colour: Color) -> Node3D:
@@ -262,18 +279,37 @@ func _build_particles(layer: Dictionary, colour: Color) -> Node3D:
 	particles.randomness = 0.8
 	particles.local_coords = false
 	particles.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var quad := QuadMesh.new()
 	var size := float(layer.get("size", 0.1))
-	quad.size = Vector2(size, size)
-	var material := StandardMaterial3D.new()
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD if String(layer.get("blend", "alpha")) == "add" else BaseMaterial3D.BLEND_MODE_MIX
-	material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	material.vertex_color_use_as_albedo = true
-	material.albedo_texture = load(VFX.asset_path(String(layer.get("tex", "vfx_spark_static"))))
-	quad.material = material
+	var tex := String(layer.get("tex", "vfx_spark_static"))
+	var blend := String(layer.get("blend", "alpha"))
+	var pass_key := "pass|%s|%s|%s" % [size, blend, tex]
+	var quad: QuadMesh = _particle_parts.get(pass_key)
+	if quad == null:
+		quad = QuadMesh.new()
+		quad.size = Vector2(size, size)
+		var material := StandardMaterial3D.new()
+		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD if blend == "add" else BaseMaterial3D.BLEND_MODE_MIX
+		material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		material.vertex_color_use_as_albedo = true
+		material.albedo_texture = asset(VFX.asset_path(tex))
+		quad.material = material
+		_particle_parts[pass_key] = quad
 	particles.draw_pass_1 = quad
+	# A process material that does not point down this cast's aim is the same
+	# for every cast of the layer in the same colour: shared.
+	var aimed := bool(layer.get("forward", false)) and not bool(layer.get("edge_only", false))
+	var process_key := "process|%s|%s|%s|%s|%s|%s" % [bool(layer.get("edge_only", false)), layer.get("spread", 45.0),
+		layer.get("speed", 2.0), layer.get("gravity", -3.0), _layer_colour(layer, colour).to_html(), bool(layer.get("forward", false))]
+	if not aimed and _particle_parts.has(process_key):
+		particles.process_material = _particle_parts[process_key]
+		add_child(particles)
+		particles.global_position = base_position + direction * _forward_of(layer)
+		if bool(layer.get("flat", false)):
+			particles.global_position = base_position + Vector3.UP * 0.15
+		particles.emitting = true
+		return particles
 	var process := ParticleProcessMaterial.new()
 	var dir := direction if bool(layer.get("forward", false)) else Vector3.UP
 	if bool(layer.get("edge_only", false)):
@@ -291,12 +327,15 @@ func _build_particles(layer: Dictionary, colour: Color) -> Node3D:
 	process.scale_min = 0.6
 	process.scale_max = 1.4
 	process.color = _layer_colour(layer, colour)
-	var gradient := Gradient.new()
-	gradient.set_color(0, Color(1, 1, 1, 1))
-	gradient.set_color(1, Color(1, 1, 1, 0))
-	var ramp := GradientTexture1D.new()
-	ramp.gradient = gradient
-	process.color_ramp = ramp
+	if _fade_ramp == null:
+		var gradient := Gradient.new()
+		gradient.set_color(0, Color(1, 1, 1, 1))
+		gradient.set_color(1, Color(1, 1, 1, 0))
+		_fade_ramp = GradientTexture1D.new()
+		_fade_ramp.gradient = gradient
+	process.color_ramp = _fade_ramp
+	if not aimed:
+		_particle_parts[process_key] = process
 	particles.process_material = process
 	add_child(particles)
 	particles.global_position = base_position + direction * _forward_of(layer)
@@ -306,7 +345,7 @@ func _build_particles(layer: Dictionary, colour: Color) -> Node3D:
 	return particles
 
 func _build_mesh_layer(layer: Dictionary, colour: Color) -> Node3D:
-	var scene: PackedScene = load(VFX.asset_path(String(layer.get("mesh", ""))))
+	var scene: PackedScene = asset(VFX.asset_path(String(layer.get("mesh", ""))))
 	if scene == null:
 		return null
 	var root := Node3D.new()
@@ -334,24 +373,24 @@ func _build_mesh_layer(layer: Dictionary, colour: Color) -> Node3D:
 		if bool(layer.get("ward", false)):
 			var ward := ShaderMaterial.new()
 			ward.shader = preload("res://assets/shaders/ward_surface.gdshader")
-			ward.set_shader_parameter("flow_noise", load(VFX.asset_path("vfx_noise_flow")))
+			ward.set_shader_parameter("flow_noise", asset(VFX.asset_path("vfx_noise_flow")))
 			ward.set_shader_parameter("tint", tint)
 			if layer.has("hex") and VFX.asset_exists(String(layer["hex"])):
-				ward.set_shader_parameter("hex_lattice", load(VFX.asset_path(String(layer["hex"]))))
+				ward.set_shader_parameter("hex_lattice", asset(VFX.asset_path(String(layer["hex"]))))
 				ward.set_shader_parameter("use_hex", true)
 			_set_mesh_material(instance, ward)
 		elif bool(layer.get("flow", false)):
 			# the shell carries a flowing noise field and a bright rim so the
 			# ward reads as a surface, not as a sprite
 			var shader_mat := ShaderMaterial.new()
-			shader_mat.shader = load(SHADER_ALPHA)
-			shader_mat.set_shader_parameter("atlas", load(VFX.asset_path("vfx_noise_flow")))
+			shader_mat.shader = SHADER_ALPHA
+			shader_mat.set_shader_parameter("atlas", asset(VFX.asset_path("vfx_noise_flow")))
 			shader_mat.set_shader_parameter("grid", Vector2.ONE)
 			shader_mat.set_shader_parameter("billboard", false)
 			shader_mat.set_shader_parameter("tint", Color(tint.r, tint.g, tint.b, 0.22 if not bool(layer.get("fracture", false)) else 0.30))
 			shader_mat.set_shader_parameter("soft_fade", 0.0)
 			if bool(layer.get("fracture", false)):
-				shader_mat.set_shader_parameter("erosion", load(VFX.asset_path("vfx_noise_erosion")))
+				shader_mat.set_shader_parameter("erosion", asset(VFX.asset_path("vfx_noise_erosion")))
 			_set_mesh_material(instance, shader_mat)
 			instance.set_meta("fracture", true)
 		else:
@@ -378,8 +417,8 @@ func _build_ribbon(layer: Dictionary, colour: Color) -> Node3D:
 	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	node.top_level = true
 	var material := ShaderMaterial.new()
-	material.shader = load(RIBBON_SHADER)
-	material.set_shader_parameter("streak", load(VFX.asset_path(String(layer.get("tex", "vfx_energy_streak")))))
+	material.shader = RIBBON_SHADER
+	material.set_shader_parameter("streak", asset(VFX.asset_path(String(layer.get("tex", "vfx_energy_streak")))))
 	material.set_shader_parameter("tint", _layer_colour(layer, colour))
 	material.set_shader_parameter("edge_softness", 0.6)
 	material.set_shader_parameter("kinked", bool(layer.get("kinked", false)))

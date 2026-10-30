@@ -79,7 +79,9 @@ class _EndOfFramePoll extends Node:
 		var api := multiplayer
 		if api != null and api.multiplayer_peer is ENetMultiplayerPeer \
 				and api.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+			var t := HPProf.start()
 			api.poll()
+			HPProf.stop("net", t)
 
 func _ready() -> void:
 	var late := _EndOfFramePoll.new()
@@ -336,6 +338,8 @@ func _on_peer_disconnected(peer_id: int) -> void:
 	_joining.erase(peer_id)
 	_binding.erase(peer_id)
 	_buckets.erase(peer_id)
+	_last_perf_ms.erase(peer_id)
+	HPSnapshots.forget_peer(peer_id)
 	if not is_client:
 		SimAuthority.remove_player(peer_id)
 		emit_signal("client_spawned", peer_id, 0, "")
@@ -451,6 +455,12 @@ func sim_join(token: String, protocol_version: int, client_version: String) -> v
 			if identity.get("spawn") is Array:
 				var p: Array = identity["spawn"]
 				at = Vector3(float(p[0]), float(p[1]), float(p[2]))
+			elif bool(identity.get("spawn_near_pack", false)):
+				# The sheet's position is where the body spawns, so "beside a
+				# pack" has to be written into it (it used to be dropped here).
+				var near := _dev_pack_spawn(int(identity.get("spawn_pack_id", 0)))
+				if near != Vector3.INF:
+					at = _dev_on_ground(near)
 			sheet["pos"] = [at.x, at.y, at.z]
 			sheet["map_id"] = HPMaps.map_for_point(at)
 			identity["character"] = sheet
@@ -528,6 +538,7 @@ func sim_spawn_player(peer_id: int, identity: Dictionary) -> void:
 	if players_container == null:
 		sim_join_result.rpc_id(peer_id, false, "world_not_ready", 0, {}, SimAuthority.sim_tick, 0)
 		return
+	var join_us := Time.get_ticks_usec()
 	var scene: PackedScene = load("res://scenes/entities/player/player.tscn")
 	var node: Node3D = scene.instantiate()
 	node.name = "P%d" % peer_id
@@ -535,6 +546,7 @@ func sim_spawn_player(peer_id: int, identity: Dictionary) -> void:
 	node.player_name = String(identity.get("name", "Wizard"))
 	node.house = String(identity.get("house", "Gryffindor"))
 	players_container.add_child(node)
+	var body_us := Time.get_ticks_usec()
 	var character: Dictionary = {}
 	if identity.get("character") is Dictionary and not (identity["character"] as Dictionary).is_empty():
 		# Loaded and ownership-checked by sim_join (a session with no character
@@ -576,6 +588,7 @@ func sim_spawn_player(peer_id: int, identity: Dictionary) -> void:
 		# hill, until the bind moves it to the character's own spot.
 		node.global_position = HPMaps.default_spawn(HPProtocol.DEFAULT_MAP)
 	_avoid_spawn_overlap(node)
+	var placed_us := Time.get_ticks_usec()
 	# Dev joins only (HPMMO_ALLOW_DEV_JOIN): HPMMO_DEV_ITEMS="id:n,id:n" puts
 	# items in a probe's bag (e.g. a Portkey boot for a group-travel check).
 	if character.is_empty() and OS.get_environment("HPMMO_ALLOW_DEV_JOIN") == "1":
@@ -605,6 +618,12 @@ func sim_spawn_player(peer_id: int, identity: Dictionary) -> void:
 	if not character.is_empty() or SimAuthority.persistence == null:
 		sim_chat_event.rpc("[Server] %s joined the realm." % node.player_name)
 	emit_signal("client_spawned", peer_id, int(identity.get("character_id", 0)), String(node.player_name))
+	# Where a join's frame goes (a slow join stalls every player's tick).
+	var done_us := Time.get_ticks_usec()
+	HPProf.stop("join", join_us)
+	print("[SimNet] join peer %d took %.1f ms (body %.1f, restore+place %.1f, register+send %.1f)" % [peer_id,
+		(done_us - join_us) / 1000.0, (body_us - join_us) / 1000.0, (placed_us - body_us) / 1000.0,
+		(done_us - placed_us) / 1000.0])
 
 ## Client -> server: name the character this session wants to play (Release gates
 ## character-bind). A session that joined without one (a plain login, or a launcher
@@ -840,6 +859,59 @@ func sim_attribute_request(stat: String) -> void:
 	var result := SimAuthority.request_attribute(multiplayer.get_remote_sender_id(), stat.left(16))
 	if not bool(result.get("ok", false)):
 		sim_notice.rpc_id(multiplayer.get_remote_sender_id(), "attribute", String(result.get("reason", "")))
+
+## v31 client performance report (see `submit_perf_report`). Logged only:
+## nothing in the world depends on it, so a report that is early, malformed or
+## from a peer without a body is dropped.
+const PERF_REPORT_MIN_INTERVAL_MS := 20000
+const PERF_REPORT_FIELDS := ["window_s", "fps", "frame_p50_ms", "frame_p99_ms", "worst_ms", "hitches",
+	"ping_avg", "ping_p95", "loss_pct", "gpu_ms"]
+var _last_perf_ms: Dictionary = {}
+
+@rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
+func sim_client_perf(report: Dictionary) -> void:
+	if is_client:
+		return
+	var peer_id := multiplayer.get_remote_sender_id()
+	var now := Time.get_ticks_msec()
+	if _last_perf_ms.has(peer_id) and now - int(_last_perf_ms[peer_id]) < PERF_REPORT_MIN_INTERVAL_MS:
+		return
+	_last_perf_ms[peer_id] = now
+	var record := SimAuthority.player_record(peer_id)
+	if record.is_empty():
+		return
+	var values: Array = []
+	for field in PERF_REPORT_FIELDS:
+		var value = report.get(field, -1)
+		var number := clampf(float(value), -1.0, 100000.0) if (value is int or value is float) else -1.0
+		values.append("%s=%s" % [field, str(snappedf(number, 0.1))])
+	var preset := String(report.get("preset", "")).left(12).validate_filename()
+	print("[SimNet] client perf peer %d uid %d %s map=%s preset=%s enet_rtt=%d %s" % [peer_id,
+		int(record.get("uid", 0)), String(record.get("name", "")).left(24), String(record.get("map_id", "")),
+		preset, peer_rtt_ms(peer_id), " ".join(values)])
+
+## Server: ENet's smoothed round trip to `peer_id` in ms (-1 when unknown).
+func peer_rtt_ms(peer_id: int) -> int:
+	if not (multiplayer.multiplayer_peer is ENetMultiplayerPeer):
+		return -1
+	var packet_peer := (multiplayer.multiplayer_peer as ENetMultiplayerPeer).get_peer(peer_id)
+	if packet_peer == null:
+		return -1
+	return int(packet_peer.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME))
+
+## Client: send one performance report (see sim_client_perf).
+func submit_perf_report(report: Dictionary) -> void:
+	if is_client and joined_world:
+		sim_client_perf.rpc_id(1, report)
+
+## Client: ENet's packet loss to the world server in %, -1 when not connected.
+func packet_loss_pct() -> float:
+	if not is_client or not (multiplayer.multiplayer_peer is ENetMultiplayerPeer):
+		return -1.0
+	var server := (multiplayer.multiplayer_peer as ENetMultiplayerPeer).get_peer(1)
+	if server == null:
+		return -1.0
+	return float(server.get_statistic(ENetPacketPeer.PEER_PACKET_LOSS)) / float(ENetPacketPeer.PACKET_LOSS_SCALE) * 100.0
 
 @rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
 func sim_chat_request(text: String) -> void:
@@ -1307,10 +1379,15 @@ func _process(_delta: float) -> void:
 ## instead of flooding stale inputs or losing time on every ordinary frame.
 func _advance_send_timers(elapsed: float) -> void:
 	if SimAuthority.is_authority():
+		# Each peer still gets SNAPSHOT_HZ, but the peers take turns over
+		# SNAPSHOT_SLOTS evenly spaced frames: building every peer's snapshot in
+		# one frame stalled the whole server for that frame in a crowd.
+		var slot_s := 1.0 / float(HPProtocol.SNAPSHOT_HZ * SNAPSHOT_SLOTS)
 		_snapshot_accumulator += elapsed
-		if _snapshot_accumulator >= 1.0 / float(HPProtocol.SNAPSHOT_HZ):
-			_snapshot_accumulator = fmod(_snapshot_accumulator, 1.0 / float(HPProtocol.SNAPSHOT_HZ))
-			_broadcast_snapshots()
+		if _snapshot_accumulator >= slot_s:
+			_snapshot_accumulator = fmod(_snapshot_accumulator, slot_s)
+			_snapshot_slot = (_snapshot_slot + 1) % SNAPSHOT_SLOTS
+			_broadcast_snapshots(_snapshot_slot)
 		return
 	if not is_client or not joined_world:
 		return
@@ -1594,10 +1671,19 @@ func bridge_authority() -> void:
 		broadcast_reward(uid, character_id, exp, galleons, items, op_id))
 	print("[SimNet] authority events bridged to %d peer(s)" % multiplayer.get_peers().size())
 
-func _broadcast_snapshots() -> void:
+## Snapshot turns per SNAPSHOT_HZ interval (see `_advance_send_timers`).
+const SNAPSHOT_SLOTS := 4
+var _snapshot_slot := 0
+
+## `slot` -1 sends to every peer; otherwise only to the peers in that turn.
+func _broadcast_snapshots(slot := -1) -> void:
 	if not has_peers():
 		return
+	var snap_t := HPProf.start()
+	HPSnapshots.begin_broadcast()
 	for peer_id in multiplayer.get_peers():
+		if slot >= 0 and posmod(peer_id, SNAPSHOT_SLOTS) != slot:
+			continue
 		var record := SimAuthority.player_record(peer_id)
 		if record.is_empty():
 			continue
@@ -1668,6 +1754,7 @@ func _broadcast_snapshots() -> void:
 		for index in range(chunks):
 			var slice := bytes.slice(index * chunk_size, mini(bytes.size(), (index + 1) * chunk_size))
 			sim_snapshot.rpc_id(peer_id, SimAuthority.sim_tick, index, chunks, slice)
+	HPProf.stop("snap", snap_t)
 
 ## Event fan-out used by the world server for authority signals. Clients that
 ## cannot see the entity are skipped; that is the interest filter for events.

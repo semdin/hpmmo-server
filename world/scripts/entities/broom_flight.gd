@@ -61,6 +61,11 @@ func setup(player_body: Node3D, visuals_node: Node3D, wisp_particles: CPUParticl
 	if particles:
 		particles.local_coords = false
 		particles.emitting = false
+	# The wake is presentation: the dedicated server built it (the trail scene,
+	# its textures) for every joining wizard and redrew the ribbon each frame
+	# of every flight. It keeps the sockets only.
+	if NetworkManager.is_dedicated_server:
+		return
 	_build_sparks()
 	_build_ribbon()
 	_attach_spell_trail(scope)
@@ -180,7 +185,7 @@ func set_flying(flying: bool) -> void:
 		sparks.emitting = flying
 	if ribbon:
 		ribbon.visible = flying
-	if not flying:
+	if not flying and ribbon:
 		_tail_history.clear()
 		_ribbon.clear_surfaces()
 
@@ -198,6 +203,8 @@ func tick(delta: float) -> void:
 	_speed = Vector3(vel.x, 0, vel.z).length()
 	_accel = (_speed - _prev_speed) / maxf(delta, 0.0001)
 	_prev_speed = _speed
+	if NetworkManager.is_dedicated_server:
+		return
 	_trail_time += delta
 	if trail != null and is_instance_valid(trail):
 		# The layered trail owns the per-frame ribbon and emission.

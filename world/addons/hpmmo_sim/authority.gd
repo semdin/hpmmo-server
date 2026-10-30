@@ -480,10 +480,12 @@ func apply_character_binding(record: Dictionary, character: Dictionary) -> Strin
 	if character.get("house") is String and String(character["house"]) != "":
 		node.set("house", String(character["house"]))
 		record["house"] = String(character["house"])
+	var bind_t := HPProf.start()
 	node.call("restore_character", character)
 	if "look" in node:
 		record["look"] = HPRules.clean_look(node.get("look"))
 	refresh_equipment(record)
+	HPProf.stop("bind", bind_t)
 	(node as Node3D).global_position = pos
 	if "velocity" in node:
 		node.set("velocity", Vector3.ZERO)
@@ -1786,7 +1788,9 @@ func _physics_process(delta: float) -> void:
 	var steps := 0
 	while _accumulator >= HPProtocol.SIM_DT and steps < 5:
 		_accumulator -= HPProtocol.SIM_DT
+		var step_t := HPProf.start()
 		_step()
+		HPProf.stop("step", step_t)
 		steps += 1
 
 func _step() -> void:
@@ -1797,9 +1801,11 @@ func _step() -> void:
 		# is advanced. The admin controller's own timers run on wall time, so the
 		# save barrier still completes while this returns early.
 		return
+	var combat_t := HPProf.start()
 	_advance_casts()
 	_advance_projectiles()
 	_advance_effects()
+	HPProf.stop("combat", combat_t)
 	_advance_portkeys()
 	_check_respawns()
 	_expire_stale_inputs()
@@ -5503,12 +5509,23 @@ static func mob_info_of(record: Dictionary) -> Dictionary:
 
 ## What a client needs to label another player (v18 `sim_player_info`; v26 `ga`;
 ## v28 `look`, the appearance HeroAppearance.apply_look draws).
+##
+## Asked for every visible player of every peer on each snapshot, so the info
+## (and its revision, which strings the whole look) is kept on the record until
+## one of its inputs changes. A look change always replaces the dictionary
+## (`clean_look`), so the look is compared by identity.
 func player_info_of(record: Dictionary) -> Dictionary:
-	var info := {"name": String(record.get("name", "")), "house": String(record.get("house", "")),
-		"level": int(record.get("level", 1)), "gear": record.get("gear", {}), "ga": is_ga(record),
-		"look": record.get("look", HPRules.default_look())}
-	info["rev"] = ("%s|%s|%d|%d|%s|%s" % [info["name"], info["house"], info["level"], int(record.get("gear_sig", 0)),
+	var look = record.get("look")
+	var key := [String(record.get("name", "")), String(record.get("house", "")), int(record.get("level", 1)),
+		int(record.get("gear_sig", 0)), is_ga(record)]
+	var cached = record.get("__info")
+	if cached is Dictionary and key == cached["key"] and is_same(look, cached["look"]):
+		return cached["info"]
+	var info := {"name": key[0], "house": key[1], "level": key[2], "gear": record.get("gear", {}), "ga": key[4],
+		"look": look if look != null else HPRules.default_look()}
+	info["rev"] = ("%s|%s|%d|%d|%s|%s" % [info["name"], info["house"], info["level"], key[3],
 		str(info["ga"]), str(info["look"])]).hash()
+	record["__info"] = {"key": key, "look": look, "info": info}
 	return info
 
 # ------------------------------------------------------------- GA and weather

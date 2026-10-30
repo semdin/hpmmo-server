@@ -63,6 +63,14 @@ var _outward: Array[Vector3] = []
 var _riding := 0.0
 var _wind := 0.0
 var _time := 0.0
+## Another wizard's cloak is simulated only near the camera and on screen
+## (switching on inside SIM_NEAR, off past SIM_FAR, so it does not flicker at
+## one distance); otherwise it hangs in its rest drape. Nine spring chains
+## with a dozen colliders each cost ~0.25 ms a wizard (perf_probe, 8 bots:
+## 2.1 ms a frame); the own cloak is always simulated.
+const SIM_NEAR := 22.0
+const SIM_FAR := 28.0
+var _simulating := true
 
 
 ## Add the cloak's chain bones (with their rest poses) from the cloak model's
@@ -250,6 +258,8 @@ func _pos(bone: String) -> Vector3:
 func _process(delta: float) -> void:
 	if springs == null or not mesh.is_visible_in_tree():
 		return
+	if not _update_lod():
+		return
 	# later modifiers (wand grip, broom grip, cast layer) are added as the
 	# hero dresses: keep the springs last so they hang from the final pose
 	if springs.get_index() != skeleton.get_child_count() - 1:
@@ -282,6 +292,19 @@ func _process(delta: float) -> void:
 	springs.external_force = back * (on_foot * RUN_LIFT.x + _riding * (1.6 + 0.9 * _wind)) + Vector3.UP * (on_foot * RUN_LIFT.y + _riding * (0.6 - 0.9 * _wind))
 	_flutter(delta, back)
 
+
+func _update_lod() -> bool:
+	var simulate := true
+	var camera := get_viewport().get_camera_3d() if is_inside_tree() else null
+	if camera != null and not (rider != null and bool(rider.get("is_local_player"))):
+		var at := skeleton.global_position
+		var reach := SIM_FAR if _simulating else SIM_NEAR
+		simulate = camera.global_position.distance_squared_to(at) < reach * reach \
+			and camera.is_position_in_frustum(at + Vector3.UP)
+	if simulate != _simulating:
+		_simulating = simulate
+		springs.active = simulate
+	return simulate
 
 ## Swing each edge chain's root with its upper arm (see EDGE_FOLLOW). The
 ## arm's forward/back angle is read in the upper chest's frame (a leaning or

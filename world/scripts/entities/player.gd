@@ -395,6 +395,8 @@ func _ready() -> void:
 			player_name = nm.local_player_name
 			house = nm.local_player_house
 	
+	if NetworkManager.is_dedicated_server:
+		_strip_presentation()
 	# Decouple camera pivot from player rotation completely
 	if camera_pivot and spring_arm:
 		camera_pivot.top_level = true
@@ -407,7 +409,7 @@ func _ready() -> void:
 	_setup_sockets()
 	
 	_setup_character_model()
-	if visuals != null:
+	if visuals != null and not NetworkManager.is_dedicated_server:
 		HeroAppearance.apply_look(visuals, look)
 	if is_local_player and camera:
 		HeroAppearance.add_character_fill(camera)
@@ -444,11 +446,28 @@ func _ready() -> void:
 			camera.current = true
 		emit_stats()
 
+## The dedicated server simulates this body but never draws it. It used to
+## build and run all of its presentation anyway: the animation graph and four
+## skeleton modifiers posing the rig at the server's 120 frames a second, the
+## hero's look and house tint, the wand and cloak models, the name label and a
+## camera rig. None of it decides anything there - a cast leaves from the
+## body's position (authority `_release`), and the animation events only feed
+## sounds - so a server body keeps its physics, its `visuals` node (its facing)
+## and its sockets.
+func _strip_presentation() -> void:
+	for holder in [camera_pivot, nameplate]:
+		if holder != null and is_instance_valid(holder):
+			holder.free()
+	camera_pivot = null
+	spring_arm = null
+	camera = null
+	nameplate = null
+
 func _setup_character_model() -> void:
 	# Rig hero: the model, its animation graph and the broom rig. The
 	# graph is a child of Visuals so it dies with the body and never leaks.
 	var skeleton := _find_skeleton()
-	if anim_player and skeleton:
+	if anim_player and skeleton and not NetworkManager.is_dedicated_server:
 		hero_anim = HeroAnimationScript.new()
 		hero_anim.name = "HeroAnimation"
 		visuals.add_child(hero_anim)
@@ -504,7 +523,7 @@ func _setup_broom() -> void:
 	# the authored seat pose never matched the hands to the shaft. Added after the
 	# cast layer, so the grip wins the arms within the same modifier pass.
 	var skeleton := _find_skeleton()
-	if skeleton:
+	if skeleton and not NetworkManager.is_dedicated_server:
 		broom_grip = BroomGripModifierScript.new()
 		broom_grip.name = "BroomGripModifier"
 		skeleton.add_child(broom_grip)
@@ -520,7 +539,7 @@ func _setup_broom() -> void:
 ## Every broom GLB carries the same parts and sockets (BroomRoot > Broom_Shaft,
 ## Bristles, Grip/Mount/Seat/TailSocket), so only those nodes are replaced.
 func _apply_broom_model() -> void:
-	if broom == null or broom_mesh == null:
+	if broom == null or broom_mesh == null or NetworkManager.is_dedicated_server:
 		return
 	var path := HPEquipment.broom_model(String((equipment.get("broom", {}) as Dictionary).get("id", "")))
 	if path == _broom_model_path:
@@ -565,7 +584,8 @@ func _align_broom_to_hips() -> void:
 func _apply_house_customization() -> void:
 	if not GameData.HOUSES.has(house):
 		return
-	HeroAppearance.apply_house_tint(visuals, GameData.HOUSES[house].primary_color)
+	if not NetworkManager.is_dedicated_server:
+		HeroAppearance.apply_house_tint(visuals, GameData.HOUSES[house].primary_color)
 
 	if _character_restored:
 		return
@@ -782,7 +802,10 @@ func _process(delta: float) -> void:
 	_queue_time = maxf(0.0, _queue_time - delta)
 	_combat_until = maxf(0.0, _combat_until - delta)
 	_expire_buffs()
+	if sim_puppet and not is_local_player and not NetworkManager.is_dedicated_server:
+		_update_puppet_view(delta)
 	_update_flight_pose(delta)
+	_apply_visual_offset(delta)
 	if hero_anim:
 		hero_anim.tick(delta)
 		# Keep a wand cast tracking its target: the aim point is the mouse (or the
@@ -807,6 +830,94 @@ func _process(delta: float) -> void:
 			_basic_held = false
 	if is_instance_valid(current_target) and "current_hp" in current_target and current_target.current_hp <= 0:
 		set_target(null)
+
+## Another player's body on a client: drawn every rendered frame from the
+## time-based snapshot samples (a body moved only on the 60 Hz physics steps
+## stood still on some frames and jumped on others whenever the frame rate was
+## not exactly 60).
+func _update_puppet_view(delta: float) -> void:
+	var prev_pos := global_position
+	if sim_motion.has_samples():
+		var drawn := sim_motion.sample()
+		global_position = drawn.pos
+		if visuals:
+			visuals.rotation.y = float(drawn.rot)
+		if sim_motion.snapped:
+			sim_motion.snapped = false
+			prev_pos = global_position   # a teleport is not a sprint
+	else:
+		global_position = global_position.lerp(sim_target_pos, minf(1.0, 12.0 * delta))
+		if visuals:
+			visuals.rotation.y = lerp_angle(visuals.rotation.y, sim_target_rot, minf(1.0, 12.0 * delta))
+	# Remote riders follow the replicated phase, not a local guess, so
+	# every client shows the same animation phase for the same body.
+	if is_mounted and sim_mount_phase > 0:
+		if hero_anim:
+			hero_anim.set_locomotion("mount%d" % sim_mount_phase, clip_for_mount_phase(sim_mount_phase))
+	elif hero_anim:
+		if is_dead:
+			hero_anim.set_locomotion("dead", "Death_A")
+		elif pose_override == "":
+			var motion := (global_position - prev_pos) / maxf(delta, 0.001)
+			_update_ground_animation(motion, visuals.rotation.y)
+
+## The owner's body moves on physics steps (prediction and reconciliation are
+## per step), and the frames between two steps drew it - and the camera that
+## follows it - where the last step left it: a stutter at any frame rate that
+## is not the physics rate. The body stays where physics put it; its visuals
+## and the camera are drawn between the last two steps instead
+## (Engine.get_physics_interpolation_fraction), so they move every frame.
+## Offsets other code puts on the visuals (the Floo walk, the Portkey
+## arrival, the broom seat) go in `_visual_base`.
+const SMOOTH_SNAP_DISTANCE := 4.0
+var _visual_base := Vector3.ZERO
+var _step_from := Vector3.ZERO
+var _step_to := Vector3.ZERO
+var _smooth_ready := false
+var _camera_placed := false
+
+func _note_physics_step(before: Vector3) -> void:
+	_step_from = before
+	_step_to = global_position
+	# A teleport (respawn, fall rescue, transfer) is drawn where it lands.
+	if not _smooth_ready or _step_from.distance_to(_step_to) > SMOOTH_SNAP_DISTANCE:
+		_step_from = _step_to
+	_smooth_ready = true
+
+## Where the owner's body is drawn this frame.
+func drawn_position() -> Vector3:
+	if not _smooth_ready or not is_local_player:
+		return global_position
+	# Moved since the step (a reconciliation applied between steps): the nudge
+	# shows at once, on top of the in-between point; a jump is drawn where it
+	# lands.
+	var correction := global_position - _step_to
+	if correction.length() > SMOOTH_SNAP_DISTANCE:
+		return global_position
+	return _step_from.lerp(_step_to, Engine.get_physics_interpolation_fraction()) + correction
+
+func _apply_visual_offset(delta: float) -> void:
+	if visuals == null:
+		return
+	var smooth := Vector3.ZERO
+	if is_local_player and pose_override != "floo":
+		smooth = drawn_position() - global_position
+	visuals.position = _visual_base + smooth
+	if is_local_player:
+		# The name over the head rides with the drawn body (it is the body's
+		# child, not the visuals').
+		if nameplate:
+			nameplate.position = Vector3(smooth.x, NAMEPLATE_HEIGHT + 0.13 + smooth.y, smooth.z)
+		if _ga_emblem != null and _ga_emblem.visible:
+			_ga_emblem.position += smooth   # set afresh earlier this frame
+	if is_local_player and is_instance_valid(camera_pivot):
+		var target := drawn_position() + Vector3(0, CAMERA_HEIGHT, 0)
+		if not _camera_placed or camera_pivot.global_position.distance_to(target) > SMOOTH_SNAP_DISTANCE * 4.0:
+			camera_pivot.global_position = target
+			_camera_placed = true
+		else:
+			camera_pivot.global_position = camera_pivot.global_position.lerp(target, 1.0 - exp(-20.0 * delta))
+		camera_pivot.rotation_degrees.y = camera_rot_y
 
 ## Splash burst + expanding ripple ring at the waterline (entering or leaving the lake).
 func _spawn_water_splash() -> void:
@@ -870,6 +981,15 @@ func _flight_ceiling() -> float:
 
 
 func _physics_process(delta: float) -> void:
+	# Timed for the world server's status line (HPProf; off elsewhere).
+	var t := HPProf.start()
+	var before := global_position
+	_physics_step(delta)
+	if is_local_player:
+		_note_physics_step(before)
+	HPProf.stop("players", t)
+
+func _physics_step(delta: float) -> void:
 	# World Boundaries & Safeguards: the fall kill-plane sits below the grounds
 	# band (the lake bed is -16 m, the water line 0), so swimming never triggers a
 	# rescue; only a genuine void fall does.
@@ -890,44 +1010,20 @@ func _physics_process(delta: float) -> void:
 		_was_swimming = is_swimming
 		_spawn_water_splash()
 
-	# Update decoupled camera pivot position & rotation smoothly
+	# The camera pivot follows the drawn body every frame (_apply_visual_offset);
+	# the boom is resolved here against the world.
 	if is_local_player and is_instance_valid(camera_pivot):
-		camera_pivot.global_position = camera_pivot.global_position.lerp(global_position + Vector3(0, CAMERA_HEIGHT, 0), 1.0 - exp(-20.0 * delta))
-		camera_pivot.rotation_degrees.y = camera_rot_y
 		if spring_arm:
 			spring_arm.rotation_degrees.x = camera_rot_x
 			_update_boom(delta)
 
 	if not is_local_player:
 		# Another player's body. On a client it is a view that follows the
-		# replicated state; on the authority it is the REAL body, simulated here
-		# from the input that player sent, so it falls through to the movement
-		# code below like any other body.
+		# replicated state, drawn in `_process` (`_update_puppet_view`); on the
+		# authority it is the REAL body, simulated here from the input that
+		# player sent, so it falls through to the movement code below like any
+		# other body.
 		if sim_puppet:
-			var prev_pos := global_position
-			if sim_motion.has_samples():
-				var drawn := sim_motion.sample()
-				global_position = drawn.pos
-				if visuals:
-					visuals.rotation.y = float(drawn.rot)
-				if sim_motion.snapped:
-					sim_motion.snapped = false
-					prev_pos = global_position   # a teleport is not a sprint
-			else:
-				global_position = global_position.lerp(sim_target_pos, minf(1.0, 12.0 * delta))
-				if visuals:
-					visuals.rotation.y = lerp_angle(visuals.rotation.y, sim_target_rot, minf(1.0, 12.0 * delta))
-			# Remote riders follow the replicated phase, not a local guess, so
-			# every client shows the same animation phase for the same body.
-			if is_mounted and sim_mount_phase > 0:
-				if hero_anim:
-					hero_anim.set_locomotion("mount%d" % sim_mount_phase, clip_for_mount_phase(sim_mount_phase))
-			elif hero_anim:
-				if is_dead:
-					hero_anim.set_locomotion("dead", "Death_A")
-				elif pose_override == "":
-					var motion := (global_position - prev_pos) / maxf(delta, 0.001)
-					_update_ground_animation(motion, visuals.rotation.y)
 			return
 	
 	if is_dead:
@@ -1626,7 +1722,7 @@ func _update_flight_pose(delta: float) -> void:
 			_align_broom_to_hips()
 	# The rider sits on the saddle: lift the visuals by the seat height instead of
 	# the old 0.15 m placeholder, so the boots clear the ground while hovering.
-	visuals.position.y = _mount_blend * (0.34 + sin(_flight_time * 3.0) * 0.05) + _emerge_lift
+	_visual_base.y = _mount_blend * (0.34 + sin(_flight_time * 3.0) * 0.05) + _emerge_lift
 	var speed_ratio := Vector2(velocity.x, velocity.z).length() / mounted_speed
 	visuals.rotation.x = lerpf(visuals.rotation.x, -0.2 * speed_ratio * _mount_blend, minf(1, delta * 5))
 	var turn := 0.0 if not is_local_player or input_blocked() else Input.get_axis("move_right", "move_left")
@@ -1915,13 +2011,12 @@ func floo_walk(from_world: Vector3, to_world: Vector3, seconds: float, end_at_bo
 	if hero_anim != null:
 		hero_anim.cancel_oneshot()
 		hero_anim.set_ground_motion(Vector2(0.0, flat.length() / maxf(0.1, seconds)))
-	visuals.position.x = a.x
-	visuals.position.z = a.z
+	_visual_base.x = a.x
+	_visual_base.z = a.z
 	_floo_tween = create_tween()
 	_floo_tween.tween_method(func(t: float):
-		if is_instance_valid(visuals):
-			visuals.position.x = lerpf(a.x, b.x, t)
-			visuals.position.z = lerpf(a.z, b.z, t)
+		_visual_base.x = lerpf(a.x, b.x, t)
+		_visual_base.z = lerpf(a.z, b.z, t)
 	, 0.0, 1.0, seconds)
 	_floo_tween.tween_callback(func():
 		if hero_anim != null:
@@ -1934,9 +2029,8 @@ func floo_walk_reset() -> void:
 	if _floo_tween != null and _floo_tween.is_valid():
 		_floo_tween.kill()
 	_floo_tween = null
-	if visuals != null:
-		visuals.position.x = 0.0
-		visuals.position.z = 0.0
+	_visual_base.x = 0.0
+	_visual_base.z = 0.0
 	if pose_override == "floo":
 		pose_override = ""
 
@@ -1975,8 +2069,8 @@ func portkey_emerge(mouth_world: Vector3, seconds := 0.75) -> void:
 		hero_anim.cancel_oneshot()
 		hero_anim.set_locomotion("fall", "Fall_Loop")
 	visuals.scale = Vector3.ONE * 0.12
-	visuals.position.x = a.x
-	visuals.position.z = a.z
+	_visual_base.x = a.x
+	_visual_base.z = a.z
 	_emerge_lift = a.y
 	_floo_tween = create_tween()
 	_floo_tween.tween_method(func(t: float):
@@ -1984,8 +2078,8 @@ func portkey_emerge(mouth_world: Vector3, seconds := 0.75) -> void:
 			return
 		var grow := 1.0 - pow(1.0 - t, 3.0)
 		visuals.scale = Vector3.ONE * lerpf(0.12, 1.0, grow)
-		visuals.position.x = lerpf(a.x, 0.0, t)
-		visuals.position.z = lerpf(a.z, 0.0, t)
+		_visual_base.x = lerpf(a.x, 0.0, t)
+		_visual_base.z = lerpf(a.z, 0.0, t)
 		_emerge_lift = lerpf(a.y, 0.0, t) + sin(t * PI) * 1.3
 	, 0.0, 1.0, seconds)
 	_floo_tween.tween_callback(portkey_emerge_reset)
@@ -2807,7 +2901,7 @@ func upgrade_wand(_new_tier: int) -> void:
 ## wand, its tip marker and the refinement aura are all built inside that one
 ## call, so they cannot drift apart from the grip or from each other.
 func _apply_wand_aura() -> void:
-	if not is_instance_valid(visuals):
+	if not is_instance_valid(visuals) or NetworkManager.is_dedicated_server:
 		return
 	var key := str(equipment.get("main_hand",{}))
 	if key != _wand_visual_key:

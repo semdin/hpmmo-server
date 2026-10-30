@@ -58,25 +58,11 @@ func setup(source: Node3D, id: String, aim: Vector3, target: Node3D = null, bonu
 		spell_color = VFX.colours_for(id, source)[0]
 	# These wand bolts are entirely light layers. A second, full-size imported
 	# carrier obscured the streak and read as a flying solid block.
-	mesh.visible = false # The travel composition owns every spell's visible body.
-	# The placeholder sphere is replaced by the authored carrier core;
-	# the layered travel stage (ribbon + wisps) rides along with it.
-	var core_scene := load(VFX.asset_path("vfx_projectile_mesh")) as PackedScene
-	if core_scene != null:
-		var core_node := core_scene.instantiate()
-		var found := _find_mesh(core_node)
-		if found != null:
-			mesh.mesh = found.mesh
-		core_node.free()
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	mat.emission_enabled = true
-	mat.emission = spell_color
-	mat.emission_energy_multiplier = 2.0
-	mat.albedo_color = spell_color
-	mesh.material_override = mat
+	# The travel composition owns every spell's visible body: the carrier mesh
+	# stays hidden. It used to load the authored core scene, instance it and
+	# dress it in a new material on every cast (up to ~28 ms on the cast's
+	# frame, perf_probe 2026-10-30) for a mesh nobody sees.
+	mesh.visible = false
 	_base_scale = Vector3(0.7, 0.7, 1.0) if id == "basic_cast" else Vector3(1.1, 1.1, 1.0)
 	light.light_color = spell_color
 	# the basic flick is one small spark: it barely lights what it passes
@@ -280,13 +266,3 @@ func _end_travel(reason: String) -> void:
 		travel_effect.call("retire_travel")
 	else:
 		travel_effect.call("cancel", reason)
-
-
-func _find_mesh(node: Node) -> MeshInstance3D:
-	if node is MeshInstance3D and (node as MeshInstance3D).mesh != null:
-		return node as MeshInstance3D
-	for child in node.get_children():
-		var found := _find_mesh(child)
-		if found != null:
-			return found
-	return null

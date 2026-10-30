@@ -53,7 +53,9 @@ func _add_layer(layer: Dictionary) -> void:
 	material.shader = SHADER_ADD
 	# `texture` (a still, full path) or `atlas` (an 8x8 flipbook name).
 	var still := layer.has("texture")
-	material.set_shader_parameter("atlas", load(String(layer["texture"]) if still else ATLAS % String(layer.get("atlas", ""))))
+	# Kept loaded for the session (SpellEffect.asset): a 2048 sheet read from
+	# disk on the frame a status begins was a visible hitch.
+	material.set_shader_parameter("atlas", SpellEffect.asset(String(layer["texture"]) if still else ATLAS % String(layer.get("atlas", ""))))
 	material.set_shader_parameter("grid", Vector2.ONE if still else Vector2(8, 8))
 	material.set_shader_parameter("frame", 0.0)
 	material.set_shader_parameter("billboard", false)

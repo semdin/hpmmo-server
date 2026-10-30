@@ -322,22 +322,33 @@ static func _menu_icon(preferred: String, fallback: String) -> String:
 ## points (Character), unspent skill points (Skills), a new or finished quest
 ## (Quests).
 var _menu_pulse_t := 0.0
+var _menu_wants: Dictionary = {}
+var _menu_wants_wait := 0.0
+
 func _pulse_menu_buttons(delta: float) -> void:
 	_menu_pulse_t += delta
 	var quick := get_node_or_null("BottomBar/QuickBar")
 	if quick == null or not is_instance_valid(player):
 		return
-	var wants := {
-		"CharacterBtn": int(player.get("attribute_points")) > 0,
-		"SkillsBtn": int(player.get("skill_points")) > 0,
-		"JournalBtn": has_node("/root/QuestManager") and QuestManager.needs_attention(),
-	}
+	# What wants attention (a walk over the open quests) is asked four times a
+	# second; a button that does not pulse is restyled once, not every frame.
+	_menu_wants_wait -= delta
+	if _menu_wants_wait <= 0.0:
+		_menu_wants_wait = 0.25
+		_menu_wants = {
+			"CharacterBtn": int(player.get("attribute_points")) > 0,
+			"SkillsBtn": int(player.get("skill_points")) > 0,
+			"JournalBtn": has_node("/root/QuestManager") and QuestManager.needs_attention(),
+		}
 	var pulse := 0.5 + 0.5 * sin(_menu_pulse_t * 5.0)
-	for button_name in wants:
+	for button_name in _menu_wants:
 		var button := quick.get_node_or_null(String(button_name)) as Button
 		if button == null:
 			continue
-		var on: bool = wants[button_name]
+		var on: bool = _menu_wants[button_name]
+		if not on and not bool(button.get_meta("pulsing", true)):
+			continue
+		button.set_meta("pulsing", on)
 		button.self_modulate = Color(1.0, 1.0, 1.0).lerp(Color(1.6, 1.3, 0.55), pulse) if on else Color.WHITE
 		var sb := button.get_theme_stylebox("normal") as StyleBoxFlat
 		if sb != null:
@@ -609,11 +620,19 @@ func _on_target_changed(target: Node3D) -> void:
 	target_panel.show()
 	_update_target_frame()
 
+var _target_wait := 0.0
+var _target_drawn: Node = null
+
 func _process(delta: float) -> void:
 	_pulse_menu_buttons(delta)
-	# Update target frame continuous HP
+	# The target card (name, rank, level, health, status) is rebuilt 15 times
+	# a second: every frame it re-formatted and re-translated its text.
+	_target_wait -= delta
 	if is_instance_valid(current_target) and target_panel.visible:
-		_update_target_frame()
+		if _target_wait <= 0.0 or current_target != _target_drawn:
+			_target_wait = 1.0 / 15.0
+			_target_drawn = current_target
+			_update_target_frame()
 	elif not is_instance_valid(current_target) and target_panel.visible:
 		target_panel.hide()
 
@@ -903,6 +922,8 @@ static func world_event_text(kind: String, data: Dictionary) -> String:
 				I18n.t(String(data.get("difficulty", ""))), String(data.get("names", "")), HudDungeon._clock(float(data.get("seconds", 0.0)))]
 		"dungeon_legend":
 			return I18n.t("%s won Legendary gold in %s!") % [String(data.get("names", "")), I18n.t(String(data.get("dungeon", "")))]
+		"update_soon":
+			return I18n.t("An update is on its way: the realm restarts in about %d minutes.") % int(data.get("minutes", 3))
 	return ""
 
 func show_world_event(kind: String, data: Dictionary) -> String:

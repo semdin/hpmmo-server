@@ -215,6 +215,7 @@ func _apply_saved_settings() -> void:
 	var settings := GameSettings.instance()
 	settings.apply_ui_scale()
 	settings.apply_volumes()
+	settings.apply_fps_limit()
 
 func _apply_custom_cursor() -> void:
 	var cursor_path := "res://assets/ui/cursor.png"

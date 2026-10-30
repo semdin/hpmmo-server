@@ -283,6 +283,9 @@ const RANGED_ANTICIPATION := 0.55
 const RANGED_RECOVERY := 0.5
 
 func _ready() -> void:
+	# `_process` only draws a replica: the authority's thousands of creatures
+	# must not each get a frame callback that does nothing.
+	set_process(sim_puppet)
 	add_to_group("mobs")
 	add_to_group("targetable")
 	current_hp = max_hp
@@ -359,6 +362,17 @@ func _apply_boss_visual() -> void:
 				boss_node.free()
 			for mesh in visuals.find_children("*", "MeshInstance3D", true, false):
 				mesh.free()
+		# Its name label too (thousands of Label3D nodes nobody reads); the
+		# multipart bodies and webs toggle theirs, so they keep it.
+		if String(get_script().resource_path).ends_with("/mob_base.gd") and label != null:
+			label.free()
+			label = null
+	# The creature GLBs import a PhysicalBoneSimulator3D with no physical bones:
+	# a modifier that does nothing, but makes every skeleton (thousands on the
+	# server) run a modifier pass each frame.
+	for simulator in find_children("*", "PhysicalBoneSimulator3D", true, false):
+		if simulator.get_child_count() == 0:
+			simulator.free()
 	if anim_player:
 		# Imported monster animations use different names from the wizard rig.
 		for animation in anim_player.get_animation_list():
@@ -558,6 +572,26 @@ func _tick_visual_lod(delta: float) -> void:
 		anim_player.active = not dormant
 
 func _physics_process(delta: float) -> void:
+	# Timed for the world server's status line (HPProf; off elsewhere).
+	var t := HPProf.start()
+	_physics_step(delta)
+	HPProf.stop("mobs", t)
+
+## Client view of a server-owned mob: no AI, no damage, no physics authority -
+## only interpolation towards the last replicated sample, presentation from
+## the replicated state byte, and the boss warning drawn from the server's
+## start/release ticks. Drawn every rendered frame, not on physics steps: the
+## sample is taken by time, and a body moved only on the 60 Hz steps stood
+## still on some frames and jumped on others whenever the frame rate was not
+## exactly 60 (perf_probe judder 1.0 at ~110 fps).
+func _process(delta: float) -> void:
+	if not sim_puppet:
+		return
+	_update_puppet(delta)
+	if state == State.DEAD:
+		_tick_corpse(delta)
+
+func _physics_step(delta: float) -> void:
 	if not NetworkManager.is_dedicated_server:
 		_tick_visual_lod(delta)
 		# Crowd control and damage over time drawn on the body (stars, ice,
@@ -566,14 +600,8 @@ func _physics_process(delta: float) -> void:
 		if _status_poll <= 0.0 and not _visual_dormant:
 			_status_poll = 0.1
 			StatusFX.update(self, SimAuthority.status_of(self))
-	# Client view of a server-owned mob: no AI, no damage, no physics authority -
-	# only interpolation towards the last replicated sample, presentation from
-	# the replicated state byte, and the boss warning drawn from the server's
-	# start/release ticks.
+	# Client view of a server-owned mob: drawn in `_process` (see there).
 	if sim_puppet:
-		_update_puppet(delta)
-		if state == State.DEAD:
-			_tick_corpse(delta)
 		return
 	# spell-effect hook: an AUTHORITY body inside a client process (offline and
 	# listen-host play) draws the boss warning from the same replicated ticks a
@@ -1736,6 +1764,9 @@ func pack_mates() -> Array:
 
 ## A client's view of a server-owned mob: position/rotation interpolation plus
 ## presentation chosen from the replicated state byte. No damage, no AI.
+const PUPPET_STATE_PERIOD := 0.05
+var _puppet_state_wait := 0.0
+
 func _update_puppet(delta: float) -> void:
 	var before := global_position
 	if sim_motion.has_samples():
@@ -1752,6 +1783,13 @@ func _update_puppet(delta: float) -> void:
 	# along (capped, so a respawn jump is not a sprint).
 	var glide := Vector2(global_position.x - before.x, global_position.z - before.z).length() / maxf(delta, 0.001)
 	_track_drawn_speed(minf(glide, maxf(move_speed, 1.0) * 1.5), delta)
+	# The replicated state, name and animation choice change at snapshot rate:
+	# they are read 20 times a second (every frame while a warning is drawn),
+	# not on every rendered frame of every creature in view.
+	_puppet_state_wait -= delta
+	if _puppet_state_wait > 0.0 and not is_instance_valid(_warning):
+		return
+	_puppet_state_wait = PUPPET_STATE_PERIOD
 	var record := SimAuthority.record_for(self)
 	if record.is_empty():
 		return

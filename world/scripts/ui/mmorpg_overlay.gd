@@ -466,7 +466,20 @@ func _process(delta: float) -> void:
 	if not is_instance_valid(_player):
 		return
 	_follow_minimap(delta)
-	_update_minimap()
+	# The dots and the place name were rebuilt every frame (a pass over every
+	# creature with string keys; the place from the layout's polygons): the
+	# dots now move with the map picture (MAP_HZ), the name is looked up four
+	# times a second.
+	_dots_wait -= delta
+	if _dots_wait <= 0.0:
+		_dots_wait = 1.0 / MAP_HZ
+		_update_minimap()
+	else:
+		_update_marker()
+	_zone_wait -= delta
+	if _zone_wait <= 0.0:
+		_zone_wait = 0.25
+		_zone_key = _zone_lookup()
 	_update_zone()
 	_update_boss()
 	_update_vignette()
@@ -644,6 +657,20 @@ func _dot(key: String, icon_id: String, size: float) -> Control:
 	d.size = Vector2(size, size)
 	return d
 
+var _dots_wait := 0.0
+var _zone_wait := 0.0
+var _zone_key: Array = []
+
+func _update_marker() -> void:
+	if _map == null or _marker == null:
+		return
+	var visuals: Node3D = _player.get("visuals")
+	var yaw := visuals.rotation.y if visuals != null else 0.0
+	_marker.facing = Vector2(sin(yaw), cos(yaw))
+	var cam_yaw := deg_to_rad(float(_player.get("camera_rot_y")))
+	_marker.camera_dir = Vector2(-sin(cam_yaw), -cos(cam_yaw))
+	_marker.queue_redraw()
+
 func _update_minimap() -> void:
 	if _map == null:
 		return
@@ -785,9 +812,15 @@ static func band_color(player_level: int, band_min: int, band_max: int) -> Color
 		return Color(1.0, 0.82, 0.35)
 	return Color(1.0, 0.4, 0.33)
 
+## [place name, hunting region] where the player stands.
+func _zone_lookup() -> Array:
+	return [location_for_banner(), hunting_region()]
+
 func _update_zone() -> void:
-	var z := location_for_banner()
-	var hunt := hunting_region()
+	if _zone_key.is_empty():
+		_zone_key = _zone_lookup()
+	var z: String = _zone_key[0]
+	var hunt: Dictionary = _zone_key[1]
 	var title := I18n.t(String(hunt.get("display", z)) if not hunt.is_empty() else z)
 	var key := title + "|" + String(hunt.get("id", ""))
 	if key != _last_zone:

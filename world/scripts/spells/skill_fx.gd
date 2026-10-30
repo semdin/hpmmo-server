@@ -125,6 +125,13 @@ static func warm_spell(spell_id: String) -> void:
 	if DisplayServer.get_name() == "headless" or _warmed.has(spell_id):
 		return
 	_warmed[spell_id] = true
+	# Its stage sounds too: the first cast of a spell read each one from disk
+	# on the frame it played.
+	var audio := audio_manager()
+	for stage in VFX.stages_for(spell_id):
+		var key := String((VFX.stages_for(spell_id).get(stage, {}) as Dictionary).get("audio", ""))
+		if key != "" and audio != null and audio.has_method("warm_sound"):
+			audio.call("warm_sound", key)
 	for stage in ["travel", "impact", "end"]:
 		for raw in (VFX.stages_for(spell_id).get(stage, {}) as Dictionary).get("layers", []):
 			if not raw is Dictionary:

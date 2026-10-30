@@ -1064,6 +1064,10 @@ msgid "%s won Legendary gold in %s!"
 msgstr "%s, %s zindanında Efsanevi altın madalya kazandı!"
 
 #: scripts/ui/hud.gd
+msgid "An update is on its way: the realm restarts in about %d minutes."
+msgstr "Güncelleme geliyor: diyar yaklaşık %d dakika içinde yeniden başlayacak."
+
+#: scripts/ui/hud.gd
 msgid "[World] "
 msgstr "[Dünya] "
 
@@ -3738,6 +3742,18 @@ msgstr "Grafik kalitesi"
 #: scripts/ui/settings_ui.gd
 msgid "Auto picks Low on integrated graphics and High on a dedicated GPU"
 msgstr "Otomatik: dahili grafikte Düşük, harici ekran kartında Yüksek seçer"
+
+#: scripts/ui/settings_ui.gd
+msgid "Frame rate limit"
+msgstr "Kare hızı sınırı"
+
+#: scripts/ui/settings_ui.gd
+msgid "%d FPS"
+msgstr "%d FPS"
+
+#: scripts/ui/settings_ui.gd
+msgid "60 is smooth; 30 keeps a laptop cooler and quieter"
+msgstr "60 akıcıdır; 30 dizüstü bilgisayarı daha serin ve sessiz tutar"
 
 #: scripts/ui/settings_ui.gd
 msgid "Time of day"

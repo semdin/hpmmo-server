@@ -130,7 +130,10 @@ class_name HPProtocol
 ##     weekly curse's ground hazard; `sim_dungeon_guide(dungeon, difficulty)`
 ##     asks for the dungeon guide (records and the week's board, answered as a
 ##     `guide` dungeon event).
-const PROTOCOL_VERSION := 30
+## v31: `sim_client_perf(report)` - every 30 s a client tells the server how
+##     its frames and connection held up (fps, frame p99, hitches, ping, loss);
+##     the server only logs it, next to the peer's own ENet round trip.
+const PROTOCOL_VERSION := 31
 
 ## Death choice (v18 `sim_respawn_request`).
 const RESPAWN_TOWN := 0

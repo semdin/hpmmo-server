@@ -393,6 +393,8 @@ func _handle(request: Dictionary) -> Dictionary:
 		return _handle_disconnect_all()
 	if route == "POST /admin/ga":
 		return _handle_ga(body)
+	if route == "POST /admin/announce":
+		return _handle_announce(body)
 	if route == "GET /admin/state" or route == "GET /admin/status":
 		return {"status": 200, "body": _status_payload()}
 	return {"status": 404, "body": {"ok": false, "error": "not_found"}}
@@ -409,6 +411,19 @@ func _handle_ga(body: Dictionary) -> Dictionary:
 		return {"status": 400, "body": {"ok": false, "error": "name required"}}
 	var changed: bool = SimAuthority.set_ga(name, bool(body.get("on", true)))
 	return {"status": 200, "body": {"ok": true, "changed": changed, "ga": SimAuthority.ga_names()}}
+
+## A heads-up with no state change: `{"kind": "update_soon", "minutes": N}`
+## tells every player a restart is coming (the release pipeline sends it when
+## a build starts, minutes before the maintenance countdown). Only known kinds
+## are relayed, as a world event the HUD words in the player's language.
+func _handle_announce(body: Dictionary) -> Dictionary:
+	if String(body.get("kind", "")) != "update_soon":
+		return {"status": 400, "body": {"ok": false, "error": "unknown kind"}}
+	if state != State.ONLINE:
+		return {"status": 409, "body": {"ok": false, "error": "not_online", "state": state_name()}}
+	var minutes := clampi(int(body.get("minutes", 3)), 1, 60)
+	SimAuthority.announce_world_event("update_soon", {"minutes": minutes})
+	return {"status": 200, "body": {"ok": true, "minutes": minutes}}
 
 func _handle_begin(body: Dictionary) -> Dictionary:
 	if state != State.ONLINE:

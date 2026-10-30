@@ -326,6 +326,11 @@ func sound_count() -> int:
 	return library.size()
 
 
+## Load `key`'s stream now (it stays cached), so its first play does not read
+## the file on that frame.
+func warm_sound(key: String) -> void:
+	_stream(key)
+
 func _stream(key: String) -> AudioStream:
 	var entry: Dictionary = library.get(key, {})
 	if entry.is_empty():

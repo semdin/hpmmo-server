@@ -16,7 +16,10 @@ class_name GameSettings
 ##   * key rebinding for the gameplay actions, applied to the live InputMap and
 ##     persisted;
 ##   * the graphics quality ("auto" or a QualityPreset name), read by
-##     quality_preset.gd.
+##     quality_preset.gd;
+##   * the frame rate limit (Engine.max_fps; 60 by default - an MMO gains
+##     nothing above it, and an uncapped integrated GPU only runs hotter and
+##     paces its frames worse).
 ##
 ## Persistence is a ConfigFile per account: in an exported build it lives in
 ## the game's own install folder (`<install>/userdata/accounts/<account>/
@@ -53,6 +56,8 @@ const INTENSITY_MAX := 1.5
 const BUSES := ["Music", "SFX", "UI", "Ambience"]
 const GRAPHICS_CHOICES := ["auto", "low", "medium", "high"]
 const GRAPHICS_DEFAULT := "auto"
+const FPS_CHOICES := [30, 60]
+const FPS_DEFAULT := 60
 ## Time of day on the grounds (DayNight): the server clock in GMT+3, or held at
 ## one of the five prayer times (sabah, öğle, ikindi, akşam, yatsı).
 const TIME_OF_DAY_CHOICES := ["system", "dawn", "noon", "afternoon", "sunset", "night"]
@@ -102,6 +107,7 @@ var mouse_sensitivity: float = SENSITIVITY_DEFAULT
 var shake_intensity: float = SHAKE_DEFAULT
 var flash_intensity: float = FLASH_DEFAULT
 var graphics_quality: String = GRAPHICS_DEFAULT
+var fps_limit: int = FPS_DEFAULT
 var time_of_day: String = TIME_OF_DAY_DEFAULT
 var bindings: Dictionary = {}
 var load_error: String = ""
@@ -173,6 +179,7 @@ static func use_account(account: String) -> void:
 		settings.save_to_disk()
 	settings.apply_ui_scale()
 	settings.apply_volumes()
+	settings.apply_fps_limit()
 
 static func settings_global_path() -> String:
 	return ProjectSettings.globalize_path(settings_path())
@@ -185,6 +192,7 @@ func load_from_disk() -> void:
 	shake_intensity = SHAKE_DEFAULT
 	flash_intensity = FLASH_DEFAULT
 	graphics_quality = GRAPHICS_DEFAULT
+	fps_limit = FPS_DEFAULT
 	time_of_day = TIME_OF_DAY_DEFAULT
 	bindings.clear()
 	load_error = ""
@@ -210,6 +218,8 @@ func load_from_disk() -> void:
 	flash_intensity = clampf(float(config.get_value(SECTION_GENERAL, "flash", FLASH_DEFAULT)), INTENSITY_MIN, INTENSITY_MAX)
 	var quality := String(config.get_value(SECTION_GENERAL, "graphics_quality", GRAPHICS_DEFAULT))
 	graphics_quality = quality if GRAPHICS_CHOICES.has(quality) else GRAPHICS_DEFAULT
+	var fps := int(config.get_value(SECTION_GENERAL, "fps_limit", FPS_DEFAULT))
+	fps_limit = fps if FPS_CHOICES.has(fps) else FPS_DEFAULT
 	var tod := String(config.get_value(SECTION_GENERAL, "time_of_day", TIME_OF_DAY_DEFAULT))
 	tod = String(TIME_OF_DAY_ALIASES.get(tod, tod))
 	time_of_day = tod if TIME_OF_DAY_CHOICES.has(tod) else TIME_OF_DAY_DEFAULT
@@ -234,6 +244,7 @@ func save_to_disk() -> void:
 	config.set_value(SECTION_GENERAL, "shake", shake_intensity)
 	config.set_value(SECTION_GENERAL, "flash", flash_intensity)
 	config.set_value(SECTION_GENERAL, "graphics_quality", graphics_quality)
+	config.set_value(SECTION_GENERAL, "fps_limit", fps_limit)
 	config.set_value(SECTION_GENERAL, "time_of_day", time_of_day)
 	for action in bindings:
 		config.set_value(SECTION_BINDINGS, action, int(bindings[action]))
@@ -269,6 +280,18 @@ func set_flash_intensity(value: float) -> void:
 func set_graphics_quality(choice: String) -> void:
 	graphics_quality = choice if GRAPHICS_CHOICES.has(choice) else GRAPHICS_DEFAULT
 	save_to_disk()
+
+func set_fps_limit(fps: int) -> void:
+	fps_limit = fps if FPS_CHOICES.has(fps) else FPS_DEFAULT
+	apply_fps_limit()
+	save_to_disk()
+
+## Game windows only: the dedicated server and headless tools keep their own
+## frame rate (the world server runs at 120 to service ENet promptly).
+func apply_fps_limit() -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	Engine.max_fps = fps_limit
 
 ## "system" (server time, GMT+3) or a held prayer time; DayNight eases to it.
 func set_time_of_day(choice: String) -> void:
@@ -386,6 +409,7 @@ func describe() -> Dictionary:
 		"shake": shake_intensity,
 		"flash": flash_intensity,
 		"graphics_quality": graphics_quality,
+		"fps_limit": fps_limit,
 		"bindings": bindings.duplicate(),
 		"volumes": volumes,
 		"load_error": load_error,

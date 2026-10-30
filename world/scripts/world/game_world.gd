@@ -79,6 +79,8 @@ func _ready() -> void:
 		add_child(TargetRing.new())
 		# Day and night on the grounds, the creature fill light everywhere.
 		DayNight.create(self)
+		# Frame and connection health, logged here and on the server (v31).
+		PerfReporter.create(self)
 	else:
 		print("[Dedicated Server] Headless world active (no local player/UI).")
 		var cl = get_node_or_null("CanvasLayer")
@@ -157,34 +159,65 @@ func _process(delta: float) -> void:
 	if _camera_sweep <= 0.0:
 		_camera_sweep = 1.0
 		QualityPresetScript.apply_camera(get_viewport().get_camera_3d())
-	var candles := get_node_or_null("FloatingCandles")
-	if candles:
-		for c in candles.get_children():
-			if c is MeshInstance3D and c.has_meta("base_y"):
-				c.position.y = float(c.get_meta("base_y")) + sin(_candle_t * 1.5 + float(c.get_meta("phase"))) * 0.35
 	_offline_save_timer -= delta
 	if _offline_save_timer <= 0:
 		_offline_save_timer = 15.0
 		_save_offline_state()
-	for candle in get_tree().get_nodes_in_group("floating_candles"):
-		if candle.has_meta("base_y"):
+	# The animated dressing is gathered once a second (maps load and unload
+	# it) instead of searching the tree for three groups every frame.
+	_dressing_sweep -= delta
+	if _dressing_sweep <= 0.0:
+		_dressing_sweep = 1.0
+		_gather_dressing()
+	for c in _hall_candles:
+		if is_instance_valid(c):
+			c.position.y = float(c.get_meta("base_y")) + sin(_candle_t * 1.5 + float(c.get_meta("phase"))) * 0.35
+	for candle in _group_candles:
+		if is_instance_valid(candle):
 			candle.position.y = float(candle.get_meta("base_y")) + sin(_candle_t * 1.2 + float(candle.get_meta("phase"))) * 0.15
 	# Torch flicker + banner wave + lake shimmer (cheap life).
 	# Each lamp breathes around its own authored energy on its own phase: the
 	# old shared 9 Hz sine (one energy for every lamp) pulsed the whole valley
 	# in step.
+	for omni in _torches:
+		if not is_instance_valid(omni):
+			continue
+		var ph := float(omni.get_meta("flicker_phase"))
+		var wobble := sin(_candle_t * 7.3 + ph) * 0.6 + sin(_candle_t * 12.7 + ph * 1.7) * 0.4
+		omni.light_energy = float(omni.get_meta("base_energy")) * (0.93 + 0.07 * wobble)
+	for b in _banners:
+		if is_instance_valid(b):
+			b.rotation.y = sin(_candle_t * 1.6) * 0.12
+
+var _dressing_sweep := 0.0
+var _hall_candles: Array[Node3D] = []
+var _group_candles: Array[Node3D] = []
+var _torches: Array[OmniLight3D] = []
+var _banners: Array[Node3D] = []
+
+func _gather_dressing() -> void:
+	_hall_candles.clear()
+	var candles := get_node_or_null("FloatingCandles")
+	if candles:
+		for c in candles.get_children():
+			if c is MeshInstance3D and c.has_meta("base_y"):
+				_hall_candles.append(c)
+	_group_candles.clear()
+	for candle in get_tree().get_nodes_in_group("floating_candles"):
+		if candle is Node3D and candle.has_meta("base_y"):
+			_group_candles.append(candle)
+	_torches.clear()
 	for l in get_tree().get_nodes_in_group("torch_lights"):
 		if l is OmniLight3D:
 			var omni := l as OmniLight3D
 			if not omni.has_meta("base_energy"):
 				omni.set_meta("base_energy", omni.light_energy)
 				omni.set_meta("flicker_phase", randf() * TAU)
-			var ph := float(omni.get_meta("flicker_phase"))
-			var wobble := sin(_candle_t * 7.3 + ph) * 0.6 + sin(_candle_t * 12.7 + ph * 1.7) * 0.4
-			omni.light_energy = float(omni.get_meta("base_energy")) * (0.93 + 0.07 * wobble)
+			_torches.append(omni)
+	_banners.clear()
 	for b in get_tree().get_nodes_in_group("castle_banners"):
 		if b is MeshInstance3D:
-			(b as MeshInstance3D).rotation.y = sin(_candle_t * 1.6) * 0.12
+			_banners.append(b)
 
 var _offline_save_timer: float = 15.0
 
@@ -553,6 +586,10 @@ func _setup_replication() -> void:
 ## visible hitch. Players are never queued. Creature scenes are requested on a
 ## background thread at startup so the first of a kind does not load from disk.
 const VIEWS_PER_FRAME := 3
+## ... and within a time budget: three heavy creature bodies could still cost
+## a frame ~10 ms. At least one view is made every frame, then more only while
+## the frame's view work stays under this.
+const VIEW_BUDGET_USEC := 4000
 var _view_queue: Array = []        # uids, oldest first
 var _queued: Dictionary = {}       # uid -> true
 ## Creature scenes and spell effects, loaded ahead of first sight - on the main
@@ -625,7 +662,9 @@ func _on_entity_replicating(record: Dictionary) -> void:
 
 func _drain_view_queue() -> void:
 	var made := 0
-	while made < VIEWS_PER_FRAME and not _view_queue.is_empty():
+	var started := Time.get_ticks_usec()
+	while made < VIEWS_PER_FRAME and not _view_queue.is_empty() \
+			and (made == 0 or Time.get_ticks_usec() - started < VIEW_BUDGET_USEC):
 		var uid := int(_view_queue.pop_front())
 		_queued.erase(uid)
 		var record: Dictionary = SimAuthority.entities.get(uid, {})

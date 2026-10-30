@@ -137,6 +137,23 @@ func _build() -> void:
 	_graphics.item_selected.connect(_on_graphics_selected)
 	row.add_child(_graphics)
 	g.add_child(row)
+	var fps_row := _row(tr("Frame rate limit"))
+	var fps := OptionButton.new()
+	fps.name = "FpsLimit"
+	fps.focus_mode = Control.FOCUS_NONE
+	fps.custom_minimum_size = Vector2(280, 32)
+	fps.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	HudKit.style_button(fps, 14)
+	for choice in GameSettings.FPS_CHOICES:
+		fps.add_item(tr("%d FPS") % int(choice))
+		if int(choice) == GameSettings.instance().fps_limit:
+			fps.select(fps.item_count - 1)
+	fps.tooltip_text = tr("60 is smooth; 30 keeps a laptop cooler and quieter")
+	fps.item_selected.connect(func(index: int):
+		GameSettings.instance().set_fps_limit(int(GameSettings.FPS_CHOICES[index]))
+		settings_written += 1)
+	fps_row.add_child(fps)
+	g.add_child(fps_row)
 	var tod_row := _row(tr("Time of day"))
 	var tod := OptionButton.new()
 	tod.name = "TimeOfDay"
