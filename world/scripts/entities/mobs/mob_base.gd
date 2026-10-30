@@ -113,6 +113,8 @@ var _return_heal := 0.0
 @export var immune := false
 @export var front_guard := 0.0
 var no_rewards := false
+## A dungeon run's difficulty on every telegraphed windup (shorter is harder).
+var telegraph_scale := 1.0
 var _attack_count := 0
 var _ability_ready_tick: Dictionary = {}
 var _boulder_tick := -1
@@ -760,7 +762,7 @@ func _begin_attack(plan: Dictionary) -> void:
 	# creature's paw lands in front of it and its tail sweeps behind it.
 	if plan.has("offset") and not bool(plan.get("at_target", false)):
 		_attack_center = global_position + _attack_dir * float(plan["offset"])
-	_windup = float(plan.get("anticipation", MELEE_ANTICIPATION))
+	_windup = float(plan.get("anticipation", MELEE_ANTICIPATION)) * telegraph_scale
 	_recovery = float(plan.get("recovery", MELEE_RECOVERY))
 	attack_phase = AttackPhase.ANTICIPATION
 	_play_attack_clip(plan, "anticipation")

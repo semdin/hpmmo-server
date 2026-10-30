@@ -296,8 +296,14 @@ def test_agreement(out_dir, profile):
                 for r in f.get("rewards", []) if str(r.get("op_id", "")).startswith("kill:")}
     kills_a, kills_b = kill_ticks(fa), kill_ticks(fb)
     cutoff = min(int(fa.get("final_tick", 0)), int(fb.get("final_tick", 0))) - KILL_CREDIT_TRAVEL_TICKS
-    early_a = {k for k, t in kills_a.items() if t <= cutoff}
-    early_b = {k for k, t in kills_b.items() if t <= cutoff}
+    # Only the mobs BOTH clients fought: a bolt that strays into a pack mate
+    # crossing in front of the shared target kills it for that client alone,
+    # and the other was rightly never credited.
+    def targets(records):
+        return {str(r.get("uid")) for r in records if r.get("event") == "target_acquired"}
+    shared = targets(alpha) & targets(beta)
+    early_a = {k for k, t in kills_a.items() if t <= cutoff and k.split(":")[0] in shared}
+    early_b = {k for k, t in kills_b.items() if t <= cutoff and k.split(":")[0] in shared}
     check(early_a and early_a <= set(kills_b) and early_b <= set(kills_a),
           "[%s] both clients were credited for the same %d kill(s) (%d / %d in all, %s only one)"
           % (profile, len(early_a | early_b), len(kills_a), len(kills_b),

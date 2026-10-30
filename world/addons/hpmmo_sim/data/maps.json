@@ -174,6 +174,40 @@
           -196.0,
           1550.6,
           -196.0
+        ],
+        "lair_return": [
+          181.0,
+          1522.6,
+          206.0
+        ]
+      }
+    },
+    "dng_spider_lair": {
+      "display": "The Queen's Lair",
+      "available": true,
+      "flight_allowed": false,
+      "capacity": 5,
+      "instanced": true,
+      "instance_cap": 8,
+      "instance_stride": 3000.0,
+      "instance_empty_ttl_s": 300.0,
+      "scene": "res://scenes/world/dungeons/dng_spider_lair.tscn",
+      "atmosphere": "cavern",
+      "y_min": 1690.0,
+      "y_max": 1800.0,
+      "safe_zones": [],
+      "entity_set": "",
+      "respawn_spawn": "entry",
+      "spawn_points": {
+        "default": [
+          0.0,
+          1700.5,
+          5.0
+        ],
+        "entry": [
+          0.0,
+          1700.5,
+          5.0
         ]
       }
     }
@@ -342,6 +376,58 @@
         "radius": 3.2,
         "y_min": 1545.0,
         "y_max": 1560.0
+      }
+    },
+    {
+      "id": "lair_entry",
+      "map_id": "spider_caverns",
+      "to_map": "dng_spider_lair",
+      "to_spawn": "entry",
+      "label": "the Queen's Lair",
+      "dressing": "web_gate",
+      "trigger": {
+        "center": [
+          188.0,
+          1522.5,
+          213.0
+        ],
+        "radius": 2.6,
+        "y_min": 1515.0,
+        "y_max": 1535.0
+      }
+    },
+    {
+      "id": "lair_exit",
+      "map_id": "dng_spider_lair",
+      "to_map": "spider_caverns",
+      "to_spawn": "lair_return",
+      "label": "Blackweb Caverns",
+      "trigger": {
+        "center": [
+          0.0,
+          1700.5,
+          8.5
+        ],
+        "radius": 2.5,
+        "y_min": 1695.0,
+        "y_max": 1708.0
+      }
+    },
+    {
+      "id": "lair_reward_exit",
+      "map_id": "dng_spider_lair",
+      "to_map": "spider_caverns",
+      "to_spawn": "lair_return",
+      "label": "Blackweb Caverns",
+      "trigger": {
+        "center": [
+          0.0,
+          1700.5,
+          -224.0
+        ],
+        "radius": 2.5,
+        "y_min": 1695.0,
+        "y_max": 1708.0
       }
     }
   ],

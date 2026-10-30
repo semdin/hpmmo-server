@@ -303,6 +303,20 @@ func queue_reward(op_id: String, character_id: int, exp: int, galleons: int, ite
 		if int(response.get("_status", 0)) not in [200]:
 			last_error = "reward_%d" % int(response.get("_status", 0)))
 
+## A full clear for the weekly leaderboard (`/api/dungeon/run`); `on_rank`
+## gets the run's place this week (0 when the service could not say).
+func record_dungeon_run(run: Dictionary, on_rank: Callable) -> void:
+	_post_async("/api/dungeon/run", run, func(response: Dictionary):
+		if int(response.get("_status", 0)) != 200:
+			last_error = "dungeon_run_%d" % int(response.get("_status", 0))
+		on_rank.call(int(response.get("rank", 0))))
+
+## This week's fastest runs of a dungeon on a difficulty (`/api/dungeon/board`).
+func dungeon_board(dungeon: String, difficulty: String, week: int, on_runs: Callable) -> void:
+	_post_async("/api/dungeon/board", {"dungeon": dungeon, "difficulty": difficulty, "week": week, "limit": 10},
+		func(response: Dictionary):
+			on_runs.call(response.get("runs", []) if int(response.get("_status", 0)) == 200 else null))
+
 func autosave_all(entities: Dictionary, players_by_peer: Dictionary) -> void:
 	var spread := float(AUTOSAVE_SPREAD_MS) / float(maxi(1, players_by_peer.size()))
 	var index := 0

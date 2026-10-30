@@ -603,6 +603,48 @@
         "patronus": 0.5
       },
       "loot_table": "goblin_teller"
+    },
+    "egg_sac": {
+      "display": "Egg Sac",
+      "family": "spider",
+      "role": "object",
+      "scene": "res://scenes/entities/mobs/mob_egg_sac.tscn",
+      "base": {
+        "max_hp": 500,
+        "attack_power": 0,
+        "move_speed": 0.0,
+        "attack_range": 0.0,
+        "attack_cooldown": 9.0
+      },
+      "exp_mult": 0.0,
+      "resist": {
+        "stun": 1.0,
+        "fire": -1.0,
+        "force": 0.3
+      },
+      "loot_table": "",
+      "displace_resist": 1.0
+    },
+    "web_cocoon": {
+      "display": "Web Cocoon",
+      "family": "spider",
+      "role": "object",
+      "scene": "res://scenes/entities/mobs/mob_web_cocoon.tscn",
+      "base": {
+        "max_hp": 400,
+        "attack_power": 0,
+        "move_speed": 0.0,
+        "attack_range": 0.0,
+        "attack_cooldown": 9.0
+      },
+      "exp_mult": 0.0,
+      "resist": {
+        "stun": 1.0,
+        "fire": -1.0,
+        "force": 0.3
+      },
+      "loot_table": "",
+      "displace_resist": 1.0
     }
   },
   "_elite_note": "Any ordinary (non-boss) pack member may roll elite on each spawn. An elite is a stronger copy of the same species with its own label colour, more experience and an extra guaranteed loot roll.",

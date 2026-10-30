@@ -22,6 +22,9 @@ const HARP_COOLDOWN := 45.0
 const SLEEP_DAMAGE_MULT := 1.5
 
 var harp_point := Vector3.INF
+## A dungeon run's difficulty on the harp (dungeons.json `harp_scale`): the
+## channel and the cooldown last this much longer, the sleep this much shorter.
+var harp_scale := 1.0
 var phase := 1
 var _harp_uid := 0
 var _harp_progress := 0.0
@@ -128,11 +131,11 @@ func _tick_harp(delta: float) -> void:
 		dungeon_message.emit("The music breaks off!")  # i18n
 		return
 	_harp_progress += delta
-	if _harp_progress >= HARP_CHANNEL:
+	if _harp_progress >= HARP_CHANNEL * harp_scale:
 		_harp_uid = 0
 		_harp_progress = 0.0
-		_harp_ready_at = now + HARP_COOLDOWN
-		lull(HARP_SLEEP_LATE if phase >= 3 else HARP_SLEEP)
+		_harp_ready_at = now + HARP_COOLDOWN * harp_scale
+		lull((HARP_SLEEP_LATE if phase >= 3 else HARP_SLEEP) / harp_scale)
 
 ## The living player standing at the harp (on this copy), or {}.
 func _harp_player() -> Dictionary:
@@ -160,4 +163,4 @@ func lull(seconds: float) -> void:
 	dungeon_message.emit("The music lulls Fluffy to sleep! Its heads take more damage.")  # i18n
 
 func harp_progress() -> float:
-	return _harp_progress / HARP_CHANNEL
+	return _harp_progress / (HARP_CHANNEL * harp_scale)

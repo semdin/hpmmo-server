@@ -119,7 +119,18 @@ class_name HPProtocol
 ##     aimed at (0 for the ground or the air). The authority checks it and homes
 ##     the bolt on it, so a moving creature seen a ping late is still met. The
 ##     basic chain advances only on casts aimed at a body and breaks on a miss.
-const PROTOCOL_VERSION := 29
+## v30: dungeon gates - a dungeon is started at its gate, not walked into:
+##     `sim_dungeon_info(portal)` asks for the gate window's view,
+##     `sim_dungeon_start(portal, difficulty)` (party leader) opens a ready
+##     check, `sim_dungeon_ready(check_id, yes)` answers it, and every view,
+##     ready check, cancellation, refusal and launch comes back as
+##     `sim_dungeon_event(event)`. The door itself only takes a run's own
+##     roster back in. Dungeon state gained `phase` / `countdown_s`, the run's
+##     clock and clear, and `affixes`; `sim_dungeon_hazard(map, data)` draws a
+##     weekly curse's ground hazard; `sim_dungeon_guide(dungeon, difficulty)`
+##     asks for the dungeon guide (records and the week's board, answered as a
+##     `guide` dungeon event).
+const PROTOCOL_VERSION := 30
 
 ## Death choice (v18 `sim_respawn_request`).
 const RESPAWN_TOWN := 0
@@ -232,6 +243,20 @@ const REJECT_PORTKEY_ACTIVE := "portkey_active"
 const REJECT_PORTKEY_GONE := "portkey_gone"
 const REJECT_NOT_IN_PARTY := "not_in_party"
 const REJECT_IN_DUNGEON := "in_dungeon"
+# v30 dungeon gates.
+const REJECT_USE_GATE := "use_gate"
+const REJECT_NOT_LEADER := "not_leader"
+const REJECT_PARTY_SIZE := "party_size"
+const REJECT_LEVEL_SPREAD := "level_spread"
+const REJECT_NOT_GATHERED := "not_gathered"
+const REJECT_IN_DUEL := "in_duel"
+const REJECT_IN_RUN := "in_run"
+const REJECT_READY_PENDING := "ready_pending"
+const REJECT_DECLINED := "declined"
+const REJECT_READY_TIMEOUT := "ready_timeout"
+const REJECT_PARTY_CHANGED := "party_changed"
+const REJECT_DIFFICULTY_LOCKED := "difficulty_locked"
+const REJECT_NO_KEY := "no_key"
 
 ## Character binding outcomes (the character-bind fix). `BIND_NOT_FOUND` is also the
 ## answer for a character that exists but belongs to another account: the same
@@ -365,6 +390,9 @@ const MOB_VARIANT_GOBLIN_TELLER := 18
 const MOB_VARIANT_GOBLIN_GUARD := 19
 # v24 mixed goblin packs.
 const MOB_VARIANT_GOBLIN_HEXER := 20
+# v30 the Queen's Lair: things players break (egg sacs, web cocoons).
+const MOB_VARIANT_EGG_SAC := 21
+const MOB_VARIANT_WEB_COCOON := 22
 
 const MOB_SCENES := {
 	MOB_VARIANT_INFERI: "res://scenes/entities/mobs/mob_inferi.tscn",
@@ -387,6 +415,8 @@ const MOB_SCENES := {
 	MOB_VARIANT_GOBLIN_TELLER: "res://scenes/entities/mobs/mob_goblin_teller.tscn",
 	MOB_VARIANT_GOBLIN_GUARD: "res://scenes/entities/mobs/mob_goblin_guard.tscn",
 	MOB_VARIANT_GOBLIN_HEXER: "res://scenes/entities/mobs/mob_goblin_hexer.tscn",
+	MOB_VARIANT_EGG_SAC: "res://scenes/entities/mobs/mob_egg_sac.tscn",
+	MOB_VARIANT_WEB_COCOON: "res://scenes/entities/mobs/mob_web_cocoon.tscn",
 }
 
 static func mob_variant(scene_path: String) -> int:

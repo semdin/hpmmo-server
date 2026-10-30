@@ -935,6 +935,65 @@ func _send_dungeon_state(map_id: String, state: Dictionary) -> void:
 func sim_dungeon_state(map_id: String, state: Dictionary) -> void:
 	SimAuthority.emit_signal("dungeon_state", map_id, state)
 
+## v30 dungeon gates: the gate window's view, start a run (party leader),
+## answer a ready check. Every answer comes back as `sim_dungeon_event`.
+@rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
+func sim_dungeon_info(portal_id: String) -> void:
+	if is_client:
+		return
+	if not _allow(multiplayer.get_remote_sender_id(), "world"):
+		return
+	SimAuthority.request_dungeon_info(multiplayer.get_remote_sender_id(), portal_id.strip_edges().substr(0, 64))
+
+@rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
+func sim_dungeon_start(portal_id: String, difficulty: String) -> void:
+	if is_client:
+		return
+	if not _allow(multiplayer.get_remote_sender_id(), "world"):
+		return
+	SimAuthority.request_dungeon_start(multiplayer.get_remote_sender_id(), portal_id.strip_edges().substr(0, 64),
+		difficulty.strip_edges().substr(0, 16))
+
+@rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
+func sim_dungeon_guide(dungeon_id: String, difficulty: String) -> void:
+	if is_client:
+		return
+	if not _allow(multiplayer.get_remote_sender_id(), "world"):
+		return
+	SimAuthority.request_dungeon_guide(multiplayer.get_remote_sender_id(), dungeon_id.strip_edges().substr(0, 48),
+		difficulty.strip_edges().substr(0, 16))
+
+@rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
+func sim_dungeon_ready(check_id: int, yes: bool) -> void:
+	if is_client:
+		return
+	if not _allow(multiplayer.get_remote_sender_id(), "world"):
+		return
+	SimAuthority.answer_dungeon_ready(multiplayer.get_remote_sender_id(), check_id, yes)
+
+## v30: a curse hazard in the receiving player's dungeon copy.
+@rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
+func sim_dungeon_hazard(map_id: String, data: Dictionary) -> void:
+	SimAuthority.emit_signal("dungeon_hazard", map_id, data)
+
+func _send_dungeon_hazard(map_id: String, data: Dictionary) -> void:
+	if not has_peers():
+		return
+	for peer_id in multiplayer.get_peers():
+		if String(SimAuthority.player_record(peer_id).get("map_id", "")) == map_id:
+			sim_dungeon_hazard.rpc_id(peer_id, map_id, data)
+
+## v30: a dungeon gate event for the receiving player.
+@rpc("authority", "call_remote", "reliable", HPProtocol.CH_EVENT)
+func sim_dungeon_event(event: Dictionary) -> void:
+	SimAuthority.emit_signal("dungeon_event", SimAuthority.local_uid, event)
+
+func _send_dungeon_event(uid: int, event: Dictionary) -> void:
+	var peer := int(SimAuthority.record_by_uid(uid).get("peer_id", 0))
+	if peer == 0 or peer == local_peer_id or not has_peers():
+		return   # the authority's own player hears the signal directly
+	sim_dungeon_event.rpc_id(peer, event)
+
 func _send_party_state(uid: int, state: Dictionary) -> void:
 	var peer := int(SimAuthority.record_by_uid(uid).get("peer_id", 0))
 	if peer == 0 or peer == local_peer_id or not _peer_live(peer):
@@ -1390,6 +1449,42 @@ func request_transfer(player_node: Node, portal_id: String, to_map: String = "")
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
 	return SimAuthority.request_transfer(int(record.get("peer_id", 0)), portal_id, to_map)
 
+func dungeon_info(player_node: Node, portal_id: String) -> Dictionary:
+	if is_client:
+		sim_dungeon_info.rpc_id(1, portal_id)
+		return {"ok": true, "reason": "sent"}
+	var record := SimAuthority.record_for(player_node)
+	if record.is_empty():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	return SimAuthority.request_dungeon_info(int(record.get("peer_id", 0)), portal_id)
+
+func dungeon_start(player_node: Node, portal_id: String, difficulty: String) -> Dictionary:
+	if is_client:
+		sim_dungeon_start.rpc_id(1, portal_id, difficulty)
+		return {"ok": true, "reason": "sent"}
+	var record := SimAuthority.record_for(player_node)
+	if record.is_empty():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	return SimAuthority.request_dungeon_start(int(record.get("peer_id", 0)), portal_id, difficulty)
+
+func dungeon_guide(player_node: Node, dungeon_id: String, difficulty: String) -> Dictionary:
+	if is_client:
+		sim_dungeon_guide.rpc_id(1, dungeon_id, difficulty)
+		return {"ok": true, "reason": "sent"}
+	var record := SimAuthority.record_for(player_node)
+	if record.is_empty():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	return SimAuthority.request_dungeon_guide(int(record.get("peer_id", 0)), dungeon_id, difficulty)
+
+func dungeon_ready(player_node: Node, check_id: int, yes: bool) -> Dictionary:
+	if is_client:
+		sim_dungeon_ready.rpc_id(1, check_id, yes)
+		return {"ok": true, "reason": "sent"}
+	var record := SimAuthority.record_for(player_node)
+	if record.is_empty():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	return SimAuthority.answer_dungeon_ready(int(record.get("peer_id", 0)), check_id, yes)
+
 func portkey_place(player_node: Node, dest_id: String) -> Dictionary:
 	if is_client:
 		sim_portkey_place.rpc_id(1, dest_id)
@@ -1488,6 +1583,8 @@ func bridge_authority() -> void:
 	SimAuthority.portkey_state.connect(_send_portkey_state)
 	SimAuthority.player_pushed.connect(_send_push)
 	SimAuthority.dungeon_state.connect(_send_dungeon_state)
+	SimAuthority.dungeon_event.connect(_send_dungeon_event)
+	SimAuthority.dungeon_hazard.connect(_send_dungeon_hazard)
 	SimAuthority.maintenance_event.connect(broadcast_maintenance)
 	SimAuthority.transfer_granted.connect(broadcast_transfer_granted)
 	SimAuthority.transfer_committed.connect(broadcast_transfer_committed)

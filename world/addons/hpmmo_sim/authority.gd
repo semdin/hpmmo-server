@@ -82,6 +82,12 @@ signal instance_closed(map_id: String)
 ## A dungeon run's replicated state (step, open gates, message) for the
 ## players inside that copy.
 signal dungeon_state(map_id: String, state: Dictionary)
+## v30: a dungeon gate event for one player - the gate window's view (`kind`
+## info), a ready check (ready / cancelled / launch) or a refusal (refused).
+signal dungeon_event(uid: int, event: Dictionary)
+## v30: a curse's ground hazard in a dungeon copy (a ring that bursts at
+## `release_tick`, or a patch that lasts until `until_tick`), for its players.
+signal dungeon_hazard(map_id: String, data: Dictionary)
 signal encounter_reset(pack_id: int, reason: String)
 ## `items` were taken out of chest `uid` ([{id, amount}]); `emptied` when the
 ## chest is gone with this take.
@@ -1226,24 +1232,12 @@ func request_transfer(peer_id: int, portal_id: String, to_map: String = "") -> D
 	var destination := to_map_of(portal)
 	if to_map != "" and HPMaps.base_map(to_map) != destination:
 		return _refuse_transfer(peer_id, HPProtocol.REJECT_WRONG_MAP)
-	# A dungeon: the party's own copy (or a fresh one), behind its entry rules.
-	var dungeon_entry_pending := {}
+	# A dungeon is started at its gate (request_dungeon_start, v30); the door
+	# only takes a run's own roster back in (after a death or a disconnect).
 	if HPMaps.is_instanced(destination):
-		var dungeon := HPMaps.dungeon_for_map(destination)
-		if _player_level(record) < int(dungeon.get("level_min", 1)):
-			return _refuse_transfer(peer_id, HPProtocol.REJECT_LEVEL)
-		destination = _resolve_instance(record, destination)
+		destination = _active_copy(int(record.get("uid", 0)), destination)
 		if destination == "":
-			return _refuse_transfer(peer_id, HPProtocol.REJECT_MAP_FULL)
-		# Daily entries (dungeons.json entries_per_day): a run you are already
-		# part of (re-entry after a death or a disconnect) is free.
-		var limit := int(dungeon.get("entries_per_day", 0))
-		if limit > 0 and not _is_entrant(destination, record):
-			var counted := _dungeon_entries_today(record, String(dungeon.get("id", "")))
-			if counted >= limit:
-				_drop_unopened_copy(destination)
-				return _refuse_transfer(peer_id, HPProtocol.REJECT_DAILY_LIMIT)
-			dungeon_entry_pending = {"map": destination, "dungeon": String(dungeon.get("id", ""))}
+			return _refuse_transfer(peer_id, HPProtocol.REJECT_USE_GATE)
 	var node: Node3D = record.get("node")
 	if node == null or not is_instance_valid(node):
 		return _refuse_transfer(peer_id, HPProtocol.REJECT_STATE)
@@ -1267,8 +1261,6 @@ func request_transfer(peer_id: int, portal_id: String, to_map: String = "") -> D
 	if players_on_map(destination) + reserved_seats(destination) >= HPMaps.capacity(destination):
 		return _refuse_transfer(peer_id, HPProtocol.REJECT_MAP_FULL)
 
-	if not dungeon_entry_pending.is_empty():
-		_count_dungeon_entry(record, String(dungeon_entry_pending["map"]), String(dungeon_entry_pending["dungeon"]))
 	return _grant_transfer(record, peer_id, from_map, destination, spawn_id, HPMaps.spawn_point(destination, spawn_id))
 
 ## Reserve `approval` on `destination` for this body and tell its client to
@@ -1820,6 +1812,7 @@ func _step() -> void:
 	if sim_tick % HPProtocol.SIM_HZ == 0:
 		_tick_parties()
 		_tick_instances()
+		_tick_dungeon_checks()
 	if not duel.duels.is_empty() or not duel.requests.is_empty():
 		_tick_duels()
 	_regen_accumulator_ms += TICK_MS
@@ -2301,7 +2294,15 @@ func mob_melee(attacker_node: Node, target_node: Node, raw: int) -> int:
 		return 0
 	if not HPRules.can_damage(attacker_node, target_node):
 		return 0
-	return apply_damage(target_node, raw, "melee", attacker_node)
+	var dealt := apply_damage(target_node, raw, "melee", attacker_node)
+	# The Bleeding Curse (a dungeon's weekly curse marks its elites).
+	if dealt > 0 and attacker_node.has_meta("curse_bleed"):
+		var victim := record_for(target_node)
+		if int(victim.get("kind", 0)) == HPProtocol.Kind.PLAYER:
+			var spec := HPRules.dungeon_affix("bleed")
+			_start_bleed(victim, {"damage": maxi(1, int(round(float(victim.get("max_hp", 100)) * float(spec.get("hp_share", 0.02))))),
+				"ticks": int(spec.get("ticks", 6)), "interval_ms": int(spec.get("interval_ms", 1000))}, record_for(attacker_node))
+	return dealt
 
 func mob_area_attack(attacker_node: Node, center: Vector3, radius: float, raw: int, spell_id: String) -> Array:
 	var hits: Array = []
@@ -3167,6 +3168,9 @@ func _roll_drops(target: Dictionary) -> Array:
 		if not killer.is_empty() and int(killer.get("kind", 0)) == HPProtocol.Kind.PLAYER:
 			drop_factor = HPRules.level_gap_drop(_player_level(killer), int(target.get("level", 1)))
 			drop_factor *= 1.0 + float(killer.get("drop_chance", 0.0)) / 100.0   # item stat
+		var body = target.get("node")
+		if body != null and is_instance_valid(body):
+			drop_factor *= float(body.get_meta("dungeon_drop", 1.0))   # the run's difficulty
 		drops = HPRules.mob_loot(is_boss, rng, String(target.get("loot_table", "")),
 			bool(target.get("is_elite", false)), drop_factor)
 	var gear_rules: Dictionary = HPRules.loot_tables().get("gear", {})
@@ -3413,6 +3417,15 @@ func stun_player(uid: int, seconds: float) -> void:
 	record["stun_until_tick"] = until
 	interrupt_cast(record)
 	record["queued_spell"] = ""
+	touch(record)
+	_push_vitals(record)
+
+## A stun ends now (a dungeon cocoon broken by the party).
+func release_player_stun(uid: int) -> void:
+	var record: Dictionary = entities.get(uid, {})
+	if record.is_empty() or int(record.get("stun_until_tick", 0)) <= sim_tick:
+		return
+	record["stun_until_tick"] = sim_tick
 	touch(record)
 	_push_vitals(record)
 
@@ -4446,56 +4459,646 @@ func _instance_owner(record: Dictionary) -> String:
 	var pid := int(party.by_uid.get(int(record.get("uid", 0)), 0))
 	return ("party:%d" % pid) if pid != 0 else ("solo:%d" % int(record.get("uid", 0)))
 
-## The copy of `base` this player enters: their party's open copy, else a free
-## slot. "" when every copy is taken.
-func _resolve_instance(record: Dictionary, base: String) -> String:
-	var owner := _instance_owner(record)
-	var copies: Dictionary = instances.get(base, {})
+## The live copy of `base` whose run roster holds `uid` ("" when none): the
+## door takes a run's own members back in, nobody else.
+func _active_copy(uid: int, base: String) -> String:
+	var copies: Dictionary = instances.get(HPMaps.base_map(base), {})
 	for slot in copies.keys():
-		if String(copies[slot].get("owner", "")) == owner:
+		if ((copies[slot] as Dictionary).get("roster", []) as Array).has(uid):
 			return HPMaps.instance_id(base, int(slot))
-	# A party member already inside a copy pulls the rest of the party in,
-	# even if the copy was opened before the party formed.
-	for member_uid in party.members_of(int(record.get("uid", 0))):
-		var member: Dictionary = entities.get(member_uid, {})
-		var mmap := String(member.get("map_id", ""))
-		if HPMaps.base_map(mmap) == base and HPMaps.instance_slot(mmap) > 0:
-			return mmap
-	for slot in range(1, HPMaps.instance_cap(base) + 1):
-		if not copies.has(slot):
-			copies[slot] = {"owner": owner, "opened_tick": sim_tick, "empty_since_tick": -1}
-			instances[base] = copies
-			return HPMaps.instance_id(base, slot)
 	return ""
 
-## --- daily dungeon entries (stored in the character's `quests` object, so
-## they survive a relog; the day is the server's UTC date).
-func _is_entrant(map_id: String, record: Dictionary) -> bool:
-	return (instance_info(map_id).get("entrants", []) as Array).has(_instance_owner(record))
+## Whether `uid` belongs to a run somebody is still in (or travelling to),
+## other than `except`.
+func _in_live_run(uid: int, except: String = "") -> bool:
+	for base in instances.keys():
+		var copies: Dictionary = instances[base]
+		for slot in copies.keys():
+			var id := HPMaps.instance_id(String(base), int(slot))
+			if id != except and ((copies[slot] as Dictionary).get("roster", []) as Array).has(uid) \
+					and players_on_map(id) + reserved_seats(id) > 0:
+				return true
+	return false
 
-func _dungeon_entries_today(record: Dictionary, dungeon_id: String) -> int:
+## --- a character's dungeon record (the body's `quests.dungeons`, so it
+## survives a relog). The dungeon day turns at 06:00 Turkey time (03:00 UTC).
+static func _dungeon_day() -> String:
+	return Time.get_date_string_from_unix_time(int(Time.get_unix_time_from_system()) - 3 * 3600)
+
+func _dungeon_record(record: Dictionary, dungeon_id: String) -> Dictionary:
 	var node = record.get("node")
-	if node == null or not is_instance_valid(node) or not node.has_method("dungeon_entries_on"):
+	if node == null or not is_instance_valid(node) or not node.has_method("dungeon_record"):
+		return {}
+	return node.call("dungeon_record", dungeon_id)
+
+## Final chests `record` has left today on `difficulty` (-1: no limit).
+func _dungeon_rewards_left(record: Dictionary, dungeon_id: String, difficulty: String) -> int:
+	var node = record.get("node")
+	if node == null or not is_instance_valid(node) or not node.has_method("dungeon_rewards_left"):
+		return -1
+	return int(node.call("dungeon_rewards_left", dungeon_id, difficulty, _dungeon_day()))
+
+## How many of `item_id` the body carries.
+static func _bag_count(record: Dictionary, item_id: String) -> int:
+	var node = record.get("node")
+	if node == null or not is_instance_valid(node):
 		return 0
-	return int(node.call("dungeon_entries_on", dungeon_id, Time.get_date_string_from_system(true)))
+	var n := 0
+	for entry in node.inventory:
+		if String((entry as Dictionary).get("id", "")) == item_id:
+			n += int((entry as Dictionary).get("amount", 1))
+	return n
 
-func _count_dungeon_entry(record: Dictionary, map_id: String, dungeon_id: String) -> void:
-	var info := instance_info(map_id)
-	if info.is_empty():
-		return
-	var entrants: Array = info.get("entrants", [])
-	entrants.append(_instance_owner(record))
-	info["entrants"] = entrants
+# ------------------------------------------------------------ dungeon gates
+#
+# v30: a dungeon is started at its gate. The leader (or a lone player) asks for
+# a difficulty; the authority checks the whole party (leader, size, levels and
+# their spread, everyone gathered at the gate and free), opens a ready check
+# every member answers, and on the last yes reserves a fresh copy carrying the
+# run's fixed parameters and sends the roster in together. Every answer goes
+# back as a `dungeon_event` for one player.
+
+## check id -> {"id", "dungeon", "map", "portal", "difficulty", "leader", "roster", "answers", "expires_tick"}
+var dungeon_checks: Dictionary = {}
+var _next_dungeon_check := 1
+
+## The gate a portal is, with its dungeon ({} when the portal leads elsewhere).
+func _dungeon_gate(portal_id: String) -> Dictionary:
+	var portal := HPMaps.portal(portal_id)
+	var destination := to_map_of(portal)
+	if portal.is_empty() or not HPMaps.is_instanced(destination):
+		return {}
+	var dungeon := HPMaps.dungeon_for_map(destination)
+	return {} if dungeon.is_empty() else {"portal": portal, "dungeon": dungeon, "map": HPMaps.base_map(destination)}
+
+## Why `record` cannot go in right now ("" when it can): dead, travelling,
+## mounted, duelling, fighting, away from the gate, in another run, or out of
+## today's entries. A replay (`gate.replay`, a finished copy) gathers its
+## party in that copy instead of at the gate.
+func _dungeon_member_problem(record: Dictionary, gate: Dictionary) -> String:
+	var uid := int(record.get("uid", 0))
 	var node = record.get("node")
-	if node != null and is_instance_valid(node) and node.has_method("record_dungeon_entry"):
-		node.call("record_dungeon_entry", dungeon_id, Time.get_date_string_from_system(true))
+	if node == null or not is_instance_valid(node):
+		return HPProtocol.REJECT_NOT_GATHERED
+	if bool(record.get("dead", false)):
+		return HPProtocol.REJECT_DEAD
+	if int(record.get("pending_transfer", 0)) != 0:
+		return HPProtocol.REJECT_TRANSFER_PENDING
+	if bool(record.get("mounted", false)):
+		return HPProtocol.REJECT_MOUNTED
+	if duel.in_duel(uid):
+		return HPProtocol.REJECT_IN_DUEL
+	if sim_tick - int(record.get("last_combat_tick", -100000)) < 5 * HPProtocol.SIM_HZ:
+		return HPProtocol.REJECT_IN_COMBAT
+	var replay := String(gate.get("replay", ""))
+	if replay != "":
+		if String(record.get("map_id", "")) != replay:
+			return HPProtocol.REJECT_NOT_GATHERED
+	else:
+		var portal: Dictionary = gate["portal"]
+		if String(record.get("map_id", "")) != String(portal.get("map_id", "")):
+			return HPProtocol.REJECT_NOT_GATHERED
+		var center: Array = (portal.get("trigger", {}) as Dictionary).get("center", [0, 0, 0])
+		var offset := (node as Node3D).global_position - Vector3(float(center[0]), float(center[1]), float(center[2]))
+		if Vector2(offset.x, offset.z).length() > float(HPRules.dungeon_group().get("gather_radius", 30.0)) or absf(offset.y) > 6.0:
+			return HPProtocol.REJECT_NOT_GATHERED
+	if _in_live_run(uid, replay):
+		return HPProtocol.REJECT_IN_RUN
+	return ""
 
-## A copy reserved for a request that was then refused: free the slot unless
-## somebody is already in it.
-func _drop_unopened_copy(map_id: String) -> void:
-	var info := instance_info(map_id)
-	if not info.is_empty() and not bool(info.get("opened", false)) and (info.get("entrants", []) as Array).is_empty():
-		(instances.get(HPMaps.base_map(map_id), {}) as Dictionary).erase(HPMaps.instance_slot(map_id))
+## `uid`'s roster: their party in its order, or themselves.
+func _dungeon_roster(uid: int) -> Array:
+	var members := party.members_of(uid)
+	return members if not members.is_empty() else [uid]
+
+static func _dungeon_problem(reason: String, who: String = "", value: int = 0) -> Dictionary:
+	return {"ok": false, "reason": reason, "who": who, "value": value}
+
+## The whole party against the gate's rules for `difficulty`. {"ok": true,
+## "roster", "records", "levels"} or a problem naming the member it is about.
+func _dungeon_party(leader: Dictionary, gate: Dictionary, difficulty: String) -> Dictionary:
+	var uid := int(leader.get("uid", 0))
+	var the_party := party.party_of(uid)
+	if not the_party.is_empty() and int(the_party.get("leader", 0)) != uid:
+		return _dungeon_problem(HPProtocol.REJECT_NOT_LEADER)
+	var rules := HPRules.dungeon_difficulty(difficulty)
+	var roster := _dungeon_roster(uid)
+	if roster.size() < int(rules.get("min_party", 1)):
+		return _dungeon_problem(HPProtocol.REJECT_PARTY_SIZE, "", int(rules.get("min_party", 1)))
+	var need := int((gate["dungeon"] as Dictionary).get("level_min", 1)) + int(rules.get("min_level_add", 0))
+	var records: Array = []
+	var levels: Array = []
+	for member_uid in roster:
+		var record := record_by_uid(int(member_uid))
+		var who := String(record.get("name", "?"))
+		var problem := _dungeon_member_problem(record, gate) if not record.is_empty() else HPProtocol.REJECT_NOT_GATHERED
+		if problem != "":
+			return _dungeon_problem(problem, who)
+		var level := _player_level(record)
+		if level < need:
+			return _dungeon_problem(HPProtocol.REJECT_LEVEL, who, need)
+		# Every member must have opened the difficulty themselves: no carrying.
+		var cleared: Dictionary = _dungeon_record(record, String(gate["dungeon"].get("id", ""))).get("cleared", {})
+		if not HPRules.dungeon_unlocked(cleared, difficulty):
+			return _dungeon_problem(HPProtocol.REJECT_DIFFICULTY_LOCKED, who)
+		records.append(record)
+		levels.append(level)
+	var spread := HPRules.dungeon_level_spread(levels)
+	if spread > int(HPRules.dungeon_group().get("max_level_spread", 15)):
+		return _dungeon_problem(HPProtocol.REJECT_LEVEL_SPREAD, "", spread)
+	# The leader opens the gate with the dungeon's keys (a ticket, nothing more).
+	var keys := int(rules.get("keys", 0))
+	if keys > 0 and _bag_count(leader, String(gate["dungeon"].get("key", ""))) < keys:
+		return _dungeon_problem(HPProtocol.REJECT_NO_KEY, String(leader.get("name", "")), keys)
+	return {"ok": true, "roster": roster, "records": records, "levels": levels}
+
+func _dungeon_refuse(uid: int, problem: Dictionary) -> Dictionary:
+	emit_signal("dungeon_event", uid, {"kind": "refused", "reason": String(problem.get("reason", "")),
+		"who": String(problem.get("who", "")), "value": int(problem.get("value", 0))})
+	return HPProtocol.reject(String(problem.get("reason", HPProtocol.REJECT_STATE)))
+
+func _dungeon_check_of(uid: int) -> Dictionary:
+	for id in dungeon_checks.keys():
+		if (dungeon_checks[id]["roster"] as Array).has(uid):
+			return dungeon_checks[id]
+	return {}
+
+func _free_copy_slot(base: String) -> int:
+	var copies: Dictionary = instances.get(base, {})
+	for slot in range(1, HPMaps.instance_cap(base) + 1):
+		if not copies.has(slot):
+			return slot
+	return 0
+
+## The gate window's view for the player at `portal_id`: the party at the gate
+## (level, whether each can go in and why not), who leads, whether a run of
+## theirs is open (the door takes them back), and a ready check under way.
+func request_dungeon_info(peer_id: int, portal_id: String) -> Dictionary:
+	var record := player_record(peer_id)
+	var gate := _dungeon_gate(portal_id)
+	if record.is_empty() or gate.is_empty():
+		return HPProtocol.reject(HPProtocol.REJECT_NO_PORTAL)
+	var uid := int(record.get("uid", 0))
+	var the_party := party.party_of(uid)
+	var members: Array = []
+	for member_uid in _dungeon_roster(uid):
+		var member := record_by_uid(int(member_uid))
+		if member.is_empty():
+			continue
+		var dungeon_id := String(gate["dungeon"].get("id", ""))
+		var cleared: Dictionary = _dungeon_record(member, dungeon_id).get("cleared", {})
+		var unlocked: Array = []
+		var rights: Dictionary = {}
+		for difficulty in HPRules.DUNGEON_DIFFICULTIES:
+			if HPRules.dungeon_unlocked(cleared, difficulty):
+				unlocked.append(difficulty)
+			rights[difficulty] = _dungeon_rewards_left(member, dungeon_id, difficulty)
+		members.append({"uid": int(member_uid), "name": String(member.get("name", "?")),
+			"level": _player_level(member), "status": _dungeon_member_problem(member, gate),
+			"unlocked": unlocked, "rights": rights, "best": _dungeon_record(member, dungeon_id).get("best", {})})
+	var check := _dungeon_check_of(uid)
+	emit_signal("dungeon_event", uid, {"kind": "info", "dungeon": String(gate["dungeon"].get("id", "")),
+		"portal": portal_id, "leader": int(the_party.get("leader", uid)), "members": members,
+		"active": _active_copy(uid, String(gate["map"])) != "",
+		"check": _dungeon_check_view(check) if not check.is_empty() else {}})
+	return HPProtocol.accept()
+
+## The leader at the gate asks for a run on `difficulty` - or, standing in the
+## party's finished copy of the same dungeon, for another run (the result
+## window's replay): the party then gathers in that copy, not at the gate.
+func request_dungeon_start(peer_id: int, portal_id: String, difficulty: String) -> Dictionary:
+	if not is_authority() or mutations_frozen():
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	var record := player_record(peer_id)
+	var gate := _dungeon_gate(portal_id)
+	if record.is_empty() or gate.is_empty() or not HPRules.DUNGEON_DIFFICULTIES.has(difficulty):
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	var uid := int(record.get("uid", 0))
+	var node: Node3D = record.get("node")
+	var here := String(record.get("map_id", ""))
+	if HPMaps.base_map(here) == String(gate["map"]) and _active_copy(uid, here) == here \
+			and bool((instance_info(here).get("state", {}) as Dictionary).get("complete", false)):
+		gate["replay"] = here
+	elif node == null or not is_instance_valid(node) or not HPMaps.portal_contains(gate["portal"], node.global_position, here):
+		return _dungeon_refuse(uid, _dungeon_problem(HPProtocol.REJECT_RANGE))
+	if not _dungeon_check_of(uid).is_empty():
+		return _dungeon_refuse(uid, _dungeon_problem(HPProtocol.REJECT_READY_PENDING))
+	var checked := _dungeon_party(record, gate, difficulty)
+	if not bool(checked.get("ok", false)):
+		return _dungeon_refuse(uid, checked)
+	if _free_copy_slot(String(gate["map"])) == 0:
+		return _dungeon_refuse(uid, _dungeon_problem(HPProtocol.REJECT_MAP_FULL))
+	var check := {"id": _next_dungeon_check, "dungeon": String(gate["dungeon"].get("id", "")),
+		"map": String(gate["map"]), "portal": portal_id, "difficulty": difficulty, "leader": uid,
+		"roster": checked["roster"], "answers": {uid: true}, "replay": String(gate.get("replay", "")),
+		"expires_tick": sim_tick + int(HPRules.dungeon_group().get("ready_s", 30)) * HPProtocol.SIM_HZ}
+	_next_dungeon_check += 1
+	dungeon_checks[int(check["id"])] = check
+	print("[Authority] dungeon %s (%s) ready check %d for %d player(s)" % [check["dungeon"], difficulty,
+		int(check["id"]), (check["roster"] as Array).size()])
+	if (check["roster"] as Array).size() == 1:
+		_launch_dungeon(check)
+	else:
+		_broadcast_dungeon_check(check, "ready")
+	return HPProtocol.accept()
+
+## A member answers the ready check: a no cancels it, the last yes launches.
+func answer_dungeon_ready(peer_id: int, check_id: int, yes: bool) -> Dictionary:
+	var record := player_record(peer_id)
+	var check: Dictionary = dungeon_checks.get(check_id, {})
+	var uid := int(record.get("uid", 0))
+	if record.is_empty() or check.is_empty() or not (check["roster"] as Array).has(uid):
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	if not yes:
+		_end_dungeon_check(check, HPProtocol.REJECT_DECLINED, String(record.get("name", "")))
+		return HPProtocol.accept()
+	check["answers"][uid] = true
+	if (check["answers"] as Dictionary).size() >= (check["roster"] as Array).size():
+		_launch_dungeon(check)
+	else:
+		_broadcast_dungeon_check(check, "ready")
+	return HPProtocol.accept()
+
+## Once a second: a ready check nobody finished answering runs out, and one
+## whose roster lost a player ends.
+func _tick_dungeon_checks() -> void:
+	for id in dungeon_checks.keys():
+		var check: Dictionary = dungeon_checks[id]
+		var waiting: Array[String] = []
+		var gone := ""
+		for member_uid in check["roster"]:
+			var record := record_by_uid(int(member_uid))
+			if record.is_empty():
+				gone = "?"
+			elif not (check["answers"] as Dictionary).has(int(member_uid)):
+				waiting.append(String(record.get("name", "?")))
+		if gone != "":
+			_end_dungeon_check(check, HPProtocol.REJECT_PARTY_CHANGED)
+		elif sim_tick >= int(check["expires_tick"]):
+			_end_dungeon_check(check, HPProtocol.REJECT_READY_TIMEOUT, ", ".join(PackedStringArray(waiting)))
+
+func _end_dungeon_check(check: Dictionary, reason: String, who: String = "") -> void:
+	dungeon_checks.erase(int(check["id"]))
+	print("[Authority] dungeon ready check %d ended: %s %s" % [int(check["id"]), reason, who])
+	for member_uid in check["roster"]:
+		emit_signal("dungeon_event", int(member_uid), {"kind": "cancelled", "id": int(check["id"]),
+			"reason": reason, "who": who})
+
+func _dungeon_check_view(check: Dictionary) -> Dictionary:
+	var members: Array = []
+	for member_uid in check["roster"]:
+		var record := record_by_uid(int(member_uid))
+		members.append({"uid": int(member_uid), "name": String(record.get("name", "?")), "level": _player_level(record),
+			"ready": (check["answers"] as Dictionary).has(int(member_uid))})
+	return {"id": int(check["id"]), "dungeon": String(check["dungeon"]), "difficulty": String(check["difficulty"]),
+		"leader": int(check["leader"]), "leader_name": String(record_by_uid(int(check["leader"])).get("name", "?")),
+		"members": members, "left_s": maxf(0.0, float(int(check["expires_tick"]) - sim_tick) / HPProtocol.SIM_HZ)}
+
+func _broadcast_dungeon_check(check: Dictionary, kind: String) -> void:
+	var view := _dungeon_check_view(check)
+	view["kind"] = kind
+	for member_uid in check["roster"]:
+		emit_signal("dungeon_event", int(member_uid), view)
+
+## Everyone said yes: check the party again (the answers took time), reserve a
+## fresh copy with the run's parameters and send the roster in together.
+func _launch_dungeon(check: Dictionary) -> void:
+	dungeon_checks.erase(int(check["id"]))
+	var leader := record_by_uid(int(check["leader"]))
+	var gate := _dungeon_gate(String(check["portal"]))
+	if not gate.is_empty() and String(check.get("replay", "")) != "":
+		gate["replay"] = String(check["replay"])
+	var checked := _dungeon_party(leader, gate, String(check["difficulty"])) if not leader.is_empty() and not gate.is_empty() \
+		else _dungeon_problem(HPProtocol.REJECT_PARTY_CHANGED)
+	if bool(checked.get("ok", false)) and checked["roster"] != check["roster"]:
+		checked = _dungeon_problem(HPProtocol.REJECT_PARTY_CHANGED)
+	var base := String(check["map"])
+	var slot := _free_copy_slot(base)
+	if bool(checked.get("ok", false)) and slot == 0:
+		checked = _dungeon_problem(HPProtocol.REJECT_MAP_FULL)
+	if not bool(checked.get("ok", false)):
+		dungeon_checks[int(check["id"])] = check
+		_end_dungeon_check(check, String(checked["reason"]), String(checked.get("who", "")))
+		return
+	var dungeon: Dictionary = gate["dungeon"]
+	var difficulty := String(check["difficulty"])
+	var params := HPRules.dungeon_run_params(dungeon, difficulty, checked["levels"])
+	params["roster"] = (check["roster"] as Array).duplicate()
+	# Who earns the final chest (a member with no reward right left today goes
+	# in as a helper) and whose first rewarded run of the day this is.
+	var helpers: Array = []
+	var first: Array = []
+	for record in checked["records"]:
+		var member_uid := int((record as Dictionary).get("uid", 0))
+		if _dungeon_rewards_left(record, String(dungeon.get("id", "")), difficulty) == 0:
+			helpers.append(member_uid)
+		else:
+			var node = (record as Dictionary).get("node")
+			if node != null and is_instance_valid(node) and node.has_method("dungeon_first_run") and node.call("dungeon_first_run", _dungeon_day()):
+				first.append(member_uid)
+	params["helpers"] = helpers
+	params["first_run"] = first
+	# This week's curses, fixed for the run.
+	params["affixes"] = HPRules.dungeon_week_affixes(int(HPRules.dungeon_difficulty(difficulty).get("affixes", 0)))
+	# A dev world (HPMMO_ALLOW_DEV_JOIN) may name the curses: HPMMO_DEV_DUNGEON_AFFIXES="burst,storm".
+	if OS.get_environment("HPMMO_ALLOW_DEV_JOIN") == "1" and OS.get_environment("HPMMO_DEV_DUNGEON_AFFIXES") != "":
+		params["affixes"] = Array(OS.get_environment("HPMMO_DEV_DUNGEON_AFFIXES").split(",", false))
+	var keys := int(HPRules.dungeon_difficulty(difficulty).get("keys", 0))
+	if keys > 0:
+		var leader_node = leader.get("node")
+		var bag: Array = leader_node.inventory.duplicate(true)
+		HPEquipment.take(bag, String(dungeon.get("key", "")), 0, keys)
+		_set_bag(leader, bag)
+	# A member's earlier run (finished, everybody out) no longer takes them back.
+	for copies in instances.values():
+		for info in (copies as Dictionary).values():
+			for member_uid in check["roster"]:
+				((info as Dictionary).get("roster", []) as Array).erase(member_uid)
+	var copies: Dictionary = instances.get(base, {})
+	copies[slot] = {"owner": _instance_owner(leader), "opened_tick": sim_tick, "empty_since_tick": -1,
+		"params": params, "roster": (check["roster"] as Array).duplicate()}
+	instances[base] = copies
+	var copy := HPMaps.instance_id(base, slot)
+	var spawn_id := String((gate["portal"] as Dictionary).get("to_spawn", "default"))
+	var at := HPMaps.spawn_point(copy, spawn_id)
+	var records: Array = checked["records"]
+	for i in records.size():
+		var record: Dictionary = records[i]
+		var ring := Vector3.ZERO
+		if records.size() > 1:
+			var a := TAU * float(i) / float(records.size())
+			ring = Vector3(cos(a), 0.0, sin(a)) * 1.4
+		_grant_transfer(record, int(record.get("peer_id", 0)), String(record.get("map_id", "")), copy, spawn_id, at + ring)
+		emit_signal("dungeon_event", int(record.get("uid", 0)), {"kind": "launch", "id": int(check["id"]), "map": copy})
+	print("[Authority] dungeon %s launched in %s: %s, ref level %d, %d player(s)" % [String(dungeon.get("id", "")),
+		copy, String(params["difficulty"]), int(params["ref_level"]), records.size()])
+
+# ---------------------------------------------------------- dungeon rewards
+#
+# A run pays out of an experience budget (HPRules.dungeon_exp): kills pay
+# their forces' part of rewards.kill_share as the clear grows, completion
+# pays rewards.completion_share x the medal - each to every roster member in
+# the copy, on their own level. The final chest is per member with a reward
+# right left (helpers get none).
+
+## The roster members standing in `map_id` (dead or alive).
+func _run_members(map_id: String, params: Dictionary) -> Array:
+	var out: Array = []
+	for member_uid in params.get("roster", []):
+		var record := record_by_uid(int(member_uid))
+		if not record.is_empty() and String(record.get("map_id", "")) == map_id:
+			out.append(record)
+	return out
+
+static func _run_level(params: Dictionary) -> int:
+	return int(params.get("ref_level", 1)) + int(HPRules.dungeon_difficulty(String(params.get("difficulty", ""))).get("level_offset", 0))
+
+func _dungeon_exp_for(record: Dictionary, params: Dictionary, share: float) -> int:
+	var exp := float(HPRules.dungeon_exp(_player_level(record), _run_level(params), String(params.get("difficulty", "")), share))
+	exp *= HPRules.dungeon_party_exp(int(params.get("party_size", 1)))
+	if (params.get("first_run", []) as Array).has(int(record.get("uid", 0))):
+		exp *= float(HPRules.dungeon_rewards().get("first_run_exp", 1.0))
+	return int(round(exp))
+
+## Creatures worth `forces` of the clear died: their part of the kill share.
+func grant_dungeon_kill_exp(map_id: String, params: Dictionary, forces: int, total: int) -> void:
+	if forces <= 0 or total <= 0:
+		return
+	var share := float(HPRules.dungeon_rewards().get("kill_share", 0.6)) * float(forces) / float(total)
+	for record in _run_members(map_id, params):
+		var exp := _dungeon_exp_for(record, params, share)
+		_grant_exp(record, exp)
+		emit_signal("reward_granted", int(record.get("uid", 0)), int(record.get("character_id", 0)), exp, 0, [],
+			"dungeon:kill:%s:%d:%d" % [map_id, int(record.get("uid", 0)), sim_tick])
+
+## The run is complete (`result` from the director): completion experience,
+## the record (clear, medal, best time), and each rewarded member's final
+## chest at `pos` - the dungeon table, a gear piece, seals, a key, the medal's
+## extras - with its galleons paid straight into the purse.
+func grant_dungeon_rewards(map_id: String, params: Dictionary, result: Dictionary, table_id: String, pos: Vector3) -> void:
+	var dungeon := HPMaps.dungeon_for_map(map_id)
+	var dungeon_id := String(dungeon.get("id", ""))
+	var difficulty := String(params.get("difficulty", "normal"))
+	var rules := HPRules.dungeon_difficulty(difficulty)
+	var rewards := HPRules.dungeon_rewards()
+	var medal := String(result.get("medal", ""))
+	var rank := int(HPRules.MEDAL_RANK.get(medal, 0))
+	var run_level := _run_level(params)
+	var helpers: Array = params.get("helpers", [])
+	var day := _dungeon_day()
+	for record in _run_members(map_id, params):
+		var uid := int(record.get("uid", 0))
+		var node = record.get("node")
+		var rewarded := not helpers.has(uid)
+		var paid := {"kind": "rewards", "helper": not rewarded, "medal": medal, "exp": 0, "galleons": 0, "items": []}
+		if node != null and is_instance_valid(node) and node.has_method("record_dungeon_run"):
+			var before: Array = HPRules.DUNGEON_DIFFICULTIES.filter(func(d): return HPRules.dungeon_unlocked(_dungeon_record(record, dungeon_id).get("cleared", {}), d))
+			node.call("record_dungeon_run", dungeon_id, difficulty, rank, float(result.get("time_s", 0.0)), rewarded, day)
+			var after: Array = HPRules.DUNGEON_DIFFICULTIES.filter(func(d): return HPRules.dungeon_unlocked(_dungeon_record(record, dungeon_id).get("cleared", {}), d))
+			paid["unlocked"] = after.filter(func(d): return not before.has(d))
+		if rewarded:
+			var exp := int(round(float(_dungeon_exp_for(record, params, float(rewards.get("completion_share", 0.4))))
+				* float((rewards.get("medal_exp", {}) as Dictionary).get(medal, 1.0))))
+			_grant_exp(record, exp)
+			paid["exp"] = exp
+			emit_signal("reward_granted", uid, int(record.get("character_id", 0)), exp, 0, [], "dungeon:clear:%s:%d" % [map_id, uid])
+			var span: Array = rewards.get("galleons_per_level", [40, 80])
+			var galleons := int(round(float(rng.randi_range(int(span[0]), int(span[1])) * mini(_player_level(record), run_level))
+				* float(rules.get("gold", 1.0)) * (1.0 + float((rewards.get("medal_gold", {}) as Dictionary).get(medal, 0.0)))))
+			_grant_galleons(record, galleons)
+			paid["galleons"] = galleons
+			var items := _dungeon_chest(dungeon, difficulty, rules, rewards, medal, run_level, table_id, int(result.get("deaths", 0)) == 0)
+			_spawn_chest(items, pos, map_id, uid)
+			for item in items:
+				(paid["items"] as Array).append({"id": String(item["id"]), "amount": int(item["amount"]),
+					"bonuses": (item.get("bonuses", []) as Array).size()})
+		touch(record)
+		_push_stats(record)
+		if persistence != null:
+			persistence.save_player(record)
+		emit_signal("dungeon_event", uid, paid)
+	print("[Authority] dungeon %s rewards: %s, medal '%s', %d member(s), %d helper(s)" % [map_id, difficulty, medal,
+		_run_members(map_id, params).size(), helpers.size()])
+	if float(result.get("clear", 0.0)) >= 1.0:
+		_record_dungeon_run(dungeon_id, difficulty, result, _run_members(map_id, params))
+
+# ------------------------------------------------------- dungeon records
+#
+# Every full clear goes on the week's leaderboard (the account service's
+# dungeon_runs, or this process alone without one). The party that sets the
+# week's fastest time earns the Record Breaker title and the realm hears of
+# it; a Legendary gold is announced too. Boards are cached here for the
+# dungeon guide (K) and refreshed from the service at most once a minute.
+
+## "dungeon|difficulty|week" -> {"runs": [...fastest first, at most 10], "fetched_ms"}
+var dungeon_boards: Dictionary = {}
+const BOARD_SIZE := 10
+const BOARD_REFRESH_MS := 60000
+
+static func _board_key(dungeon_id: String, difficulty: String, week: int) -> String:
+	return "%s|%s|%d" % [dungeon_id, difficulty, week]
+
+func _record_dungeon_run(dungeon_id: String, difficulty: String, result: Dictionary, members: Array) -> void:
+	var week := HPRules.dungeon_week(int(Time.get_unix_time_from_system()))
+	var party: Array = []
+	var uids: Array = []
+	for record in members:
+		party.append({"character_id": int(record.get("character_id", 0)), "name": String(record.get("name", "")),
+			"level": _player_level(record)})
+		uids.append(int(record.get("uid", 0)))
+	var run := {"seconds": snappedf(float(result.get("time_s", 0.0)), 0.1), "medal": String(result.get("medal", "")),
+		"deaths": int(result.get("deaths", 0)), "party": party, "finished_at": Time.get_datetime_string_from_system(true)}
+	var key := _board_key(dungeon_id, difficulty, week)
+	var board: Dictionary = dungeon_boards.get(key, {"runs": [], "fetched_ms": -1})
+	var runs: Array = board["runs"]
+	var place := runs.size()
+	for i in runs.size():
+		if float(run["seconds"]) < float(runs[i].get("seconds", 0.0)):
+			place = i
+			break
+	runs.insert(place, run)
+	board["runs"] = runs.slice(0, BOARD_SIZE)
+	dungeon_boards[key] = board
+	var crown := func(rank: int) -> void:
+		if rank == 1:
+			_crown_dungeon_record(dungeon_id, difficulty, run, uids)
+	if persistence != null and persistence.has_method("record_dungeon_run"):
+		var post := run.duplicate()
+		post.erase("finished_at")
+		post["op_id"] = "dungeon:%s:%s:%d:%s" % [dungeon_id, difficulty, int(Time.get_unix_time_from_system()), ",".join(PackedStringArray(uids.map(func(u): return str(u))))]
+		post["dungeon"] = dungeon_id
+		post["difficulty"] = difficulty
+		post["week"] = week
+		persistence.record_dungeon_run(post, crown)
+	else:
+		crown.call(place + 1)
+	if difficulty == "legendary" and String(run["medal"]) == "gold":
+		announce_world_event("dungeon_legend", {"dungeon": String(HPMaps.dungeons().get(dungeon_id, {}).get("display", dungeon_id)),
+			"names": _party_names(party), "seconds": float(run["seconds"])})
+
+func _party_names(party: Array) -> String:
+	return ", ".join(PackedStringArray(party.map(func(p): return String(p.get("name", "?")))))
+
+## The week's fastest run: the Record Breaker title for its party, and the realm hears of it.
+func _crown_dungeon_record(dungeon_id: String, difficulty: String, run: Dictionary, uids: Array) -> void:
+	for uid in uids:
+		var record := record_by_uid(int(uid))
+		if not record.is_empty():
+			grant_title(record, "dungeon_record")
+	announce_world_event("dungeon_record", {"dungeon": String(HPMaps.dungeons().get(dungeon_id, {}).get("display", dungeon_id)),
+		"difficulty": String(HPRules.dungeon_difficulty(difficulty).get("display", difficulty)),
+		"names": _party_names(run.get("party", [])), "seconds": float(run.get("seconds", 0.0))})
+
+## The dungeon guide (K) for the player at `peer_id`: their record in every
+## dungeon (clears, best times, today's chests left per difficulty), this
+## week's curses, and the week's board for `dungeon_id` on `difficulty` - sent
+## from the cache at once, and again when a stale board comes back fresh.
+func request_dungeon_guide(peer_id: int, dungeon_id: String, difficulty: String) -> Dictionary:
+	var record := player_record(peer_id)
+	if record.is_empty() or not HPMaps.dungeons().has(dungeon_id) or not HPRules.DUNGEON_DIFFICULTIES.has(difficulty):
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	var uid := int(record.get("uid", 0))
+	var week := HPRules.dungeon_week(int(Time.get_unix_time_from_system()))
+	var key := _board_key(dungeon_id, difficulty, week)
+	var board: Dictionary = dungeon_boards.get(key, {"runs": [], "fetched_ms": -1})
+	_send_dungeon_guide(uid, dungeon_id, difficulty, week, board["runs"])
+	if persistence != null and persistence.has_method("dungeon_board") \
+			and (int(board["fetched_ms"]) < 0 or Time.get_ticks_msec() - int(board["fetched_ms"]) > BOARD_REFRESH_MS):
+		board["fetched_ms"] = Time.get_ticks_msec()
+		dungeon_boards[key] = board
+		persistence.dungeon_board(dungeon_id, difficulty, week, _on_board_fetched.bind(uid, dungeon_id, difficulty, week))
+	return HPProtocol.accept()
+
+## The service's board came back (null when it could not answer).
+func _on_board_fetched(runs, uid: int, dungeon_id: String, difficulty: String, week: int) -> void:
+	if not (runs is Array):
+		return
+	var key := _board_key(dungeon_id, difficulty, week)
+	var board: Dictionary = dungeon_boards.get(key, {"runs": [], "fetched_ms": Time.get_ticks_msec()})
+	board["runs"] = (runs as Array).slice(0, BOARD_SIZE)
+	dungeon_boards[key] = board
+	_send_dungeon_guide(uid, dungeon_id, difficulty, week, board["runs"])
+
+func _send_dungeon_guide(uid: int, dungeon_id: String, difficulty: String, week: int, runs: Array) -> void:
+	var record := record_by_uid(uid)
+	if record.is_empty():
+		return
+	var records: Dictionary = {}
+	for id in HPMaps.dungeons().keys():
+		var rights: Dictionary = {}
+		for d in HPRules.DUNGEON_DIFFICULTIES:
+			rights[d] = _dungeon_rewards_left(record, String(id), d)
+		var mine := _dungeon_record(record, String(id))
+		records[String(id)] = {"cleared": mine.get("cleared", {}), "best": mine.get("best", {}), "rights": rights}
+	emit_signal("dungeon_event", uid, {"kind": "guide", "dungeon": dungeon_id, "difficulty": difficulty, "week": week,
+		"records": records, "runs": runs})
+
+## One member's final chest (its galleons are paid apart).
+func _dungeon_chest(dungeon: Dictionary, difficulty: String, rules: Dictionary, rewards: Dictionary, medal: String,
+		run_level: int, table_id: String, flawless: bool) -> Array:
+	var table := HPRules._scaled_table(HPRules.loot_tables().get(table_id, {}), float(rules.get("drop", 1.0)))
+	var items := HPRules.roll_loot(table, rng)
+	_take_galleons(items)
+	var span: Array = rules.get("bonus_count", [0, 1])
+	items.append(_dungeon_gear(run_level, rng.randi_range(int(span[0]), int(span[1])), float(rules.get("tier_up", 0.0))))
+	if rng.randf() < float((rewards.get("medal_item", {}) as Dictionary).get(medal, 0.0)):
+		items.append(_dungeon_gear(run_level, mini(4, int(span[1]) + 1), float(rules.get("tier_up", 0.0))))
+	var seals := int(rules.get("seals", 0)) + int((rewards.get("medal_seals", {}) as Dictionary).get(medal, 0)) \
+		+ (int(rewards.get("flawless_seals", 0)) if flawless else 0)
+	if seals > 0:
+		items.append({"id": "dungeon_seal", "amount": seals})
+	var keys := int((rewards.get("key_drop", {}) as Dictionary).get(difficulty, 0))
+	if keys > 0 and String(dungeon.get("key", "")) != "":
+		items.append({"id": String(dungeon["key"]), "amount": keys})
+	return items.filter(func(i): return not (i as Dictionary).is_empty())
+
+## A wand, cloak or broom (sometimes an accessory) for `level` with exactly
+## `bonus_count` enchantments; `tier_up` is the chance it comes from the next
+## level band up.
+func _dungeon_gear(level: int, bonus_count: int, tier_up: float) -> Dictionary:
+	var gear_rules: Dictionary = HPRules.loot_tables().get("gear", {})
+	var band := int(gear_rules.get("level_band", 15))
+	if rng.randf() < tier_up:
+		level += band
+	if rng.randf() < 0.3:
+		return {"id": _accessory_for(level, band), "amount": 1}
+	var rules := gear_rules.duplicate()
+	rules["boss_chance"] = 1.0
+	rules["enchanted_chance"] = 0.0
+	var piece := _roll_gear({"level": level, "is_boss": true, "kind": HPProtocol.Kind.MOB}, rules, 1.0)
+	if piece.is_empty():
+		return {}
+	var bonuses: Array = []
+	for _i in bonus_count:
+		var bonus := HPEquipment.roll_bonus(String(piece["id"]), bonuses, rng)
+		if bonus.is_empty():
+			break
+		bonuses.append(bonus)
+	piece["bonuses"] = bonuses
+	return piece
+
+## The seal shop (dungeons.json rewards.shop), at every dungeon gate.
+func _seal_buy(node: Node, item_id: String) -> Dictionary:
+	var at := (node as Node3D).global_position
+	var near := false
+	for portal in HPMaps.portals():
+		if HPMaps.is_instanced(String(portal.get("to_map", ""))) and not HPMaps.is_instanced(String(portal.get("map_id", ""))) \
+				and String(portal.get("map_id", "")) == HPMaps.map_for_point(at):
+			var c: Array = (portal.get("trigger", {}) as Dictionary).get("center", [0, 0, 0])
+			near = near or Vector2(at.x - float(c[0]), at.z - float(c[2])).length() <= float(HPRules.dungeon_group().get("gather_radius", 30.0))
+	if not near:
+		return {"ok": false, "reason": "not_for_sale"}
+	for entry in HPRules.dungeon_rewards().get("shop", []):
+		if String((entry as Dictionary).get("item", "")) != item_id:
+			continue
+		var bag: Array = node.inventory.duplicate(true)
+		if not HPEquipment.take(bag, "dungeon_seal", 0, int(entry.get("seals", 1))):
+			return {"ok": false, "reason": "no_seals"}
+		HPEquipment.add(bag, item_id, 0, int(entry.get("amount", 1)))
+		if not HPEquipment.capacity_ok(bag):
+			return {"ok": false, "reason": "bag_full"}
+		return {"ok": true, "reason": "bought", "inventory": bag}
+	return {"ok": false, "reason": "not_for_sale"}
 
 func instance_info(map_id: String) -> Dictionary:
 	return (instances.get(HPMaps.base_map(map_id), {}) as Dictionary).get(HPMaps.instance_slot(map_id), {})
@@ -4538,6 +5141,11 @@ func close_instance(map_id: String) -> void:
 	copies.erase(HPMaps.instance_slot(map_id))
 	print("[Authority] instance %s closed" % map_id)
 	emit_signal("instance_closed", map_id)
+
+## A curse hazard for the players of `map_id` (presentation; the director
+## resolves it on its own clock).
+func publish_dungeon_hazard(map_id: String, data: Dictionary) -> void:
+	emit_signal("dungeon_hazard", map_id, data)
 
 ## A dungeon run published new state for its copy (kept for late arrivals).
 func publish_dungeon_state(map_id: String, state: Dictionary) -> void:
@@ -5210,6 +5818,8 @@ func request_equipment(peer_id: int, request_id: int, revision: int, operation: 
 			result = _sell_item(node, item_id, tier, uid)
 		elif operation == "buy":
 			result = _buy_item(node, item_id, clampi(tier, 1, 20))
+		elif operation == "seal_buy":
+			result = _seal_buy(node, item_id)
 		elif operation == "destroy":
 			result = _destroy_item(node, item_id, tier, uid)
 		else:

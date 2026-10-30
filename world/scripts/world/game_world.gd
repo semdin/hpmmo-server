@@ -97,6 +97,8 @@ func _ready() -> void:
 	# Presentation listens to the same signals in every role; in authority roles
 	# the entities already have nodes, so only the effect hooks fire.
 	_setup_replication()
+	# The weekly curses' ground hazards the local player sees (dungeon copies).
+	add_child(preload("res://scripts/world/dungeon_hazards.gd").new())
 
 ## A particle system entering the world gets the preset's budget, deferred so
 ## the effect that spawned it has finished setting its amount.

@@ -39,10 +39,13 @@ func _build() -> void:
 		_gold.emission = Color(0.9, 0.7, 0.3)
 		_gold.emission_energy_multiplier = 0.6
 	var f := floor_y
-	_room(Vector2(0, -22), Vector2(10, 68), [-56.0])
+	_room(Vector2(0, -22), Vector2(10, 68), [-56.0], 8.0, INF, [Vector2(-1, -30)])
+	# Side slots (dungeons.json armour_niche / pantry): optional packs off the way.
+	_room(Vector2(-15, -30), Vector2(18, 16), [], 8.0, INF, [], 1)
 	_room(Vector2(0, -78), Vector2(30, 44), [-56.0, -100.0])
 	_room(Vector2(0, -120), Vector2(30, 40), [-100.0, -140.0])
-	_room(Vector2(0, -150), Vector2(10, 20), [-140.0, -160.0])
+	_room(Vector2(0, -150), Vector2(10, 20), [-140.0, -160.0], 8.0, INF, [Vector2(1, -150)])
+	_room(Vector2(15, -150), Vector2(18, 16), [], 8.0, INF, [], -1)
 	wall_h = 14.0
 	_room(Vector2(0, -188), Vector2(48, 56), [-160.0, -216.0])
 	wall_h = 8.0
@@ -50,6 +53,8 @@ func _build() -> void:
 	# The hall is taller than the rooms either side: wall over their doorways.
 	_box(Vector3(0, f + 11.0, -160), Vector3(8.2, 6.0, 1))
 	_box(Vector3(0, f + 11.0, -216), Vector3(8.2, 6.0, 1))
+	# Holds the party at the corridor's head until the run's countdown ends.
+	_gate("start", Vector3(0, f + 3.0, -2), Vector3(10, 6, 0.8))
 	_gate("gate_a", Vector3(0, f + 3.0, -56), Vector3(8, 6, 0.8))
 	_gate("gate_b", Vector3(0, f + 3.0, -100), Vector3(8, 6, 0.8))
 	_gate("gate_c", Vector3(0, f + 3.0, -160), Vector3(8, 6, 0.8))
@@ -101,12 +106,16 @@ func _tapestry(file: String, at: Vector3, facing: float, size: Vector2 = Vector2
 
 func _dress_corridor(f: float) -> void:
 	_runner(Vector3(0, f + 0.02, -21), 3.0, 64)
-	for z in [4.0, -12.0, -28.0, -44.0]:
+	for z in [4.0, -12.0, -22.0, -44.0]:
 		_torch(Vector3(-4.3, f + 3.2, z))
-		_torch(Vector3(4.3, f + 3.2, z - 8.0))
-	for z in [-6.0, -20.0, -34.0]:
+	for z in [-4.0, -20.0, -36.0, -52.0]:
+		_torch(Vector3(4.3, f + 3.2, z))
+	for z in [-6.0, -20.0, -38.0]:
 		_prop(ARMOUR, Vector3(-4.0, f, z), 90.0)
 		_prop(ARMOUR, Vector3(4.0, f, z - 7.0), -90.0)
+	# The armour niche and the pantry off the stair.
+	for at in [Vector3(-23.3, f + 3.2, -26.0), Vector3(-23.3, f + 3.2, -34.0), Vector3(23.3, f + 3.2, -150.0)]:
+		_torch(at, Color(1.0, 0.68, 0.35), 1.3)
 
 func _dress_gallery(f: float) -> void:
 	_runner(Vector3(0, f + 0.02, -78), 4.0, 42)

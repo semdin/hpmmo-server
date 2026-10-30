@@ -21,6 +21,8 @@ var hp_is_sum := true
 var droop_chains: Dictionary = {}
 var droop_degrees := 22.0
 var droop_shrink := 1.0
+## A dungeon run's level and difficulty scaling on the authored `part_hp`.
+var part_hp_scale := 1.0
 
 var parts: Dictionary = {}          # key -> boss_part node (authority)
 var parts_down: Array = []
@@ -78,7 +80,7 @@ func _spawn_parts() -> void:
 		push_error("[Boss] %s: no part scene for '%s'" % [species, part_species])
 		return
 	var part_def := HPRules.mob_def(part_species)
-	var hp := int(_boss_data().get("part_hp", (part_def.get("base", {}) as Dictionary).get("max_hp", 1000)))
+	var hp := maxi(1, int(float(_boss_data().get("part_hp", (part_def.get("base", {}) as Dictionary).get("max_hp", 1000))) * part_hp_scale))
 	var bones: Dictionary = def.get("bones", {})
 	for key in bones.keys():
 		var part = (load(path) as PackedScene).instantiate()

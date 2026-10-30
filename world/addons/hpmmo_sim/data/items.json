@@ -952,5 +952,32 @@
     "icon": "portkey_boot",
     "slots": [],
     "buy_price": 10000
+  },
+  "dungeon_seal": {
+    "id": "dungeon_seal",
+    "name": "Dungeon Seal",
+    "type": "material",
+    "desc": "A wax seal stamped at a dungeon's end for every run. Spend seals at any dungeon gate on keys, runes and potions.",
+    "rarity": "rare",
+    "icon": "dungeon_seal",
+    "slots": []
+  },
+  "key_trial": {
+    "id": "key_trial",
+    "name": "Trial Hall Key",
+    "type": "material",
+    "desc": "An iron key to the Trial Hall. The party leader spends keys at the gate to open its Very Hard (1 key) and Legendary (3 keys) runs. Found in Hard runs, sold for seals.",
+    "rarity": "epic",
+    "icon": "key_trial",
+    "slots": []
+  },
+  "key_forbidden_corridor": {
+    "id": "key_forbidden_corridor",
+    "name": "Forbidden Corridor Key",
+    "type": "material",
+    "desc": "A brass key that fits the locked third-floor door. The party leader spends keys at the gate to open its Very Hard (1 key) and Legendary (3 keys) runs. Found in Hard runs, sold for seals.",
+    "rarity": "epic",
+    "icon": "key_forbidden_corridor",
+    "slots": []
   }
 }

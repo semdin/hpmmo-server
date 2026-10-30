@@ -401,7 +401,20 @@ func _unhandled_input(event: InputEvent) -> void:
 		else:
 			_passage_depart(_active_travel)
 		return
+	if HPMaps.is_instanced(String(_active_portal.get("to_map", ""))) and not HPMaps.is_instanced(current_map):
+		open_dungeon_gate(_active_portal)
+		return
 	_begin_transfer(_active_portal)
+
+## A dungeon door is a gate (protocol v30): its window picks the difficulty and
+## starts the party's run; a run of the party's still open is walked back into.
+func open_dungeon_gate(portal: Dictionary) -> void:
+	var hud = world.get("hud") if world != null else null
+	var gate = hud.get("dungeon") if hud != null else null
+	if gate == null or not is_instance_valid(local_player):
+		return
+	gate.on_rejoin = func(_portal_id: String) -> void: _begin_transfer(portal)
+	gate.open_at(local_player, String(portal.get("id", "")))
 
 ## The local body is mounted: entering the castle is refused (the authority
 ## refuses it too; this is the presentation half).
@@ -1074,6 +1087,8 @@ func _reason_text(reason: String) -> String:
 			return tr("You are not experienced enough to enter.")
 		"daily_limit":
 			return tr("You have entered this place enough times today - come back tomorrow.")
+		"use_gate":
+			return tr("Start the dungeon at its gate.")
 		"no_portkey":
 			return tr("You have no Portkey boot.")
 		"portkey_active":

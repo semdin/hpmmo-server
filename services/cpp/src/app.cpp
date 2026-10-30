@@ -1407,6 +1407,79 @@ void handle_ready(const httplib::Request&, httplib::Response& res, const Config&
                          {"schema", st.applied}, {"time", db::now_iso8601()}});
 }
 
+
+// --- dungeon runs (Z6): the world server records full clears and reads the
+// weekly leaderboards. Service token only.
+
+json board_rows(const db::Rows& rows) {
+    json list = json::array();
+    for (const auto& row : rows) {
+        json party = json::array();
+        try { party = json::parse(row[4].second.value_or("[]")); } catch (...) {}
+        list.push_back({{"seconds", std::stod(row[0].second.value_or("0"))},
+                        {"medal", row[1].second.value_or("")},
+                        {"deaths", std::stoi(row[2].second.value_or("0"))},
+                        {"finished_at", row[3].second.value_or("")},
+                        {"party", party}});
+    }
+    return list;
+}
+
+bool board_key_ok(const json& body) {
+    const std::string dungeon = body.value("dungeon", "");
+    const std::string difficulty = body.value("difficulty", "");
+    return !dungeon.empty() && dungeon.size() <= 48 && !difficulty.empty() && difficulty.size() <= 16 &&
+           body.contains("week") && body["week"].is_number_integer();
+}
+
+void handle_dungeon_run(const httplib::Request& req, httplib::Response& res, const Config& cfg,
+                        db::Pool& pool) {
+    if (!require_service_token(req, res, cfg)) return;
+    auto body = parse_body(req, res);
+    if (!body) return;
+    const std::string op_id = body->value("op_id", "");
+    if (op_id.empty() || op_id.size() > 96) return send_error(res, 400, "Invalid op_id.");
+    if (!board_key_ok(*body)) return send_error(res, 400, "Invalid dungeon key.");
+    if (!body->contains("seconds") || !(*body)["seconds"].is_number()) return send_error(res, 400, "Invalid seconds.");
+    const double seconds = (*body)["seconds"].get<double>();
+    if (seconds < 0.0 || seconds > 86400.0) return send_error(res, 400, "Invalid seconds.");
+    const json party = body->value("party", json::array());
+    if (!party.is_array() || party.size() > 5) return send_error(res, 400, "Invalid party.");
+    const std::string dungeon = (*body)["dungeon"].get<std::string>();
+    const std::string difficulty = (*body)["difficulty"].get<std::string>();
+    const std::string week = std::to_string((*body)["week"].get<long long>());
+    auto lease = pool.acquire();
+    db::Result ins = lease.exec(
+        "INSERT INTO dungeon_runs (op_id, dungeon, difficulty, week, seconds, medal, deaths, party) "
+        "VALUES ($1, $2, $3, $4::integer, $5::double precision, $6, $7::integer, $8::jsonb) ON CONFLICT (op_id) DO NOTHING",
+        {op_id, dungeon, difficulty, week, std::to_string(seconds), body->value("medal", std::string()),
+         std::to_string(body->value("deaths", 0)), party.dump()});
+    if (!ins.ok) return send_db_error(res, ins, "dungeon run");
+    // The run's place this week: one more than the runs strictly faster.
+    db::Result rank = lease.exec(
+        "SELECT count(*)::text FROM dungeon_runs WHERE dungeon = $1 AND difficulty = $2 AND week = $3::integer "
+        "AND seconds < $4::double precision",
+        {dungeon, difficulty, week, std::to_string(seconds)});
+    if (!rank.ok || rank.rows.empty()) return send_db_error(res, rank, "dungeon rank");
+    send_json(res, 200, {{"success", true}, {"rank", std::stoll(rank.rows[0][0].second.value_or("0")) + 1}});
+}
+
+void handle_dungeon_board(const httplib::Request& req, httplib::Response& res, const Config& cfg,
+                          db::Pool& pool) {
+    if (!require_service_token(req, res, cfg)) return;
+    auto body = parse_body(req, res);
+    if (!body) return;
+    if (!board_key_ok(*body)) return send_error(res, 400, "Invalid dungeon key.");
+    const int limit = std::clamp(body->value("limit", 10), 1, 50);
+    auto lease = pool.acquire();
+    db::Result r = lease.exec(
+        "SELECT seconds::text, medal, deaths::text, finished_at::text, party::text FROM dungeon_runs "
+        "WHERE dungeon = $1 AND difficulty = $2 AND week = $3::integer ORDER BY seconds, finished_at LIMIT $4::integer",
+        {(*body)["dungeon"].get<std::string>(), (*body)["difficulty"].get<std::string>(),
+         std::to_string((*body)["week"].get<long long>()), std::to_string(limit)});
+    if (!r.ok) return send_db_error(res, r, "dungeon board");
+    send_json(res, 200, {{"success", true}, {"runs", board_rows(r.rows)}});
+}
 }  // namespace
 
 int serve(const Config& cfg, db::Pool& pool) {
@@ -1469,6 +1542,12 @@ int serve(const Config& cfg, db::Pool& pool) {
     });
     svr.Post("/api/trade", [&](const httplib::Request& req, httplib::Response& res) {
         handle_trade(req, res, cfg, pool);
+    });
+    svr.Post("/api/dungeon/run", [&](const httplib::Request& req, httplib::Response& res) {
+        handle_dungeon_run(req, res, cfg, pool);
+    });
+    svr.Post("/api/dungeon/board", [&](const httplib::Request& req, httplib::Response& res) {
+        handle_dungeon_board(req, res, cfg, pool);
     });
 
     std::printf("[hpmmo-service] listening on %s:%d (db=%s, private api=%s)\n",

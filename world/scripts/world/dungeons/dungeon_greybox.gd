@@ -104,14 +104,19 @@ func _deco(center: Vector3, size: Vector3, material: Material) -> void:
 
 ## A room's floor and four walls, `size` (x, z) centred on `center` (x, z),
 ## leaving an 8 m doorway wherever an opening point lies on a wall.
-func _room(center: Vector2, size: Vector2, openings: Array, door: float = 8.0, y: float = INF) -> void:
+## `side_doors` (Vector2(side, z): side -1 west, +1 east) cut SIDE_DOOR wide
+## doorways into the long x walls; `open_side` (-1 / +1) leaves that x wall
+## out - a side room joined to the room whose wall already stands there.
+func _room(center: Vector2, size: Vector2, openings: Array, door: float = 8.0, y: float = INF,
+		side_doors: Array = [], open_side: int = 0) -> void:
 	var fy := floor_y if y == INF else y
 	_box(Vector3(center.x, fy - 0.5, center.y), Vector3(size.x, 1, size.y), _floor_mat)
 	var hx := size.x * 0.5
 	var hz := size.y * 0.5
 	var wy := fy + wall_h * 0.5
 	for side in [-1.0, 1.0]:
-		_box(Vector3(center.x + side * (hx + 0.5), wy, center.y), Vector3(1, wall_h, size.y + 2.0))
+		if int(side) != open_side:
+			_wall_x(center.x + side * (hx + 0.5), wy, center.y - hz - 1.0, center.y + hz + 1.0, _doors_on(side_doors, int(side)))
 		var wz: float = center.y + side * (hz + 0.5)
 		var gap := false
 		for o in openings:
@@ -124,22 +129,47 @@ func _room(center: Vector2, size: Vector2, openings: Array, door: float = 8.0, y
 			if seg > 0.0:
 				_box(Vector3(center.x - (door * 0.5 + seg * 0.5), wy, wz), Vector3(seg, wall_h, 1))
 				_box(Vector3(center.x + (door * 0.5 + seg * 0.5), wy, wz), Vector3(seg, wall_h, 1))
-	# A ceiling keeps the light in and the sky out.
-	_deco(Vector3(center.x, fy + wall_h + 0.25, center.y), Vector3(size.x + 2, 0.5, size.y + 2), _vault)
-	_dress_room(center, size, fy)
+	# A ceiling keeps the light in and the sky out (short of a joined room's).
+	var lip := 1.0 if open_side != 0 else 2.0
+	_deco(Vector3(center.x - float(open_side) * 0.5, fy + wall_h + 0.25, center.y), Vector3(size.x + lip, 0.5, size.y + 2), _vault)
+	_dress_room(center, size, fy, open_side, side_doors)
+
+const SIDE_DOOR := 6.0
+
+static func _doors_on(side_doors: Array, side: int) -> Array:
+	var out: Array = []
+	for d in side_doors:
+		if int((d as Vector2).x) == side:
+			out.append((d as Vector2).y)
+	out.sort()
+	return out
+
+## A wall along z at `x`, from `z_from` to `z_to`, with a SIDE_DOOR doorway
+## centred on each z in `doors` (ascending); a sill floors each doorway.
+func _wall_x(x: float, wy: float, z_from: float, z_to: float, doors: Array) -> void:
+	var z := z_from
+	for d in doors:
+		var a := float(d) - SIDE_DOOR * 0.5
+		if a > z:
+			_box(Vector3(x, wy, (z + a) * 0.5), Vector3(1, wall_h, a - z))
+		_box(Vector3(x, wy - wall_h * 0.5 - 0.5, float(d)), Vector3(1, 1, SIDE_DOOR), _floor_mat)
+		z = float(d) + SIDE_DOOR * 0.5
+	if z_to > z:
+		_box(Vector3(x, wy, (z + z_to) * 0.5), Vector3(1, wall_h, z_to - z))
 
 ## Dressed stone on a plain room: a plinth along every wall, pilasters every
 ## `bay` metres down the long walls carrying transverse ribs under the ceiling,
-## and a cornice where wall meets vault.
-func _dress_room(center: Vector2, size: Vector2, fy: float) -> void:
+## and a cornice where wall meets vault (none along an open side).
+func _dress_room(center: Vector2, size: Vector2, fy: float, open_side: int = 0, side_doors: Array = []) -> void:
 	if collision_only:
 		return
 	var hx := size.x * 0.5
 	var hz := size.y * 0.5
 	for side in [-1.0, 1.0]:
-		_deco(Vector3(center.x + side * (hx - 0.15), fy + 0.25, center.y), Vector3(0.3, 0.5, size.y), _trim)
+		if int(side) != open_side:
+			_deco(Vector3(center.x + side * (hx - 0.15), fy + 0.25, center.y), Vector3(0.3, 0.5, size.y), _trim)
+			_deco(Vector3(center.x + side * (hx - 0.2), fy + wall_h - 0.3, center.y), Vector3(0.4, 0.6, size.y), _trim)
 		_deco(Vector3(center.x, fy + 0.25, center.y + side * (hz - 0.15)), Vector3(size.x, 0.5, 0.3), _trim)
-		_deco(Vector3(center.x + side * (hx - 0.2), fy + wall_h - 0.3, center.y), Vector3(0.4, 0.6, size.y), _trim)
 	if bay <= 0.0:
 		return
 	var count := int(floor(size.y / bay))
@@ -148,7 +178,9 @@ func _dress_room(center: Vector2, size: Vector2, fy: float) -> void:
 		if z <= center.y - hz + 0.5:
 			break
 		for side in [-1.0, 1.0]:
-			_deco(Vector3(center.x + side * (hx - 0.35), fy + wall_h * 0.5, z), Vector3(0.7, wall_h, 0.9), _trim)
+			var in_door := _doors_on(side_doors, int(side)).any(func(d): return absf(float(d) - z) < SIDE_DOOR * 0.5 + 0.5)
+			if int(side) != open_side and not in_door:
+				_deco(Vector3(center.x + side * (hx - 0.35), fy + wall_h * 0.5, z), Vector3(0.7, wall_h, 0.9), _trim)
 		_deco(Vector3(center.x, fy + wall_h - 0.2, z), Vector3(size.x, 0.4, 0.6), _trim)
 
 ## A portcullis: iron bars and cross straps (the body's collision is the

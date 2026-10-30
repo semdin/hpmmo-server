@@ -125,9 +125,10 @@ static func build_entries() -> Array:
 				if not listed:
 					e["dungeons"].append({"id": String(id), "level_min": int(dungeon.get("level_min", 1)),
 						"per_day": int(dungeon.get("entries_per_day", 0))})
+				# Dungeon creatures follow the run's level: the dungeon's band.
 				if e["regions"].is_empty():
-					e["level_min"] = mini(int(e["level_min"]), int(spawn.get("level", 1)))
-					e["level_max"] = maxi(int(e["level_max"]), int(spawn.get("level", 1)))
+					e["level_min"] = mini(int(e["level_min"]), int(dungeon.get("level_min", 1)))
+					e["level_max"] = maxi(int(e["level_max"]), int(dungeon.get("level_max", dungeon.get("level_min", 1))))
 				by_species[species] = e
 	var out: Array = []
 	for species in by_species.keys():

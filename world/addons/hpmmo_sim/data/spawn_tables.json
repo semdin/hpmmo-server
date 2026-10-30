@@ -22985,6 +22985,7 @@
     },
     "trial_warden": {
       "hp": 2600,
+      "stat_level": 12,
       "attack_power": 60,
       "attack_range": 4.5,
       "exp_reward": 800,
@@ -22996,6 +22997,7 @@
     },
     "cursed_commander": {
       "hp": 6000,
+      "stat_level": 32,
       "attack_power": 110,
       "attack_range": 4.0,
       "exp_reward": 3000,
@@ -23007,6 +23009,7 @@
     },
     "snare_root": {
       "hp": 5000,
+      "stat_level": 33,
       "attack_power": 100,
       "attack_range": 9.0,
       "exp_reward": 3500,
@@ -23019,6 +23022,7 @@
     },
     "fluffy": {
       "hp": 12000,
+      "stat_level": 34,
       "attack_power": 140,
       "attack_range": 7.5,
       "exp_reward": 9000,
@@ -23029,6 +23033,30 @@
       "label_y": 8.4,
       "part_hp": 4000,
       "enrage_s": 480.0
+    },
+    "brood_guardian": {
+      "hp": 5200,
+      "stat_level": 28,
+      "attack_power": 95,
+      "attack_range": 4.5,
+      "exp_reward": 2000,
+      "scale": 1.35,
+      "name": "Brood Guardian",
+      "move_speed": 3.6,
+      "walk_speed": 0.9,
+      "label_y": 3.6
+    },
+    "web_queen": {
+      "hp": 11000,
+      "stat_level": 30,
+      "attack_power": 120,
+      "attack_range": 5.0,
+      "exp_reward": 6000,
+      "scale": 1.6,
+      "name": "Blackweb Queen",
+      "move_speed": 3.2,
+      "walk_speed": 0.82,
+      "label_y": 5.2
     }
   },
   "monoliths": [

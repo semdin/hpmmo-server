@@ -112,7 +112,7 @@ var attribute_points: int = 0
 ## Titles earned (dungeons.json first_clear_title ids, `quests.titles`); the
 ## newest is shown above the name.
 var titles: Array = []
-const TITLE_NAMES := {"fc_explorer": "Forbidden Corridor Explorer"}  # i18n
+const TITLE_NAMES := {"fc_explorer": "Forbidden Corridor Explorer", "lair_explorer": "Queen's Bane", "dungeon_record": "Record Breaker"}  # i18n
 ## An authority shove (knockback, a pixie's lift, Fluffy's breath): a velocity
 ## of its own that rides on top of the input-driven one and fades out.
 var _shove := Vector3.ZERO
@@ -1744,14 +1744,47 @@ func persisted_quests() -> Dictionary:
 	out["look"] = look.duplicate()
 	return out
 
-## Dungeon runs started today (`quests.dungeons`, authority-written).
-func dungeon_entries_on(dungeon_id: String, day: String) -> int:
-	var entry: Dictionary = (_quest_state.get("dungeons", {}) as Dictionary).get(dungeon_id, {})
-	return int(entry.get("entries", 0)) if String(entry.get("day", "")) == day else 0
+## A dungeon's record (`quests.dungeons[id]`, authority-written): `cleared`
+## {difficulty: best medal rank}, `best` {difficulty: seconds}, and the
+## rewarded runs of `day` per difficulty (`rewards`).
+func dungeon_record(dungeon_id: String) -> Dictionary:
+	return ((_quest_state.get("dungeons", {}) as Dictionary).get(dungeon_id, {}) as Dictionary).duplicate(true)
 
-func record_dungeon_entry(dungeon_id: String, day: String) -> void:
+## Final chests left today on `difficulty` (-1: no daily limit).
+func dungeon_rewards_left(dungeon_id: String, difficulty: String, day: String) -> int:
+	var limit := int(HPRules.dungeon_difficulty(difficulty).get("daily_rewards", -1))
+	if limit < 0:
+		return -1
+	var record := dungeon_record(dungeon_id)
+	var used := int((record.get("rewards", {}) as Dictionary).get(difficulty, 0)) if String(record.get("day", "")) == day else 0
+	return maxi(0, limit - used)
+
+## No rewarded run yet on `day` (the first one pays extra experience).
+func dungeon_first_run(day: String) -> bool:
+	return String(_quest_state.get("dungeon_day", "")) != day
+
+## A completed run: the clear (best medal), the best time, and - when it paid
+## a final chest - today's reward count and the day's first run.
+func record_dungeon_run(dungeon_id: String, difficulty: String, medal_rank: int, seconds: float, rewarded: bool, day: String) -> void:
 	var all: Dictionary = _quest_state.get("dungeons", {})
-	all[dungeon_id] = {"day": day, "entries": dungeon_entries_on(dungeon_id, day) + 1}
+	var record: Dictionary = all.get(dungeon_id, {})
+	var cleared: Dictionary = record.get("cleared", {})
+	cleared[difficulty] = maxi(int(cleared.get(difficulty, -1)), medal_rank)
+	record["cleared"] = cleared
+	var best: Dictionary = record.get("best", {})
+	if not best.has(difficulty) or seconds < float(best[difficulty]):
+		best[difficulty] = snappedf(seconds, 0.1)
+	record["best"] = best
+	if rewarded:
+		if String(record.get("day", "")) != day:
+			record["day"] = day
+			record["rewards"] = {}
+		var rewards: Dictionary = record.get("rewards", {})
+		rewards[difficulty] = int(rewards.get(difficulty, 0)) + 1
+		record["rewards"] = rewards
+		_quest_state["dungeon_day"] = day
+	record.erase("entries")
+	all[dungeon_id] = record
 	_quest_state["dungeons"] = all
 
 ## A shove from the authority (its own copy and, via sim_push, the owner's

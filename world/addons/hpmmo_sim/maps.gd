@@ -280,6 +280,11 @@ static func dungeons() -> Dictionary:
 			_dungeons = parsed if parsed is Dictionary else {}
 	return _dungeons.get("dungeons", {})
 
+## A rule block beside the catalog: difficulty, group, roles, medals.
+static func dungeon_rules(block: String) -> Dictionary:
+	dungeons()
+	return _dungeons.get(block, {})
+
 ## The dungeon definition an instanced map runs ({} for none).
 static func dungeon_for_map(map_id: String) -> Dictionary:
 	var base := base_map(map_id)

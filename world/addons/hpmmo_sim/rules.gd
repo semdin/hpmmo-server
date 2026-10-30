@@ -1223,6 +1223,140 @@ static func hunting_region_at(point: Vector3) -> Dictionary:
 			return region
 	return {}
 
+# -------------------------------------------------------------- dungeons
+
+## Difficulty ids, easiest first (dungeons.json `difficulty`).
+const DUNGEON_DIFFICULTIES := ["easy", "normal", "hard", "very_hard", "legendary"]
+
+## A difficulty's place from easiest (0) to Legendary (4).
+static func dungeon_difficulty_rank(id: String) -> int:
+	return DUNGEON_DIFFICULTIES.find(dungeon_difficulty_id(id))
+
+## Whether a step or spawn entry takes part on `difficulty`: its
+## `min_difficulty` (dungeons.json) is at most the run's.
+static func dungeon_active_on(item: Dictionary, difficulty: String) -> bool:
+	return not item.has("min_difficulty") \
+		or dungeon_difficulty_rank(String(item["min_difficulty"])) <= dungeon_difficulty_rank(difficulty)
+
+## A known difficulty id, or "normal".
+static func dungeon_difficulty_id(id: String) -> String:
+	return id if DUNGEON_DIFFICULTIES.has(id) else "normal"
+
+static func dungeon_difficulty(id: String) -> Dictionary:
+	return HPMaps.dungeon_rules("difficulty").get(dungeon_difficulty_id(id), {})
+
+static func dungeon_group() -> Dictionary:
+	return HPMaps.dungeon_rules("group")
+
+## A spawn role (trash / elite / miniboss / boss); unknown roles read as trash.
+static func dungeon_role(id: String) -> Dictionary:
+	var roles := HPMaps.dungeon_rules("roles")
+	return roles.get(id, roles.get("trash", {}))
+
+## Highest minus lowest level of a party.
+static func dungeon_level_spread(levels: Array) -> int:
+	if levels.is_empty():
+		return 0
+	return int(levels.max()) - int(levels.min())
+
+## A party's reference level for a dungeon: weighted toward its strongest member
+## (an average lets a high member carry low ones through easy creatures, the
+## highest alone buries the lowest), clamped to the dungeon's level band.
+static func dungeon_ref_level(dungeon: Dictionary, levels: Array) -> int:
+	var low := int(dungeon.get("level_min", 1))
+	if levels.is_empty():
+		return low
+	var total := 0
+	for level in levels:
+		total += int(level)
+	var weight := float(dungeon_group().get("ref_max_weight", 0.6))
+	var ref := roundi(weight * float(levels.max()) + (1.0 - weight) * float(total) / float(levels.size()))
+	return clampi(ref, low, int(dungeon.get("level_max", max_level())))
+
+## What a run fixes when it opens: difficulty, the party's levels and size, and
+## the reference level every creature of the run is built from.
+static func dungeon_run_params(dungeon: Dictionary, difficulty: String, levels: Array) -> Dictionary:
+	return {"difficulty": dungeon_difficulty_id(difficulty), "levels": levels.duplicate(),
+		"party_size": maxi(1, levels.size()), "ref_level": dungeon_ref_level(dungeon, levels)}
+
+## The level of one spawn entry in a run: reference + difficulty offset + role + its own `lvl`.
+static func dungeon_mob_level(params: Dictionary, entry: Dictionary) -> int:
+	var role := dungeon_role(String(entry.get("role", "trash")))
+	var level := int(params.get("ref_level", 1)) + int(dungeon_difficulty(String(params.get("difficulty", ""))).get("level_offset", 0)) \
+		+ int(role.get("lvl", 0)) + int(entry.get("lvl", 0))
+	return clampi(level, 1, max_level())
+
+## HP and damage multipliers a run puts on one spawn entry: the difficulty's, and
+## HP for the party size (damage never scales with the party).
+static func dungeon_stat_scale(params: Dictionary, entry: Dictionary) -> Dictionary:
+	var difficulty := dungeon_difficulty(String(params.get("difficulty", "")))
+	var kind := String(dungeon_role(String(entry.get("role", "trash"))).get("party_hp", "trash"))
+	var per_member := float(dungeon_group().get("party_hp_" + kind, 0.5))
+	var extra := maxi(0, int(params.get("party_size", 1)) - 1)
+	return {"hp": float(difficulty.get("hp", 1.0)) * (1.0 + per_member * float(extra)),
+		"damage": float(difficulty.get("damage", 1.0))}
+
+## Stat ratio between two creature levels: authored numbers (boss_overrides at
+## their `stat_level`) follow a run's level the way pack stats do.
+static func level_strength_ratio(from_level: int, to_level: int) -> float:
+	return pack_strength(to_level) / pack_strength(from_level)
+
+static func level_exp_ratio(from_level: int, to_level: int) -> float:
+	return float(pack_exp_reward(to_level)) / float(maxi(1, pack_exp_reward(from_level)))
+
+## A weekly curse's rules (dungeons.json affixes.defs).
+static func dungeon_affix(id: String) -> Dictionary:
+	return (HPMaps.dungeon_rules("affixes").get("defs", {}) as Dictionary).get(id, {})
+
+## The dungeon week of a moment: weeks turn on Monday 03:00 UTC (06:00 Turkey
+## time); the Unix epoch fell on a Thursday, four days before a Monday.
+static func dungeon_week(unix: int) -> int:
+	return int(floor(float(unix - 3 * 3600 - 4 * 86400) / 604800.0))
+
+## This week's first `count` curses: the pool shuffled with the week as seed,
+## the same in every dungeon and on every machine.
+static func dungeon_week_affixes(count: int, unix: int = -1) -> Array:
+	if count <= 0:
+		return []
+	var pool: Array = (HPMaps.dungeon_rules("affixes").get("pool", []) as Array).duplicate()
+	var shuffle := RandomNumberGenerator.new()
+	shuffle.seed = dungeon_week(unix if unix >= 0 else int(Time.get_unix_time_from_system())) * 7919 + 17
+	for i in range(pool.size() - 1, 0, -1):
+		var j := shuffle.randi_range(0, i)
+		var held = pool[i]
+		pool[i] = pool[j]
+		pool[j] = held
+	return pool.slice(0, mini(count, pool.size()))
+
+## Medal order: none < bronze < silver < gold.
+const MEDAL_RANK := {"": 0, "bronze": 1, "silver": 2, "gold": 3}
+
+static func dungeon_rewards() -> Dictionary:
+	return HPMaps.dungeon_rules("rewards")
+
+## Whether a character whose clears are `cleared` ({difficulty: best medal
+## rank}) may enter `difficulty`: it needs its unlock_after difficulty cleared
+## with at least its unlock_medal.
+static func dungeon_unlocked(cleared: Dictionary, difficulty: String) -> bool:
+	var rules := dungeon_difficulty(difficulty)
+	var after := String(rules.get("unlock_after", ""))
+	if after == "":
+		return true
+	return cleared.has(after) and int(cleared[after]) >= int(MEDAL_RANK.get(String(rules.get("unlock_medal", "")), 0))
+
+## Experience multiplier of a party of `members` in a dungeon run.
+static func dungeon_party_exp(members: int) -> float:
+	var group := dungeon_group()
+	return 1.0 + minf(float(group.get("party_exp_cap", 0.2)), float(group.get("party_exp_per_member", 0.05)) * float(maxi(0, members - 1)))
+
+## Experience for `share` of a full clear on `difficulty`, for a player of
+## `level` in a run whose creatures stand at `run_level`: a share of the
+## player's own level threshold, cut by the level gap downward only.
+static func dungeon_exp(level: int, run_level: int, difficulty: String, share: float) -> int:
+	var budget := float(dungeon_difficulty(difficulty).get("exp_budget", 0.0))
+	var gap := minf(1.0, level_gap_exp(level, run_level))
+	return int(round(float(exp_threshold(level)) * budget * share * gap))
+
 # -------------------------------------------------------------- rewards
 
 ## Every player that damaged the mob inside the credit window shares the reward.

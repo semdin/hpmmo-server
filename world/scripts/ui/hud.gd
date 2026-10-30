@@ -91,6 +91,13 @@ var bestiary: HudBestiary = null
 var floo: HudFloo = null
 ## Where a Portkey goes (right-click an Old Boot in the bag).
 var portkey: HudPortkey = null
+## The dungeon gate window (map controller opens it at a dungeon door) and the
+## run's start countdown.
+var dungeon: HudDungeon = null
+var dungeon_run: HudDungeonRun = null
+var dungeon_result: HudDungeonResult = null
+## K: every dungeon, the character's record there and the week's boards.
+var dungeon_guide: HudDungeonGuide = null
 var _exp_ticks: Control = null
 var _level := 1
 ## Last house rank shown; 0 until the first payload so a load is not a "rank up".
@@ -185,6 +192,8 @@ func _setup_panels() -> void:
 	duel_view = HudDuel.new()
 	duel_view.chat_sink = add_system_chat
 	add_child(duel_view)
+	dungeon_run = HudDungeonRun.new()
+	add_child(dungeon_run)
 	buff_bar = HudBuffBar.new()
 	add_child(buff_bar)
 	action_bar = HudActionBar.new()
@@ -214,6 +223,14 @@ func _setup_panels() -> void:
 	modal.add_child(floo)
 	portkey = HudPortkey.new()
 	modal.add_child(portkey)
+	dungeon = HudDungeon.new()
+	dungeon.hud = self
+	modal.add_child(dungeon)
+	dungeon_result = HudDungeonResult.new()
+	modal.add_child(dungeon_result)
+	dungeon_guide = HudDungeonGuide.new()
+	modal.add_child(dungeon_guide)
+	dungeon_run.result_window = dungeon_result
 	skill_pick = HudSkillPick.new()
 	skill_pick.hud = self
 	modal.add_child(skill_pick)
@@ -244,6 +261,7 @@ func _setup_panels() -> void:
 	_ensure_ui_action("toggle_skills", KEY_V)
 	_ensure_ui_action("toggle_character", KEY_C)
 	_ensure_ui_action("toggle_bestiary", KEY_B)
+	_ensure_ui_action("toggle_dungeons", KEY_K)
 
 ## Name, house and purse, on a small brass plate in the top-left corner.
 ## Previously a bare label that overlapped the chat log.
@@ -377,6 +395,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 		bestiary.toggle()
 		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("toggle_dungeons"):
+		if settings != null and settings.is_open():
+			return
+		dungeon_guide.toggle()
+		get_viewport().set_input_as_handled()
 
 func bind_player(p_player: Node3D) -> void:
 	if player == p_player and binder != null and binder.player == p_player:
@@ -393,6 +416,12 @@ func bind_player(p_player: Node3D) -> void:
 		duel_view.player = player
 	if player_menu != null:
 		player_menu.player = player
+	if invites != null:
+		invites.player = player
+	if dungeon_result != null:
+		dungeon_result.player = player
+	if dungeon_guide != null:
+		dungeon_guide.player = player
 	if binder != null:
 		binder.bind(player)
 	if player.has_signal("notice") and not player.notice.is_connected(show_notice):
@@ -869,6 +898,11 @@ static func world_event_text(kind: String, data: Dictionary) -> String:
 		"boss_slain":
 			var killer := String(data.get("killer", ""))
 			return (I18n.t("%s has been slain by %s!") % [name, killer]) if killer != "" else (I18n.t("%s has fallen!") % name)
+		"dungeon_record":
+			return I18n.t("New weekly record in %s (%s): %s - %s!") % [I18n.t(String(data.get("dungeon", ""))),
+				I18n.t(String(data.get("difficulty", ""))), String(data.get("names", "")), HudDungeon._clock(float(data.get("seconds", 0.0)))]
+		"dungeon_legend":
+			return I18n.t("%s won Legendary gold in %s!") % [String(data.get("names", "")), I18n.t(String(data.get("dungeon", "")))]
 	return ""
 
 func show_world_event(kind: String, data: Dictionary) -> String:
@@ -924,6 +958,15 @@ func handle_escape(world: Node = null) -> String:
 	if portkey != null and portkey.is_open():
 		portkey.close()
 		return "portkey"
+	if dungeon != null and dungeon.is_open():
+		dungeon.close()
+		return "dungeon"
+	if dungeon_result != null and dungeon_result.is_open():
+		dungeon_result.close()
+		return "dungeon_result"
+	if dungeon_guide != null and dungeon_guide.is_open():
+		dungeon_guide.close()
+		return "dungeon_guide"
 	if quest_scroll != null and quest_scroll.is_open():
 		quest_scroll.close()
 		return "quest"

@@ -299,6 +299,14 @@ msgstr "Karanlık Metin Taşı"
 msgid "Forbidden Corridor Explorer"
 msgstr "Yasak Koridor Kâşifi"
 
+#: scripts/entities/player.gd addons/hpmmo_sim/data/dungeons.json
+msgid "Queen's Bane"
+msgstr "Kraliçe Avcısı"
+
+#: scripts/entities/player.gd
+msgid "Record Breaker"
+msgstr "Rekor Kırıcı"
+
 #: scripts/entities/player.gd scripts/ui/hud_player_menu.gd
 msgid "Lv. %d  ·  %s"
 msgstr "Sv. %d  ·  %s"
@@ -435,7 +443,7 @@ msgstr "%s Sv.%d"
 msgid "+%d %s Reputation"
 msgstr "+%d %s İtibarı"
 
-#: scripts/entities/player.gd scripts/ui/combat_feedback.gd
+#: scripts/entities/player.gd scripts/ui/combat_feedback.gd scripts/ui/hud_dungeon_result.gd
 msgid "+%d EXP"
 msgstr "+%d EXP"
 
@@ -727,7 +735,7 @@ msgstr "YENİLDİN\n%d sn sonra kalkabilirsin"
 msgid "DEFEATED\nReturning to town in %d:%02d"
 msgstr "YENİLDİN\n%d:%02d sonra şehre dönülüyor"
 
-#: scripts/ui/combat_feedback.gd
+#: scripts/ui/combat_feedback.gd scripts/ui/hud_dungeon_result.gd
 msgid "+%d Galleons"
 msgstr "+%d Galleon"
 
@@ -1048,6 +1056,14 @@ msgid "%s has fallen!"
 msgstr "%s düştü!"
 
 #: scripts/ui/hud.gd
+msgid "New weekly record in %s (%s): %s - %s!"
+msgstr "%s (%s) haftalık rekoru kırıldı: %s - %s!"
+
+#: scripts/ui/hud.gd
+msgid "%s won Legendary gold in %s!"
+msgstr "%s, %s zindanında Efsanevi altın madalya kazandı!"
+
+#: scripts/ui/hud.gd
 msgid "[World] "
 msgstr "[Dünya] "
 
@@ -1287,7 +1303,7 @@ msgstr "Kara Kapkaççı Komutanı"
 msgid "  ·  dungeon"
 msgstr "  ·  zindan"
 
-#: scripts/ui/hud_bestiary.gd scripts/ui/hud_floo.gd scripts/ui/hud_world_map.gd
+#: scripts/ui/hud_bestiary.gd scripts/ui/hud_dungeon.gd scripts/ui/hud_floo.gd scripts/ui/hud_world_map.gd
 msgid "Lv %d"
 msgstr "Sv %d"
 
@@ -1643,6 +1659,458 @@ msgstr "Düello"
 msgid "vs"
 msgstr "vs"
 
+#: scripts/ui/hud_dungeon.gd
+msgid "Dungeon"
+msgstr "Zindan"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "Seal Shop"
+msgstr "Mühür Dükkânı"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "Party at the gate"
+msgstr "Kapıdaki grup"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "Ready check"
+msgstr "Hazırlık kontrolü"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "Return to your run"
+msgstr "Koşuna geri dön"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "Every finished run pays seals; a medal pays more."
+msgstr "Biten her koşu Mühür verir; madalya daha fazlasını."
+
+#: scripts/ui/hud_dungeon.gd
+msgid "%d seals"
+msgstr "%d Mühür"
+
+#: scripts/ui/hud_dungeon.gd scripts/ui/hud_floo.gd
+msgid "Buy"
+msgstr "Satın Al"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "Dungeon Seals: %d"
+msgstr "Zindan Mührü: %d"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "Bought."
+msgstr "Satın alındı."
+
+#: scripts/ui/hud_dungeon.gd
+msgid "Not enough Dungeon Seals."
+msgstr "Yeterli Zindan Mührü yok."
+
+#: scripts/ui/hud_dungeon.gd scripts/ui/hud_floo.gd
+msgid "Your bag is full."
+msgstr "Çantan dolu."
+
+#: scripts/ui/hud_dungeon.gd
+msgid "The seal shop is at the dungeon gates."
+msgstr "Mühür dükkânı zindan kapılarında."
+
+#: scripts/ui/hud_dungeon.gd
+msgid "The gate keeper shakes his head."
+msgstr "Kapı bekçisi başını sallıyor."
+
+#: scripts/ui/hud_dungeon.gd
+msgid "Ready check cancelled: %s"
+msgstr "Hazırlık kontrolü iptal: %s"
+
+#: scripts/ui/hud_dungeon.gd scripts/world/portkey_views.gd
+msgid "A party member"
+msgstr "Bir grup üyesi"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "Only the party leader can start the dungeon."
+msgstr "Zindanı yalnızca grup lideri başlatabilir."
+
+#: scripts/ui/hud_dungeon.gd
+msgid "This difficulty needs a party of at least %d."
+msgstr "Bu zorluk için en az %d kişilik grup gerekir."
+
+#: scripts/ui/hud_dungeon.gd
+msgid "Party levels may differ by at most %d (now %d)."
+msgstr "Gruptaki seviye farkı en fazla %d olabilir (şu an %d)."
+
+#: scripts/ui/hud_dungeon.gd
+msgid "%s needs level %d for this difficulty."
+msgstr "%s bu zorluk için en az %d. seviye olmalı."
+
+#: scripts/ui/hud_dungeon.gd
+msgid "%s is not at the gate."
+msgstr "%s kapının yanında değil."
+
+#: scripts/ui/hud_dungeon.gd
+msgid "%s is dead."
+msgstr "%s ölü."
+
+#: scripts/ui/hud_dungeon.gd
+msgid "%s is on a broom."
+msgstr "%s süpürgede."
+
+#: scripts/ui/hud_dungeon.gd
+msgid "%s is in a duel."
+msgstr "%s düelloda."
+
+#: scripts/ui/hud_dungeon.gd
+msgid "%s is fighting."
+msgstr "%s savaşta."
+
+#: scripts/ui/hud_dungeon.gd
+msgid "%s is travelling."
+msgstr "%s yolculukta."
+
+#: scripts/ui/hud_dungeon.gd
+msgid "%s is in another dungeon run."
+msgstr "%s başka bir zindan koşusunda."
+
+#: scripts/ui/hud_dungeon.gd
+msgid "%s has not unlocked this difficulty yet."
+msgstr "%s bu zorluğu henüz açmadı."
+
+#: scripts/ui/hud_dungeon.gd
+msgid "%s needs %d key(s) to open this difficulty."
+msgstr "%s bu zorluğu açmak için %d anahtar gerektiriyor."
+
+#: scripts/ui/hud_dungeon.gd
+msgid "A ready check is already under way."
+msgstr "Zaten bir hazırlık kontrolü sürüyor."
+
+#: scripts/ui/hud_dungeon.gd
+msgid "%s is not ready."
+msgstr "%s hazır değil."
+
+#: scripts/ui/hud_dungeon.gd
+msgid "No answer from %s."
+msgstr "%s cevap vermedi."
+
+#: scripts/ui/hud_dungeon.gd
+msgid "The party changed."
+msgstr "Grup değişti."
+
+#: scripts/ui/hud_dungeon.gd
+msgid "Every copy of this dungeon is taken - try again shortly."
+msgstr "Bu zindanın tüm kopyaları dolu - birazdan tekrar dene."
+
+#: scripts/ui/hud_dungeon.gd
+msgid "Stand at the gate."
+msgstr "Kapının önünde dur."
+
+#: scripts/ui/hud_dungeon.gd scripts/world/map_controller.gd
+msgid "Start the dungeon at its gate."
+msgstr "Zindanı kapısından başlat."
+
+#: scripts/ui/hud_dungeon.gd
+msgid "The gate stays shut."
+msgstr "Kapı kapalı kaldı."
+
+#: scripts/ui/hud_dungeon.gd scripts/ui/hud_dungeon_guide.gd
+msgid "Levels %d-%d · 1-%d players"
+msgstr "Seviye %d-%d · 1-%d kişi"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "For your party"
+msgstr "Grubun için"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "reference level %d - creatures level %d-%d"
+msgstr "referans seviye %d - yaratıklar %d-%d. seviye"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "Power"
+msgstr "Güç"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "health x%.2f, damage x%.2f"
+msgstr "can x%.2f, hasar x%.2f"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "Needs"
+msgstr "Şartlar"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "%d+ players, level %d+"
+msgstr "en az %d kişi, en az %d. seviye"
+
+#: scripts/ui/hud_dungeon.gd scripts/ui/hud_dungeon_guide.gd
+msgid "Gold medal"
+msgstr "Altın madalya"
+
+#: scripts/ui/hud_dungeon.gd scripts/ui/hud_dungeon_guide.gd
+msgid "full clear within %s"
+msgstr "%s içinde tam temizlik"
+
+#: scripts/ui/hud_dungeon.gd scripts/ui/hud_dungeon_guide.gd
+msgid "Curse"
+msgstr "Lanet"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "Key"
+msgstr "Anahtar"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "the leader spends %d (you have %d)"
+msgstr "lider %d harcar (sende %d)"
+
+#: scripts/ui/hud_dungeon.gd scripts/ui/hud_dungeon_guide.gd
+msgid "Final chest"
+msgstr "Son sandık"
+
+#: scripts/ui/hud_dungeon.gd scripts/ui/hud_dungeon_guide.gd
+msgid "unlimited"
+msgstr "sınırsız"
+
+#: scripts/ui/hud_dungeon.gd scripts/ui/hud_dungeon_guide.gd
+msgid "%d left today"
+msgstr "bugün %d hak kaldı"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "none left today - you would go in as a helper"
+msgstr "bugün hak kalmadı - yardımcı olarak girersin"
+
+#: scripts/ui/hud_dungeon.gd scripts/ui/hud_dungeon_guide.gd
+msgid "Your best"
+msgstr "En iyi süren"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "at the gate"
+msgstr "kapıda"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "ready"
+msgstr "hazır"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "answering..."
+msgstr "cevaplıyor..."
+
+#: scripts/ui/hud_dungeon.gd
+msgid "locked"
+msgstr "kilitli"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "helper (no chest)"
+msgstr "yardımcı (sandık yok)"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "away"
+msgstr "uzakta"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "dead"
+msgstr "ölü"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "on a broom"
+msgstr "süpürgede"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "duelling"
+msgstr "düelloda"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "fighting"
+msgstr "savaşta"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "travelling"
+msgstr "yolculukta"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "in another run"
+msgstr "başka koşuda"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "busy"
+msgstr "meşgul"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "Asking the gate..."
+msgstr "Kapıya soruluyor..."
+
+#: scripts/ui/hud_dungeon.gd
+msgid "Ready check under way: %d / %d ready"
+msgstr "Hazırlık kontrolü sürüyor: %d / %d hazır"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "The party leader starts the dungeon."
+msgstr "Zindanı grup lideri başlatır."
+
+#: scripts/ui/hud_dungeon.gd scripts/ui/hud_world_map.gd
+msgid "You"
+msgstr "Sen"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "Everyone is ready at the gate."
+msgstr "Herkes kapıda hazır."
+
+#: scripts/ui/hud_dungeon.gd
+msgid "The gate is open to you."
+msgstr "Kapı sana açık."
+
+#: scripts/ui/hud_dungeon.gd
+msgid "Enter"
+msgstr "Gir"
+
+#: scripts/ui/hud_dungeon_guide.gd scripts/ui/hud_dungeon_result.gd scripts/ui/hud_dungeon_run.gd
+msgid "Gold"
+msgstr "Altın"
+
+#: scripts/ui/hud_dungeon_guide.gd scripts/ui/hud_dungeon_result.gd scripts/ui/hud_dungeon_run.gd
+msgid "Silver"
+msgstr "Gümüş"
+
+#: scripts/ui/hud_dungeon_guide.gd scripts/ui/hud_dungeon_result.gd scripts/ui/hud_dungeon_run.gd
+msgid "Bronze"
+msgstr "Bronz"
+
+#: scripts/ui/hud_dungeon_guide.gd
+msgid "Cleared"
+msgstr "Bitirildi"
+
+#: scripts/ui/hud_dungeon_guide.gd
+msgid "Dungeon Guide"
+msgstr "Zindan Rehberi"
+
+#: scripts/ui/hud_dungeon_guide.gd
+msgid "Levels %d-%d"
+msgstr "Seviye %d-%d"
+
+#: scripts/ui/hud_dungeon_guide.gd
+msgid "This week's fastest"
+msgstr "Bu haftanın en hızlıları"
+
+#: scripts/ui/hud_dungeon_guide.gd
+msgid "Curses and boards turn every Monday at 06:00."
+msgstr "Lanetler ve sıralama her pazartesi 06:00'da yenilenir."
+
+#: scripts/ui/hud_dungeon_guide.gd
+msgid "Locked"
+msgstr "Kilitli"
+
+#: scripts/ui/hud_dungeon_guide.gd
+msgid "clear %s with a %s medal first"
+msgstr "önce %s zorluğunu %s madalyayla bitir"
+
+#: scripts/ui/hud_dungeon_guide.gd
+msgid "clear %s first"
+msgstr "önce %s zorluğunu bitir"
+
+#: scripts/ui/hud_dungeon_guide.gd
+msgid "Your clear"
+msgstr "Senin derecen"
+
+#: scripts/ui/hud_dungeon_guide.gd
+msgid "Not yet"
+msgstr "Henüz yok"
+
+#: scripts/ui/hud_dungeon_guide.gd
+msgid "No full clear this week yet - the first one sets the record."
+msgstr "Bu hafta henüz tam temizlik yok - ilk biten rekoru kırar."
+
+#: scripts/ui/hud_dungeon_guide.gd
+msgid "%d deaths"
+msgstr "%d ölüm"
+
+#: scripts/ui/hud_dungeon_result.gd
+msgid "Dungeon Complete"
+msgstr "Zindan Tamamlandı"
+
+#: scripts/ui/hud_dungeon_result.gd
+msgid "Run it again"
+msgstr "Tekrar"
+
+#: scripts/ui/hud_dungeon_result.gd scripts/ui/hud_quest_scroll.gd scripts/ui/settings_ui.gd scripts/ui/ui_window.gd
+msgid "Close"
+msgstr "Kapat"
+
+#: scripts/ui/hud_dungeon_result.gd
+msgid "No medal"
+msgstr "Madalya yok"
+
+#: scripts/ui/hud_dungeon_result.gd
+msgid "Time"
+msgstr "Süre"
+
+#: scripts/ui/hud_dungeon_result.gd
+msgid "%s (gold %s, silver %s, bronze %s)"
+msgstr "%s (altın %s, gümüş %s, bronz %s)"
+
+#: scripts/ui/hud_dungeon_result.gd
+msgid "Clear"
+msgstr "Temizlik"
+
+#: scripts/ui/hud_dungeon_result.gd
+msgid "%d%%"
+msgstr "%%%d"
+
+#: scripts/ui/hud_dungeon_result.gd
+msgid "Deaths"
+msgstr "Ölüm"
+
+#: scripts/ui/hud_dungeon_result.gd
+msgid "The run was too slow for a medal."
+msgstr "Madalya için koşu fazla yavaştı."
+
+#: scripts/ui/hud_dungeon_result.gd
+msgid "A medal needs every creature cleared, side rooms included."
+msgstr "Madalya için yan odalar dahil tüm yaratıklar temizlenmeli."
+
+#: scripts/ui/hud_dungeon_result.gd
+msgid "The party's lives ran out."
+msgstr "Grubun canları tükendi."
+
+#: scripts/ui/hud_dungeon_result.gd
+msgid "Your rewards"
+msgstr "Ödüllerin"
+
+#: scripts/ui/hud_dungeon_result.gd
+msgid "You came as a helper: no final chest today."
+msgstr "Yardımcı olarak katıldın: bugün son sandık yok."
+
+#: scripts/ui/hud_dungeon_result.gd
+msgid "(%d enchantments)"
+msgstr "(%d efsun)"
+
+#: scripts/ui/hud_dungeon_result.gd
+msgid "In your chest: %s"
+msgstr "Sandığında: %s"
+
+#: scripts/ui/hud_dungeon_result.gd
+msgid "Unlocked: %s"
+msgstr "Açıldı: %s"
+
+#: scripts/ui/hud_dungeon_run.gd
+msgid "Waiting for the party to arrive..."
+msgstr "Grubun gelmesi bekleniyor..."
+
+#: scripts/ui/hud_dungeon_run.gd
+msgid "Go!"
+msgstr "Başla!"
+
+#: scripts/ui/hud_dungeon_run.gd
+msgid "no medal"
+msgstr "madalya yok"
+
+#: scripts/ui/hud_dungeon_run.gd
+msgid "Clear %d%% (%d / %d)"
+msgstr "Temizlik %%%d (%d / %d)"
+
+#: scripts/ui/hud_dungeon_run.gd
+msgid "Deaths %d"
+msgstr "Ölüm %d"
+
+#: scripts/ui/hud_dungeon_run.gd
+msgid "(+%d s)"
+msgstr "(+%d sn)"
+
+#: scripts/ui/hud_dungeon_run.gd
+msgid "Lives %d / %d"
+msgstr "Can %d / %d"
+
 #: scripts/ui/hud_floo.gd
 msgid "Floo Network"
 msgstr "Uçuç Ağı"
@@ -1662,10 +2130,6 @@ msgstr "Eski Çizme (Portkey)"
 #: scripts/ui/hud_floo.gd
 msgid "%s Galleons - carries your party anywhere"
 msgstr "%s Galleon - grubunu her yere taşır"
-
-#: scripts/ui/hud_floo.gd
-msgid "Buy"
-msgstr "Satın Al"
 
 #: scripts/ui/hud_floo.gd
 msgid "You stand at the hearth of %s"
@@ -1698,10 +2162,6 @@ msgstr "Yolculuk Et"
 #: scripts/ui/hud_floo.gd scripts/ui/inventory_arcane.gd
 msgid "Not enough Galleons."
 msgstr "Yeterli Galleon yok."
-
-#: scripts/ui/hud_floo.gd
-msgid "Your bag is full."
-msgstr "Çantan dolu."
 
 #: scripts/ui/hud_floo.gd
 msgid "%s bought."
@@ -1784,6 +2244,10 @@ msgid "Group Duel Challenge"
 msgstr "Grup Düellosu Teklifi"
 
 #: scripts/ui/hud_invites.gd
+msgid "Ready Check"
+msgstr "Hazırlık Kontrolü"
+
+#: scripts/ui/hud_invites.gd
 msgid "Party Invitation"
 msgstr "Grup Daveti"
 
@@ -1794,6 +2258,10 @@ msgstr "%s sana düello teklif ediyor."
 #: scripts/ui/hud_invites.gd
 msgid "%s challenges your party to a group duel (%d players)."
 msgstr "%s grubuna grup düellosu teklif ediyor (%d oyuncu)."
+
+#: scripts/ui/hud_invites.gd
+msgid "%s wants to enter the dungeon with the party (%d players). Ready?"
+msgstr "%s grupla zindana girmek istiyor (%d kişi). Hazır mısın?"
 
 #: scripts/ui/hud_invites.gd
 msgid "%s invites you to join their party."
@@ -1870,10 +2338,6 @@ msgstr "Hedef"
 #: scripts/ui/hud_quest_scroll.gd
 msgid "Reward"
 msgstr "Ödül"
-
-#: scripts/ui/hud_quest_scroll.gd scripts/ui/settings_ui.gd scripts/ui/ui_window.gd
-msgid "Close"
-msgstr "Kapat"
 
 #: scripts/ui/hud_quest_scroll.gd
 msgid "No Open Quests"
@@ -2082,10 +2546,6 @@ msgstr "%s gösteriliyor (kırmızı işaretler)  ·  "
 #: scripts/ui/hud_world_map.gd addons/hpmmo_sim/data/maps.json
 msgid "Blackweb Caverns"
 msgstr "Karaağ Mağaraları"
-
-#: scripts/ui/hud_world_map.gd
-msgid "You"
-msgstr "Sen"
 
 #: scripts/ui/hud_world_map.gd
 msgid "Cursor"
@@ -2395,7 +2855,7 @@ msgstr "Nadir"
 msgid "Epic"
 msgstr "Destansı"
 
-#: scripts/ui/item_tooltip.gd
+#: scripts/ui/item_tooltip.gd addons/hpmmo_sim/data/dungeons.json
 msgid "Legendary"
 msgstr "Efsanevi"
 
@@ -3535,6 +3995,22 @@ msgstr "Hep yatsı (gece)"
 msgid "The way back is open. Regroup and try again."
 msgstr "Dönüş yolu açık. Toparlanıp yeniden dene."
 
+#: scripts/world/dungeon_director.gd
+msgid "A dementor's chill sweeps the halls - nobody recovers for a while."
+msgstr "Bir dementörün soğuğu salonları sarıyor - bir süre kimse iyileşemez."
+
+#: scripts/world/dungeon_director.gd
+msgid "The guardian of this place flies into a rage - finish it now!"
+msgstr "Buranın bekçisi öfkeden kudurdu - hemen bitirin!"
+
+#: scripts/world/dungeon_director.gd
+msgid "An egg sac splits open!"
+msgstr "Bir yumurta kesesi çatladı!"
+
+#: scripts/world/dungeon_director.gd
+msgid "The party's lives are spent - no medal this run."
+msgstr "Grubun canları tükendi - bu koşuda madalya yok."
+
 #: scripts/world/encounter_director.gd
 msgid "Elite Bodyguard"
 msgstr "Elit Koruma"
@@ -3850,10 +4326,6 @@ msgstr "%s\n< konuşmak için tıkla >"
 #: scripts/world/portkey_views.gd
 msgid "%s set down a Portkey to %s - hold on to it! (F)"
 msgstr "%s, %s yönüne bir Portkey koydu - ona tutun! (F)"
-
-#: scripts/world/portkey_views.gd
-msgid "A party member"
-msgstr "Bir grup üyesi"
 
 #: scripts/world/portkey_views.gd
 msgid "The Portkey fizzled - nobody was holding on. The boot is back in your bag."
@@ -4487,6 +4959,30 @@ msgstr "Uçuç Ağı şöminesine atılan bir tutam seni ziyaret ettiğin herhan
 msgid "A battered boot enchanted as a Portkey. Right-click to set it down and choose where it goes: for ten seconds your party may grab hold, then everyone holding on is carried there together."
 msgstr "Portkey olarak büyülenmiş hırpalanmış bir çizme. Yere koymak ve nereye gideceğini seçmek için sağ tıkla: on saniye boyunca grubun ona tutunabilir, sonra tutunan herkes birlikte oraya taşınır."
 
+#: addons/hpmmo_sim/data/items.json
+msgid "Dungeon Seal"
+msgstr "Zindan Mührü"
+
+#: addons/hpmmo_sim/data/items.json
+msgid "A wax seal stamped at a dungeon's end for every run. Spend seals at any dungeon gate on keys, runes and potions."
+msgstr "Her zindan koşusunun sonunda basılan bir mühür. Mühürleri herhangi bir zindan kapısında anahtar, rün ve iksire harca."
+
+#: addons/hpmmo_sim/data/items.json
+msgid "Trial Hall Key"
+msgstr "Sınav Salonu Anahtarı"
+
+#: addons/hpmmo_sim/data/items.json
+msgid "An iron key to the Trial Hall. The party leader spends keys at the gate to open its Very Hard (1 key) and Legendary (3 keys) runs. Found in Hard runs, sold for seals."
+msgstr "Sınav Salonu'nun demir anahtarı. Grup lideri Çok Zor (1 anahtar) ve Efsanevi (3 anahtar) koşuları açmak için kapıda harcar. Zor koşulardan düşer, Mühür karşılığı satılır."
+
+#: addons/hpmmo_sim/data/items.json
+msgid "Forbidden Corridor Key"
+msgstr "Yasak Koridor Anahtarı"
+
+#: addons/hpmmo_sim/data/items.json
+msgid "A brass key that fits the locked third-floor door. The party leader spends keys at the gate to open its Very Hard (1 key) and Legendary (3 keys) runs. Found in Hard runs, sold for seals."
+msgstr "Üçüncü kattaki kilitli kapıya uyan pirinç anahtar. Grup lideri Çok Zor (1 anahtar) ve Efsanevi (3 anahtar) koşuları açmak için kapıda harcar. Zor koşulardan düşer, Mühür karşılığı satılır."
+
 #: addons/hpmmo_sim/data/mobs.json
 msgid "Drowned Inferius"
 msgstr "Boğulmuş Inferius"
@@ -4558,6 +5054,14 @@ msgstr "Goblin Kasa Muhafızı"
 #: addons/hpmmo_sim/data/mobs.json
 msgid "Goblin Hexer"
 msgstr "Goblin Büyücü"
+
+#: addons/hpmmo_sim/data/mobs.json
+msgid "Egg Sac"
+msgstr "Yumurta Kesesi"
+
+#: addons/hpmmo_sim/data/mobs.json
+msgid "Web Cocoon"
+msgstr "Ağ Kozası"
 
 #: addons/hpmmo_sim/data/mobs.json
 msgid "Elite "
@@ -4704,8 +5208,20 @@ msgid "The Cursed Armour Commander"
 msgstr "Lanetli Zırh Komutanı"
 
 #: addons/hpmmo_sim/data/spawn_tables.json
+msgid "Brood Guardian"
+msgstr "Kuluçka Muhafızı"
+
+#: addons/hpmmo_sim/data/spawn_tables.json
+msgid "Blackweb Queen"
+msgstr "Kara Ağ Kraliçesi"
+
+#: addons/hpmmo_sim/data/spawn_tables.json
 msgid "Webbound Seal Stone"
 msgstr "Ağbağlı Mühür Taşı"
+
+#: addons/hpmmo_sim/data/maps.json addons/hpmmo_sim/data/dungeons.json
+msgid "The Queen's Lair"
+msgstr "Kraliçe'nin Yuvası"
 
 #: addons/hpmmo_sim/data/maps.json
 msgid "Hogwarts Entrance"
@@ -4722,6 +5238,10 @@ msgstr "Sınav Salonu"
 #: addons/hpmmo_sim/data/maps.json
 msgid "the Forbidden Corridor"
 msgstr "Yasak Koridor"
+
+#: addons/hpmmo_sim/data/maps.json
+msgid "the Queen's Lair"
+msgstr "Kraliçe'nin Yuvası"
 
 #: addons/hpmmo_sim/data/spells.json
 msgid "Basic Cast"
@@ -4792,6 +5312,86 @@ msgid "Frost nova. Hurls a spinning ice crystal that bursts into shards and free
 msgstr "Buz patlaması. Dönen bir buz kristali fırlatır; kristal parçalara ve dondurucu bir sise dönüşerek patlar, patlamadaki her düşmanı 1,6 saniyeye kadar buz kalıbına çevirir; çözülen düşmanlar 2,5 saniye boyunca üşür ve yavaşlar. 20. seviye gerekir."
 
 #: addons/hpmmo_sim/data/dungeons.json
+msgid "Easy"
+msgstr "Kolay"
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "Normal"
+msgstr "Orta"
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "Hard"
+msgstr "Zor"
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "Very Hard"
+msgstr "Çok Zor"
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "Rage"
+msgstr "Öfke"
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "Creatures below 30% health hit 50% harder and move faster."
+msgstr "Canı %30'un altına düşen yaratıklar %50 daha sert vurur ve hızlanır."
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "Protego Horribilis"
+msgstr "Protego Horribilis"
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "A creature that dies strengthens the creatures around it (+15% health and damage, stacking)."
+msgstr "Ölen yaratık çevresindekileri güçlendirir (+%15 can ve hasar, birikerek)."
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "Bursting Dead"
+msgstr "Patlayan Ölüler"
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "Slain creatures burst two seconds after death - step out of the ring."
+msgstr "Ölen yaratıklar iki saniye sonra patlar - halkadan çık."
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "Dementor's Chill"
+msgstr "Dementör Soğuğu"
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "Every 45 seconds a deathly cold stops everyone's regeneration for 6 seconds."
+msgstr "45 saniyede bir ölümcül bir soğuk herkesin yenilenmesini 6 saniye durdurur."
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "Storm Rain"
+msgstr "Fırtına Yağmuru"
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "While the party fights, lightning strikes where someone stands - keep moving."
+msgstr "Grup savaşırken birinin durduğu yere yıldırım düşer - hareket et."
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "Sticky Ground"
+msgstr "Yapışkan Zemin"
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "Slain creatures leave a patch that slows whoever stands in it."
+msgstr "Ölen yaratıklar, üstünde duranı yavaşlatan bir leke bırakır."
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "Teeming"
+msgstr "Kalabalık"
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "A quarter more ordinary creatures in every pack."
+msgstr "Her grupta dörtte bir daha fazla sıradan yaratık."
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "Bleeding Curse"
+msgstr "Kanama Laneti"
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "Elite creatures' blows make you bleed."
+msgstr "Seçkin yaratıkların darbeleri kanatır."
+
+#: addons/hpmmo_sim/data/dungeons.json
 msgid "The hall stirs - clear the corridor."
 msgstr "Salon kıpırdanıyor - koridoru temizle."
 
@@ -4802,6 +5402,10 @@ msgstr "Demir kapı gıcırdayarak açılıyor."
 #: addons/hpmmo_sim/data/dungeons.json
 msgid "The Trial Warden rises!"
 msgstr "Sınav Muhafızı ayağa kalkıyor!"
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "The dead answer the Warden's roar!"
+msgstr "Ölüler Muhafız'ın kükremesine karşılık veriyor!"
 
 #: addons/hpmmo_sim/data/dungeons.json
 msgid "The trial is complete. Claim your reward."
@@ -4836,6 +5440,10 @@ msgid "Devil's Snare! Burn its vines - Incendio!"
 msgstr "Şeytan Kapanı! Sarmaşıklarını yak - Incendio!"
 
 #: addons/hpmmo_sim/data/dungeons.json
+msgid "Pixies pour out of the Snare's roots!"
+msgstr "Kapan'ın köklerinden periler fışkırıyor!"
+
+#: addons/hpmmo_sim/data/dungeons.json
 msgid "The Snare withers. Music drifts from below..."
 msgstr "Kapan soluyor. Aşağıdan müzik sesi geliyor..."
 
@@ -4854,6 +5462,54 @@ msgstr "Fluffy yığıldı. Kapak açılıyor - ödülünü al."
 #: addons/hpmmo_sim/data/dungeons.json
 msgid "Fluffy's sleeping breath rolls down the stair - brace yourself!"
 msgstr "Fluffy'nin uyku nefesi merdivenden aşağı yuvarlanıyor - hazırlan!"
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "Silk trembles down the tunnel - something knows you are here."
+msgstr "Tünel boyunca ipek titriyor - bir şey burada olduğunu biliyor."
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "Egg sacs swell along the walls - burn them before they hatch!"
+msgstr "Duvarlar boyunca yumurta keseleri şişiyor - çatlamadan yak onları!"
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "The last sac withers. A web curtain parts to the south."
+msgstr "Son kese de buruştu. Güneydeki ağ perdesi aralanıyor."
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "The Brood Guardian drops from the ceiling!"
+msgstr "Kuluçka Muhafızı tavandan iniyor!"
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "The Guardian shrieks for the brood!"
+msgstr "Muhafız yavrularını çağırıyor!"
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "The guardian falls. The Queen's lair lies open below."
+msgstr "Muhafız düştü. Kraliçe'nin ini aşağıda açık duruyor."
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "The Blackweb Queen rises from her nest!"
+msgstr "Kara Ağ Kraliçesi yuvasından doğruluyor!"
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "Thick webs cover the nest floor - they will slow you!"
+msgstr "Yuvanın zemini kalın ağlarla kaplı - seni yavaşlatacak!"
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "The Queen spins one of you into a cocoon - burn it free!"
+msgstr "Kraliçe birinizi kozaya sardı - yakıp kurtarın!"
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "The brood answers its Queen!"
+msgstr "Yavrular Kraliçe'nin çağrısına koşuyor!"
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "Venom wells up from the floor - and the Queen spins again!"
+msgstr "Zeminden zehir kaynıyor - ve Kraliçe yine ağ örüyor!"
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "The Queen curls up and is still. Her hoard waits in the nest."
+msgstr "Kraliçe kıvrılıp hareketsiz kaldı. Hazinesi yuvada bekliyor."
 
 #: addons/hpmmo_sim/data/travel.json
 msgid "Castle Courtyard"
@@ -6327,6 +6983,9 @@ msgstr "Karanlık Metin Taşını Parçala"
 msgid "A corrupted Dark Monolith has emerged near the Black Lake. Gather other wizards, shatter its obsidian core, and collect the ancient drops."
 msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. Diğer büyücüleri topla, obsidyen çekirdeğini parçala ve kadim ganimetleri topla."
 
+#~ msgid "%s has no entries left today."
+#~ msgstr "%s bugünkü giriş hakkını bitirdi."
+
 #~ msgid "%s invites you to a party."
 #~ msgstr "%s seni partiye davet ediyor."
 
@@ -6491,3 +7150,9 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 
 #~ msgid "Your bag is full: the rest of the quest reward waits in a chest at your feet."
 #~ msgstr "Çantan dolu: görev ödülünün kalanı ayağının dibindeki sandıkta seni bekliyor."
+
+#~ msgid "no entries left"
+#~ msgstr "hakkı bitti"
+
+#~ msgid "the leader spends %d"
+#~ msgstr "lider %d anahtar harcar"
