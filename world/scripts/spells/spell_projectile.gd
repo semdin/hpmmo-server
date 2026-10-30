@@ -3,6 +3,10 @@ extends Area3D
 const SkillFX = preload("res://scripts/spells/skill_fx.gd")
 const Rules = preload("res://scripts/spells/combat_rules.gd")
 const VFX = preload("res://scripts/spells/vfx_library.gd")
+## How long a view that met a body waits there for the authority's verdict.
+const HOLD_SECONDS := 0.35
+## A spark that flies at nothing burns out this far before its aim point.
+const BURNOUT_METRES := 1.1
 @export var speed := 40.0
 @export var damage := 40
 @export var spell_id := "basic_cast"
@@ -26,6 +30,16 @@ var _curve_amp := 0.0
 var _curve_side := Vector3.ZERO
 ## The drawn direction of travel (the curve's tangent), read by the travel stage.
 var visual_direction := Vector3.FORWARD
+## Where the cast was aimed (INF when unknown).
+var _end_point := Vector3.INF
+## A view that met a body stays on it (`_held_on`) until the authority's
+## `cast_landed` says hit (`end_on_landed`) or miss (`on_missed`).
+var _held_on: Node3D = null
+var _held_offset := Vector3.ZERO
+var _hold_left := 0.0
+## The authority's victim this view finishes its flight onto (`end_on_landed`).
+var _rush_to: Node3D = null
+var _missed := false
 @onready var mesh: MeshInstance3D = $MeshInstance3D
 @onready var light: OmniLight3D = $OmniLight3D
 @onready var travel_slot: Node3D = get_node_or_null("TravelFx")
@@ -48,6 +62,7 @@ func setup(source: Node3D, id: String, aim: Vector3, target: Node3D = null, bonu
 	visual_direction = direction
 	target_node = target
 	_path_pos = global_position
+	_end_point = end_point
 	_setup_curve(end_point)
 	var data: Dictionary = GameData.SPELLS.get(id, {})
 	damage = int(data.get("damage", 40) * bonus_mult)
@@ -83,7 +98,7 @@ func _setup_curve(end_point: Vector3) -> void:
 		return
 	var end := end_point
 	if target_node != null and is_instance_valid(target_node):
-		end = target_node.global_position + Vector3.UP * SimAuthority.AIM_CHEST_HEIGHT
+		end = SkillFX.body_chest(target_node)
 	_curve_length = maxf(1.0, global_position.distance_to(end)) if end.is_finite() else 15.0
 	_curve_amp = clampf(bend * _curve_length, 0.25, 1.5)
 	var right := direction.cross(Vector3.UP)
@@ -98,6 +113,12 @@ func _bend() -> Vector3:
 	return _curve_side * _curve_amp * sin(PI * clampf(_travelled / _curve_length, 0.0, 1.0))
 
 func _physics_process(delta: float) -> void:
+	if _rush_to != null:
+		_tick_rush(delta)
+		return
+	if _held_on != null:
+		_tick_hold(delta)
+		return
 	if spent:
 		return
 	lifetime += delta
@@ -107,19 +128,24 @@ func _physics_process(delta: float) -> void:
 		if HPRules.delivery(spell_id) == "projectile_aoe":
 			_handle_hit(null)
 		else:
-			# out of range: the travel stage is cancelled, never left running
-			if travel_effect != null and is_instance_valid(travel_effect):
-				_end_travel("out_of_range")
-			queue_free()
+			# out of range: the travel stage ends, never left running; a spark
+			# drifts on and burns out
+			_fizzle(visual_direction * speed * 0.07)
 		return
 	# Aimed at a body: steer onto its chest every frame, as the authority's bolt
 	# does, so a target up or down a slope is met on screen where it is hit.
 	var homing := _homing_target()
 	var from := _path_pos
 	if homing != null:
-		var chest := homing.global_position + Vector3.UP * SimAuthority.AIM_CHEST_HEIGHT
+		var chest := SkillFX.body_chest(homing)
 		if (chest - from).length_squared() > 0.0001:
 			direction = (chest - from).normalized()
+	# Aimed at nothing: the spark burns out just short of its aim point and
+	# floats down instead of diving into the grass.
+	if homing == null and target_node == null and _fizzles() and _end_point.is_finite() \
+			and from.distance_to(_end_point) <= BURNOUT_METRES:
+		_fizzle(visual_direction * speed * 0.07)
+		return
 	var next := from + direction * speed * delta
 	# Swept ray prevents fast spells tunnelling through thin walls/enemies.
 	var query := PhysicsRayQueryParameters3D.create(from, next, 3)
@@ -225,13 +251,24 @@ func _handle_hit(target: Node) -> void:
 			SimAuthority.spell_area_impact(caster, global_position, radius, spell_id, damage)
 		elif Rules.can_damage(caster, target):
 			SimAuthority.apply_damage(target, damage, spell_id, caster)
-	# A view that reached a damageable body leaves the impact to the authority's
-	# `cast_landed` (game_world draws it on each victim); drawing it here too put
-	# two bursts on every hit. Ground, walls and area blasts are drawn here.
+	# A view that reached a damageable body waits on it for the authority's
+	# `cast_landed`: a hit strikes there (end_on_landed), a miss burns out
+	# (on_missed). Ground, walls and area blasts are drawn here.
 	var victim_hit := visual_only and target != null and is_instance_valid(target) \
 		and target.has_method("take_damage") and HPRules.delivery(spell_id) != "projectile_aoe"
-	if not victim_hit:
-		SkillFX.play_impact(get_parent(), global_position, spell_id, target, direction, caster)
+	if victim_hit:
+		if _missed:
+			_fizzle(-direction * 1.2 + Vector3.UP * 0.4)
+			return
+		_held_on = target as Node3D
+		_held_offset = global_position - _held_on.global_position
+		_hold_left = HOLD_SECONDS
+		return
+	if _fizzles() and not (target != null and target.has_method("take_damage")):
+		# a spark that met the ground or a wall skips off it and burns out
+		_fizzle(-direction * 1.4 + Vector3.UP * 0.9)
+		return
+	SkillFX.play_impact(get_parent(), global_position, spell_id, target, direction, caster)
 	if travel_effect != null and is_instance_valid(travel_effect):
 		_end_travel("spent")
 	queue_free()
@@ -248,14 +285,87 @@ func detonate_at(pos: Vector3) -> void:
 		_end_travel("spent")
 	queue_free()
 
-## The authority says this cast already hit (a bolt that brushed a body, or
-## landed before this view arrived): stop flying, the impact is drawn on the victim.
-func end_on_landed() -> void:
-	if spent:
-		return
+## The authority says this cast hit `victim`. A view still short of it finishes
+## its flight onto the body in a few frames and strikes there; a view waiting on
+## it strikes now. True when this view draws the impact (game_world then does
+## not draw a second one).
+func end_on_landed(victim: Node3D = null) -> bool:
+	if victim == null or not is_instance_valid(victim) or not victim.is_inside_tree():
+		if spent and _held_on == null and _rush_to == null:
+			return false
+		spent = true
+		_held_on = null
+		_rush_to = null
+		if travel_effect != null and is_instance_valid(travel_effect):
+			_end_travel("landed")
+		queue_free()
+		return false
+	if _held_on != null and _held_on == victim:
+		_strike(victim, global_position)
+		return true
+	if spent and _held_on == null:
+		return false
 	spent = true
+	_held_on = null
+	_rush_to = victim
+	return true
+
+## The authority says this cast hit nothing: a view waiting on a body burns
+## out, one still flying does when its flight ends.
+func on_missed() -> void:
+	_missed = true
+	if _held_on != null:
+		_fizzle(-direction * 1.2 + Vector3.UP * 0.4)
+
+func _tick_rush(delta: float) -> void:
+	if not is_instance_valid(_rush_to) or not _rush_to.is_inside_tree():
+		_rush_to = null
+		_fizzle(direction * 2.0)
+		return
+	var contact := SkillFX.body_contact(_rush_to, direction)
+	var to := contact - global_position
+	# At least 2.5x its flight speed, and never more than ~4 frames away.
+	var step := maxf(speed * 2.5, to.length() / 0.06) * delta
+	if to.length() <= step:
+		_strike(_rush_to, contact)
+		return
+	direction = to.normalized()
+	visual_direction = direction
+	global_position += direction * step
+	look_at(global_position + direction, Rules.safe_up(direction))
+
+func _tick_hold(delta: float) -> void:
+	_hold_left -= delta
+	if not is_instance_valid(_held_on) or not _held_on.is_inside_tree() or _hold_left <= 0.0:
+		_held_on = null
+		_fizzle(-direction * 1.2 + Vector3.UP * 0.4)
+		return
+	global_position = _held_on.global_position + _held_offset
+
+func _strike(victim: Node3D, at: Vector3) -> void:
+	_rush_to = null
+	_held_on = null
+	spent = true
+	global_position = at
+	SkillFX.play_hit_on(get_parent(), victim, spell_id, direction, caster, at)
 	if travel_effect != null and is_instance_valid(travel_effect):
-		_end_travel("landed")
+		_end_travel("spent")
+	queue_free()
+
+## A spell whose spark burns out when it hits nothing (vfx_library `fizzle`).
+func _fizzles() -> bool:
+	return bool((VFX.SPELLS.get(spell_id, {}) as Dictionary).get("fizzle", false))
+
+## The bolt ends without a victim: its wake fades, and a spark that fizzles
+## floats on as an ember (SparkEmber) with `push` left in it.
+func _fizzle(push: Vector3) -> void:
+	spent = true
+	_held_on = null
+	_rush_to = null
+	if travel_effect != null and is_instance_valid(travel_effect):
+		_end_travel("missed")
+	if _fizzles():
+		SparkEmber.spawn(get_parent(), global_position, push, spell_color)
 	queue_free()
 
 

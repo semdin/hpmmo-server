@@ -13,8 +13,9 @@ class_name HitFeedback
 ## finisher is orange; damage the local player takes is red; other players' hits
 ## are small and grey.
 ##
-## Hit feel for the local player's own hits: the victim flashes white and gives
-## a short squash, and a crit or finisher adds a very short hitstop (the
+## Hit feel for the local player's own hits: the side of the victim the spell
+## came from lights up in its colour (hit_flash.gdshader) and the body recoils
+## away from the blow, and a crit or finisher adds a very short hitstop (the
 ## camera shake lives in `CombatFeedback`, which owns the shake setting).
 
 const RISE_PX := 90.0
@@ -22,7 +23,14 @@ const LIFETIME := 0.95
 const CRIT_LIFETIME := 1.25
 const MAX_NUMBERS := 48
 const MAX_RANGE := 60.0
-const FLASH_SECONDS := 0.13
+const FLASH_SECONDS := 0.16
+## The flash and the recoil wait this long after the authority's word, so they
+## land with the bolt that finishes its flight onto the body (spell_projectile
+## `end_on_landed` rushes the last metre in a few frames).
+const REACT_DELAY := 0.035
+const FLASH_SHADER := preload("res://assets/shaders/hit_flash.gdshader")
+const VFX = preload("res://scripts/spells/vfx_library.gd")
+const SkillFX = preload("res://scripts/spells/skill_fx.gd")
 const HITSTOP_SECONDS := 0.05
 const HITSTOP_SCALE := 0.12
 
@@ -39,7 +47,7 @@ static var _instance: HitFeedback = null
 
 var _numbers: Array = []
 var _canvas: _Canvas = null
-var _flash_material: StandardMaterial3D = null
+var _flash_material: ShaderMaterial = null
 var _hitstop_until := 0.0
 ## The local body. Offline play has no network uid (`SimAuthority.local_uid`
 ## stays 0), so "is this my hit" is decided from this node's own sim uid.
@@ -75,12 +83,10 @@ func _ready() -> void:
 		SimAuthority.entity_hit.connect(_on_entity_hit)
 
 ## The additive overlay a hit flashes over the victim (ShaderWarmup draws it too).
-static func flash_material() -> StandardMaterial3D:
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	mat.albedo_color = Color(1, 1, 1, 0)
+static func flash_material() -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = FLASH_SHADER
+	mat.set_shader_parameter("strength", 0.0)
 	return mat
 
 func _exit_tree() -> void:
@@ -114,8 +120,16 @@ func _on_entity_hit(uid: int, amount: int, _hp: int, spell_id: String, attacker_
 			_spawn_number(anchor, str(amount), COLOR_FINISHER, 44.0, true)
 		else:
 			_spawn_number(anchor, str(amount), COLOR_OUT, 36.0, false)
-		_flash(victim as Node3D, 1.0 if (crit or finisher) else 0.7)
-		_squash(victim as Node3D, 1.6 if (crit or finisher) else 1.0)
+		var heavy := 1.6 if (crit or finisher) else 1.0
+		var attacker = SimAuthority.record_by_uid(attacker_uid).get("node")
+		var blow := Vector3.ZERO
+		if attacker is Node3D and is_instance_valid(attacker):
+			blow = (victim as Node3D).global_position - (attacker as Node3D).global_position
+		var tint: Color = VFX.colours_for(spell_id, attacker)[0] if VFX.SPELLS.has(spell_id) else Color(1.0, 0.9, 0.7)
+		get_tree().create_timer(REACT_DELAY, true, false, true).timeout.connect(func():
+			if is_instance_valid(victim) and (victim as Node).is_inside_tree():
+				_flash(victim as Node3D, 1.0 if heavy > 1.0 else 0.75, blow, tint)
+				_recoil(victim as Node3D, heavy, blow))
 		if crit or finisher:
 			_hitstop(HITSTOP_SECONDS * (1.6 if crit and finisher else 1.0))
 		if crit:
@@ -216,22 +230,44 @@ func _draw_text(canvas: CanvasItem, font: Font, text: String, centre: Vector2, p
 
 ## ------------------------------------------------------------- hit feel
 
-## A brief additive white flash over every mesh of the victim's body.
-func _flash(victim: Node3D, strength: float) -> void:
+## A brief flash of the spell's light over the struck side of the body.
+func _flash(victim: Node3D, strength: float, blow: Vector3, tint: Color) -> void:
 	var meshes: Array = []
 	_collect_meshes(victim, meshes)
 	if meshes.is_empty():
 		return
-	var mat := _flash_material.duplicate() as StandardMaterial3D
-	mat.albedo_color = Color(1.0, 0.95, 0.85, 0.55 * strength)
+	var mat := _flash_material.duplicate() as ShaderMaterial
+	var dir := Vector3(blow.x, 0.0, blow.z)
+	dir = dir.normalized() if dir.length_squared() > 0.0001 else Vector3.DOWN
+	mat.set_shader_parameter("hit_dir", dir)
+	mat.set_shader_parameter("hit_point", SkillFX.body_contact(victim, dir))
+	mat.set_shader_parameter("reach", clampf(SkillFX.body_height(victim) * 0.4, 0.45, 1.4))
+	mat.set_shader_parameter("tint", tint)
+	mat.set_shader_parameter("strength", strength)
+	# A status look on the body (StatusFX's ice, rime, poison, blood) stays on
+	# under the flash: the flash is drawn as a pass after a copy of it, never
+	# instead of it (the rime on frozen feet blinked off at every hit).
+	var drawn: Dictionary = {}   # status look -> its copy carrying the flash
 	for m in meshes:
-		(m as GeometryInstance3D).material_overlay = mat
+		var look = (m as Node).get_meta("status_overlay") if (m as Node).has_meta("status_overlay") else null
+		var overlay: Material = mat
+		if look is Material:
+			if not drawn.has(look):
+				var copy := (look as Material).duplicate() as Material
+				copy.next_pass = mat
+				drawn[look] = copy
+			overlay = drawn[look]
+		(m as GeometryInstance3D).material_overlay = overlay
 	var tw := victim.create_tween()
-	tw.tween_property(mat, "albedo_color:a", 0.0, FLASH_SECONDS)
+	tw.tween_method(func(v: float): mat.set_shader_parameter("strength", v), strength, 0.0, FLASH_SECONDS) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 	# Back to the status look (StatusFX's ice, cold, poison or blood) if one runs.
 	tw.tween_callback(func():
 		for m in meshes:
-			if is_instance_valid(m) and (m as GeometryInstance3D).material_overlay == mat:
+			if not is_instance_valid(m):
+				continue
+			var current := (m as GeometryInstance3D).material_overlay
+			if current == mat or (current != null and current.next_pass == mat):
 				(m as GeometryInstance3D).material_overlay = (m as Node).get_meta("status_overlay") if (m as Node).has_meta("status_overlay") else null)
 
 func _collect_meshes(node: Node, out: Array) -> void:
@@ -243,27 +279,47 @@ func _collect_meshes(node: Node, out: Array) -> void:
 		if out.size() < 24:
 			_collect_meshes(child, out)
 
-## A quick squash-and-recover of the victim's visual root (bosses barely move).
-func _squash(victim: Node3D, strength: float) -> void:
+## The body takes the blow: its visual root rocks back away from the attacker
+## (pivoting on the feet, so the head moves most) with a slight squash, then
+## springs back. Bosses barely move; a frozen body only shudders. A player's
+## visual root is steered every frame (broom lean), so a player only squashes.
+func _recoil(victim: Node3D, strength: float, blow: Vector3) -> void:
 	var visuals = victim.get("visuals")
 	if visuals == null or not is_instance_valid(visuals) or not (visuals is Node3D):
 		return
 	var body := visuals as Node3D
-	# The rest scale is remembered only while a squash is running, so a body that
+	# The rest pose is remembered only while a recoil is running, so a body that
 	# is rescaled later (a pooled mob reused as another variant) is never reset
 	# to a stale size.
 	if not body.has_meta("hit_base_scale"):
 		body.set_meta("hit_base_scale", body.scale)
 	var base: Vector3 = body.get_meta("hit_base_scale")
-	var amount := 0.07 * strength * (0.35 if victim.get("is_boss") == true else 1.0)
+	var weight := 0.3 if victim.get("is_boss") == true else 1.0
+	var frozen := (victim.get_node_or_null("StatusFX") as StatusFX) != null \
+		and int((victim.get_node("StatusFX") as StatusFX).bits) & HPProtocol.STATUS_FREEZE != 0
+	if frozen:
+		weight *= 0.25
+	var amount := 0.05 * strength * weight
 	var previous = body.get_meta("hit_tween") if body.has_meta("hit_tween") else null
 	if previous is Tween and (previous as Tween).is_valid():
 		(previous as Tween).kill()
 	var tw := body.create_tween()
 	body.set_meta("hit_tween", tw)
 	body.scale = base * Vector3(1.0 + amount, 1.0 - amount, 1.0 + amount)
-	tw.tween_property(body, "scale", base, 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tw.tween_callback(func():
+	tw.set_parallel(true)
+	tw.tween_property(body, "scale", base, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	var flat := Vector3(blow.x, 0.0, blow.z)
+	if victim.is_in_group("mobs") and flat.length_squared() > 0.0001:
+		# Euler YXZ: +x tips the top toward local +z, +z tips it toward local -x.
+		var local := flat.normalized().rotated(Vector3.UP, -body.rotation.y)
+		var lean := 0.13 * strength * weight
+		var rest_x := 0.0
+		var rest_z := 0.0
+		body.rotation.x = local.z * lean
+		body.rotation.z = -local.x * lean
+		tw.tween_property(body, "rotation:x", rest_x, 0.32).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+		tw.tween_property(body, "rotation:z", rest_z, 0.32).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+	tw.chain().tween_callback(func():
 		body.remove_meta("hit_base_scale")
 		body.remove_meta("hit_tween"))
 

@@ -196,6 +196,80 @@ static func play_impact(world: Node3D, pos: Vector3, spell_id: String, victim: N
 	# replicated status (StatusFX), for exactly as long as the server says.
 
 
+## A bolt's impact ON a body: at the point of its surface the bolt met (chest
+## height, the side it came from), riding along with the body. Drawn there
+## rather than at the body's centre, where the body's own mesh hid it.
+static func play_hit_on(world: Node3D, victim: Node3D, spell_id: String, incoming: Vector3,
+		caster: Node3D = null, at: Vector3 = Vector3.INF) -> void:
+	if not VFX.SPELLS.has(spell_id) or not is_instance_valid(victim):
+		return
+	var dir := safe_direction(incoming)
+	var contact := at if at.is_finite() else body_contact(victim, dir)
+	spawn_stage(world, spell_id, "impact", contact - dir * 0.12, dir, null,
+		{"target_position": contact, "colour_source": caster, "follow_target": victim})
+
+
+## Where a bolt flying along `incoming` meets `victim`: on its surface at its
+## chest (body_chest), facing the way the bolt came from.
+static func body_contact(victim: Node3D, incoming: Vector3) -> Vector3:
+	var chest := body_chest(victim)
+	var flat := Vector3(incoming.x, 0.0, incoming.z)
+	if flat.length_squared() < 0.0001:
+		return chest
+	return chest - flat.normalized() * body_radius(victim) * 0.8
+
+
+## The point a drawn bolt homes on: the middle of the body's drawn height, so
+## a low spider is struck in its back and a troll in its belly (the authority's
+## fixed AIM_CHEST_HEIGHT flew over a spider). Presentation only.
+static func body_chest(victim: Node3D) -> Vector3:
+	var height := body_height(victim)
+	return victim.global_position + Vector3.UP * clampf(height * 0.55, 0.3, 2.4)
+
+
+## How tall the body is drawn (its meshes at rest, in its own space; measured
+## once per body). 1.9 m when its meshes do not tell.
+static func body_height(victim: Node3D) -> float:
+	var root = victim.get("visuals")
+	# a pooled body reused at another size measures again
+	var size_key := (root as Node3D).scale.y if root is Node3D else 1.0
+	if victim.has_meta("fx_height") and is_equal_approx(float(victim.get_meta("fx_height_key", 0.0)), size_key):
+		return float(victim.get_meta("fx_height"))
+	var height := 1.9
+	var top := -INF
+	var to_body := victim.global_transform.affine_inverse()
+	for node in (root if root is Node3D else victim).find_children("*", "MeshInstance3D", true, false):
+		var mesh := node as MeshInstance3D
+		if not mesh.is_visible_in_tree() or mesh.mesh == null:
+			continue
+		var box := (to_body * mesh.global_transform) * mesh.get_aabb()
+		top = maxf(top, box.end.y)
+	# trust the meshes only when the answer looks like a body
+	if top > 0.3 and top < 8.0:
+		height = top
+	victim.set_meta("fx_height", height)
+	victim.set_meta("fx_height_key", size_key)
+	return height
+
+
+## The girth of a body from its collision shape (0.45 m when it has none).
+static func body_radius(body: Node3D) -> float:
+	if body.has_method("_collision_radius"):
+		return float(body.call("_collision_radius"))
+	for child in body.get_children():
+		if child is CollisionShape3D and (child as CollisionShape3D).shape != null:
+			var shape: Shape3D = (child as CollisionShape3D).shape
+			if shape is CapsuleShape3D:
+				return (shape as CapsuleShape3D).radius
+			if shape is CylinderShape3D:
+				return (shape as CylinderShape3D).radius
+			if shape is SphereShape3D:
+				return (shape as SphereShape3D).radius
+			if shape is BoxShape3D:
+				return maxf((shape as BoxShape3D).size.x, (shape as BoxShape3D).size.z) * 0.5
+	return 0.45
+
+
 ## The authoritative burn length from spells.json (ticks x interval_ms), with the
 ## 3 s the composition table was authored against as the fallback: the flames must
 ## neither outlive the status they show nor die while it still burns.

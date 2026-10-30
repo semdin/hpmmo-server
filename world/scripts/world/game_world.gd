@@ -971,11 +971,23 @@ func _on_cast_landed(cast_id: int, caster_uid: int, spell_id: String, hits: Arra
 	if spell_id == "basic_cast" and hits.is_empty() and caster != null \
 			and caster.get("is_local_player") == true and caster.has_method("on_basic_cast_missed"):
 		caster.call("on_basic_cast_missed")
-	# A single-target bolt that the authority says hit ends now, even if its view
-	# has not reached the body yet; area blasts and misses draw their own end.
-	if not hits.is_empty() and HPRules.delivery(spell_id) != "projectile_aoe" \
-			and view != null and is_instance_valid(view) and view.has_method("end_on_landed"):
-		view.end_on_landed()
+	# A single-target bolt that the authority says hit finishes its flight onto
+	# the body (a view a little short of it rushes the last metre) and strikes
+	# there; area blasts draw their own end. A miss tells the view, which burns
+	# out (a view waiting on a body it brushed included).
+	var view_struck: Node = null
+	var live_view: bool = view != null and is_instance_valid(view)
+	if hits.is_empty():
+		if live_view and view.has_method("on_missed"):
+			view.on_missed()
+	elif HPRules.delivery(spell_id) != "projectile_aoe" and live_view and view.has_method("end_on_landed"):
+		var first_hit: Dictionary = hits[0]
+		var first = SimAuthority.record_by_uid(int(first_hit.get("uid", 0))).get("node")
+		var first_body: Node3D = null
+		if first is Node3D and is_instance_valid(first) and not bool(first_hit.get("reflected", false)):
+			first_body = first
+		if view.end_on_landed(first_body):
+			view_struck = first_body
 	if _bolt_views.size() > 64:
 		for key in _bolt_views.keys():
 			if not is_instance_valid(_bolt_views[key]):
@@ -991,10 +1003,13 @@ func _on_cast_landed(cast_id: int, caster_uid: int, spell_id: String, hits: Arra
 			continue
 		# The travelling view draws one area blast at its collision point. Drawing
 		# another full-radius blast on every victim duplicates the affected area.
-		if HPRules.delivery(spell_id) == "projectile_aoe":
+		if HPRules.delivery(spell_id) == "projectile_aoe" or victim == view_struck:
 			continue
-		preload("res://scripts/spells/skill_fx.gd").play_impact(self, (victim as Node3D).global_position + Vector3.UP, spell_id,
-			null, Vector3.UP, caster as Node3D)
+		# On the side of the body facing the caster, where the bolt met it.
+		var incoming := Vector3.FORWARD
+		if caster is Node3D:
+			incoming = (victim as Node3D).global_position - (caster as Node3D).global_position
+		preload("res://scripts/spells/skill_fx.gd").play_hit_on(self, victim as Node3D, spell_id, incoming, caster as Node3D)
 
 func _on_loot_spawned(uid: int, item_id: String, amount: int, pos: Vector3, items: Array = []) -> void:
 	# One chest, one marker. A chest that lands while the player is watching

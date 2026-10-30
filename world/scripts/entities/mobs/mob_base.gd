@@ -47,10 +47,19 @@ signal died(mob: Node3D)
 ## no longer walks it home at the first step past the line, and it gives up only
 ## once the fight cools or the far limit is crossed.
 const LEASH_HOT_SECONDS := 4.0
+## A target this far above a creature that fights in reach (a rock top, a
+## tower stair, a broom) is out of its reach: after UNREACHABLE_SECONDS it gives
+## up and walks home instead of crowding underneath, and on the way it evades
+## that target's hits (see `evades_hit_from`).
+const UNREACHABLE_RISE := 4.0
+const UNREACHABLE_FLAT := 9.0
+const UNREACHABLE_HIGH := 12.0
+const UNREACHABLE_SECONDS := 2.0
 const LEASH_HOT_SCALE := 1.6
 ## Walking home it heals this share of its health per second (full at home).
 const RETURN_REGEN_SHARE := 0.15
 var _last_hit_msec := -100000
+var _unreachable_time := 0.0
 var _return_heal := 0.0
 @export var attack_range := 2.2
 @export var attack_cooldown := 1.4
@@ -917,7 +926,7 @@ func _idle_and_wander(delta: float) -> void:
 		# the proximity trigger (prototype policy 3.3).
 		if aggro_mode == "aggressive":
 			for player in get_tree().get_nodes_in_group("players"):
-				if Rules.can_damage(self, player) and global_position.distance_to(player.global_position) < aggro_radius and Rules.has_line_of_sight(self, player):
+				if Rules.can_damage(self, player) and global_position.distance_to(player.global_position) < aggro_radius 						and not _out_of_reach(player) and Rules.has_line_of_sight(self, player):
 					aggro_on(player)
 					return
 	if state == State.WANDER:
@@ -1008,13 +1017,32 @@ func _inside_home_ground(body: Node3D) -> bool:
 ## it cannot be whittled down from beyond the leash while it ignores the
 ## attacker. Inside its ground the hit lands and it turns to fight.
 func evades_hit_from(attacker: Node) -> bool:
-	return state == State.RETURN and not (attacker is Node3D and _inside_home_ground(attacker as Node3D))
+	if state != State.RETURN or not (attacker is Node3D):
+		return state == State.RETURN
+	return not _inside_home_ground(attacker as Node3D) or _out_of_reach(attacker as Node3D)
+
+## `body` stands where this creature cannot strike it: well above it while
+## nearly overhead, or high in the air anywhere. Casters and bosses (an arena
+## of their own) always reach.
+func _out_of_reach(body: Node3D) -> bool:
+	if is_ranged or is_boss or not is_instance_valid(body):
+		return false
+	var rise := body.global_position.y - global_position.y
+	if rise >= UNREACHABLE_HIGH:
+		return true
+	var flat := Vector2(body.global_position.x - global_position.x, body.global_position.z - global_position.z).length()
+	return rise >= maxf(UNREACHABLE_RISE, attack_range + 1.5) and flat <= UNREACHABLE_FLAT
 
 func _fight(delta: float) -> void:
 	if not _valid_target() or _leash_broken():
 		# Losing every valid target (or breaking the leash) resets the encounter:
 		# the pack walks home and the authority cancels its reward credit.
 		_break_fight("no_target" if _valid_target() == false else "leash")
+		return
+	_unreachable_time = _unreachable_time + delta if _out_of_reach(target_player) else 0.0
+	if _unreachable_time >= UNREACHABLE_SECONDS:
+		_unreachable_time = 0.0
+		_break_fight("unreachable")
 		return
 	var distance := global_position.distance_to(target_player.global_position)
 	# A target out of reach may be worth a thrown attack (troll boulder).

@@ -108,6 +108,9 @@ const SPELLS := {
 		# The drawn bolt bends off the straight line (spell_projectile `curve`):
 		# sideways by this fraction of its flight, a new angle every cast.
 		"curve": 0.12,
+		# A spark that hits nothing burns out and floats down as an ember
+		# (spell_projectile `_fizzle`, SparkEmber) instead of a spray on the grass.
+		"fizzle": true,
 		"stages": {
 			"cast": {"layers": [
 				{"kind": "sprite", "energy_shape": 0, "blend": "add", "core": true, "colour": true,
@@ -119,7 +122,7 @@ const SPELLS := {
 				{"kind": "sprite", "energy_shape": 0, "blend": "add", "core": true, "colour": true,
 					"size": 0.24, "life": 0.0, "flicker": true},
 				{"kind": "ribbon", "kinked": true, "blend": "add", "core": true, "colour": true,
-					"width": 0.11, "length": 1.3, "life": 0.0, "follow": true},
+					"width": 0.1, "length": 0.75, "life": 0.0, "follow": true},
 				{"kind": "particles", "tex": "vfx_star_flare", "blend": "add", "colour": "accent", "core": true,
 					"amount": 8, "life": 0.3, "speed": 0.6, "size": 0.07, "spread": 180.0, "gravity": -6.0, "continuous": true},
 			], "length": 0.0, "audio": "spell_basic_cast_travel", "loop_audio": true},

@@ -89,7 +89,7 @@ func _ready() -> void:
 ## (stun stars and burn are spell stages, drawn below).
 func _add_combat_extras() -> void:
 	var flash := HitFeedback.flash_material()
-	flash.albedo_color = Color(1.0, 0.95, 0.85, 0.3)
+	flash.set_shader_parameter("strength", 0.3)
 	for body in _bodies:
 		for mesh in (body as Node).find_children("*", "MeshInstance3D", true, false):
 			(mesh as GeometryInstance3D).material_overlay = flash
@@ -113,7 +113,7 @@ func _add_combat_extras() -> void:
 	ring.rotation.x = PI * 0.5   # face the camera
 	_slot += 1
 	# Crowd-control looks (StatusFX): ice shell, tints, crystals, stars, motes.
-	for mat in StatusFX.warm_materials():
+	for mat in StatusFX.warm_materials() + SparkEmber.warm_materials():
 		var swatch := MeshInstance3D.new()
 		var quad := QuadMesh.new()
 		quad.size = Vector2(0.6, 0.6)

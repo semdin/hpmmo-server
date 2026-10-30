@@ -614,6 +614,10 @@ func _update_ribbon(node: MeshInstance3D, delta: float) -> void:
 	# keep ~0.5 s of motion, decimated so a slow frame cannot grow the strip
 	while history.size() > 32:
 		history.remove_at(0)
+	# a retired wake draws in toward where the bolt ended as it fades
+	if _retiring and history.size() > 3:
+		history.remove_at(0)
+		history.remove_at(0)
 	node.set_meta("history", history)
 	var max_length := float(node.get_meta("max_length", 3.0))
 	var width := float(node.get_meta("width", 0.1))
@@ -668,6 +672,12 @@ func retire_travel() -> void:
 		var kind := String((entry["layer"] as Dictionary).get("kind", ""))
 		if node.has_method("retire"):
 			node.call("retire")
+		elif kind == "ribbon" and node is MeshInstance3D:
+			# a kinked filament holds its last shape while it fades: re-struck
+			# kinks on a wake that no longer moves jittered from side to side
+			var ribbon := (node as MeshInstance3D).material_override as ShaderMaterial
+			ribbon.set_shader_parameter("strike_hold", floorf(float(Time.get_ticks_msec()) / 1000.0 * 14.0))
+			ribbon.set_shader_parameter("strike_hz", 0.0)
 		elif node is GPUParticles3D:
 			(node as GPUParticles3D).emitting = false
 		elif kind in ["flipbook", "sprite"] and node is Node3D:

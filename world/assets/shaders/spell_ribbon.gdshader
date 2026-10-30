@@ -19,6 +19,9 @@ uniform float edge_softness : hint_range(0.0, 1.0) = 0.55;
 // is rebuilt along the bolt's real path, so the filament bends with its flight.
 uniform bool kinked = false;
 uniform float seed = 0.0;
+// How often the kinks are re-struck; 0 holds the last shape (a retired wake).
+uniform float strike_hz = 14.0;
+uniform float strike_hold = 0.0;
 
 varying float v_across;
 varying float v_along;
@@ -44,10 +47,10 @@ void vertex() {
 
 void fragment() {
 	if (kinked) {
-		float t = floor(TIME * 14.0);
+		float t = strike_hz > 0.0 ? floor(TIME * strike_hz) : strike_hold;
 		// Pinned at the head, bending more further back.
 		float bend = kinks(v_metres * 9.0 + t * 0.71) * 0.8 + kinks(v_metres * 30.0 + t * 1.3) * 0.2;
-		float centre = 0.5 + bend * 0.36 * smoothstep(0.0, 0.2, v_metres);
+		float centre = 0.5 + bend * 0.28 * smoothstep(0.0, 0.2, v_metres);
 		// Distance in screen pixels, so a steep kink stays one unbroken hairline
 		// (a distance across the strip thinned it to gaps) and the line holds
 		// its width at any range.
