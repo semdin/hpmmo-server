@@ -158,11 +158,6 @@ custom_minimum_size = Vector2(88, 26)
 layout_mode = 2
 text = "Forge"
 
-[node name="MountBtn" type="Button" parent="BottomBar/QuickBar"]
-custom_minimum_size = Vector2(88, 26)
-layout_mode = 2
-text = "Nimbus"
-
 [node name="TargetPanel" type="Panel" parent="."]
 layout_mode = 1
 anchors_preset = 5

@@ -347,6 +347,13 @@ func _setup_overlay() -> void:
 		overlay.tracker.onboarding = hud.onboarding
 		overlay.tracker.quest_opened.connect(hud.open_quest_scroll)
 		overlay.tracker.guide_opened.connect(hud.open_guide)
+	# The NPC card's quest rows open that quest's scroll; its service rows open
+	# the NPC's window.
+	if hud != null and overlay.get("_dialog_panel") != null:
+		overlay._dialog_panel.quest_chosen.connect(hud.open_quest_scroll)
+		overlay._dialog_panel.service_chosen.connect(func(service: String):
+			if service == "ollivander" and ollivander_ui != null:
+				ollivander_ui.open_for_player(local_player))
 
 func _connect_ui_signals() -> void:
 	hud.inventory_button.pressed.connect(_toggle_inventory)
@@ -390,7 +397,11 @@ func _unhandled_input(event: InputEvent) -> void:
 ## Open an NPC's dialogue (the interact key, or a click on the NPC).
 func _talk_to_npc(npc: Node3D) -> void:
 	if is_instance_valid(npc) and is_instance_valid(local_player) and not local_player.is_dead:
-		overlay.show_dialogue(npc.npc_name, npc.talk(local_player))
+		# F again on the NPC already talking turns the page.
+		if overlay.dialogue_open_for(npc):
+			overlay.advance_dialogue()
+		else:
+			overlay.show_dialogue(npc.npc_name, npc.talk(local_player), npc)
 
 func _toggle_inventory() -> void:
 	if inventory_ui.visible:

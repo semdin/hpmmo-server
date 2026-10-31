@@ -28,13 +28,17 @@ var _bob: float = 0.03
 var _anim: AnimationPlayer = null
 var _talk_left: float = 0.0
 
-func setup(p_name: String, p_dialogue: Array, robe_color: Color) -> void:
+## The robe colour, also the dialogue medallion's.
+var robe_color := Color(0.2, 0.25, 0.5)
+
+func setup(p_name: String, p_dialogue: Array, p_robe: Color) -> void:
 	npc_name = p_name
+	robe_color = p_robe
 	dialogue = p_dialogue
-	_build(robe_color)
+	_build(p_robe)
 	_update_label()
 
-func _build(robe_color: Color) -> void:
+func _build(robe: Color) -> void:
 	add_to_group("npcs")
 	add_to_group("targetable")
 	collision_layer = 2
@@ -74,7 +78,7 @@ func _build(robe_color: Color) -> void:
 				accessory.hide()
 		var cape := model.get_node_or_null("Rig/Skeleton3D/chest/Mage_Cape") as MeshInstance3D
 		if cape:
-			cape.material_override = MaterialKitScript.robe_material(robe_color)
+			cape.material_override = MaterialKitScript.robe_material(robe)
 	var animation := model.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	if animation:
 		for clip in LOOPING_CLIPS:

@@ -16,6 +16,9 @@ class_name HudActionBar
 const SLOT := 50.0
 const GAP := 4.0
 const GROUP_GAP := 18.0
+## The deck plate reaches this far past the slots (left/right, and up/down).
+const PLATE_PAD := 12.0
+const PLATE_TOP := 8.0
 const SPELLS := [
 	["stupefy", "1"], ["incendio", "2"], ["bombarda", "3"],
 	["expelliarmus", "4"], ["protego", "Q"], ["ultimate", "E"], ["patronum", "5"],
@@ -36,6 +39,10 @@ var quick_slots: Array[HudSlot] = []
 var quick_items: Array = ["", "", "", ""]
 var _quick_cd: Array = [0.0, 0.0, 0.0, 0.0]
 var _pending_slot := -1
+## Width the plate runs on past the quick slots (the HUD's bag and window
+## buttons sit there, on the same taskbar), and the x of each extra divider.
+var tray_extra := 0.0
+var tray_dividers: Array = []
 ## Which spell each slot holds (the player's hotkeys read it through spell_at).
 static var spell_order: Array = []
 
@@ -110,13 +117,15 @@ func _layout() -> void:
 
 func _draw() -> void:
 	# The deck plate: a dark bar with a lit gold top edge behind both groups.
-	var plate := Rect2(Vector2(-12, -8), Vector2(size.x + 24, size.y + 16))
+	var plate := Rect2(Vector2(-PLATE_PAD, -PLATE_TOP), Vector2(size.x + tray_extra + PLATE_PAD * 2.0, size.y + PLATE_TOP * 2.0))
 	draw_rect(plate, Color(0.02, 0.027, 0.043, 0.78))
 	draw_rect(Rect2(plate.position, Vector2(plate.size.x, 1.5)), Color(HudKit.GOLD.r, HudKit.GOLD.g, HudKit.GOLD.b, 0.85))
 	draw_rect(Rect2(Vector2(plate.position.x, plate.end.y - 1), Vector2(plate.size.x, 1)), Color(0, 0, 0, 0.8))
 	# Divider between spells and quick slots.
 	var dx := SLOT * SPELLS.size() + GAP * (SPELLS.size() - 1) + GROUP_GAP * 0.5
 	draw_line(Vector2(dx, 2), Vector2(dx, size.y - 2), Color(HudKit.GOLD.r, HudKit.GOLD.g, HudKit.GOLD.b, 0.5), 1.0)
+	for x in tray_dividers:
+		draw_line(Vector2(x, 2), Vector2(x, size.y - 2), Color(HudKit.GOLD.r, HudKit.GOLD.g, HudKit.GOLD.b, 0.5), 1.0)
 	# Corner studs.
 	for p in [plate.position, Vector2(plate.end.x, plate.position.y)]:
 		draw_circle(p + Vector2(0, 0.75), 3.0, HudKit.GOLD_LT)

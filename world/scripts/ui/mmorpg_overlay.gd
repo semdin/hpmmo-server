@@ -32,10 +32,7 @@ var _zone_timer: float = 0.0
 var _boss_panel: Panel = null
 var _boss_bar: ProgressBar = null
 var _boss_name: Label = null
-var _dialog_panel: PanelContainer = null
-var _dialog_text: Label = null
-var _dialog_speaker: Label = null
-var _dialog_serial := 0
+var _dialog_panel: NpcDialogue = null
 var _help_panel: Panel = null
 var _vignette: ColorRect = null
 var _player: Node3D = null
@@ -278,44 +275,11 @@ func _build() -> void:
 	_boss_panel.add_child(_boss_bar)
 	add_child(_boss_panel)
 
-	# --- dialogue box (bottom center, clear of the cast bar and the deck) ---
-	# A card that grows with its text: speaker on top, the lines, a dim hint.
-	_dialog_panel = PanelContainer.new()
-	_dialog_panel.name = "Dialogue"
+	# --- NPC dialogue (bottom centre, above the taskbar) ---
+	_dialog_panel = NpcDialogue.new()
 	_dialog_panel.theme = UITheme.get_theme()
-	var dialog_box := ArcaneSkin.card()
-	dialog_box.set_content_margin_all(22)
-	dialog_box.content_margin_left = 26
-	dialog_box.content_margin_right = 26
-	_dialog_panel.add_theme_stylebox_override("panel", dialog_box)
-	_dialog_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	_dialog_panel.gui_input.connect(func(event: InputEvent):
-		if event is InputEventMouseButton and event.pressed:
-			_dialog_panel.hide())
-	_dialog_panel.hide()
 	add_child(_dialog_panel)
-	ArcaneSkin.decorate(_dialog_panel)
-	var dialog_column := VBoxContainer.new()
-	dialog_column.add_theme_constant_override("separation", 8)
-	dialog_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_dialog_panel.add_child(dialog_column)
-	var dialog_head := HBoxContainer.new()
-	dialog_head.add_theme_constant_override("separation", 8)
-	dialog_head.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	dialog_column.add_child(dialog_head)
-	var dialog_icon := UITheme.icon_rect("ui_chat", 20.0)
-	dialog_icon.name = "DialogIcon"
-	dialog_head.add_child(dialog_icon)
-	_dialog_speaker = HudKit.label("", 18, HudKit.GOLD_LT, HudKit.title(), 3)
-	dialog_head.add_child(_dialog_speaker)
-	dialog_column.add_child(UITheme.divider())
-	_dialog_text = UITheme.body("", UITheme.FS_BODY, UITheme.c("parchment"))
-	_dialog_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_dialog_text.custom_minimum_size = Vector2(DIALOG_W - 40, 0)
-	dialog_column.add_child(_dialog_text)
-	var dialog_hint := UITheme.body(tr("Click or Esc to close"), UITheme.FS_TINY, UITheme.c("text_dim"))
-	dialog_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	dialog_column.add_child(dialog_hint)
+	_dialog_panel.resized.connect(_place_dialogue)
 
 	# --- low hp vignette ---
 	_vignette = ColorRect.new()
@@ -416,33 +380,29 @@ func _map_zoom_step(direction: int) -> void:
 		_map_cam.size = _map_zoom
 
 
-const DIALOG_W := 560.0
-
-func show_dialogue(speaker: String, lines: Array) -> void:
-	_dialog_serial += 1
-	var serial := _dialog_serial
-	# NPCs speak in English message ids; the panel shows them translated.
-	_dialog_speaker.text = I18n.t(speaker)
-	_dialog_text.text = "\n\n".join(lines.map(func(line): return I18n.t(String(line))))
-	_dialog_panel.show()
+## Talk to `npc`: its name and lines (English message ids, shown translated).
+## A second F on the same NPC turns the page instead (`dialogue_open_for`).
+func show_dialogue(speaker: String, lines: Array, npc: Node3D = null) -> void:
+	_dialog_panel.open(speaker, lines, npc, _player)
 	_place_dialogue()
-	# Long enough to read; a newer line resets the clock.
-	var words := _dialog_text.text.split(" ").size()
-	await get_tree().create_timer(clampf(4.0 + words * 0.3, 7.0, 20.0)).timeout
-	if is_instance_valid(_dialog_panel) and serial == _dialog_serial:
-		_dialog_panel.hide()
 
-## Bottom centre above the action bar, sized to its text.
+func dialogue_open_for(npc: Node3D) -> bool:
+	return _dialog_panel != null and _dialog_panel.is_open_for(npc)
+
+func advance_dialogue() -> void:
+	if _dialog_panel != null:
+		_dialog_panel.advance()
+
+## Bottom centre above the taskbar, sized to its content.
 func _place_dialogue() -> void:
-	if _dialog_panel == null:
+	if _dialog_panel == null or not _dialog_panel.visible:
 		return
 	var canvas := get_viewport().get_visible_rect().size
-	var w := minf(DIALOG_W, canvas.x - 32.0)
-	_dialog_text.custom_minimum_size.x = w - 52.0
+	var w := minf(NpcDialogue.WIDTH, canvas.x - 32.0)
 	_dialog_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	_dialog_panel.size = Vector2(w, 0)
 	var h := _dialog_panel.get_combined_minimum_size().y
-	_dialog_panel.position = Vector2(floorf((canvas.x - w) * 0.5), canvas.y - h - 150.0)
+	_dialog_panel.position = Vector2(floorf((canvas.x - w) * 0.5), canvas.y - h - 112.0)
 	_dialog_panel.size = Vector2(w, h)
 
 func _refresh_quest() -> void:

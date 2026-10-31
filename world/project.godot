@@ -46,6 +46,7 @@ enabled=PackedStringArray("res://addons/terrain_3d/plugin.cfg")
 [gui]
 
 theme/custom_font_size=15
+timers/tooltip_delay_sec=0.08
 
 [internationalization]
 

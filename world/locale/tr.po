@@ -451,7 +451,7 @@ msgstr "+%d EXP"
 msgid "Come closer to talk."
 msgstr "Konuşmak için yaklaş."
 
-#: scripts/fx/level_up_fx.gd scripts/ui/hud_action_bar.gd scripts/ui/hud_portkey.gd scripts/ui/hud_skill_window.gd
+#: scripts/fx/level_up_fx.gd scripts/ui/hud_action_bar.gd scripts/ui/hud_portkey.gd scripts/ui/hud_skill_window.gd scripts/ui/ollivander_ui.gd
 msgid "Level %d"
 msgstr "Seviye %d"
 
@@ -1008,14 +1008,6 @@ msgid "Lv. %d"
 msgstr "Sv. %d"
 
 #: scripts/ui/hud.gd
-msgid "[Shift] Dismount broom"
-msgstr "[Shift] Süpürgeden in"
-
-#: scripts/ui/hud.gd
-msgid "[Shift] Mount broom"
-msgstr "[Shift] Süpürgeye bin"
-
-#: scripts/ui/hud.gd
 msgid "Collected %d Galleons."
 msgstr "%d Galleon toplandı."
 
@@ -1086,10 +1078,6 @@ msgstr "[I] Çanta - taşıdığın iksirler"
 #: scripts/ui/hud.gd
 msgid "[O] Ollivander - forge the wand higher"
 msgstr "[O] Ollivander - asanı yükselt"
-
-#: scripts/ui/hud.gd
-msgid "[Shift] Mount or dismount the broom"
-msgstr "[Shift] Süpürgeye bin ya da in"
 
 #: scripts/ui/hud.gd scripts/ui/hud_player_menu.gd
 msgid "Invite to Party"
@@ -1432,20 +1420,96 @@ msgid "Agility"
 msgstr "Çeviklik"
 
 #: scripts/ui/hud_character_window.gd
-msgid "Level"
-msgstr "Seviye"
+msgid "Status"
+msgstr "Durum"
+
+#: scripts/ui/hud_character_window.gd
+msgid "Attributes"
+msgstr "Nitelikler"
+
+#: scripts/ui/hud_character_window.gd
+msgid "Properties"
+msgstr "Özellikler"
+
+#: scripts/ui/hud_character_window.gd
+msgid "Attack"
+msgstr "Saldırı"
+
+#: scripts/ui/hud_character_window.gd
+msgid "Attack speed"
+msgstr "Saldırı hızı"
+
+#: scripts/ui/hud_character_window.gd
+msgid "Casting speed"
+msgstr "Büyü hızı"
+
+#: scripts/ui/hud_character_window.gd
+msgid "Piercing hit"
+msgstr "Delici vuruş"
+
+#: scripts/ui/hud_character_window.gd
+msgid "Life drain"
+msgstr "Can çalma"
+
+#: scripts/ui/hud_character_window.gd
+msgid "Defence"
+msgstr "Savunma"
+
+#: scripts/ui/hud_character_window.gd
+msgid "Melee resist"
+msgstr "Yakın dövüş direnci"
+
+#: scripts/ui/hud_character_window.gd
+msgid "Projectile resist"
+msgstr "Mermi direnci"
+
+#: scripts/ui/hud_character_window.gd
+msgid "Spell resist"
+msgstr "Büyü direnci"
+
+#: scripts/ui/hud_character_window.gd
+msgid "Block"
+msgstr "Blok"
+
+#: scripts/ui/hud_character_window.gd
+msgid "Reflect"
+msgstr "Yansıtma"
+
+#: scripts/ui/hud_character_window.gd
+msgid "Regeneration"
+msgstr "Yenilenme"
+
+#: scripts/ui/hud_character_window.gd
+msgid "Health regen"
+msgstr "Can yenilenmesi"
+
+#: scripts/ui/hud_character_window.gd
+msgid "Mana regen"
+msgstr "Mana yenilenmesi"
+
+#: scripts/ui/hud_character_window.gd
+msgid "Movement and loot"
+msgstr "Hareket ve ganimet"
+
+#: scripts/ui/hud_character_window.gd
+msgid "Movement speed"
+msgstr "Hareket hızı"
+
+#: scripts/ui/hud_character_window.gd
+msgid "Broom speed"
+msgstr "Süpürge hızı"
 
 #: scripts/ui/hud_character_window.gd
 msgid "Experience"
 msgstr "Tecrübe"
 
 #: scripts/ui/hud_character_window.gd
-msgid "Next level"
-msgstr "Sonraki seviye"
+msgid "Galleons found"
+msgstr "Bulunan Galleon"
 
 #: scripts/ui/hud_character_window.gd
-msgid "Status"
-msgstr "Durum"
+msgid "Level"
+msgstr "Seviye"
 
 #: scripts/ui/hud_character_window.gd
 msgid "Health"
@@ -1479,77 +1543,45 @@ msgstr "Büyü gücü"
 msgid "Skill power"
 msgstr "Beceri gücü"
 
-#: scripts/ui/hud_character_window.gd
-msgid "Attributes"
-msgstr "Nitelikler"
-
-#: scripts/ui/hud_character_window.gd
-msgid "Properties"
-msgstr "Özellikler"
-
-#: scripts/ui/hud_character_window.gd
-msgid "Attack speed"
-msgstr "Saldırı hızı"
-
-#: scripts/ui/hud_character_window.gd
-msgid "Casting speed"
-msgstr "Büyü hızı"
-
-#: scripts/ui/hud_character_window.gd
-msgid "Movement speed"
-msgstr "Hareket hızı"
-
-#: scripts/ui/hud_character_window.gd
-msgid "Piercing hit"
-msgstr "Delici vuruş"
-
-#: scripts/ui/hud_character_window.gd
-msgid "Melee resist"
-msgstr "Yakın dövüş direnci"
-
-#: scripts/ui/hud_character_window.gd
-msgid "Projectile resist"
-msgstr "Mermi direnci"
-
-#: scripts/ui/hud_character_window.gd
-msgid "Spell resist"
-msgstr "Büyü direnci"
-
-#: scripts/ui/hud_character_window.gd
-msgid "Block"
-msgstr "Blok"
-
-#: scripts/ui/hud_character_window.gd
-msgid "Life drain"
-msgstr "Can çalma"
-
-#: scripts/ui/hud_character_window.gd
-msgid "Reflect"
-msgstr "Yansıtma"
-
-#: scripts/ui/hud_character_window.gd
-msgid "Health regen"
-msgstr "Can yenilenmesi"
-
-#: scripts/ui/hud_character_window.gd
-msgid "Mana regen"
-msgstr "Mana yenilenmesi"
-
-#: scripts/ui/hud_character_window.gd
-msgid "Broom speed"
-msgstr "Süpürge hızı"
-
-#: scripts/ui/hud_character_window.gd
-msgid "Galleons found"
-msgstr "Bulunan Galleon"
-
 #: scripts/ui/hud_character_window.gd scripts/ui/inventory_arcane.gd
 msgid "Galleons"
 msgstr "Galleon"
 
 #: scripts/ui/hud_character_window.gd
-msgid "Status points: %d  ·  %d per level"
-msgstr "Statü puanı: %d  ·  seviye başına %d"
+msgid "Status Points"
+msgstr "Statü Puanı"
+
+#: scripts/ui/hud_character_window.gd
+msgid "%d per level  ·  up to %d each"
+msgstr "seviye başına %d  ·  nitelik başına en çok %d"
+
+#: scripts/ui/hud_character_window.gd
+msgid "No points yet"
+msgstr "henüz puan yok"
+
+#: scripts/ui/hud_character_window.gd
+msgid "+%s Health"
+msgstr "+%s Can"
+
+#: scripts/ui/hud_character_window.gd
+msgid "+%s Mana"
+msgstr "+%s Mana"
+
+#: scripts/ui/hud_character_window.gd
+msgid "+%s Attack"
+msgstr "+%s Saldırı"
+
+#: scripts/ui/hud_character_window.gd
+msgid "+%s Magic attack"
+msgstr "+%s Büyü saldırısı"
+
+#: scripts/ui/hud_character_window.gd
+msgid "+%s%% speed"
+msgstr "+%%%s hız"
+
+#: scripts/ui/hud_character_window.gd
+msgid "+%s%% critical"
+msgstr "+%%%s kritik"
 
 #: scripts/ui/hud_chat.gd
 msgid "Say something…   (start with ! to shout to everyone)"
@@ -2063,7 +2095,7 @@ msgstr "%s (altın %s, gümüş %s, bronz %s)"
 msgid "Clear"
 msgstr "Temizlik"
 
-#: scripts/ui/hud_dungeon_result.gd
+#: scripts/ui/hud_dungeon_result.gd scripts/ui/ollivander_ui.gd
 msgid "%d%%"
 msgstr "%%%d"
 
@@ -2227,7 +2259,7 @@ msgstr "Oyundan Çık"
 msgid "You cannot leave while defeated."
 msgstr "Yenik düşmüşken ayrılamazsın."
 
-#: scripts/ui/hud_game_menu.gd scripts/ui/inventory_arcane.gd scripts/ui/look_editor.gd scripts/ui/ollivander_ui.gd scenes/main/character_select.tscn
+#: scripts/ui/hud_game_menu.gd scripts/ui/inventory_arcane.gd scripts/ui/look_editor.gd scenes/main/character_select.tscn
 msgid "Cancel"
 msgstr "İptal"
 
@@ -2347,7 +2379,7 @@ msgstr "%d açık  ·  %d ödül bekliyor  ·  %d tamamlandı"
 msgid "Ready"
 msgstr "Hazır"
 
-#: scripts/ui/hud_quest_log.gd
+#: scripts/ui/hud_quest_log.gd scripts/ui/npc_dialogue.gd
 msgid "New"
 msgstr "Yeni"
 
@@ -2404,12 +2436,20 @@ msgid "Spells"
 msgstr "Büyüler"
 
 #: scripts/ui/hud_skill_window.gd
-msgid "Other spells"
-msgstr "Diğer büyüler"
+msgid "Drag"
+msgstr "Sürükle"
 
 #: scripts/ui/hud_skill_window.gd
-msgid "Drag a spell onto the bar  ·  + spends a point"
-msgstr "Bir büyüyü çubuğa sürükle  ·  + bir puan harcar"
+msgid "onto the action bar"
+msgstr "eylem çubuğuna koy"
+
+#: scripts/ui/hud_skill_window.gd
+msgid "spends a point"
+msgstr "bir puan harcar"
+
+#: scripts/ui/hud_skill_window.gd
+msgid "Skill Points"
+msgstr "Beceri Puanı"
 
 #: scripts/ui/hud_skill_window.gd
 msgid "No skill points left - gain a level"
@@ -2428,20 +2468,44 @@ msgid "Cannot train that now"
 msgstr "Bu şu an geliştirilemez"
 
 #: scripts/ui/hud_skill_window.gd
-msgid "Points  %d"
-msgstr "Puan  %d"
+msgid "Special spell"
+msgstr "Özel büyü"
 
 #: scripts/ui/hud_skill_window.gd
 msgid "Not learned"
 msgstr "Öğrenilmedi"
 
 #: scripts/ui/hud_skill_window.gd
+msgid "%d Mana"
+msgstr "%d Mana"
+
+#: scripts/ui/hud_skill_window.gd
+msgid "%.1f s cooldown"
+msgstr "%.1f sn bekleme"
+
+#: scripts/ui/hud_skill_window.gd
 msgid "Requires level %d"
 msgstr "Seviye %d gerekir"
 
 #: scripts/ui/hud_skill_window.gd
+msgid "Next: Master"
+msgstr "Sonraki: Usta"
+
+#: scripts/ui/hud_skill_window.gd
 msgid "Next level: %d"
 msgstr "Sonraki seviye: %d"
+
+#: scripts/ui/hud_skill_window.gd
+msgid "Cooldown %.1f s"
+msgstr "Bekleme %.1f sn"
+
+#: scripts/ui/hud_skill_window.gd
+msgid "This spell does not train with points."
+msgstr "Bu büyü puanla geliştirilmez."
+
+#: scripts/ui/hud_skill_window.gd
+msgid "Drag it onto the action bar"
+msgstr "Sürükleyerek eylem çubuğuna koy"
 
 #: scripts/ui/hud_skill_window.gd
 msgid "Damage %d%%"
@@ -2450,10 +2514,6 @@ msgstr "Hasar %%%d"
 #: scripts/ui/hud_skill_window.gd
 msgid "Effect %d%%"
 msgstr "Etki %%%d"
-
-#: scripts/ui/hud_skill_window.gd
-msgid "Mana %d  ·  Cooldown %.1fs"
-msgstr "Mana %d  ·  Bekleme %.1f sn"
 
 #: scripts/ui/hud_skill_window.gd
 msgid "Stun %.1fs"
@@ -2486,6 +2546,14 @@ msgstr "Yanma %d x %d"
 #: scripts/ui/hud_skill_window.gd
 msgid "Disarm %.1fs"
 msgstr "Silahsızlandırma %.1f sn"
+
+#: scripts/ui/hud_skill_window.gd
+msgid "Special"
+msgstr "Özel"
+
+#: scripts/ui/hud_skill_window.gd
+msgid "Not trainable"
+msgstr "Eğitilemez"
 
 #: scripts/ui/hud_tracker.gd
 msgid "More quests (J)"
@@ -3428,10 +3496,6 @@ msgid "Quest"
 msgstr "Görev"
 
 #: scripts/ui/mmorpg_overlay.gd
-msgid "Click or Esc to close"
-msgstr "Kapatmak için tıkla ya da Esc"
-
-#: scripts/ui/mmorpg_overlay.gd
 msgid "WASD move · right-drag camera · wheel zoom\nLMB attack · 1–4 / Q / E skills · Tab target\nShift mount · Space rise · Ctrl descend · F talk\nZ loot · I bag · O Ollivander · J guide · F1 settings"
 msgstr "WASD hareket · sağ sürükle kamera · tekerlek yakınlaştır\nSol tık saldır · 1–4 / Q / E beceriler · Tab hedef\nShift bin · Boşluk yüksel · Ctrl alçal · F konuş\nZ ganimet · I çanta · O Ollivander · J rehber · F1 ayarlar"
 
@@ -3463,73 +3527,177 @@ msgstr "Dağ Geçidi"
 msgid "Hunting grounds  ·  Lv %d-%d"
 msgstr "Av bölgesi  ·  Sv %d-%d"
 
+#: scripts/ui/npc_dialogue.gd
+msgid "Hogwarts Professor"
+msgstr "Hogwarts Profesörü"
+
+#: scripts/ui/npc_dialogue.gd
+msgid "Wandmaker"
+msgstr "Asa Ustası"
+
+#: scripts/ui/npc_dialogue.gd
+msgid "Landlady of the Three Broomsticks"
+msgstr "Üç Süpürge'nin Sahibi"
+
+#: scripts/ui/npc_dialogue.gd
+msgid "Forest Keeper"
+msgstr "Orman Bekçisi"
+
+#: scripts/ui/npc_dialogue.gd
+msgid "Librarian"
+msgstr "Kütüphaneci"
+
+#: scripts/ui/npc_dialogue.gd
+msgid "Charms Professor"
+msgstr "Tılsım Profesörü"
+
+#: scripts/ui/npc_dialogue.gd
+msgid "Open the workshop"
+msgstr "Atölyeyi aç"
+
+#: scripts/ui/npc_dialogue.gd
+msgid "O"
+msgstr "O"
+
+#: scripts/ui/npc_dialogue.gd
+msgid "Finish"
+msgstr "Tamamla"
+
+#: scripts/ui/npc_dialogue.gd
+msgid "Continue  ▸"
+msgstr "Devam  ▸"
+
+#: scripts/ui/npc_dialogue.gd
+msgid "Hand in"
+msgstr "Teslim et"
+
+#: scripts/ui/npc_dialogue.gd
+msgid "In progress"
+msgstr "Sürüyor"
+
+#: scripts/ui/npc_dialogue.gd
+msgid "Goodbye"
+msgstr "Hoşça kal"
+
+#: scripts/ui/npc_dialogue.gd
+msgid "hand in"
+msgstr "teslim"
+
+#: scripts/ui/npc_dialogue.gd
+msgid "new quest"
+msgstr "yeni görev"
+
 #: scripts/ui/ollivander_ui.gd scripts/world/game_world.gd addons/hpmmo_sim/data/quests.json
 msgid "Ollivander"
 msgstr "Ollivander"
 
 #: scripts/ui/ollivander_ui.gd
-msgid "OK"
-msgstr "Tamam"
+msgid "Upgrade"
+msgstr "Yükseltme"
 
 #: scripts/ui/ollivander_ui.gd
-msgid "You have %d"
-msgstr "Sende %d tane var"
+msgid "Enchant"
+msgstr "Efsun"
 
 #: scripts/ui/ollivander_ui.gd
-msgid "Drag an item here"
-msgstr "Bir eşyayı buraya sürükle"
+msgid "Right-click an item in your bag or drag it here"
+msgstr "Çantandaki bir eşyaya sağ tıkla ya da buraya sürükle"
 
 #: scripts/ui/ollivander_ui.gd
-msgid "or right-click it in your bag"
-msgstr "ya da çantanda sağ tıkla"
+msgid "Drag the item you want to upgrade or enchant here, or right-click it in your bag."
+msgstr "Yükseltmek ya da efsunlamak istediğin eşyayı buraya sürükle ya da çantanda sağ tıkla."
 
 #: scripts/ui/ollivander_ui.gd
-msgid "Imbue"
-msgstr "Efsun Bas"
+msgid "Take it off the anvil"
+msgstr "Örsten kaldır"
 
 #: scripts/ui/ollivander_ui.gd
-msgid "Reweave"
-msgstr "Efsun Değiştir"
+msgid "Takes wands, cloaks, brooms and accessories from +0 to +9. Every step needs materials and galleons; the chance falls with each level, and from +%d a failure drops the item one level."
+msgstr "Asa, cüppe, süpürge ve takıları +0'dan +9'a çıkarır. Her adım malzeme ve galleon ister; şans her seviyede düşer, +%d'ten sonra başarısızlık eşyayı bir seviye indirir."
+
+#: scripts/ui/ollivander_ui.gd
+msgid "An item holds up to %d enchantments. An Imbue rune adds a new one (the more it has, the lower the chance); a Reweave rune rerolls them all."
+msgstr "Eşyaya en çok %d efsun basılır. Efsun Rünü yeni bir efsun ekler (efsun arttıkça şans düşer), Efsun Değiştirme Rünü hepsini yeniden atar."
+
+#: scripts/ui/ollivander_ui.gd
+msgid "Worn items must be taken off first  ·  the item stays locked in the bag while on the anvil"
+msgstr "Takılı eşyalar önce çıkarılmalı  ·  örsteyken eşya çantada kilitli kalır"
 
 #: scripts/ui/ollivander_ui.gd
 msgid "Cannot be refined"
 msgstr "Yükseltilemez"
 
 #: scripts/ui/ollivander_ui.gd
-msgid "From Level: %d"
-msgstr "Seviye: %d"
-
-#: scripts/ui/ollivander_ui.gd
 msgid "Fully refined"
 msgstr "Tamamen yükseltildi"
 
 #: scripts/ui/ollivander_ui.gd
-msgid "Chance of upgrade %d%%%s"
-msgstr "Yükseltme şansı %%%d%s"
+msgid "This item is at its highest level."
+msgstr "Bu eşya en yüksek seviyede."
 
 #: scripts/ui/ollivander_ui.gd
-msgid "  (failure: +%d)"
-msgstr "  (başarısızlık: +%d)"
+msgid "Requirements"
+msgstr "Gerekenler"
 
 #: scripts/ui/ollivander_ui.gd
-msgid "Cost of the upgrade: %s Galleons"
-msgstr "Yükseltme bedeli: %s Galleon"
+msgid "Success chance"
+msgstr "Başarı şansı"
+
+#: scripts/ui/ollivander_ui.gd
+msgid "If it fails, the item drops to +%d"
+msgstr "Başarısız olursa eşya +%d seviyesine düşer"
+
+#: scripts/ui/ollivander_ui.gd
+msgid "A failure does not lower the level"
+msgstr "Başarısız olursa seviye düşmez"
+
+#: scripts/ui/ollivander_ui.gd
+msgid "Upgrade now"
+msgstr "Yükselt"
+
+#: scripts/ui/ollivander_ui.gd
+msgid "Cost"
+msgstr "Bedel"
+
+#: scripts/ui/ollivander_ui.gd
+msgid "%s  ·  you have %d, need %d"
+msgstr "%s  ·  elinde %d, gereken %d"
 
 #: scripts/ui/ollivander_ui.gd
 msgid "Cannot be enchanted"
 msgstr "Efsun basılamaz"
 
 #: scripts/ui/ollivander_ui.gd
-msgid "No enchantments (0/%d)"
-msgstr "Efsun yok (0/%d)"
+msgid "Imbue"
+msgstr "Efsun Bas"
 
 #: scripts/ui/ollivander_ui.gd
-msgid "Imbue %d%%  ·  %d"
-msgstr "Efsun Bas %%%d  ·  %d"
+msgid "Slots full  ·  you have %d"
+msgstr "Yuvalar dolu  ·  elinde %d"
 
 #: scripts/ui/ollivander_ui.gd
-msgid "Reweave  ·  %d"
-msgstr "Efsun Değiştir  ·  %d"
+msgid "Chance %d%%  ·  you have %d"
+msgstr "Şans %%%d  ·  elinde %d"
+
+#: scripts/ui/ollivander_ui.gd
+msgid "Reweave"
+msgstr "Efsun Değiştir"
+
+#: scripts/ui/ollivander_ui.gd
+msgid "No enchantments  ·  you have %d"
+msgstr "Efsun yok  ·  elinde %d"
+
+#: scripts/ui/ollivander_ui.gd
+msgid "Rerolls %d  ·  you have %d"
+msgstr "%d efsunu yeniden atar  ·  elinde %d"
+
+#: scripts/ui/ollivander_ui.gd
+msgid "Empty enchantment slot"
+msgstr "Boş efsun yuvası"
+
+#: scripts/ui/ollivander_ui.gd
+msgid "Grade %d/5"
+msgstr "Derece %d/5"
 
 #: scripts/ui/ollivander_ui.gd
 msgid "Equipment updated."
@@ -4490,10 +4658,6 @@ msgstr "EXP: 0 / 200"
 #: scenes/ui/hud.tscn
 msgid "Forge"
 msgstr "Demirci"
-
-#: scenes/ui/hud.tscn
-msgid "Nimbus"
-msgstr "Nimbus"
 
 #: scenes/ui/hud.tscn
 msgid "Press Enter to chat..."
@@ -7055,6 +7219,9 @@ msgstr "Karanlık Metin Taşını Parçala"
 msgid "A corrupted Dark Monolith has emerged near the Black Lake. Gather other wizards, shatter its obsidian core, and collect the ancient drops."
 msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. Diğer büyücüleri topla, obsidyen çekirdeğini parçala ve kadim ganimetleri topla."
 
+#~ msgid "  (failure: +%d)"
+#~ msgstr "  (başarısızlık: +%d)"
+
 #~ msgid "%s has no entries left today."
 #~ msgstr "%s bugünkü giriş hakkını bitirdi."
 
@@ -7094,11 +7261,20 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "Bun"
 #~ msgstr "Topuz"
 
+#~ msgid "Chance of upgrade %d%%%s"
+#~ msgstr "Yükseltme şansı %%%d%s"
+
+#~ msgid "Click or Esc to close"
+#~ msgstr "Kapatmak için tıkla ya da Esc"
+
 #~ msgid "Conjures a silver stag that charges through a wide cone. Dementors take triple damage and the stag breaks a dementor's attack, kiss included. Requires level 40."
 #~ msgstr "Geniş bir koni boyunca saldıran gümüş bir geyik çağırır. Ruh Emiciler üç kat hasar alır ve geyik bir Ruh Emici'nin saldırısını, öpücüğü dahil, bozar. Seviye 40 gerekir."
 
 #~ msgid "Corpses bewitched to serve a dark wizard. Slow, relentless and terrified of fire."
 #~ msgstr "Kara bir büyücüye hizmet etmek için büyülenmiş cesetler. Yavaş, amansız ve ateşten ödleri kopar."
+
+#~ msgid "Cost of the upgrade: %s Galleons"
+#~ msgstr "Yükseltme bedeli: %s Galleon"
 
 #~ msgid "Cropped"
 #~ msgstr "Kısa Kesim"
@@ -7121,6 +7297,12 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "Detonates a violent concussive shockwave. Heavy AOE damage with knockback."
 #~ msgstr "Şiddetli, sarsıcı bir şok dalgası patlatır. Geri itmeli ağır alan hasarı."
 
+#~ msgid "Drag a spell onto the bar  ·  + spends a point"
+#~ msgstr "Bir büyüyü çubuğa sürükle  ·  + bir puan harcar"
+
+#~ msgid "Drag an item here"
+#~ msgstr "Bir eşyayı buraya sürükle"
+
 #~ msgid "Enter the Trial Hall from the courtyard portal, clear the corridor and defeat the Trial Warden."
 #~ msgstr "Avludaki geçitten Sınav Salonu'na gir, koridoru temizle ve Sınav Muhafızı'nı alt et."
 
@@ -7132,6 +7314,9 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 
 #~ msgid "Fluffy collapses. The trapdoor swings open - claim your reward."
 #~ msgstr "Fluffy yığıldı. Kapak açılıyor - ödülünü al."
+
+#~ msgid "From Level: %d"
+#~ msgstr "Seviye: %d"
 
 #~ msgid "Frost nova. Hurls a spinning ice crystal that bursts into shards and freezing mist, freezing every enemy in the blast for up to 1.6 seconds. Requires level 20."
 #~ msgstr "Buz patlaması. Dönen bir buz kristali fırlatır; kristal parçalara ve dondurucu bir sise dönüşerek patlar, patlamadaki her düşmanı 1,6 saniyeye kadar dondurur. 20. seviye gerekir."
@@ -7163,6 +7348,9 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "Ignited"
 #~ msgstr "Tutuştu"
 
+#~ msgid "Imbue %d%%  ·  %d"
+#~ msgstr "Efsun Bas %%%d  ·  %d"
+
 #~ msgid "Inferi Ghoul"
 #~ msgstr "Inferius Hortlak"
 
@@ -7172,11 +7360,32 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "Inferi stalk the Forest Edge past Hagrid's hut. Fire (Incendio) hurts them twice as much."
 #~ msgstr "Inferius'lar Hagrid'in kulübesinin ötesinde, Orman Kıyısı'nda dolaşıyor. Ateş (Incendio) onlara iki kat zarar verir."
 
+#~ msgid "Mana %d  ·  Cooldown %.1fs"
+#~ msgstr "Mana %d  ·  Bekleme %.1f sn"
+
 #~ msgid "Monolith on the Moor"
 #~ msgstr "Bozkırdaki Metin Taşı"
 
+#~ msgid "Next level"
+#~ msgstr "Sonraki seviye"
+
+#~ msgid "Nimbus"
+#~ msgstr "Nimbus"
+
+#~ msgid "No enchantments (0/%d)"
+#~ msgstr "Efsun yok (0/%d)"
+
 #~ msgid "Nose"
 #~ msgstr "Burun"
+
+#~ msgid "OK"
+#~ msgstr "Tamam"
+
+#~ msgid "Other spells"
+#~ msgstr "Diğer büyüler"
+
+#~ msgid "Points  %d"
+#~ msgstr "Puan  %d"
 
 #~ msgid "Press O near Ollivander, drag your wand onto the anvil and refine it with Phoenix Ash and Galleons."
 #~ msgstr "Ollivander'ın yanında O'ya bas, asanı örse sürükle ve Anka Külü ile Galleon kullanarak yükselt."
@@ -7193,11 +7402,17 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "Report to Hagrid at his hut"
 #~ msgstr "Kulübesinde Hagrid'e rapor ver"
 
+#~ msgid "Reweave  ·  %d"
+#~ msgstr "Efsun Değiştir  ·  %d"
+
 #~ msgid "Side Fringe"
 #~ msgstr "Yan Perçem"
 
 #~ msgid "Slicked Back"
 #~ msgstr "Geriye Taranmış"
+
+#~ msgid "Status points: %d  ·  %d per level"
+#~ msgstr "Statü puanı: %d  ·  seviye başına %d"
 
 #~ msgid "Straight Brows"
 #~ msgstr "Düz Kaş"
@@ -7238,11 +7453,26 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "You cannot act."
 #~ msgstr "Hareket edemezsin."
 
+#~ msgid "You have %d"
+#~ msgstr "Sende %d tane var"
+
 #~ msgid "Your bag is full: the rest of the quest reward waits in a chest at your feet."
 #~ msgstr "Çantan dolu: görev ödülünün kalanı ayağının dibindeki sandıkta seni bekliyor."
 
+#~ msgid "[Shift] Dismount broom"
+#~ msgstr "[Shift] Süpürgeden in"
+
+#~ msgid "[Shift] Mount broom"
+#~ msgstr "[Shift] Süpürgeye bin"
+
+#~ msgid "[Shift] Mount or dismount the broom"
+#~ msgstr "[Shift] Süpürgeye bin ya da in"
+
 #~ msgid "no entries left"
 #~ msgstr "hakkı bitti"
+
+#~ msgid "or right-click it in your bag"
+#~ msgstr "ya da çantanda sağ tıkla"
 
 #~ msgid "the leader spends %d"
 #~ msgstr "lider %d anahtar harcar"

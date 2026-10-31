@@ -38,7 +38,6 @@ extends Control
 # Quick Bar
 @onready var inventory_button: Button = $BottomBar/QuickBar/InvBtn
 @onready var ollivander_button: Button = $BottomBar/QuickBar/OllivanderBtn
-@onready var mount_button: Button = $BottomBar/QuickBar/MountBtn
 
 # Chat
 @onready var chat_history: RichTextLabel = $ChatContainer/Margin/Chat/ChatHistory
@@ -130,7 +129,6 @@ func _ready() -> void:
 	slot_q.pressed.connect(func(): _trigger_player_spell("protego"))
 	slot_e.pressed.connect(func(): _trigger_player_spell("ultimate"))
 
-	mount_button.pressed.connect(func(): if is_instance_valid(player): player.toggle_broom_mount())
 
 	_setup_panels()
 	_build_mmo_layout()
@@ -776,11 +774,6 @@ func _target_max_hp_value() -> int:
 		return int(current_target.max_hp)
 	return 1
 
-func _on_mounted_changed(is_mounted: bool) -> void:
-	mount_button.tooltip_text = tr("[Shift] Dismount broom") if is_mounted else tr("[Shift] Mount broom")
-	mount_button.modulate = UITheme.c("gold_hi") if is_mounted else Color.WHITE
-
-
 ## The target frame's icon: a crown for a world boss, the enraged eye for an
 ## angry elite, the crosshair for anything else, the monolith spike for a
 ## monolith. One holder, swapped as the target changes.
@@ -1046,7 +1039,7 @@ func _apply_theme() -> void:
 	UITheme.role(target_name_label, UITheme.V_TITLE)
 	target_name_label.add_theme_font_size_override("font_size", UITheme.FS_BODY)
 
-	for button in [inventory_button, ollivander_button, mount_button]:
+	for button in [inventory_button, ollivander_button]:
 		button.focus_mode = Control.FOCUS_NONE
 	for slot in [slot_1, slot_2, slot_3, slot_4, slot_q, slot_e]:
 		slot.focus_mode = Control.FOCUS_NONE
@@ -1060,12 +1053,11 @@ func _apply_theme() -> void:
 	_attach_bar_icon(mana_bar, "stat_mana")
 	_attach_bar_icon(exp_bar, "stat_exp")
 	_attach_bar_icon(target_hp_bar, "stat_health")
-	for pair in [[inventory_button, "menu_inventory"], [ollivander_button, "menu_ollivander"], [mount_button, "menu_mount"]]:
+	for pair in [[inventory_button, "menu_inventory"], [ollivander_button, "menu_ollivander"]]:
 		(pair[0] as Button).set_meta("icon_id", pair[1])
 		UITheme.set_button_icon(pair[0], pair[1])
 	inventory_button.tooltip_text = tr("[I] Bag - the potions you carry")
 	ollivander_button.tooltip_text = tr("[O] Ollivander - forge the wand higher")
-	mount_button.tooltip_text = tr("[Shift] Mount or dismount the broom")
 	_target_icon = UITheme.icon_rect("ui_target", 15.0)
 	_target_icon.name = "Icon"
 	_target_icon.set_anchors_preset(Control.PRESET_TOP_LEFT)
@@ -1145,11 +1137,14 @@ func _build_mmo_layout() -> void:
 		slot.visible = false
 	hotbar.add_child(action_bar)
 	action_bar.bind(self, player)
-	# Menu buttons, bottom-right: the same framed square cells as the action
-	# bar, each filled edge to edge by its painted icon.
+	# Menu buttons, on the action bar's plate: the bag as a full action-bar
+	# cell, the windows as a block of small cells beside it, each filled edge
+	# to edge by its painted icon.
+	inventory_button.reparent($BottomBar)
+	_style_menu_cell(inventory_button, HudActionBar.SLOT)
 	for button in $BottomBar/QuickBar.get_children():
 		if button is Button:
-			_style_menu_cell(button as Button)
+			_style_menu_cell(button as Button, MICRO_CELL)
 	# Target card.
 	_build_target_card()
 	# Chat sits over the world now; no badge.
@@ -1193,30 +1188,41 @@ func _mmo_layout() -> void:
 	exp_bar.offset_top = -14
 	exp_bar.offset_bottom = 0
 	exp_bar.custom_minimum_size = Vector2(0, 14)
-	# Action bar, centred above it.
+	# The taskbar above it, centred on the spells: the action bar, the bag,
+	# then the window buttons, all on one plate so they can never overlap.
+	# Near the right edge the whole tray slides left instead.
+	var slot := HudActionBar.SLOT
 	var hotbar := $BottomBar/Hotbar as Control
-	hotbar.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	var bw := action_bar.bar_width()
-	UILayout.place(hotbar, Vector2(-bw * 0.5, -14 - 12 - HudActionBar.SLOT), Vector2(bw, HudActionBar.SLOT))
-	action_bar.queue_redraw()
-	# Menu buttons, bottom-right.
 	var quick := $BottomBar/QuickBar as GridContainer
-	var n := 0
-	for b in quick.get_children():
-		if b is Button and b.visible:
-			n += 1
-	quick.columns = n if not compact else 3
-	quick.add_theme_constant_override("h_separation", 4)
-	quick.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	var qw := float(quick.columns) * (MENU_CELL + 4.0)
-	var qh: float = MENU_CELL * ceilf(float(n) / float(quick.columns)) + (4.0 if compact else 0.0)
-	UILayout.place(quick, Vector2(-qw - 14, -14 - 12 - qh), Vector2(qw, qh))
-	# Chat, bottom-left.
+	var bw := action_bar.bar_width()
+	var micro_w := MICRO_COLUMNS * MICRO_CELL + (MICRO_COLUMNS - 1) * MICRO_GAP
+	var micro_h := 2.0 * MICRO_CELL + MICRO_GAP
+	var extra := TRAY_DIVIDER + slot + TRAY_DIVIDER + micro_w
+	var bar_y := -14.0 - 12.0 - slot
+	var left := minf(-bw * 0.5, canvas.x * 0.5 - 14.0 - HudActionBar.PLATE_PAD - bw - extra)
+	for control in [hotbar, inventory_button, quick]:
+		(control as Control).set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	UILayout.place(hotbar, Vector2(left, bar_y), Vector2(bw, slot))
+	action_bar.tray_extra = extra
+	action_bar.tray_dividers = [bw + TRAY_DIVIDER * 0.5, bw + TRAY_DIVIDER * 1.5 + slot]
+	action_bar.queue_redraw()
+	UILayout.place(inventory_button, Vector2(left + bw + TRAY_DIVIDER, bar_y), Vector2(slot, slot))
+	quick.columns = MICRO_COLUMNS
+	quick.add_theme_constant_override("h_separation", int(MICRO_GAP))
+	quick.add_theme_constant_override("v_separation", int(MICRO_GAP))
+	UILayout.place(quick, Vector2(left + bw + TRAY_DIVIDER * 2.0 + slot, bar_y + (slot - micro_h) * 0.5), Vector2(micro_w, micro_h))
+	# The plate's top and left edge, measured from the bottom / left of the canvas.
+	var tray_top := 14.0 + 12.0 + slot + HudActionBar.PLATE_TOP
+	var tray_left := canvas.x * 0.5 + left - HudActionBar.PLATE_PAD
+	# Chat, bottom-left; it stands on the taskbar when the two would meet.
 	var chat_box := $ChatContainer as Control
 	chat_box.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	var chat_w := 280.0 if compact else 360.0
 	var chat_h := (240.0 if not compact else 170.0) if chat_input.has_focus() else (110.0 if compact else 170.0)
-	UILayout.place(chat_box, Vector2(12, -14 - 14 - chat_h), Vector2(chat_w, chat_h))
+	var chat_bottom := 14.0 + 14.0
+	if tray_left < 12.0 + chat_w + 8.0:
+		chat_bottom = tray_top + 8.0
+	UILayout.place(chat_box, Vector2(12, -chat_bottom - chat_h), Vector2(chat_w, chat_h))
 	chat_history.custom_minimum_size.y = 0
 	# Target card, top centre.
 	var card_w := 300.0 if compact else 360.0
@@ -1234,24 +1240,30 @@ func _mmo_layout() -> void:
 		if feedback._toast_panel != null:
 			feedback._toast_panel.custom_minimum_size = Vector2.ZERO
 			var tw := 200.0 if compact else 250.0
-			UILayout.place(feedback._toast_panel, Vector2(-tw - 14, -14 - 12 - qh - 12 - 120), Vector2(tw, 120))
+			UILayout.place(feedback._toast_panel, Vector2(-tw - 14, -tray_top - 12 - 120), Vector2(tw, 120))
 			feedback._toast_box.custom_minimum_size = Vector2(tw - 18, 0)
 			feedback._toast_box.size.x = tw - 18
 			feedback._toast_panel.clip_contents = true
 
 
-const MENU_CELL := 42.0
+## The window buttons on the taskbar: MICRO_COLUMNS x 2 small cells, as tall
+## together as one action-bar slot, set off by a divider each side of the bag.
+const MICRO_CELL := 24.0
+const MICRO_GAP := 2.0
+const MICRO_COLUMNS := 4
+const TRAY_DIVIDER := 14.0
 
-## A bottom-right menu button as an action-bar cell: dark recess, a thin gold
-## bevel that lights on hover, and the full-bleed icon inside it.
-func _style_menu_cell(button: Button) -> void:
+## A taskbar menu button as an action-bar cell `px` wide: dark recess, a thin
+## gold bevel that lights on hover, and the full-bleed icon inside it.
+func _style_menu_cell(button: Button, px: float) -> void:
 	button.theme_type_variation = &""
 	button.text = ""
 	button.flat = false
 	button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	button.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
 	button.expand_icon = true
-	button.custom_minimum_size = Vector2(MENU_CELL, MENU_CELL)
+	button.custom_minimum_size = Vector2(px, px)
+	var inset := 2 if px < 30.0 else 3
 	# Full-size art: the captioned style had pre-shrunk the icon to 15 px.
 	var id := String(button.get_meta("icon_id", ""))
 	if id != "":
@@ -1262,7 +1274,7 @@ func _style_menu_cell(button: Button) -> void:
 		sb.set_border_width_all(1)
 		sb.border_color = HudKit.GOLD.darkened(0.15)
 		sb.set_corner_radius_all(3)
-		sb.set_content_margin_all(3)
+		sb.set_content_margin_all(inset)
 		sb.shadow_color = Color(0, 0, 0, 0.55)
 		sb.shadow_size = 3
 		match state:
@@ -1271,7 +1283,7 @@ func _style_menu_cell(button: Button) -> void:
 				sb.set_border_width_all(2)
 			"pressed":
 				sb.border_color = HudKit.GOLD_LT
-				sb.set_content_margin_all(4)
+				sb.set_content_margin_all(inset + 1)
 			"focus":
 				sb.draw_center = false
 				sb.border_color = Color(0, 0, 0, 0)
