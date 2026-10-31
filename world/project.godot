@@ -21,6 +21,7 @@ config/icon="res://assets/branding/hpmmo_icon.png"
 
 [autoload]
 
+RenderCompat="*res://scripts/autoload/render_compat.gd"
 I18n="*res://scripts/autoload/i18n.gd"
 GameData="*res://scripts/autoload/game_data.gd"
 DatabaseManager="*res://scripts/server/db_manager.gd"

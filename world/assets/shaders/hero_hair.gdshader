@@ -33,5 +33,9 @@ void fragment() {
 	float thin = 0.15 + 0.7 * strand + 0.15 * fract(sin(dot(floor(UV * 1024.0), vec2(12.9898, 78.233))) * 43758.5453);
 	ALPHA = texel.a * smoothstep(thin - 0.08, thin + 0.08, COLOR.r);
 	ALPHA_SCISSOR_THRESHOLD = 0.5;
+#if CURRENT_RENDERER == RENDERER_FORWARD_PLUS
+	// not under Mobile: its half-precision fwidth crashes Mesa's NVK compiler
+	// and the hair disappears (scripts/autoload/render_compat.gd)
 	ALPHA_ANTIALIASING_EDGE = 0.3;
+#endif
 }
