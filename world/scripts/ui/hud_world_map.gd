@@ -474,6 +474,32 @@ class MapView extends Control:
 			if m is Node3D and is_instance_valid(m) and m.visible:
 				var mp := world_to_screen(Vector2(m.global_position.x, m.global_position.z))
 				_draw_marker("minimap_monolith", mp, 24.0)
+		_draw_gates("grounds")
+
+	## Dungeon gates on the shown map (portals into a dungeon's copies): a
+	## violet diamond and the dungeon's name. `y_band` keeps one castle storey.
+	func _draw_gates(map_id: String, y_band: Vector2 = Vector2(-INF, INF)) -> void:
+		var f := HudKit.bold()
+		for entry in HPMaps.portals_for_map(map_id):
+			var portal: Dictionary = entry
+			var dungeon := HPMaps.dungeon_for_map(String(portal.get("to_map", "")))
+			if dungeon.is_empty():
+				continue
+			var c: Array = (portal.get("trigger", {}) as Dictionary).get("center", [0, 0, 0])
+			if float(c[1]) < y_band.x or float(c[1]) > y_band.y:
+				continue
+			var at := world_to_screen(Vector2(float(c[0]), float(c[2])))
+			var r := 9.0
+			var diamond := PackedVector2Array([at + Vector2(0, -r), at + Vector2(r, 0), at + Vector2(0, r), at + Vector2(-r, 0)])
+			draw_colored_polygon(diamond, Color(0.08, 0.03, 0.12, 0.95))
+			var inner := PackedVector2Array([at + Vector2(0, -r + 3), at + Vector2(r - 3, 0), at + Vector2(0, r - 3), at + Vector2(-r + 3, 0)])
+			draw_colored_polygon(inner, Color(0.72, 0.45, 1.0))
+			var txt := I18n.t(String(dungeon.get("display", "")))
+			var w := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
+			# Under the diamond: room names sit on the room centres above.
+			var tp := at + Vector2(-w * 0.5, r + 15)
+			draw_string_outline(f, tp, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, 5, Color(0, 0, 0, 0.9))
+			draw_string(f, tp, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.86, 0.7, 1.0))
 
 	## The caverns: the shaded heightfield, the room names (floor 2 in green)
 	## and the seal stones near enough to be known.
@@ -497,6 +523,7 @@ class MapView extends Control:
 		for m in get_tree().get_nodes_in_group("monoliths"):
 			if m is Node3D and is_instance_valid(m) and m.visible and (m as Node3D).global_position.y > HPMaps.y_min(HudWorldMap.CAVERNS_MAP) - 10.0:
 				_draw_marker("minimap_monolith", world_to_screen(Vector2(m.global_position.x, m.global_position.z)), 24.0)
+		_draw_gates(HudWorldMap.CAVERNS_MAP)
 
 	## A Marauder's-Map style plan of one storey: parchment, inked walls, room
 	## names, doors and the stairs that leave this floor.
@@ -565,7 +592,9 @@ class MapView extends Control:
 			var c := world_to_screen(Vector2((float(rect[0]) + float(rect[1])) * 0.5, (float(rect[2]) + float(rect[3])) * 0.5))
 			var fs := int(clampf(6.0 + zoom * 2.2, 10.0, 22.0))
 			_text(I18n.t(String(r.get("label", r["id"]))), c, fs, ink, HudKit.deco())
-		var title := I18n.t("%s floor") % I18n.t(String(HudWorldMap.FLOOR_NAMES[host.castle_level])) if host.castle_level >= 0 else I18n.t("The Dungeons")
+		var storey := WaypointRouter.CASTLE_Y + y
+		_draw_gates("castle_interior", Vector2(storey - 2.0, storey + 8.0))
+		var title :=I18n.t("%s floor") % I18n.t(String(HudWorldMap.FLOOR_NAMES[host.castle_level])) if host.castle_level >= 0 else I18n.t("The Dungeons")
 		var tf := HudKit.deco()
 		var tw := tf.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, 17).x
 		draw_rect(Rect2(Vector2(8, 8), Vector2(tw + 20, 28)), Color(HudWorldMap.PARCHMENT, 0.92))

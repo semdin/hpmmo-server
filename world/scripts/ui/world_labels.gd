@@ -136,7 +136,8 @@ func _draw_labels(canvas: CanvasItem) -> void:
 		var max_range := l.visibility_range_end if l.visibility_range_end > 0.0 else DEFAULT_RANGE
 		# A label under a tracked label (a nameplate's level line) is laid out in
 		# screen pixels below its parent: in world units the gap shrinks with
-		# distance while the 2D text does not, so the lines would collide.
+		# distance while the 2D text does not, so the lines would collide. One
+		# set above its parent (a title over the name) goes above it the same way.
 		var parent := l.get_parent() as Label3D
 		if parent != null and _labels.has(parent):
 			var pat := _project(cam, parent.global_position, max_range)
@@ -144,7 +145,8 @@ func _draw_labels(canvas: CanvasItem) -> void:
 				continue
 			var ppx := _px_for(parent, pat.z)
 			var lines := parent.text.split("\n").size()
-			order.append([Vector3(pat.x, pat.y + float(ppx) * 1.12 * float(lines) * 0.5 + float(_px_for(l, pat.z)) * 0.62 + 1.0, pat.z - 0.001), l])
+			var gap := float(ppx) * 1.12 * float(lines) * 0.5 + float(_px_for(l, pat.z)) * 0.62 + 1.0
+			order.append([Vector3(pat.x, pat.y + (-gap if l.position.y > 0.0 else gap), pat.z - 0.001), l])
 			continue
 		var at := _project(cam, l.global_position, max_range)
 		if at.z <= 0.0:

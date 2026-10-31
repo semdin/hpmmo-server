@@ -96,6 +96,9 @@ var _return_heal := 0.0
 ## A troll's charge cycle covers ~10 m/s; scaled by the walk speed it played
 ## three times too fast and the body seemed to run on the spot.
 @export var run_speed := 0.0
+## A flier (the Cornish pixie): the body walks the floor like any creature, the
+## drawn body flies this high above it, bobbing, and leans into its flight.
+@export var hover_height := 0.0
 ## Creature catalog identity (mobs.json): species id, the elite roll, the
 ## resistance map and loot table the authority uses. The encounter director
 ## sets them; a mob spawned another way (monolith wave) fills them from the
@@ -261,7 +264,8 @@ const ANIM_SETS := {
 	"knight": {"idle": "Idle", "walk": "Walk", "run": "Run", "turn": "Walk",
 		"anticipation": "Swing_Anticipation", "attack": "Swing_Attack", "hit": "Hit",
 		"stun": "Hit", "death": "Death"},
-	"pixie": {"idle": "Idle", "walk": "Run", "run": "Run", "turn": "Run",
+	# The pixie flies (hover_height): its legs hang in the idle pose, no run cycle.
+	"pixie": {"idle": "Idle", "walk": "Idle", "run": "Idle", "turn": "Idle",
 		"anticipation": "Swing_Anticipation", "attack": "Swing_Attack", "hit": "Hit",
 		"stun": "Hit", "death": "Death"},
 	"generic": {"idle": "Idle", "walk": "Walking_A", "run": "Running_A", "turn": "Running_A",
@@ -294,7 +298,7 @@ const RANGED_RECOVERY := 0.5
 func _ready() -> void:
 	# `_process` only draws a replica: the authority's thousands of creatures
 	# must not each get a frame callback that does nothing.
-	set_process(sim_puppet)
+	set_process(sim_puppet or hover_height > 0.0)
 	add_to_group("mobs")
 	add_to_group("targetable")
 	current_hp = max_hp
@@ -307,6 +311,7 @@ func _ready() -> void:
 		SimAuthority.refresh_mob(self)
 	_apply_boss_visual()
 	_apply_lod()
+	_attach_wings()
 	wander_timer = randf_range(1, 4)
 	_scan_timer = randf_range(0, 0.4)
 	_last_pos = global_position
@@ -594,6 +599,8 @@ func _physics_process(delta: float) -> void:
 ## still on some frames and jumped on others whenever the frame rate was not
 ## exactly 60 (perf_probe judder 1.0 at ~110 fps).
 func _process(delta: float) -> void:
+	if hover_height > 0.0 and not NetworkManager.is_dedicated_server:
+		_tick_hover(delta)
 	if not sim_puppet:
 		return
 	_update_puppet(delta)
@@ -749,6 +756,7 @@ func _tick_attack(delta: float) -> void:
 		velocity.x = 0
 		velocity.z = 0
 		_recovery -= delta
+		_idle_after_swing()
 		if _recovery <= 0.0:
 			attack_phase = AttackPhase.NONE
 			_attack_plan = {}
@@ -882,6 +890,40 @@ func _cancel_attack() -> void:
 	# Any telegraphed attack (boss pattern or creature ability) ends with it.
 	if SimAuthority.is_authority():
 		SimAuthority.end_mob_telegraph(self)
+
+## The flier's drawn height and lean: a bob while it hangs in the air, a dive
+## forward at full pace, and a fall to the floor when it dies (the corpse sink
+## takes over from there).
+var _hover_t := randf() * TAU
+var _wings: Node   # wing_flap.gd on the drawn skeleton, when the body has wing bones
+
+func _attach_wings() -> void:
+	if hover_height <= 0.0 or NetworkManager.is_dedicated_server or not visuals:
+		return
+	var skeleton := visuals.find_child("Skeleton3D", true, false) as Skeleton3D
+	if skeleton == null or skeleton.find_bone("LeftWingUp") < 0:
+		return
+	_wings = preload("res://scripts/entities/mobs/wing_flap.gd").new()
+	_wings.name = "WingFlap"
+	skeleton.add_child(_wings)
+
+func _tick_hover(delta: float) -> void:
+	if not visuals or not visible:
+		return
+	if is_instance_valid(_wings):
+		_wings.folded = state == State.DEAD
+		_wings.pace = clampf(_drawn_speed / maxf(move_speed, 1.0), 0.0, 1.0)
+		_wings.rate_scale = cc_anim_scale
+	if state == State.DEAD:
+		if _corpse_time <= _corpse_lifetime:
+			visuals.position.y = move_toward(visuals.position.y, 0.0, delta * 3.0)
+			visuals.rotation.x = move_toward(visuals.rotation.x, 0.0, delta * 3.0)
+		return
+	_hover_t += delta
+	var bob := sin(_hover_t * 3.1) * 0.14 + sin(_hover_t * 7.3) * 0.03
+	visuals.position.y = lerpf(visuals.position.y, hover_height + bob, minf(1.0, delta * 6.0))
+	var pace := clampf(_drawn_speed / maxf(move_speed, 1.0), 0.0, 1.0)
+	visuals.rotation.x = lerpf(visuals.rotation.x, 0.45 * pace, minf(1.0, delta * 5.0))
 
 # ------------------------------------------------------------------ corpse
 
@@ -1075,6 +1117,14 @@ func _fight(delta: float) -> void:
 		if attack_timer <= 0 and attack_phase == AttackPhase.NONE:
 			attack_timer = attack_cooldown
 			_begin_attack(_choose_plan())
+		elif attack_phase == AttackPhase.NONE:
+			_idle_after_swing()
+
+## Between swings in reach: the finished swing hands over to the idle stance
+## instead of freezing on its last frame until the next windup.
+func _idle_after_swing() -> void:
+	if is_instance_valid(anim_player) and not anim_player.is_playing():
+		_play_slot("idle", 0.2)
 
 ## At most `attack_slots` pack mates may attack one target at a time; ties are
 ## broken by instance id so the choice is stable on every client.
@@ -1845,8 +1895,9 @@ func _update_puppet(delta: float) -> void:
 		_respawn()
 		return
 	if replicated != _puppet_state:
+		var was := _puppet_state
 		_puppet_state = replicated
-		_play_puppet_clip(replicated, record)
+		_play_puppet_clip(replicated, record, was)
 	# Locomotion follows the glide every frame: the server's wander used to
 	# play the idle pose here (bodies slid over the grass), and a chaser held
 	# up in the crowd ran on the spot.
@@ -1855,6 +1906,8 @@ func _update_puppet(delta: float) -> void:
 			_play_locomotion("walk")
 		HPProtocol.MobState.CHASE, HPProtocol.MobState.RETURN:
 			_play_locomotion("run")
+		HPProtocol.MobState.ATTACK:
+			_idle_after_swing()
 
 func _enter_puppet_death(record: Dictionary) -> void:
 	_cancel_warning()
@@ -1866,18 +1919,26 @@ func _enter_puppet_death(record: Dictionary) -> void:
 	_set_collision_enabled(false)
 	_play_slot("death", 0.08)
 
-func _play_puppet_clip(replicated: int, record: Dictionary) -> void:
+## The replicated attack phases: anticipation is the windup, RECOVERY is the
+## blow landing (the swing plays there, on the server's release), and ATTACK is
+## the wait for the next swing in reach. A recovery too short for a snapshot to
+## carry still swings: the windup ending in anything but a stun or death is a release.
+func _play_puppet_clip(replicated: int, record: Dictionary, before: int = -1) -> void:
+	var telegraph: Dictionary = record.get("telegraph", {})
+	var released := replicated == HPProtocol.MobState.RECOVERY or (before == HPProtocol.MobState.ANTICIPATION
+		and replicated not in [HPProtocol.MobState.STUNNED, HPProtocol.MobState.DEAD])
+	if released:
+		if telegraph.is_empty():
+			_play_slot("attack", 0.06)
+		else:
+			_play_attack_clip(telegraph, "attack", 0.06)
+		return
 	match replicated:
 		HPProtocol.MobState.ANTICIPATION:
-			var telegraph: Dictionary = record.get("telegraph", {})
 			if telegraph.is_empty():
 				_play_slot("anticipation", 0.08)
 			else:
 				_play_attack_clip(telegraph, "anticipation")
-		HPProtocol.MobState.ATTACK:
-			_play_slot("attack", 0.06)
-		HPProtocol.MobState.RECOVERY:
-			_play_slot("idle")
 		HPProtocol.MobState.STUNNED:
 			_play_slot("stun", 0.1)
 		_:

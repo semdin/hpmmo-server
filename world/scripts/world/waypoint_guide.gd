@@ -137,6 +137,41 @@ func route() -> PackedVector3Array:
 
 # ------------------------------------------------------------------ routing
 
+## The next map on the way from `from_map` to `to_map`: the fewest portal
+## hops (dungeon copies are never on the way), "" when no way leads there.
+static func next_hop(from_map: String, to_map: String) -> String:
+	var start := HPMaps.base_map(from_map)
+	var goal := HPMaps.base_map(to_map)
+	if start == goal:
+		return goal
+	var first: Dictionary = {}
+	var queue: Array = [start]
+	var seen := {start: true}
+	while not queue.is_empty():
+		var at := String(queue.pop_front())
+		for entry in HPMaps.portals_for_map(at):
+			var next := String((entry as Dictionary).get("to_map", ""))
+			if next == "" or seen.has(next) or HPMaps.is_instanced(next):
+				continue
+			seen[next] = true
+			first[next] = next if at == start else first[at]
+			if next == goal:
+				return String(first[next])
+			queue.append(next)
+	return ""
+
+## Portal hops from one map to another (-1: no way).
+static func hops(from_map: String, to_map: String) -> int:
+	var at := HPMaps.base_map(from_map)
+	var goal := HPMaps.base_map(to_map)
+	for n in 8:
+		if at == goal:
+			return n
+		at = next_hop(at, goal)
+		if at == "":
+			return -1
+	return -1
+
 func _portal_toward(from_map: String, to_map: String) -> Vector3:
 	for entry in HPMaps.portals_for_map(from_map):
 		if entry is Dictionary and String(entry.get("to_map", "")) == to_map:
@@ -151,7 +186,9 @@ func _reroute() -> void:
 	var cur := current_map()
 	_goal = target
 	if target_map != cur:
-		_goal = _portal_toward(cur, target_map)
+		# Several maps away (the castle to the caverns): the portal to the next one.
+		var hop := next_hop(cur, target_map)
+		_goal = _portal_toward(cur, hop if hop != "" else target_map)
 		if _goal == Vector3.INF:
 			# no direct portal (an instanced dungeon...): nothing to walk here
 			path = PackedVector3Array()

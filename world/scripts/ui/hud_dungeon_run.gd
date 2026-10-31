@@ -25,6 +25,8 @@ var _state: Dictionary = {}
 var _clock_base := 0.0
 var _clock_at_ms := 0
 var _shown_result := ""
+var _pop_tween: Tween
+var _controller: Node
 
 var _panel: PanelContainer
 var _title: Label
@@ -127,11 +129,25 @@ func _build_tracker() -> void:
 	_deaths.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(_deaths)
 
+## The map the local body is on: the map controller's word (it changes the
+## moment a transfer lands), the player's record only before a world exists.
 func _local_map() -> String:
+	if not is_instance_valid(_controller):
+		_controller = get_tree().root.find_child("MapController", true, false)
+	if _controller != null:
+		return String(_controller.get("current_map"))
 	return String(SimAuthority.record_by_uid(SimAuthority.local_uid).get("map_id", ""))
 
+## The run's copy is where the local body stands: only then is anything drawn.
+func _tracking() -> bool:
+	return _map != "" and _local_map() == _map \
+		and not (HPMaps.dungeons().get(String(_state.get("dungeon", "")), {}) as Dictionary).is_empty()
+
 func _on_state(map_id: String, state: Dictionary) -> void:
-	if SimAuthority.local_uid != 0 and map_id != _local_map():
+	# A copy's state reaches the players in it; one arriving while the body is
+	# still on its way in is kept and drawn once the transfer lands.
+	var record_map := String(SimAuthority.record_by_uid(SimAuthority.local_uid).get("map_id", ""))
+	if SimAuthority.local_uid != 0 and map_id != _local_map() and map_id != record_map:
 		return
 	if map_id != _map:
 		_shown_result = ""
@@ -140,7 +156,6 @@ func _on_state(map_id: String, state: Dictionary) -> void:
 	_clock_base = float(state.get("elapsed_s", 0.0))
 	_clock_at_ms = Time.get_ticks_msec()
 	var phase := String(state.get("phase", "running"))
-	_wait.visible = phase == "gather"
 	if phase == "gather":
 		_wait.text = tr("Waiting for the party to arrive...")
 	if phase == "countdown" and _phase != "countdown":
@@ -157,13 +172,14 @@ func _on_state(map_id: String, state: Dictionary) -> void:
 		result_window.show_result(state)
 
 func _process(_delta: float) -> void:
-	if _panel.visible and _map != "" and SimAuthority.local_uid != 0 and _local_map() != _map:
-		_panel.visible = false
-		_wait.visible = false
-		_map = ""
-		_phase = ""
-	if _panel.visible:
-		_tick_clock()
+	# Out of the copy (the run over, or walked out) nothing of it stays on screen.
+	var here := _tracking()
+	_panel.visible = here
+	_wait.visible = here and _phase == "gather"
+	if not here:
+		_count.visible = false
+		return
+	_tick_clock()
 	if _phase != "countdown":
 		return
 	var left := int(ceil(float(_go_at_ms - Time.get_ticks_msec()) / 1000.0))
@@ -209,8 +225,8 @@ func _tick_clock() -> void:
 func _refresh_tracker() -> void:
 	var dungeon := HPMaps.dungeons().get(String(_state.get("dungeon", "")), {}) as Dictionary
 	var difficulty := String(_state.get("difficulty", "normal"))
-	_panel.visible = not dungeon.is_empty()
-	if not _panel.visible:
+	_panel.visible = _tracking()
+	if dungeon.is_empty():
 		return
 	_title.text = "%s - %s" % [I18n.upper(I18n.t(String(dungeon.get("display", "")))),
 		I18n.t(String(HPRules.dungeon_difficulty(difficulty).get("display", "")))]
@@ -224,6 +240,10 @@ func _refresh_tracker() -> void:
 	var total := int(_state.get("forces_total", 0))
 	var share := 1.0 if total <= 0 else minf(1.0, float(forces) / float(total))
 	_clear.text = tr("Clear %d%% (%d / %d)") % [int(floor(share * 100.0)), forces, total]
+	# Every boss down: the creatures still standing are all that holds the finish.
+	var left := int(_state.get("left", -1))
+	if left > 0 and not bool(_state.get("complete", false)):
+		_clear.text += "\n" + tr("%d creature(s) left") % left
 	_clear_bar.fraction = share
 	for child in _bosses.get_children():
 		child.queue_free()
@@ -250,10 +270,14 @@ func _pop(text: String, colour: Color, hold := 0.8) -> void:
 	_count.visible = true
 	_count.scale = Vector2(1.6, 1.6)
 	_count.modulate.a = 1.0
-	var tween := create_tween()
-	tween.tween_property(_count, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tween.tween_interval(hold * 0.6)
-	tween.tween_property(_count, "modulate:a", 0.0, hold * 0.4)
+	# One number at a time: the last second's fade must not run on into this
+	# one's (a pop lasting past the next second hid every number after the first).
+	if _pop_tween != null and _pop_tween.is_valid():
+		_pop_tween.kill()
+	_pop_tween = create_tween()
+	_pop_tween.tween_property(_count, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_pop_tween.tween_interval(hold * 0.6)
+	_pop_tween.tween_property(_count, "modulate:a", 0.0, hold * 0.4)
 
 
 ## A thin progress bar; `marks` (fractions) draw the medal lines across it.

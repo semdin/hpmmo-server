@@ -67,7 +67,10 @@ func _ready() -> void:
 	for room in _layout.get("rooms", []):
 		_dress_room(room as Dictionary)
 	_build_crypt_stair()
-	_build_web_gate()
+	# The Queen's Lair has two web gates: the sealed one deep on floor 2 and one
+	# at the camp, by the Floo hearth and the way down from the crypt.
+	_build_web_gate("lair_entry", Vector2(175.0, 200.0))
+	_build_web_gate("lair_entry_camp", Vector2(-170.0, -175.0))
 
 ## Name shown under the minimap: the floor by height.
 func floor_display(y: float) -> String:
@@ -454,16 +457,15 @@ func _build_crypt_stair() -> void:
 	_light(Vector3(top.x, top_y + 3.0, top.y) - Vector3(dir.x, 0, dir.y) * 2.0, Color(0.7, 0.78, 0.95), 2.2, 16.0)
 	_light(Vector3(foot.x, y0 + 2.5, foot.y), Color(1.0, 0.66, 0.38), 1.4, 10.0)
 
-## The sealed web gate of the Queen's Lair (maps.json `lair_entry`, dressing
-## "web_gate"): an arch in the Sealed Door's far wall hung with cocoons, egg
+## A web gate of the Queen's Lair (maps.json portal with dressing "web_gate"):
+## an arch in the wall of the room centred on `room`, hung with cocoons, egg
 ## clutches at its feet and a violet glow; the dungeon gate window opens here.
-func _build_web_gate() -> void:
-	var portal := HPMaps.portal("lair_entry")
+func _build_web_gate(portal_id: String, room: Vector2) -> void:
+	var portal := HPMaps.portal(portal_id)
 	if portal.is_empty():
 		return
 	var c: Array = (portal.get("trigger", {}) as Dictionary).get("center", [0, 0, 0])
 	var at := Vector2(float(c[0]), float(c[2]))
-	var room := Vector2(175.0, 200.0)
 	var out := (at - room).normalized()
 	var basis := Basis.looking_at(Vector3(-out.x, 0, -out.y), Vector3.UP)
 	var y := ground_y(at.x, at.y)

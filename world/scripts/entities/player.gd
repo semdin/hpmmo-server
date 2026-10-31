@@ -705,7 +705,7 @@ func _update_nameplate() -> void:
 		nameplate.add_child(_nameplate_title)
 		WorldLabels.track(_nameplate_title, 14.0)
 	if _nameplate_title != null:
-		_nameplate_title.text = "« %s »" % title if title != "" else ""
+		_nameplate_title.text = "« %s »" % I18n.t(title) if title != "" else ""
 
 func _init_starter_inventory() -> void:
 	inventory.clear()
@@ -780,7 +780,9 @@ func _process(delta: float) -> void:
 	_knock_left = maxf(0.0, _knock_left - delta)
 	if _ga_emblem != null and _ga_emblem.visible:
 		# A slow float over the name, like a GM's badge.
-		_ga_emblem.position = Vector3(0, NAMEPLATE_HEIGHT + 0.66 + sin(Time.get_ticks_msec() * 0.0024) * 0.07, 0)
+		# A title line over the name lifts it clear.
+		var titled := _nameplate_title != null and _nameplate_title.text != ""
+		_ga_emblem.position = Vector3(0, NAMEPLATE_HEIGHT + (0.86 if titled else 0.66) + sin(Time.get_ticks_msec() * 0.0024) * 0.07, 0)
 	# Crowd control and damage over time drawn on the body (any player body
 	# a screen shows: this one, another player's view).
 	if not NetworkManager.is_dedicated_server:

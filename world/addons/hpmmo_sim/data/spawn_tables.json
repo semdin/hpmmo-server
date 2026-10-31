@@ -22984,7 +22984,7 @@
       "label_y": 4.0
     },
     "trial_warden": {
-      "hp": 2600,
+      "hp": 4200,
       "stat_level": 12,
       "attack_power": 60,
       "attack_range": 4.5,
@@ -22996,7 +22996,7 @@
       "label_y": 5.6
     },
     "cursed_commander": {
-      "hp": 6000,
+      "hp": 7200,
       "stat_level": 32,
       "attack_power": 110,
       "attack_range": 4.0,
@@ -23008,7 +23008,7 @@
       "label_y": 3.7
     },
     "snare_root": {
-      "hp": 5000,
+      "hp": 6000,
       "stat_level": 33,
       "attack_power": 100,
       "attack_range": 9.0,
@@ -23021,7 +23021,7 @@
       "part_hp": 1800
     },
     "fluffy": {
-      "hp": 12000,
+      "hp": 20000,
       "stat_level": 34,
       "attack_power": 140,
       "attack_range": 7.5,
@@ -23031,11 +23031,11 @@
       "move_speed": 2.6,
       "walk_speed": 0.0,
       "label_y": 8.4,
-      "part_hp": 4000,
+      "part_hp": 6500,
       "enrage_s": 480.0
     },
     "brood_guardian": {
-      "hp": 5200,
+      "hp": 6200,
       "stat_level": 28,
       "attack_power": 95,
       "attack_range": 4.5,
@@ -23047,7 +23047,7 @@
       "label_y": 3.6
     },
     "web_queen": {
-      "hp": 11000,
+      "hp": 13500,
       "stat_level": 30,
       "attack_power": 120,
       "attack_range": 5.0,

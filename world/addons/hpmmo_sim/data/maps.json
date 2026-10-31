@@ -176,9 +176,9 @@
           -196.0
         ],
         "lair_return": [
-          181.0,
-          1522.6,
-          206.0
+          -172.0,
+          1550.6,
+          -164.0
         ]
       }
     },
@@ -394,6 +394,24 @@
         "radius": 2.6,
         "y_min": 1515.0,
         "y_max": 1535.0
+      }
+    },
+    {
+      "id": "lair_entry_camp",
+      "map_id": "spider_caverns",
+      "to_map": "dng_spider_lair",
+      "to_spawn": "entry",
+      "label": "the Queen's Lair",
+      "dressing": "web_gate",
+      "trigger": {
+        "center": [
+          -174.0,
+          1550.6,
+          -159.0
+        ],
+        "radius": 2.6,
+        "y_min": 1544.0,
+        "y_max": 1562.0
       }
     },
     {

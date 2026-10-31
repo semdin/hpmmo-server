@@ -78,8 +78,20 @@ def main():
             def ok(item):
                 return ranks.get(item.get('min_difficulty', difficulties[0]), 0) <= ranks[diff_id]
             return [e for s in dungeon['steps'] if ok(s) for e in s.get('spawn', []) if ok(e)]
-        print('\n%s  (levels %d-%d, par %d s, %d spawns on Normal, %d on Legendary)' % (
-            did, lo, hi, dungeon['par_s'], len(entries_on('normal')), len(entries_on(difficulties[-1]))))
+        def count(entry, diff, n):
+            # HPRules.dungeon_spawn_count: a group's count x difficulty mobs x party (elites half).
+            if 'count' not in entry or entry.get('role', 'trash') not in ('trash', 'elite'):
+                return entry.get('count', 1)
+            mult = diff.get('mobs', 1.0) * (1 + group.get('party_mobs', 0.0) * (n - 1))
+            if entry.get('role') == 'elite':
+                mult = 1 + (mult - 1) * 0.5
+            return max(1, round(entry['count'] * mult))
+
+        def creatures(diff_id, n):
+            diff = dungeons['difficulty'][diff_id]
+            return sum(count(e, diff, n) for e in entries_on(diff_id))
+        print('\n%s  (levels %d-%d, par %d s, %d creatures on Normal solo, %d on Legendary x5)' % (
+            did, lo, hi, dungeon['par_s'], creatures('normal', 1), creatures(difficulties[-1], 5)))
         print('  %-10s %3s %4s %9s %10s %8s %8s %7s' % ('difficulty', 'n', 'ref', 'mob lv', 'total HP',
                                                        'kills/pl', 'est min', 'gold'))
         for diff_id in difficulties:
@@ -95,7 +107,7 @@ def main():
                         level = ref + diff['level_offset'] + role['lvl'] + entry.get('lvl', 0)
                         levels.append(level)
                         party = 1 + group['party_hp_' + role['party_hp']] * (n - 1)
-                        total += entry_hp(entry, level) * diff['hp'] * party
+                        total += entry_hp(entry, level) * diff['hp'] * party * count(entry, diff, n)
                     run_level = ref + diff['level_offset']
                     ordinary = ordinary_base * strength(run_level) * tuning['hp_multiplier']
                     kills = total / ordinary / n

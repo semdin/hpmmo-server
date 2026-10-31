@@ -85,6 +85,8 @@ func show_result(state: Dictionary) -> void:
 	_difficulty = String(state.get("difficulty", "normal"))
 	var result: Dictionary = state.get("result", {})
 	var medal := String(result.get("medal", ""))
+	var heading := "Time Is Up" if bool(result.get("timeout", false)) else "Dungeon Complete"  # i18n
+	set_title(heading)
 	var names := {"gold": tr("Gold"), "silver": tr("Silver"), "bronze": tr("Bronze"), "": tr("No medal")}
 	_medal.tint = MEDALS.get(medal, MEDALS[""])
 	_medal.queue_redraw()
@@ -104,7 +106,9 @@ func show_result(state: Dictionary) -> void:
 	_fact(tr("Deaths"), str(int(result.get("deaths", 0))))
 	if medal == "":
 		var why := tr("The run was too slow for a medal.")
-		if float(result.get("clear", 0.0)) < 1.0:
+		if bool(result.get("timeout", false)):
+			why = tr("Time ran out (%s) - the run ended where it stood.") % HudDungeon._clock(par * float(medals.get("limit", 2.0)))
+		elif float(result.get("clear", 0.0)) < 1.0:
 			why = tr("A medal needs every creature cleared, side rooms included.")
 		elif bool(state.get("broken", false)):
 			why = tr("The party's lives ran out.")

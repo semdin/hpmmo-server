@@ -1296,6 +1296,21 @@ static func dungeon_stat_scale(params: Dictionary, entry: Dictionary) -> Diction
 	return {"hp": float(difficulty.get("hp", 1.0)) * (1.0 + per_member * float(extra)),
 		"damage": float(difficulty.get("damage", 1.0))}
 
+## How many creatures one spawn entry puts down in a run: its `count` x the
+## difficulty's `mobs` x the party (group `party_mobs` per extra member). Only
+## the rank and file grow - an elite entry by half as much; bosses, minibosses
+## and objects stay as authored.
+static func dungeon_spawn_count(params: Dictionary, entry: Dictionary) -> int:
+	var base := int(entry.get("count", 1))
+	var role := String(entry.get("role", "trash"))
+	if not entry.has("count") or role not in ["trash", "elite"]:
+		return maxi(1, base)
+	var extra := maxi(0, int(params.get("party_size", 1)) - 1)
+	var mult := float(dungeon_difficulty(String(params.get("difficulty", ""))).get("mobs", 1.0)) 		* (1.0 + float(dungeon_group().get("party_mobs", 0.0)) * float(extra))
+	if role == "elite":
+		mult = 1.0 + (mult - 1.0) * 0.5
+	return maxi(1, roundi(float(base) * mult))
+
 ## Stat ratio between two creature levels: authored numbers (boss_overrides at
 ## their `stat_level`) follow a run's level the way pack stats do.
 static func level_strength_ratio(from_level: int, to_level: int) -> float:

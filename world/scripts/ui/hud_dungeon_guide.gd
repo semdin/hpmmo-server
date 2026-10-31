@@ -11,6 +11,8 @@ class_name HudDungeonGuide
 const MEDAL_NAMES := {3: "Gold", 2: "Silver", 1: "Bronze", 0: "Cleared"}  # i18n
 
 var player: Node = null
+## Set by the HUD: "Show the way" lays the route to the dungeon's gate.
+var waypoints: WaypointGuide = null
 var dungeon_id := ""
 var difficulty := "normal"
 var _guide: Dictionary = {}
@@ -53,6 +55,11 @@ func _ready() -> void:
 	right.add_child(_heading)
 	_band = HudKit.label("", 13, HudKit.TEXT_DIM, HudKit.body(), 3)
 	right.add_child(_band)
+	var way := HudKit.button(tr("Show the way to the gate"), 13)
+	way.name = "ShowWay"
+	way.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	way.pressed.connect(_show_way)
+	right.add_child(way)
 	_tabs = HBoxContainer.new()
 	_tabs.add_theme_constant_override("separation", 6)
 	right.add_child(_tabs)
@@ -99,6 +106,38 @@ func open() -> void:
 	super.open()
 	_ask()
 	_refresh()
+
+## The dungeon's gates (portals into its map from the shared world): the one
+## fewest maps away, then the nearest, gets the waypoint route.
+func _show_way() -> void:
+	var dungeon := HPMaps.dungeons().get(dungeon_id, {}) as Dictionary
+	if waypoints == null or not is_instance_valid(player) or dungeon.is_empty():
+		return
+	var here := waypoints.current_map()
+	var best: Dictionary = {}
+	var best_score := INF
+	for entry in HPMaps.portals():
+		var portal: Dictionary = entry
+		if String(portal.get("to_map", "")) != String(dungeon.get("map", "")) or HPMaps.is_instanced(String(portal.get("map_id", ""))):
+			continue
+		var steps := WaypointGuide.hops(here, String(portal["map_id"]))
+		if steps < 0:
+			continue
+		var c: Array = (portal.get("trigger", {}) as Dictionary).get("center", [0, 0, 0])
+		var at := Vector3(float(c[0]), float(c[1]), float(c[2]))
+		var score := float(steps) * 100000.0
+		if steps == 0:
+			score += (player as Node3D).global_position.distance_to(at)
+		else:
+			score += at.distance_to(HPMaps.spawn_point(String(portal["map_id"]), "default"))
+		if score < best_score:
+			best_score = score
+			best = portal
+	if best.is_empty():
+		return
+	var c: Array = (best.get("trigger", {}) as Dictionary).get("center", [0, 0, 0])
+	waypoints.set_target(String(best["map_id"]), Vector3(float(c[0]), float(c[1]), float(c[2])))
+	close()
 
 func _pick_dungeon(id: String) -> void:
 	dungeon_id = id

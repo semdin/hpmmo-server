@@ -3177,6 +3177,10 @@ func _roll_drops(target: Dictionary) -> Array:
 		var body = target.get("node")
 		if body != null and is_instance_valid(body):
 			drop_factor *= float(body.get_meta("dungeon_drop", 1.0))   # the run's difficulty
+		# An ordinary creature's chest should be an event, not every fourth kill
+		# (loot_tables.json creature_drop); bosses keep their full rolls.
+		if not is_boss:
+			drop_factor *= float(HPRules.loot_tables().get("creature_drop", 1.0))
 		drops = HPRules.mob_loot(is_boss, rng, String(target.get("loot_table", "")),
 			bool(target.get("is_elite", false)), drop_factor)
 	var gear_rules: Dictionary = HPRules.loot_tables().get("gear", {})

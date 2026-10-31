@@ -931,6 +931,14 @@ msgstr "Yaratıklar"
 msgid "[B] Bestiary - where every creature lives"
 msgstr "[B] Yaratıklar - her yaratığın yaşadığı yer"
 
+#: scripts/ui/hud.gd scripts/ui/hud_world_map.gd scripts/world/castle_interior.gd
+msgid "Dungeons"
+msgstr "Zindanlar"
+
+#: scripts/ui/hud.gd
+msgid "[K] Dungeons - difficulties, records and the way to each gate"
+msgstr "[K] Zindanlar - zorluklar, rekorlar ve her kapıya giden yol"
+
 #: scripts/ui/hud.gd scripts/ui/hud_game_menu.gd
 msgid "Menu"
 msgstr "Menü"
@@ -1984,6 +1992,10 @@ msgid "Levels %d-%d"
 msgstr "Seviye %d-%d"
 
 #: scripts/ui/hud_dungeon_guide.gd
+msgid "Show the way to the gate"
+msgstr "Kapıya yolu göster"
+
+#: scripts/ui/hud_dungeon_guide.gd
 msgid "This week's fastest"
 msgstr "Bu haftanın en hızlıları"
 
@@ -2032,6 +2044,10 @@ msgid "Close"
 msgstr "Kapat"
 
 #: scripts/ui/hud_dungeon_result.gd
+msgid "Time Is Up"
+msgstr "Süre Doldu"
+
+#: scripts/ui/hud_dungeon_result.gd
 msgid "No medal"
 msgstr "Madalya yok"
 
@@ -2058,6 +2074,10 @@ msgstr "Ölüm"
 #: scripts/ui/hud_dungeon_result.gd
 msgid "The run was too slow for a medal."
 msgstr "Madalya için koşu fazla yavaştı."
+
+#: scripts/ui/hud_dungeon_result.gd
+msgid "Time ran out (%s) - the run ended where it stood."
+msgstr "Süre doldu (%s) - koşu olduğu yerde bitti."
 
 #: scripts/ui/hud_dungeon_result.gd
 msgid "A medal needs every creature cleared, side rooms included."
@@ -2102,6 +2122,10 @@ msgstr "madalya yok"
 #: scripts/ui/hud_dungeon_run.gd
 msgid "Clear %d%% (%d / %d)"
 msgstr "Temizlik %%%d (%d / %d)"
+
+#: scripts/ui/hud_dungeon_run.gd
+msgid "%d creature(s) left"
+msgstr "%d yaratık kaldı"
 
 #: scripts/ui/hud_dungeon_run.gd
 msgid "Deaths %d"
@@ -2522,10 +2546,6 @@ msgstr "Seralar"
 #: scripts/ui/hud_world_map.gd
 msgid "Courtyard"
 msgstr "Avlu"
-
-#: scripts/ui/hud_world_map.gd scripts/world/castle_interior.gd
-msgid "Dungeons"
-msgstr "Zindanlar"
 
 #: scripts/ui/hud_world_map.gd
 msgid "Ground"
@@ -4012,6 +4032,18 @@ msgid "The way back is open. Regroup and try again."
 msgstr "Dönüş yolu açık. Toparlanıp yeniden dene."
 
 #: scripts/world/dungeon_director.gd
+msgid "Creatures still stand - clear them all to finish the run."
+msgstr "Hâlâ ayakta yaratıklar var - koşuyu bitirmek için hepsini temizle."
+
+#: scripts/world/dungeon_director.gd
+msgid "Time is up - the guardians fell, but not every creature did."
+msgstr "Süre doldu - bekçiler düştü ama tüm yaratıklar temizlenmedi."
+
+#: scripts/world/dungeon_director.gd
+msgid "Time is up - the run is over."
+msgstr "Süre doldu - koşu sona erdi."
+
+#: scripts/world/dungeon_director.gd
 msgid "A dementor's chill sweeps the halls - nobody recovers for a while."
 msgstr "Bir dementörün soğuğu salonları sarıyor - bir süre kimse iyileşemez."
 
@@ -5356,8 +5388,8 @@ msgid "Protego Horribilis"
 msgstr "Protego Horribilis"
 
 #: addons/hpmmo_sim/data/dungeons.json
-msgid "A creature that dies strengthens the creatures around it (+15% health and damage, stacking)."
-msgstr "Ölen yaratık çevresindekileri güçlendirir (+%15 can ve hasar, birikerek)."
+msgid "A creature that dies strengthens the creatures around it (+15% health and damage, up to 5 times)."
+msgstr "Ölen yaratık çevresindekileri güçlendirir (+%15 can ve hasar, en fazla 5 kez)."
 
 #: addons/hpmmo_sim/data/dungeons.json
 msgid "Bursting Dead"
@@ -5412,8 +5444,12 @@ msgid "The hall stirs - clear the corridor."
 msgstr "Salon kıpırdanıyor - koridoru temizle."
 
 #: addons/hpmmo_sim/data/dungeons.json
-msgid "The iron gate grinds open."
-msgstr "Demir kapı gıcırdayarak açılıyor."
+msgid "The iron gate grinds open - the great hall waits."
+msgstr "Demir kapı gıcırdayarak açılıyor - büyük salon bekliyor."
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "The arena gate rises. The Warden waits beyond."
+msgstr "Arena kapısı kalkıyor. Muhafız ötede bekliyor."
 
 #: addons/hpmmo_sim/data/dungeons.json
 msgid "The Trial Warden rises!"
@@ -5422,6 +5458,14 @@ msgstr "Sınav Muhafızı ayağa kalkıyor!"
 #: addons/hpmmo_sim/data/dungeons.json
 msgid "The dead answer the Warden's roar!"
 msgstr "Ölüler Muhafız'ın kükremesine karşılık veriyor!"
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "More dead claw out of the arena floor!"
+msgstr "Arena zemininden daha fazla ölü pençeleyerek çıkıyor!"
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "The Warden falls. Clear every creature left in the hall to finish the trial."
+msgstr "Muhafız düştü. Sınavı bitirmek için salonda kalan tüm yaratıkları temizle."
 
 #: addons/hpmmo_sim/data/dungeons.json
 msgid "The trial is complete. Claim your reward."
@@ -5472,8 +5516,16 @@ msgid "Fluffy wakes! Play the harp to lull it to sleep."
 msgstr "Fluffy uyandı! Onu uyutmak için arp çal."
 
 #: addons/hpmmo_sim/data/dungeons.json
-msgid "Fluffy collapses. The trapdoor swings open - claim your reward."
-msgstr "Fluffy yığıldı. Kapak açılıyor - ödülünü al."
+msgid "Pixies stream out from under Fluffy's paws!"
+msgstr "Fluffy'nin patilerinin altından cinler fışkırıyor!"
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "Fluffy collapses. Clear every creature left in the corridor to open the trapdoor."
+msgstr "Fluffy yığılıp kaldı. Kapağı açmak için koridorda kalan tüm yaratıkları temizle."
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "The corridor is silent. The trapdoor swings open - claim your reward."
+msgstr "Koridor sessizleşti. Kapak açılıyor - ödülünü al."
 
 #: addons/hpmmo_sim/data/dungeons.json
 msgid "Fluffy's sleeping breath rolls down the stair - brace yourself!"
@@ -5524,8 +5576,12 @@ msgid "Venom wells up from the floor - and the Queen spins again!"
 msgstr "Zeminden zehir kaynıyor - ve Kraliçe yine ağ örüyor!"
 
 #: addons/hpmmo_sim/data/dungeons.json
-msgid "The Queen curls up and is still. Her hoard waits in the nest."
-msgstr "Kraliçe kıvrılıp hareketsiz kaldı. Hazinesi yuvada bekliyor."
+msgid "The Queen curls up and is still. Clear the last of her brood to reach the hoard."
+msgstr "Kraliçe kıvrılıp hareketsiz kaldı. Hazineye ulaşmak için yavrularının sonuncusunu da temizle."
+
+#: addons/hpmmo_sim/data/dungeons.json
+msgid "The lair falls silent. Her hoard waits in the nest."
+msgstr "Yuva sessizleşti. Hazinesi yuvada bekliyor."
 
 #: addons/hpmmo_sim/data/travel.json
 msgid "Castle Courtyard"
@@ -7008,6 +7064,9 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "A Dark Monolith has risen where Grak fell. Break it with others."
 #~ msgstr "Grak'ın düştüğü yerde bir Karanlık Metin Taşı yükseldi. Diğerleriyle birlikte onu kır."
 
+#~ msgid "A creature that dies strengthens the creatures around it (+15% health and damage, stacking)."
+#~ msgstr "Ölen yaratık çevresindekileri güçlendirir (+%15 can ve hasar, birikerek)."
+
 #~ msgid "A purple beam marks a Dark Monolith. Join others and break it before its waves overrun you."
 #~ msgstr "Mor bir ışın bir Karanlık Metin Taşını işaret eder. Diğerlerine katıl ve dalgaları seni ezmeden onu kır."
 
@@ -7070,6 +7129,9 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 
 #~ msgid "Fine Brows"
 #~ msgstr "İnce Kaş"
+
+#~ msgid "Fluffy collapses. The trapdoor swings open - claim your reward."
+#~ msgstr "Fluffy yığıldı. Kapak açılıyor - ödülünü al."
 
 #~ msgid "Frost nova. Hurls a spinning ice crystal that bursts into shards and freezing mist, freezing every enemy in the blast for up to 1.6 seconds. Requires level 20."
 #~ msgstr "Buz patlaması. Dönen bir buz kristali fırlatır; kristal parçalara ve dondurucu bir sise dönüşerek patlar, patlamadaki her düşmanı 1,6 saniyeye kadar dondurur. 20. seviye gerekir."
@@ -7137,8 +7199,14 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "The Matriarch nests in Spider Hollow in the far north-west."
 #~ msgstr "Ana, çok kuzeybatıdaki Örümcek Çukuru'nda yuvalanıyor."
 
+#~ msgid "The Queen curls up and is still. Her hoard waits in the nest."
+#~ msgstr "Kraliçe kıvrılıp hareketsiz kaldı. Hazinesi yuvada bekliyor."
+
 #~ msgid "The dummies in the courtyard never hit back. Left-click to cast; your spells hurt nothing inside the safe ground."
 #~ msgstr "Avludaki kuklalar asla karşılık vermez. Büyü yapmak için sol tıkla; güvenli bölgede büyülerin hiçbir şeye zarar vermez."
+
+#~ msgid "The iron gate grinds open."
+#~ msgstr "Demir kapı gıcırdayarak açılıyor."
 
 #~ msgid "The snatchers have a camp in the woods south of the castle. Drive them out."
 #~ msgstr "Kapkaççıların şatonun güneyindeki koruda bir kampı var. Onları oradan sür."

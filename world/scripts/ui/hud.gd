@@ -255,6 +255,7 @@ func _setup_panels() -> void:
 	_add_quick_button("SkillsBtn", _menu_icon("menu_skills", "stupefy"), tr("Skills"), tr("[V] Skill training"), func(): skill_window.toggle())
 	_add_quick_button("MapBtn", "menu_map", tr("Map"), tr("[M] World map"), func(): world_map.toggle())
 	_add_quick_button("BestiaryBtn", _menu_icon("menu_bestiary", "menu_map"), tr("Bestiary"), tr("[B] Bestiary - where every creature lives"), func(): bestiary.toggle())
+	_add_quick_button("DungeonsBtn", _menu_icon("menu_dungeons", "dungeon_seal"), tr("Dungeons"), tr("[K] Dungeons - difficulties, records and the way to each gate"), func(): dungeon_guide.toggle())
 	_add_quick_button("MenuBtn", "menu_settings", tr("Menu"), tr("[Esc] Menu - settings, change character, quit"), func(): game_menu.toggle())
 	_ensure_ui_action("toggle_onboarding", KEY_J)
 	_ensure_ui_action("toggle_map", KEY_M)
@@ -433,6 +434,7 @@ func bind_player(p_player: Node3D) -> void:
 		dungeon_result.player = player
 	if dungeon_guide != null:
 		dungeon_guide.player = player
+		dungeon_guide.waypoints = _ensure_waypoint_guide(player)
 	if binder != null:
 		binder.bind(player)
 	if player.has_signal("notice") and not player.notice.is_connected(show_notice):

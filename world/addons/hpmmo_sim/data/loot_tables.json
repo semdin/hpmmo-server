@@ -555,7 +555,8 @@
       }
     ]
   },
-  "_drop_note": "2026-10-18: mob item chances lowered (base table, species x0.4, elite x0.6). Every kill now drops ONE chest holding all of its rolls (authority._spawn_chest). 2026-10-21: ordinary-mob item chances x0.7 again (base, species, elite tables and the gear/accessory/elite gear rolls); boss, monolith and dungeon rewards unchanged.",
+  "_drop_note": "2026-10-18: mob item chances lowered (base table, species x0.4, elite x0.6). Every kill now drops ONE chest holding all of its rolls (authority._spawn_chest). 2026-10-21: ordinary-mob item chances x0.7 again (base, species, elite tables and the gear/accessory/elite gear rolls); boss, monolith and dungeon rewards unchanged. 2026-10-31: creature_drop scales every item chance of an ordinary (non-boss) creature kill - base, species, elite, gear and accessory rolls - so a chest is roughly one kill in ten in the open world (dungeon creatures also take rewards.creature_drop).",
+  "creature_drop": 0.45,
   "monolith_spider": {
     "always": [
       {

@@ -22,6 +22,7 @@ attack_cooldown = 2.4
 anim_set = "knight"
 voice_set = "armour"
 walk_speed = 0.706
+run_speed = 8.02
 attack_anticipation = 1.1
 attack_recovery = 0.9
 

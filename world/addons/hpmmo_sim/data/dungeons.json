@@ -1,12 +1,13 @@
 {
   "_comment": "Scripted dungeon runs (v2). A run starts when the first player enters a copy of `map` and walks `steps` in order: each step waits for its trigger, then acts. Positions are local to the copy (the instance offset is added). Triggers: enter | cleared:<step id> (every creature that step spawned is dead) | area:<z_below> (a player stands deeper than local z) | hp_below:<step id>:<fraction> (a creature that step spawned is alive below that share of its hit points). A step with `optional: true` is a side slot: it is not part of the chain (the run never waits for it) and fires on its own trigger; its creatures count toward the clear like any other. Actions: spawn (creatures, optional boss_key/template; `assist` narrows how far they answer a fight, so a side room is not pulled by the corridor), open / close (gate ids), message (shown to the copy), chest (loot table at a point), complete. A spawn entry has no fixed level: `role` (roles block) and an optional extra `lvl` offset put it above the run's level, and the role picks its party HP scaling and clear share (`forces`). A spawn entry may carry `harp` (local point; Fluffy's lullaby pedestal). Run level: ref = round(group.ref_max_weight x highest + (1 - ref_max_weight) x average party level), clamped to the dungeon's level_min..level_max, plus the difficulty's level_offset; it is fixed when the run opens. Creature stats follow that level (bosses scale their boss_overrides numbers from the override's stat_level), then the difficulty's hp/damage and the party HP scaling. `key`: the item the leader spends to open a difficulty that asks for keys. Wipe: while a step's closed gates hold a living boss and no living player is past its area, the gates open (respawned players walk back; crossing again seals them). hazards: periodic shoves of every player inside a local z band (and x band, when given) while the run is between from_step and until_step. first_clear_title: granted to everyone in the copy when the run completes. par_s: the gold-medal time of a full clear; medals multiply it. The clock starts when the start gate opens and stops when the run completes; deaths add the difficulty's death_penalty_s and spend its party lives. Spider lair extras: a spawn entry's `hatch` {after_s, into: [entries]} breaks it open into those creatures if it still stands then; a step's `cocoon` {mob, hold_s, hp_share} wraps a random player (stunned until the cocoon is broken, the share of their health lost if it is not); a step's `pools` [{at, radius, duration_s, hp_share_s}] are venom pools that hurt every second. `min_difficulty` on a step or a spawn entry keeps it out of runs below that difficulty (extra waves, twins); a spawn entry's `harp_scale` {difficulty: x} slows Fluffy's harp and `marks` {difficulty: [meta]} sets creature marks such as curse_bleed; a pool with `kind` web is a sticky web patch.",
   "difficulty": {
-    "_comment": "Per difficulty: creature level_offset / hp / damage, weekly affix count, minimum party size and the level above the dungeon's level_min it asks for, death time penalty and party lives (-1 = none), reward scales (exp_budget = share of the player's own level threshold a full clear pays, gold, drop, bonus_count [min, max] efsun on the final chest item, tier_up chance), daily_rewards (-1 = unlimited), unlock_after (the difficulty a character must have cleared), keys the leader spends to open the gate, par_mult on the dungeon's par_s, seals (Zindan Muhru) per run. unlock_medal: the medal (bronze < silver < gold) the unlock_after clear must have earned. telegraph: multiplier on every telegraphed windup (shorter is harder); hazard_mult: on a dungeon hazard's period; boss_enrage_s: a boss still fighting after this many seconds enrages (0 = never).",
+    "_comment": "Per difficulty: creature level_offset / hp / damage, mobs (x every spawn group's count), weekly affix count, minimum party size and the level above the dungeon's level_min it asks for, death time penalty and party lives (-1 = none), reward scales (exp_budget = share of the player's own level threshold a full clear pays, gold, drop, bonus_count [min, max] efsun on the final chest item, tier_up chance), daily_rewards (-1 = unlimited), unlock_after (the difficulty a character must have cleared), keys the leader spends to open the gate, par_mult on the dungeon's par_s, seals (Zindan Muhru) per run. unlock_medal: the medal (bronze < silver < gold) the unlock_after clear must have earned. telegraph: multiplier on every telegraphed windup (shorter is harder); hazard_mult: on a dungeon hazard's period; boss_enrage_s: a boss still fighting after this many seconds enrages (0 = never).",
     "easy": {
       "display": "Easy",
       "level_offset": -2,
       "hp": 0.75,
       "damage": 0.75,
+      "mobs": 0.8,
       "affixes": 0,
       "min_party": 1,
       "min_level_add": 0,
@@ -34,6 +35,7 @@
       "level_offset": 0,
       "hp": 1.0,
       "damage": 1.0,
+      "mobs": 1.0,
       "affixes": 0,
       "min_party": 1,
       "min_level_add": 0,
@@ -61,6 +63,7 @@
       "level_offset": 2,
       "hp": 1.4,
       "damage": 1.2,
+      "mobs": 1.2,
       "affixes": 1,
       "min_party": 1,
       "min_level_add": 0,
@@ -88,6 +91,7 @@
       "level_offset": 4,
       "hp": 1.9,
       "damage": 1.4,
+      "mobs": 1.35,
       "affixes": 2,
       "min_party": 2,
       "min_level_add": 5,
@@ -115,6 +119,7 @@
       "level_offset": 6,
       "hp": 2.6,
       "damage": 1.65,
+      "mobs": 1.5,
       "affixes": 3,
       "min_party": 3,
       "min_level_add": 10,
@@ -140,12 +145,13 @@
     }
   },
   "group": {
-    "_comment": "Party rules and scaling. Creature HP x (1 + party_hp_<trash|boss> x (members - 1)); damage does not scale with the party. Kill experience in a copy: + party_exp_per_member per extra member, capped.",
+    "_comment": "Party rules and scaling. Creature HP x (1 + party_hp_<trash|boss> x (members - 1)); a spawn group's count x (1 + party_mobs x (members - 1)) (elites half that); damage does not scale with the party. Kill experience in a copy: + party_exp_per_member per extra member, capped.",
     "max_party": 5,
     "max_level_spread": 15,
     "ref_max_weight": 0.6,
-    "party_hp_trash": 0.5,
+    "party_hp_trash": 0.35,
     "party_hp_boss": 0.7,
+    "party_mobs": 0.12,
     "party_exp_per_member": 0.05,
     "party_exp_cap": 0.2,
     "gather_radius": 30.0,
@@ -186,13 +192,15 @@
     }
   },
   "medals": {
-    "_comment": "Medal time limits as multiples of the run's par (par_s x par_mult); all need a 100 % clear.",
+    "_comment": "Medal time limits as multiples of the run's par (par_s x par_mult); all need a 100 % clear. limit: the run ends at this many pars (no medal; the final chest only if every boss fell).",
     "gold": 1.0,
     "silver": 1.3,
-    "bronze": 1.6
+    "bronze": 1.6,
+    "limit": 2.0
   },
   "rewards": {
-    "_comment": "What a run pays. Experience is a budget: a full clear pays the difficulty's exp_budget share of the player's own level threshold, kill_share of it across the clear (each creature its forces' part) and completion_share at the end (x medal_exp); x party_exp for the party, x first_run_exp for the character's first rewarded run of the day, and never more than the level gap allows downward. The final chest (only for a member with a daily reward right left; the others went in as helpers) holds the dungeon chest table, one gear piece with bonus_count enchantments, Zindan Muhru (seals), the dungeon's key on key_drop difficulties, and the medal's extras; its galleons are galleons_per_level [min, max] x the run level x the difficulty's gold (+ medal_gold). The seal shop sells for seals at every dungeon gate.",
+    "_comment": "What a run pays. Experience is a budget: a full clear pays the difficulty's exp_budget share of the player's own level threshold, kill_share of it across the clear (each creature its forces' part) and completion_share at the end (x medal_exp); x party_exp for the party, x first_run_exp for the character's first rewarded run of the day, and never more than the level gap allows downward. The final chest (only for a member with a daily reward right left; the others went in as helpers) holds the dungeon chest table, one gear piece with bonus_count enchantments, Zindan Muhru (seals), the dungeon's key on key_drop difficulties, and the medal's extras; its galleons are galleons_per_level [min, max] x the run level x the difficulty's gold (+ medal_gold). The seal shop sells for seals at every dungeon gate. creature_drop: the item chances of a run's ordinary creatures (not bosses) x this on top of the difficulty's drop - a run fields dozens of them, and every kill rolling at open-world odds buried the party in chests. It stacks on loot_tables.json creature_drop (the open world's).",
+    "creature_drop": 0.75,
     "kill_share": 0.6,
     "completion_share": 0.4,
     "first_run_exp": 1.25,
@@ -263,7 +271,7 @@
     ]
   },
   "affixes": {
-    "_comment": "Weekly curses. Every week (from Monday 03:00 UTC, 06:00 Turkey time) the pool is shuffled with the week's number as the seed; a difficulty with `affixes` N takes the first N, the same in every dungeon. A run keeps the curses it started with. Shares are of the victim's maximum health.",
+    "_comment": "Weekly curses. Every week (from Monday 03:00 UTC, 06:00 Turkey time) the pool is shuffled with the week's number as the seed; a difficulty with `affixes` N takes the first N, the same in every dungeon. A run keeps the curses it started with. Shares are of the victim's maximum health. bolster stacks add to the creature's own numbers (hp/damage x stacks, at most max_stacks) - compounding them let a guard in a big pack swell past 50 000 health.",
     "pool": [
       "enrage",
       "bolster",
@@ -284,10 +292,11 @@
       },
       "bolster": {
         "display": "Protego Horribilis",
-        "desc": "A creature that dies strengthens the creatures around it (+15% health and damage, stacking).",
+        "desc": "A creature that dies strengthens the creatures around it (+15% health and damage, up to 5 times).",
         "radius": 15.0,
         "hp": 0.15,
-        "damage": 0.15
+        "damage": 0.15,
+        "max_stacks": 5
       },
       "burst": {
         "display": "Bursting Dead",
@@ -336,7 +345,7 @@
       "display": "Trial Hall",
       "level_min": 5,
       "level_max": 30,
-      "par_s": 480,
+      "par_s": 900,
       "steps": [
         {
           "id": "wave",
@@ -346,30 +355,25 @@
             {
               "mob": "inferi",
               "role": "trash",
+              "count": 6,
+              "spread": 3.0,
               "at": [
-                -3.0,
+                0.0,
                 1000.5,
-                -22.0
-              ]
-            },
-            {
-              "mob": "inferi",
-              "role": "trash",
-              "at": [
-                3.0,
-                1000.5,
-                -22.0
+                -20.0
               ]
             },
             {
               "mob": "acromantula",
               "role": "trash",
-              "lvl": 1,
+              "count": 3,
+              "spread": 2.5,
               "at": [
                 0.0,
                 1000.5,
-                -28.0
-              ]
+                -31.0
+              ],
+              "lvl": 1
             }
           ]
         },
@@ -381,32 +385,24 @@
             {
               "mob": "inferi",
               "role": "trash",
-              "assist": 8.0,
+              "count": 5,
+              "spread": 3.5,
               "at": [
-                -16.0,
+                -13.0,
                 1000.5,
-                -21.0
-              ]
-            },
-            {
-              "mob": "inferi",
-              "role": "trash",
-              "assist": 8.0,
-              "at": [
-                -17.0,
-                1000.5,
-                -27.0
-              ]
+                -23.0
+              ],
+              "assist": 7.0
             },
             {
               "mob": "acromantula",
               "role": "elite",
-              "assist": 8.0,
               "at": [
-                -14.0,
+                -16.0,
                 1000.5,
-                -24.0
-              ]
+                -27.0
+              ],
+              "assist": 7.0
             }
           ]
         },
@@ -418,32 +414,24 @@
             {
               "mob": "inferi",
               "role": "trash",
-              "assist": 8.0,
+              "count": 5,
+              "spread": 3.5,
               "at": [
-                16.0,
+                13.0,
                 1000.5,
-                -21.0
-              ]
-            },
-            {
-              "mob": "inferi",
-              "role": "trash",
-              "assist": 8.0,
-              "at": [
-                17.0,
-                1000.5,
-                -27.0
-              ]
+                -23.0
+              ],
+              "assist": 7.0
             },
             {
               "mob": "acromantula",
               "role": "elite",
-              "assist": 8.0,
               "at": [
-                14.0,
+                16.0,
                 1000.5,
-                -24.0
-              ]
+                -27.0
+              ],
+              "assist": 7.0
             }
           ]
         },
@@ -451,13 +439,163 @@
           "id": "gate",
           "on": "cleared:wave",
           "open": [
+            "gate_h"
+          ],
+          "message": "The iron gate grinds open - the great hall waits."
+        },
+        {
+          "id": "hall",
+          "on": "enter",
+          "spawn": [
+            {
+              "mob": "inferi",
+              "role": "trash",
+              "count": 6,
+              "spread": 3.5,
+              "at": [
+                -8.0,
+                1000.5,
+                -43.0
+              ],
+              "assist": 7.0
+            },
+            {
+              "mob": "acromantula",
+              "role": "trash",
+              "count": 5,
+              "spread": 3.5,
+              "at": [
+                8.0,
+                1000.5,
+                -42.0
+              ],
+              "assist": 7.0,
+              "lvl": 1
+            },
+            {
+              "mob": "acromantula",
+              "role": "elite",
+              "count": 2,
+              "spread": 2.0,
+              "at": [
+                0.0,
+                1000.5,
+                -58.0
+              ],
+              "assist": 7.0
+            },
+            {
+              "mob": "inferi",
+              "role": "trash",
+              "count": 6,
+              "spread": 3.5,
+              "at": [
+                -8.0,
+                1000.5,
+                -73.0
+              ],
+              "assist": 7.0,
+              "lvl": 1
+            },
+            {
+              "mob": "inferi",
+              "role": "trash",
+              "count": 5,
+              "spread": 3.5,
+              "at": [
+                8.0,
+                1000.5,
+                -74.0
+              ],
+              "assist": 7.0,
+              "lvl": 1
+            },
+            {
+              "mob": "inferi",
+              "role": "trash",
+              "count": 4,
+              "spread": 2.5,
+              "at": [
+                0.0,
+                1000.5,
+                -90.0
+              ],
+              "assist": 7.0,
+              "lvl": 1
+            }
+          ]
+        },
+        {
+          "id": "ossuary_w",
+          "on": "enter",
+          "optional": true,
+          "spawn": [
+            {
+              "mob": "inferi",
+              "role": "trash",
+              "count": 5,
+              "spread": 4.0,
+              "at": [
+                -25.0,
+                1000.5,
+                -57.0
+              ],
+              "assist": 7.0,
+              "lvl": 1
+            },
+            {
+              "mob": "acromantula",
+              "role": "elite",
+              "at": [
+                -29.0,
+                1000.5,
+                -62.0
+              ],
+              "assist": 7.0
+            }
+          ]
+        },
+        {
+          "id": "ossuary_e",
+          "on": "enter",
+          "optional": true,
+          "spawn": [
+            {
+              "mob": "inferi",
+              "role": "trash",
+              "count": 5,
+              "spread": 4.0,
+              "at": [
+                25.0,
+                1000.5,
+                -57.0
+              ],
+              "assist": 7.0,
+              "lvl": 1
+            },
+            {
+              "mob": "acromantula",
+              "role": "elite",
+              "at": [
+                29.0,
+                1000.5,
+                -62.0
+              ],
+              "assist": 7.0
+            }
+          ]
+        },
+        {
+          "id": "hall_open",
+          "on": "cleared:hall",
+          "open": [
             "gate_a"
           ],
-          "message": "The iron gate grinds open."
+          "message": "The arena gate rises. The Warden waits beyond."
         },
         {
           "id": "boss",
-          "on": "area:-44",
+          "on": "area:-110",
           "close": [
             "gate_a"
           ],
@@ -466,72 +604,113 @@
             {
               "mob": "troll_forest",
               "role": "boss",
-              "lvl": 1,
-              "boss_key": "trial_warden",
-              "template": "boss_troll",
               "at": [
                 0.0,
                 1000.5,
-                -66.0
-              ]
+                -132.0
+              ],
+              "lvl": 1,
+              "boss_key": "trial_warden",
+              "template": "boss_troll"
             },
             {
               "mob": "troll_forest",
               "role": "boss",
-              "lvl": 1,
-              "boss_key": "trial_warden",
-              "template": "boss_troll",
               "at": [
                 7.0,
                 1000.5,
-                -70.0
+                -136.0
               ],
+              "lvl": 1,
+              "boss_key": "trial_warden",
+              "template": "boss_troll",
               "min_difficulty": "legendary"
             }
           ]
         },
         {
           "id": "boss_adds",
-          "on": "hp_below:boss:0.5",
-          "min_difficulty": "hard",
+          "on": "hp_below:boss:0.6",
           "message": "The dead answer the Warden's roar!",
           "spawn": [
             {
               "mob": "inferi",
               "role": "trash",
+              "count": 3,
+              "spread": 2.5,
               "at": [
-                -10.0,
+                -12.0,
                 1000.5,
-                -56.0
+                -120.0
               ]
             },
             {
               "mob": "inferi",
               "role": "trash",
+              "count": 3,
+              "spread": 2.5,
               "at": [
-                10.0,
+                12.0,
                 1000.5,
-                -56.0
+                -120.0
               ]
             },
             {
               "mob": "inferi",
               "role": "trash",
+              "count": 3,
+              "spread": 2.5,
               "at": [
                 0.0,
                 1000.5,
-                -78.0
+                -146.0
               ],
-              "min_difficulty": "very_hard"
+              "min_difficulty": "hard"
             }
           ]
         },
         {
-          "id": "done",
+          "id": "boss_adds_2",
+          "on": "hp_below:boss:0.25",
+          "min_difficulty": "very_hard",
+          "message": "More dead claw out of the arena floor!",
+          "spawn": [
+            {
+              "mob": "inferi",
+              "role": "trash",
+              "count": 3,
+              "spread": 2.5,
+              "at": [
+                -14.0,
+                1000.5,
+                -140.0
+              ]
+            },
+            {
+              "mob": "inferi",
+              "role": "trash",
+              "count": 3,
+              "spread": 2.5,
+              "at": [
+                14.0,
+                1000.5,
+                -140.0
+              ]
+            }
+          ]
+        },
+        {
+          "id": "boss_down",
           "on": "cleared:boss",
           "open": [
-            "gate_a"
+            "gate_a",
+            "gate_h"
           ],
+          "message": "The Warden falls. Clear every creature left in the hall to finish the trial."
+        },
+        {
+          "id": "done",
+          "on": "cleared:all",
           "complete": true,
           "message": "The trial is complete. Claim your reward.",
           "chest": {
@@ -539,7 +718,7 @@
             "at": [
               0.0,
               1000.5,
-              -62.0
+              -128.0
             ]
           }
         }
@@ -551,7 +730,7 @@
       "display": "The Forbidden Corridor",
       "level_min": 30,
       "level_max": 100,
-      "par_s": 1200,
+      "par_s": 1500,
       "steps": [
         {
           "id": "corridor",
@@ -561,74 +740,49 @@
             {
               "mob": "cornish_pixie",
               "role": "trash",
-              "at": [
-                -3.0,
-                1200.5,
-                -20.0
-              ]
-            },
-            {
-              "mob": "cornish_pixie",
-              "role": "trash",
+              "count": 6,
+              "spread": 3.5,
               "at": [
                 0.0,
                 1200.5,
-                -22.0
+                -16.0
               ]
             },
             {
               "mob": "cornish_pixie",
               "role": "trash",
-              "at": [
-                3.0,
-                1200.5,
-                -20.0
-              ]
-            },
-            {
-              "mob": "cornish_pixie",
-              "role": "trash",
-              "at": [
-                -2.0,
-                1200.5,
-                -27.0
-              ]
-            },
-            {
-              "mob": "cornish_pixie",
-              "role": "trash",
-              "at": [
-                2.0,
-                1200.5,
-                -27.0
-              ]
-            },
-            {
-              "mob": "cornish_pixie",
-              "role": "trash",
+              "count": 6,
+              "spread": 3.5,
               "at": [
                 0.0,
                 1200.5,
-                -31.0
-              ]
+                -34.0
+              ],
+              "assist": 8.0
             },
             {
               "mob": "armour_guard",
               "role": "elite",
+              "count": 2,
+              "spread": 2.5,
               "at": [
-                -3.0,
+                0.0,
                 1200.5,
-                -46.0
-              ]
+                -45.0
+              ],
+              "assist": 8.0
             },
             {
-              "mob": "armour_guard",
-              "role": "elite",
+              "mob": "cornish_pixie",
+              "role": "trash",
+              "count": 4,
+              "spread": 3.0,
               "at": [
-                3.0,
+                0.0,
                 1200.5,
-                -46.0
-              ]
+                -51.0
+              ],
+              "assist": 8.0
             }
           ]
         },
@@ -640,42 +794,88 @@
             {
               "mob": "armour_guard",
               "role": "elite",
-              "assist": 8.0,
+              "count": 2,
+              "spread": 3.0,
               "at": [
-                -20.0,
+                -19.0,
                 1200.5,
-                -26.0
-              ]
+                -30.0
+              ],
+              "assist": 8.0
+            },
+            {
+              "mob": "cornish_pixie",
+              "role": "trash",
+              "count": 5,
+              "spread": 3.0,
+              "at": [
+                -14.0,
+                1200.5,
+                -30.0
+              ],
+              "assist": 8.0
+            }
+          ]
+        },
+        {
+          "id": "gallery_ranks",
+          "on": "enter",
+          "optional": true,
+          "spawn": [
+            {
+              "mob": "armour_guard",
+              "role": "elite",
+              "count": 2,
+              "spread": 2.5,
+              "at": [
+                -10.0,
+                1200.5,
+                -61.0
+              ],
+              "assist": 6.0
             },
             {
               "mob": "armour_guard",
               "role": "elite",
-              "assist": 8.0,
+              "count": 2,
+              "spread": 2.5,
               "at": [
-                -20.0,
+                10.0,
                 1200.5,
-                -34.0
-              ]
+                -61.0
+              ],
+              "assist": 6.0
+            }
+          ]
+        },
+        {
+          "id": "cellar_swarm",
+          "on": "enter",
+          "optional": true,
+          "spawn": [
+            {
+              "mob": "cornish_pixie",
+              "role": "trash",
+              "count": 5,
+              "spread": 3.0,
+              "at": [
+                -10.0,
+                1200.5,
+                -106.0
+              ],
+              "assist": 6.0
             },
             {
               "mob": "cornish_pixie",
               "role": "trash",
-              "assist": 8.0,
+              "count": 5,
+              "spread": 3.0,
               "at": [
-                -17.0,
+                10.0,
                 1200.5,
-                -30.0
-              ]
-            },
-            {
-              "mob": "cornish_pixie",
-              "role": "trash",
-              "assist": 8.0,
-              "at": [
-                -21.0,
-                1200.5,
-                -30.0
-              ]
+                -106.0
+              ],
+              "assist": 6.0
             }
           ]
         },
@@ -687,42 +887,24 @@
             {
               "mob": "cornish_pixie",
               "role": "trash",
-              "assist": 8.0,
+              "count": 5,
+              "spread": 3.0,
               "at": [
-                17.0,
-                1200.5,
-                -146.0
-              ]
-            },
-            {
-              "mob": "cornish_pixie",
-              "role": "trash",
-              "assist": 8.0,
-              "at": [
-                19.0,
+                16.0,
                 1200.5,
                 -150.0
-              ]
-            },
-            {
-              "mob": "cornish_pixie",
-              "role": "trash",
-              "assist": 8.0,
-              "at": [
-                17.0,
-                1200.5,
-                -154.0
-              ]
+              ],
+              "assist": 8.0
             },
             {
               "mob": "armour_guard",
               "role": "elite",
-              "assist": 8.0,
               "at": [
                 21.0,
                 1200.5,
                 -150.0
-              ]
+              ],
+              "assist": 8.0
             }
           ]
         },
@@ -736,7 +918,7 @@
         },
         {
           "id": "commander",
-          "on": "area:-64",
+          "on": "area:-66",
           "close": [
             "gate_a"
           ],
@@ -745,13 +927,13 @@
             {
               "mob": "armour_commander",
               "role": "miniboss",
-              "boss_key": "cursed_commander",
-              "template": "boss_knight",
               "at": [
                 0.0,
                 1200.5,
                 -86.0
-              ]
+              ],
+              "boss_key": "cursed_commander",
+              "template": "boss_knight"
             }
           ]
         },
@@ -836,7 +1018,7 @@
         },
         {
           "id": "snare",
-          "on": "area:-108",
+          "on": "area:-110",
           "close": [
             "gate_b"
           ],
@@ -845,44 +1027,28 @@
             {
               "mob": "devils_snare",
               "role": "miniboss",
-              "lvl": 1,
-              "boss_key": "snare_root",
-              "template": "boss_snare",
               "at": [
                 0.0,
                 1200.5,
                 -128.0
-              ]
+              ],
+              "lvl": 1,
+              "boss_key": "snare_root",
+              "template": "boss_snare"
             }
           ]
         },
         {
           "id": "snare_swarm",
           "on": "hp_below:snare:0.5",
-          "min_difficulty": "very_hard",
+          "min_difficulty": "hard",
           "message": "Pixies pour out of the Snare's roots!",
           "spawn": [
             {
               "mob": "cornish_pixie",
               "role": "trash",
-              "at": [
-                -10.0,
-                1200.5,
-                -112.0
-              ]
-            },
-            {
-              "mob": "cornish_pixie",
-              "role": "trash",
-              "at": [
-                10.0,
-                1200.5,
-                -112.0
-              ]
-            },
-            {
-              "mob": "cornish_pixie",
-              "role": "trash",
+              "count": 3,
+              "spread": 2.5,
               "at": [
                 -10.0,
                 1200.5,
@@ -892,6 +1058,8 @@
             {
               "mob": "cornish_pixie",
               "role": "trash",
+              "count": 3,
+              "spread": 2.5,
               "at": [
                 10.0,
                 1200.5,
@@ -917,42 +1085,14 @@
             {
               "mob": "cornish_pixie",
               "role": "trash",
-              "lvl": 1,
+              "count": 8,
+              "spread": 3.5,
               "at": [
-                -3.0,
+                0.0,
                 1200.5,
-                -154.0
-              ]
-            },
-            {
-              "mob": "cornish_pixie",
-              "role": "trash",
-              "lvl": 1,
-              "at": [
-                -1.0,
-                1200.5,
-                -154.0
-              ]
-            },
-            {
-              "mob": "cornish_pixie",
-              "role": "trash",
-              "lvl": 1,
-              "at": [
-                1.0,
-                1200.5,
-                -154.0
-              ]
-            },
-            {
-              "mob": "cornish_pixie",
-              "role": "trash",
-              "lvl": 1,
-              "at": [
-                3.0,
-                1200.5,
-                -154.0
-              ]
+                -153.0
+              ],
+              "lvl": 1
             }
           ]
         },
@@ -967,14 +1107,14 @@
             {
               "mob": "fluffy",
               "role": "boss",
-              "lvl": 1,
-              "boss_key": "fluffy",
-              "template": "boss_hound",
               "at": [
                 0.0,
                 1200.5,
                 -196.0
               ],
+              "lvl": 1,
+              "boss_key": "fluffy",
+              "template": "boss_hound",
               "harp": [
                 18.0,
                 1200.5,
@@ -988,14 +1128,52 @@
           ]
         },
         {
-          "id": "done",
+          "id": "fluffy_pixies",
+          "on": "hp_below:fluffy:0.6",
+          "message": "Pixies stream out from under Fluffy's paws!",
+          "spawn": [
+            {
+              "mob": "cornish_pixie",
+              "role": "trash",
+              "count": 4,
+              "spread": 3.0,
+              "at": [
+                -14.0,
+                1200.5,
+                -180.0
+              ]
+            },
+            {
+              "mob": "cornish_pixie",
+              "role": "trash",
+              "count": 4,
+              "spread": 3.0,
+              "at": [
+                14.0,
+                1200.5,
+                -200.0
+              ]
+            }
+          ]
+        },
+        {
+          "id": "fluffy_down",
           "on": "cleared:fluffy",
           "open": [
-            "gate_c",
+            "gate_a",
+            "gate_b",
+            "gate_c"
+          ],
+          "message": "Fluffy collapses. Clear every creature left in the corridor to open the trapdoor."
+        },
+        {
+          "id": "done",
+          "on": "cleared:all",
+          "open": [
             "gate_d"
           ],
           "complete": true,
-          "message": "Fluffy collapses. The trapdoor swings open - claim your reward.",
+          "message": "The corridor is silent. The trapdoor swings open - claim your reward.",
           "chest": {
             "table": "dungeon_corridor",
             "at": [
@@ -1041,7 +1219,7 @@
       "display": "The Queen's Lair",
       "level_min": 24,
       "level_max": 70,
-      "par_s": 1020,
+      "par_s": 1320,
       "key": "queen_seal",
       "steps": [
         {
@@ -1052,47 +1230,37 @@
             {
               "mob": "acromantula",
               "role": "trash",
-              "at": [
-                -2.0,
-                1700.5,
-                -22.0
-              ]
-            },
-            {
-              "mob": "acromantula",
-              "role": "trash",
-              "at": [
-                2.0,
-                1700.5,
-                -24.0
-              ]
-            },
-            {
-              "mob": "acromantula",
-              "role": "trash",
+              "count": 6,
+              "spread": 3.5,
               "at": [
                 0.0,
                 1700.5,
-                -36.0
+                -21.0
               ]
             },
             {
-              "mob": "acromantula_venomfang",
-              "role": "elite",
+              "mob": "acromantula",
+              "role": "trash",
+              "count": 5,
+              "spread": 3.5,
               "at": [
-                -2.0,
+                0.0,
                 1700.5,
-                -42.0
-              ]
+                -34.0
+              ],
+              "assist": 8.0
             },
             {
               "mob": "acromantula_venomfang",
               "role": "elite",
+              "count": 2,
+              "spread": 2.5,
               "at": [
-                2.0,
+                0.0,
                 1700.5,
                 -44.0
-              ]
+              ],
+              "assist": 8.0
             }
           ]
         },
@@ -1105,7 +1273,7 @@
               "mob": "acromantula_broodguard",
               "role": "elite",
               "at": [
-                19.0,
+                20.0,
                 1700.5,
                 -30.0
               ],
@@ -1114,20 +1282,12 @@
             {
               "mob": "acromantula",
               "role": "trash",
+              "count": 4,
+              "spread": 3.0,
               "at": [
-                16.0,
+                15.0,
                 1700.5,
-                -26.0
-              ],
-              "assist": 8.0
-            },
-            {
-              "mob": "acromantula",
-              "role": "trash",
-              "at": [
-                16.0,
-                1700.5,
-                -34.0
+                -30.0
               ],
               "assist": 8.0
             }
@@ -1151,20 +1311,12 @@
             {
               "mob": "acromantula",
               "role": "trash",
+              "count": 4,
+              "spread": 3.0,
               "at": [
-                -21.0,
+                -20.0,
                 1700.5,
-                -116.0
-              ],
-              "assist": 8.0
-            },
-            {
-              "mob": "acromantula",
-              "role": "trash",
-              "at": [
-                -21.0,
-                1700.5,
-                -124.0
+                -120.0
               ],
               "assist": 8.0
             }
@@ -1310,19 +1462,32 @@
             {
               "mob": "acromantula",
               "role": "trash",
+              "count": 4,
+              "spread": 3.0,
               "at": [
-                -4.0,
+                -5.0,
                 1700.5,
-                -72.0
+                -70.0
               ]
             },
             {
               "mob": "acromantula",
               "role": "trash",
+              "count": 4,
+              "spread": 3.0,
               "at": [
-                4.0,
+                5.0,
                 1700.5,
-                -76.0
+                -84.0
+              ]
+            },
+            {
+              "mob": "acromantula_venomfang",
+              "role": "elite",
+              "at": [
+                0.0,
+                1700.5,
+                -90.0
               ]
             }
           ]
@@ -1336,8 +1501,39 @@
           "message": "The last sac withers. A web curtain parts to the south."
         },
         {
+          "id": "brood_hall",
+          "on": "enter",
+          "optional": true,
+          "spawn": [
+            {
+              "mob": "acromantula",
+              "role": "trash",
+              "count": 3,
+              "spread": 2.5,
+              "at": [
+                -8.0,
+                1700.5,
+                -110.0
+              ],
+              "assist": 6.0
+            },
+            {
+              "mob": "acromantula",
+              "role": "trash",
+              "count": 3,
+              "spread": 2.5,
+              "at": [
+                8.0,
+                1700.5,
+                -110.0
+              ],
+              "assist": 6.0
+            }
+          ]
+        },
+        {
           "id": "guardian",
-          "on": "area:-106",
+          "on": "area:-112",
           "close": [
             "gate_a"
           ],
@@ -1390,6 +1586,45 @@
             "gate_b"
           ],
           "message": "The guardian falls. The Queen's lair lies open below."
+        },
+        {
+          "id": "nest_watch",
+          "on": "enter",
+          "optional": true,
+          "spawn": [
+            {
+              "mob": "acromantula_venomfang",
+              "role": "elite",
+              "at": [
+                -18.0,
+                1700.5,
+                -150.0
+              ],
+              "assist": 6.0
+            },
+            {
+              "mob": "acromantula_venomfang",
+              "role": "elite",
+              "at": [
+                18.0,
+                1700.5,
+                -150.0
+              ],
+              "assist": 6.0
+            },
+            {
+              "mob": "acromantula",
+              "role": "trash",
+              "count": 4,
+              "spread": 3.0,
+              "at": [
+                0.0,
+                1700.5,
+                -158.0
+              ],
+              "assist": 6.0
+            }
+          ]
         },
         {
           "id": "queen",
@@ -1602,14 +1837,22 @@
           }
         },
         {
-          "id": "done",
+          "id": "queen_down",
           "on": "cleared:queen",
           "open": [
-            "gate_b",
+            "gate_a",
+            "gate_b"
+          ],
+          "message": "The Queen curls up and is still. Clear the last of her brood to reach the hoard."
+        },
+        {
+          "id": "done",
+          "on": "cleared:all",
+          "open": [
             "gate_c"
           ],
           "complete": true,
-          "message": "The Queen curls up and is still. Her hoard waits in the nest.",
+          "message": "The lair falls silent. Her hoard waits in the nest.",
           "chest": {
             "table": "dungeon_spider_lair",
             "at": [

@@ -14,8 +14,13 @@ extends Node
 ## The run is scored (v30): the clock starts when the start gate opens and
 ## stops at completion; every creature that dies adds its role's `forces` to
 ## the clear; a death adds the difficulty's time penalty and spends a party
-## life. At completion a full clear in time earns a medal (dungeons.json medals
-## x the run's par), which the published `result` carries.
+## life. A run completes when its last creature falls (the final step waits on
+## `cleared:all`, not on the boss) or when its time runs out (medals `limit` x
+## par): a full clear in time earns a medal (dungeons.json medals x the run's
+## par), which the published `result` carries.
+##
+## A spawn entry with `count` is a group: count x the difficulty's `mobs` x the
+## party size (HPRules.dungeon_spawn_count), spread round its `at`.
 ##
 ## Weekly curses (`params.affixes`, dungeons.json affixes): rage, bolstering,
 ## bursting dead, sticky ground and teeming change the creatures; chill and
@@ -60,7 +65,7 @@ func open_run(map_id: String) -> void:
 	runs[map_id] = {"def": def, "params": params, "step": 0, "spawned": {}, "open": {}, "message": "",
 		"complete": false, "origin": HPMaps.instance_origin(map_id), "done": {}, "lock": {}, "hazard_t": {},
 		"phase": "gather", "phase_t": 0.0, "start_tick": -1, "end_tick": -1,
-		"forces": 0, "forces_total": _total_forces(def, params.get("affixes", []), String(params["difficulty"])), "pending": {},
+		"forces": 0, "forces_total": _total_forces(def, params), "pending": {}, "left": -1,
 		"deaths": 0, "down": {},
 		"lives_left": int(HPRules.dungeon_difficulty(String(params["difficulty"])).get("lives", -1)),
 		"broken": false, "result": {}, "affixes": (params.get("affixes", []) as Array).duplicate(),
@@ -140,6 +145,7 @@ func _process(delta: float) -> void:
 				_tick_boss_enrage(map_id, run)
 				_tick_hazards_live(map_id, run)
 				_tick_score(map_id, run)
+				_tick_time_limit(map_id, run)
 			_tick_lock(map_id, run)
 			_tick_hazards(map_id, run, TICK)
 
@@ -243,12 +249,60 @@ func advance(map_id: String) -> void:
 			run["step"] = int(run["step"]) + 1
 			continue
 		if not _triggered(map_id, run, String(step.get("on", "enter"))):
+			if String(step.get("on", "")) == "cleared:all":
+				changed = _call_stragglers(run) or changed
 			break
 		_act(map_id, run, step)
 		run["step"] = int(run["step"]) + 1
 		changed = true
 	if changed:
 		_publish(map_id, run)
+
+## The chain waits on the last creatures: the message counts them down.
+func _call_stragglers(run: Dictionary) -> bool:
+	var left := _alive_mobs(run).size()
+	if left == int(run["left"]):
+		return false
+	run["left"] = left
+	if left > 0:
+		run["message"] = "Creatures still stand - clear them all to finish the run."  # i18n
+	return true
+
+## A run past its time limit ends where it stands: no medal; the final chest
+## only when every boss has fallen; the gates open for the way out.
+func _tick_time_limit(map_id: String, run: Dictionary) -> void:
+	var limit := float(HPMaps.dungeon_rules("medals").get("limit", 0.0))
+	if limit <= 0.0 or _elapsed(run) < _par(run) * limit:
+		return
+	var steps: Array = run["def"].get("steps", [])
+	var final: Dictionary = {}
+	for step in steps:
+		var each: Dictionary = step
+		for gate in each.get("open", []) + each.get("close", []):
+			run["open"][String(gate)] = true
+		if bool(each.get("complete", false)):
+			final = each
+	run["step"] = steps.size()
+	run["lock"] = {}
+	run["complete"] = true
+	_finish(map_id, run)
+	run["result"]["timeout"] = true
+	var bosses_down := _bosses(map_id, run).all(func(b): return bool(b["done"]))
+	if bosses_down and final.has("chest"):
+		var chest: Dictionary = final["chest"]
+		var at: Vector3 = run["origin"] + _vec(chest.get("at", []))
+		if not (run["params"].get("roster", []) as Array).is_empty():
+			SimAuthority.grant_dungeon_rewards(map_id, run["params"], run["result"], String(chest.get("table", "")), at)
+		else:
+			SimAuthority.drop_loot_table(String(chest.get("table", "")), at, map_id)
+		for record in _players(map_id, false):
+			SimAuthority.quest_event(record, "dungeon", String(run["def"].get("id", "")))
+	if bosses_down:
+		run["message"] = "Time is up - the guardians fell, but not every creature did."  # i18n
+	else:
+		run["message"] = "Time is up - the run is over."  # i18n
+	print("[Dungeon] %s timed out (bosses down: %s)" % [map_id, bosses_down])
+	_publish(map_id, run)
 
 # ------------------------------------------------------------------ curses
 
@@ -302,10 +356,20 @@ func _on_creature_died(map_id: String, run: Dictionary, at: Vector3) -> void:
 		for mob in _alive_mobs(run):
 			if mob.is_boss or (mob as Node3D).global_position.distance_to(at) > float(spec.get("radius", 15.0)):
 				continue
-			var grow := 1.0 + float(spec.get("hp", 0.15))
-			mob.max_hp = int(round(float(mob.max_hp) * grow))
-			SimAuthority.set_mob_hp(mob, int(round(float(mob.current_hp) * grow)), mob.max_hp)
-			mob.attack_power = int(round(float(mob.attack_power) * (1.0 + float(spec.get("damage", 0.15)))))
+			# Stacks add to the creature's own numbers, capped: compounding them
+			# swelled a guard in a big pack past 50 000 health.
+			var stacks := int(mob.get_meta("bolster_stacks", 0))
+			if stacks >= int(spec.get("max_stacks", 5)):
+				continue
+			if stacks == 0:
+				mob.set_meta("bolster_base", [mob.max_hp, mob.attack_power])
+			stacks += 1
+			mob.set_meta("bolster_stacks", stacks)
+			var base: Array = mob.get_meta("bolster_base")
+			var old_max := maxi(1, int(mob.max_hp))
+			mob.max_hp = int(round(float(base[0]) * (1.0 + float(spec.get("hp", 0.15)) * stacks)))
+			SimAuthority.set_mob_hp(mob, int(round(float(mob.current_hp) * float(mob.max_hp) / float(old_max))), mob.max_hp)
+			mob.attack_power = int(round(float(base[1]) * (1.0 + float(spec.get("damage", 0.15)) * stacks)))
 	if affixes.has("burst"):
 		var spec := HPRules.dungeon_affix("burst")
 		_add_hazard(map_id, run, {"kind": "burst", "center": at, "radius": float(spec.get("radius", 4.0)),
@@ -462,20 +526,42 @@ func _wrap_in_cocoon(map_id: String, run: Dictionary, spec: Dictionary, step_id:
 
 # ------------------------------------------------------------------ score
 
-## The clear's whole: every spawn entry's role forces (bosses count 0),
-## Teeming's extra creatures included.
-static func _total_forces(def: Dictionary, affixes: Array = [], difficulty: String = "normal") -> int:
+## The clear's whole: every spawn entry's role forces (bosses count 0), groups
+## at the run's size and Teeming's extra creatures included.
+static func _total_forces(def: Dictionary, params: Dictionary) -> int:
 	var total := 0
+	var difficulty := String(params.get("difficulty", "normal"))
 	for step in def.get("steps", []):
 		if not HPRules.dungeon_active_on(step, difficulty):
 			continue
-		for entry in _with_teeming(_active_entries(step.get("spawn", []), difficulty), affixes):
+		for entry in _with_teeming(_active_entries(step.get("spawn", []), params), params.get("affixes", [])):
 			total += int(HPRules.dungeon_role(String(entry.get("role", "trash"))).get("forces", 0))
 	return total
 
-## A step's spawn entries that take part on `difficulty`.
-static func _active_entries(spawn: Array, difficulty: String) -> Array:
-	return spawn.filter(func(e): return HPRules.dungeon_active_on(e, difficulty))
+## A step's spawn entries that take part in a run (`min_difficulty`), groups
+## expanded to one entry per creature: count from HPRules.dungeon_spawn_count,
+## set on a sunflower spiral within `spread` metres of the entry's `at`.
+static func _active_entries(spawn: Array, params: Dictionary) -> Array:
+	var difficulty := String(params.get("difficulty", "normal"))
+	var out: Array = []
+	for raw in spawn:
+		var entry: Dictionary = raw
+		if not HPRules.dungeon_active_on(entry, difficulty):
+			continue
+		if not entry.has("count"):
+			out.append(entry)
+			continue
+		var n := HPRules.dungeon_spawn_count(params, entry)
+		var spread := float(entry.get("spread", 3.0))
+		var at: Array = entry.get("at", [0, 0, 0])
+		for i in n:
+			var one := entry.duplicate(true)
+			one.erase("count")
+			var r := spread * sqrt((float(i) + 0.5) / float(n))
+			var a := float(i) * 2.39996
+			one["at"] = [float(at[0]) + cos(a) * r, float(at[1]), float(at[2]) + sin(a) * r]
+			out.append(one)
+	return out
 
 ## A step's spawn list under Teeming: one more ordinary creature for every
 ## four (rounded up), standing beside one of them.
@@ -573,9 +659,13 @@ func _finish(map_id: String, run: Dictionary) -> void:
 func _bosses(map_id: String, run: Dictionary) -> Array:
 	var out: Array = []
 	var overrides: Dictionary = HPRules.spawn_tables().get("boss_overrides", {})
+	var difficulty := String(run["params"]["difficulty"])
 	for step in run["def"].get("steps", []):
+		if not HPRules.dungeon_active_on(step, difficulty):
+			continue
 		for entry in step.get("spawn", []):
-			if entry.has("boss_key"):
+			# A twin that only rises on a harder difficulty is not this run's boss.
+			if entry.has("boss_key") and HPRules.dungeon_active_on(entry, difficulty):
 				out.append({"name": String((overrides.get(String(entry["boss_key"]), {}) as Dictionary).get("name", entry.get("mob", ""))),
 					"done": _triggered(map_id, run, "cleared:" + String(step.get("id", "")))})
 	return out
@@ -583,6 +673,10 @@ func _bosses(map_id: String, run: Dictionary) -> Array:
 func _triggered(map_id: String, run: Dictionary, on: String) -> bool:
 	if on == "enter":
 		return true
+	if on == "cleared:all":
+		# Every creature the run has put down is dead and no egg is still to hatch.
+		return _alive_mobs(run).is_empty() and (run["hatching"] as Array).is_empty() \
+			and (run["pending"] as Dictionary).is_empty()
 	if on.begins_with("cleared:"):
 		var list: Array = (run["spawned"] as Dictionary).get(on.substr(8), [])
 		if list.is_empty():
@@ -623,7 +717,7 @@ func _act(map_id: String, run: Dictionary, step: Dictionary) -> void:
 		var list: Array = []
 		var pack_id := _next_pack
 		_next_pack += 1
-		for entry in _with_teeming(_active_entries(step["spawn"], String(run["params"]["difficulty"])), run["affixes"]):
+		for entry in _with_teeming(_active_entries(step["spawn"], run["params"]), run["affixes"]):
 			var mob := _spawn(map_id, entry as Dictionary, origin, pack_id)
 			if mob != null:
 				list.append(mob)
@@ -722,9 +816,13 @@ func _spawn(map_id: String, entry: Dictionary, origin: Vector3, pack_id: int) ->
 		mob.exp_reward = int(float(mob.exp_reward) * HPRules.level_exp_ratio(stat_level, level))
 		mob.max_hp = int(float(mob.max_hp) * strength)
 	# Experience comes from the run's budget (SimAuthority.grant_dungeon_kill_exp);
-	# drops follow the difficulty.
+	# drops follow the difficulty; the run's many ordinary creatures roll at
+	# rewards.creature_drop of that (bosses keep their full drop).
 	mob.exp_reward = 0
-	mob.set_meta("dungeon_drop", float(HPRules.dungeon_difficulty(String(params.get("difficulty", ""))).get("drop", 1.0)))
+	var drop := float(HPRules.dungeon_difficulty(String(params.get("difficulty", ""))).get("drop", 1.0))
+	if not mob.is_boss:
+		drop *= float(HPRules.dungeon_rewards().get("creature_drop", 1.0))
+	mob.set_meta("dungeon_drop", drop)
 	if (params.get("affixes", []) as Array).has("bleed") and String(entry.get("role", "")) == "elite":
 		mob.set_meta("curse_bleed", true)
 	var difficulty := String(params.get("difficulty", "normal"))
@@ -778,6 +876,7 @@ func _publish(map_id: String, run: Dictionary) -> void:
 		"elapsed_s": _elapsed(run), "par_s": _par(run), "forces": int(run["forces"]),
 		"forces_total": int(run["forces_total"]), "deaths": int(run["deaths"]),
 		"lives_left": int(run["lives_left"]), "broken": bool(run["broken"]), "bosses": _bosses(map_id, run),
+		"left": int(run["left"]),
 		"result": run["result"], "affixes": run["affixes"]}
 	for node in get_tree().get_nodes_in_group("dungeon_instance"):
 		if String(node.get_meta("map_id", "")) == map_id and node.has_method("apply_state"):
