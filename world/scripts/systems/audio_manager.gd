@@ -151,6 +151,7 @@ var _flat_pool: Array[AudioStreamPlayer] = []
 var _loops: Dictionary = {}          # key::owner_id -> player
 var _last_played: Dictionary = {}    # key -> msec, for rate limiting
 var _streams: Dictionary = {}        # path -> AudioStream
+var _last_variant: Dictionary = {}   # key -> the variant key it played last
 ## Every key that has actually been played (a small ring), presentation only.
 var played_log: Array[String] = []
 var _local_player: Node = null
@@ -348,6 +349,21 @@ func _stream(key: String) -> AudioStream:
 		_streams[path] = stream
 	return _streams[path]
 
+
+## The key whose file plays for `key`: the entry itself or one of its library
+## "variants" (a soundtrack's alternate takes, a cast sound's other takes),
+## never the same one twice in a row. A variant plays with its base entry's mix.
+func _variant(key: String) -> String:
+	var options: Array = [key]
+	for other in library.get(key, {}).get("variants", []):
+		if has_sound(String(other)):
+			options.append(String(other))
+	if options.size() > 1:
+		options.erase(_last_variant.get(key, ""))
+	var chosen := String(options[randi() % options.size()])
+	_last_variant[key] = chosen
+	return chosen
+
 # ------------------------------------------------------------------ playing
 
 func _spatial_player() -> AudioStreamPlayer3D:
@@ -428,17 +444,7 @@ func play_sound_at(key: String, position: Vector3, owner_node: Node = null, forc
 	var entry: Dictionary = library.get(key, {})
 	if entry.is_empty():
 		return null
-	var resolved_key := key
-	if key == "spell_basic_cast_cast":
-		var r := randi() % 3
-		if r == 1 and has_sound("spell_basic_cast_cast_2"):
-			resolved_key = "spell_basic_cast_cast_2"
-		elif r == 2 and has_sound("spell_basic_cast_cast_3"):
-			resolved_key = "spell_basic_cast_cast_3"
-	elif key == "spell_basic_cast_impact":
-		if randf() > 0.5 and has_sound("spell_basic_cast_impact_2"):
-			resolved_key = "spell_basic_cast_impact_2"
-	var stream := _stream(resolved_key)
+	var stream := _stream(_variant(key))
 	if stream == null:
 		return null
 	var flat_cue := not bool(entry.get("loop", false)) and (force_flat or not bool(entry.get("spatial", true)))
@@ -1090,7 +1096,7 @@ func play_stinger(key: String) -> void:
 	if _now() - float(_last_stinger.get(key, -1000.0)) < 30.0 or _now() < _stinger_duck_until:
 		return
 	_last_stinger[key] = _now()
-	var stream := _stream(key)
+	var stream := _stream(_variant(key))
 	if stream == null:
 		return
 	if _stinger_player == null or not is_instance_valid(_stinger_player):
@@ -1268,7 +1274,8 @@ func _start_music(key: String, fade: float) -> void:
 	_music_last_key = key
 	if not audio_available():
 		return
-	var stream := _stream(key)
+	# Each track alternates with its variants (the original, then its alt take).
+	var stream := _stream(_variant(key))
 	if stream == null:
 		return
 	_ensure_music_players()

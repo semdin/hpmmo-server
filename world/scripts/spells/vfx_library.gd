@@ -50,6 +50,8 @@ const ASSETS := {
 	"vfx_starfall_orb": {"path": ATLAS_DIR + "starfall_orb_8x8_1k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 22, "loop": true, "colour": true},
 	"vfx_burst_glacius": {"path": ATLAS_DIR + "burst_glacius_8x8_2k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 40, "loop": false, "colour": true},
 	"vfx_glacius_orb": {"path": ATLAS_DIR + "glacius_orb_8x8_1k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 22, "loop": true, "colour": true},
+	# Stupefy flight candidates (art/vfx/blender_flight): Blender-rendered volumes
+	"vfx_flight_orb": {"path": ATLAS_DIR + "flight_orb_8x8_2k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 24, "loop": true, "colour": true},
 	"vfx_ripple_blue": {"path": ATLAS_DIR + "ripple_blue_8x8_1k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 25, "loop": false, "colour": true},
 	"vfx_shockwave": {"path": ATLAS_DIR + "shockwave_8x8_1k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 23, "loop": false, "colour": true},
 	"vfx_wand_flash": {"path": ATLAS_DIR + "wand_flash_8x8_1k.png", "grid": Vector2(8, 8), "frames": 64, "fps": 48, "loop": false, "colour": true},
@@ -139,36 +141,64 @@ const SPELLS := {
 			], "length": 0.15, "audio": "spell_basic_cast_end"},
 		},
 	},
+	# Stupefy: a jet of red light. The bolt (energy_bolt.gdshader) is a
+	# white-hot head in a red glow streaming a turbulent jet, its halo painted
+	# in because the low preset has no bloom, over a deep-red under pass that
+	# keeps it red on a bright floor. Its sparks are real embers
+	# (ember_particles.gdshader): they curl off the bolt, and at the hit a short
+	# white flash throws a spray that arcs, bounces on the floor and cools from
+	# white through red to a dull glow, over a wisp of smoke. The stun crackles
+	# over the victim's body.
 	"stupefy": {
-		"colour": Color(1.0, 0.12, 0.12),
+		"colour": Color(1.0, 0.1, 0.08),
+		"curve": 0.04,
 		"stages": {
 			"cast": {"layers": [
-				{"kind": "flipbook", "atlas": "vfx_wand_flash", "blend": "add", "core": true, "colour": true,
-					"size": 1.0, "life": 0.24, "fit": true, "roll": true, "grow": [0.6, 1.3]},
-				{"kind": "particles", "tex": "vfx_star_flare", "blend": "add", "colour": true, "optional": true,
-					"amount": 14, "life": 0.3, "speed": 3.4, "size": 0.06, "spread": 40.0, "gravity": 0.0, "forward": true},
-				{"kind": "light", "colour": true, "energy": 2.6, "range": 3.0, "life": 0.22},
+				{"kind": "sprite", "energy_shape": 0, "blend": "add", "core": true, "colour": true,
+					"size": 0.9, "life": 0.16, "fade": "out"},
+				{"kind": "particles", "embers": true, "core": true, "colour": true, "dir": "aim",
+					"amount": 26, "life": 0.7, "speed": [2.0, 7.0], "size": [0.007, 0.02], "spread": 35.0,
+					"gravity": 7.0, "drag": 2.5, "floor": true},
+				{"kind": "flipbook", "atlas": "vfx_wand_flash", "blend": "add", "optional": true, "colour": true,
+					"size": 0.7, "life": 0.18, "fit": true, "roll": true, "grow": [0.6, 1.2]},
+				{"kind": "light", "colour": true, "energy": 1.4, "range": 2.5, "life": 0.18},
 			], "length": 0.3, "audio": "spell_stupefy_cast", "core": "spiral_discharge"},
+			# A crackling energy orb (rendered in Blender: Voronoi lightning veins
+			# in a red glow, art/vfx/blender_flight) leaving a wisp trail that
+			# hangs where the bolt passed and dissolves there; embers shed and
+			# fall. The drawn path bows slightly (`curve`), never a ruler line.
 			"travel": {"layers": [
-				{"kind": "flipbook", "atlas": "vfx_energy_orb", "blend": "add", "core": true, "colour": true,
-					"size": 1.15, "life": 0.0, "loop": true, "roll": true},
-				{"kind": "ribbon", "tex": "vfx_energy_streak", "blend": "add", "core": true, "colour": true,
-					"width": 0.3, "length": 5.5, "life": 0.0, "follow": true},
-				{"kind": "sprite", "atlas": "vfx_lightning_strands", "blend": "add", "colour": true, "optional": true,
-					"size": 1.1, "life": 0.0, "flicker": true, "opacity": 0.7},
-				{"kind": "particles", "tex": "vfx_star_flare", "blend": "add", "colour": true, "optional": true,
-					"amount": 24, "life": 0.25, "speed": 1.0, "size": 0.05, "spread": 180.0, "gravity": 0.0, "continuous": true},
+				{"kind": "flipbook", "atlas": "vfx_flight_orb", "blend": "add", "core": true,
+					"size": 0.95, "life": 0.0, "loop": true, "roll": true},
+				{"kind": "trail", "core": true, "colour": true,
+					"width": [0.3, 0.85], "span": 0.2, "rise": 0.3, "wander": 1.2, "hot": 0.25, "erosion": 0.95, "noise_scale": 0.9, "opacity": 0.75},
+				{"kind": "particles", "embers": true, "core": true, "colour": true, "continuous": true,
+					"amount": 70, "life": 0.9, "speed": [0.2, 1.4], "size": [0.006, 0.018], "spread": 180.0,
+					"gravity": 2.5, "drag": 1.2, "turbulence": 5.0, "radius": 0.12, "energy": 0.9},
 			], "length": 0.0, "audio": "spell_stupefy_travel", "loop_audio": true},
 			"impact": {"layers": [
-				{"kind": "flipbook", "atlas": "vfx_burst_red", "blend": "add", "core": true,
-					"size": 2.4, "life": 0.7, "fit": true, "roll": true},
-				{"kind": "flipbook", "atlas": "vfx_spark_burst", "blend": "add", "colour": true, "optional": true,
-					"size": 1.8, "life": 0.4, "fit": true, "roll": true},
-				{"kind": "light", "colour": true, "energy": 3.2, "range": 4.0, "life": 0.28},
-			], "length": 0.72, "audio": "spell_stupefy_impact", "core": "torn_energy_burst"},
+				{"kind": "sprite", "energy_shape": 0, "blend": "add", "core": true, "colour": "accent",
+					"size": 1.1, "life": 0.08, "fade": "out"},
+				{"kind": "sprite", "energy_shape": 0, "blend": "add", "core": true, "colour": true,
+					"size": 1.8, "life": 0.14, "fade": "out", "opacity": 0.7},
+				{"kind": "particles", "embers": true, "core": true, "colour": true, "dir": "back", "lift": 0.25,
+					"amount": 110, "life": 1.4, "speed": [1.8, 7.0], "size": [0.009, 0.028], "spread": 70.0,
+					"gravity": 9.0, "drag": 1.4, "floor": true, "bounce": 0.35, "radius": 0.1},
+				{"kind": "particles", "embers": true, "optional": true, "colour": true, "dir": "up",
+					"amount": 36, "life": 1.8, "speed": [0.4, 2.0], "size": [0.008, 0.022], "spread": 180.0,
+					"gravity": 1.2, "drag": 1.6, "turbulence": 4.0, "radius": 0.2, "energy": 0.8},
+				{"kind": "flipbook", "atlas": "vfx_smoke_puff", "blend": "alpha", "optional": true,
+					"size": 1.4, "life": 0.9, "fit": true, "roll": true, "opacity": 0.28, "grow": [0.7, 1.3]},
+				{"kind": "arc", "mode": "burst", "optional": true, "colour": true,
+					"amount": 3, "length": [0.3, 0.7], "width": 0.24, "core_px": 1.6, "glow": 0.7, "life": 0.2, "strike_hz": 24.0},
+				{"kind": "light", "colour": true, "energy": 2.2, "range": 4.0, "life": 0.16},
+			], "length": 1.8, "audio": "spell_stupefy_impact", "core": "torn_energy_burst"},
+			# While stunned the leftover charge drips off the body as the same
+			# sparks the hit threw, falling from the shoulders to the ground.
 			"sustain": {"layers": [
-				{"kind": "sprite", "atlas": "vfx_rune_seal", "blend": "add", "core": true, "colour": true,
-					"size": 0.9, "life": 1.8, "fade": "hold", "flat": true, "lift": 0.0, "spin": true},
+				{"kind": "particles", "embers": true, "core": true, "colour": true, "continuous": true, "forward": -0.6,
+					"amount": 24, "life": 1.3, "speed": [0.2, 0.9], "size": [0.009, 0.022], "spread": 180.0,
+					"gravity": 4.0, "drag": 1.2, "turbulence": 3.0, "radius": 0.28, "energy": 0.9, "floor": true, "bounce": 0.3},
 			], "length": 1.8, "audio": "spell_stupefy_end", "core": "stun_indicator"},
 		},
 	},

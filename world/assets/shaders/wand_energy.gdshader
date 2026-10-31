@@ -7,6 +7,10 @@ uniform float opacity = 1.0;
 uniform float phase = 0.0;
 uniform int shape = 0; // glow, directional bolt, expanding shock ring, flash
 uniform vec3 aim = vec3(0.0, 0.0, -1.0);
+// Soft intersections: fade where the quad cuts into a wall or a body, so a
+// glow larger than its gap to the surface never shows a hard edge.
+uniform float soft_fade = 0.35;
+uniform sampler2D depth_tex : hint_depth_texture, repeat_disable, filter_nearest;
 
 void vertex() {
 	vec3 right = INV_VIEW_MATRIX[0].xyz;
@@ -50,6 +54,13 @@ void fragment() {
 		core += rays * 0.35;
 	}
 	float edge = 1.0 - smoothstep(0.86, 1.0, r);
+	float soft = 1.0;
+	if (soft_fade > 0.0) {
+		float depth_raw = texture(depth_tex, SCREEN_UV).r;
+		vec4 view = INV_PROJECTION_MATRIX * vec4(SCREEN_UV * 2.0 - 1.0, depth_raw, 1.0);
+		float scene_dist = -view.z / max(1e-5, view.w);
+		soft = clamp((scene_dist - (-VERTEX.z)) / soft_fade, 0.0, 1.0);
+	}
 	ALBEDO = tint.rgb * 1.8 + vec3(core * 1.6);
-	ALPHA = clamp(energy * edge * opacity * tint.a, 0.0, 1.0);
+	ALPHA = clamp(energy * edge * soft * opacity * tint.a, 0.0, 1.0);
 }

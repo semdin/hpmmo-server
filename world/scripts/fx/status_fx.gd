@@ -5,7 +5,7 @@ class_name StatusFX
 ## byte the authority replicates (HPProtocol.STATUS_*), drawn the same way on
 ## every client for creatures and players alike.
 ##
-##   stun     gold stars circling the head and the Stupefy halo
+##   stun     gold stars circling the head and red sparks dripping off the body
 ##   freeze   a clear ice shell over the body, crystals at its feet, cold mist
 ##            rolling off it, the pose held; the ice bursts when it thaws
 ##   slow     rime creeping up from the feet, frost motes and a cold mist, the
@@ -73,7 +73,7 @@ var _overlay: Material = null
 var _overlaid: Array = []         # meshes carrying _overlay
 var _stars: Node3D = null
 ## Spell-stage effects that live in the world, following the body (the stun
-## halo, the flames): freed with the status, or with the body.
+## sparks, the flames): freed with the status, or with the body.
 var _world_parts: Dictionary = {}  # status bit -> Node3D
 var _t := 0.0
 var _firelight: OmniLight3D = null

@@ -2,8 +2,8 @@
  "schema": 1,
  "generator": "client/tools/audio/import_audio_spec.py + import_fal_sfx.py",
  "generated": "2026-10-19",
- "provenance": "All sounds generated on fal.ai: spell, basic-attack and creature cues with ElevenLabs Sound Effects v2 (prompts art/audio_fal/sfx_spec.json, import_fal_sfx.py); ambience, footsteps, interface, broom and remaining creature cues with ElevenLabs Sound Effects v2 and the soundtrack with ElevenLabs Music v2.5 (prompts tools/audio/audio_spec.json, import_audio_spec.py).",
- "license": "generated output, commercial use permitted under the ElevenLabs / fal.ai terms of the generating account",
+ "provenance": "All sounds generated on fal.ai: spell, basic-attack and creature cues with ElevenLabs Sound Effects v2 (prompts art/audio_fal/sfx_spec.json, import_fal_sfx.py); ambience, footsteps, interface, broom and remaining creature cues with ElevenLabs Sound Effects v2 and the soundtrack with ElevenLabs Music v2.5 (prompts tools/audio/audio_spec.json, import_audio_spec.py). Stupefy (spell_stupefy_*): generated 2026-10-31 with Stable Audio 3 small-sfx (Stability AI Community License, free commercial use under US$1M annual revenue), prompts in art/audio_sa3/sfx_spec.json, takes chosen from art/audio_sa3/takes. Soundtrack variants (*_alt<n>): generated 2026-10-31 with Stable Audio 3 small-music (Stability AI Community License, free commercial use under US$1M annual revenue), picked in art/audio_review. Replacements picked 2026-10-31 in art/audio_review (each entry's source names its take): Stable Audio 3 small-sfx run locally (Stability AI Community License, free commercial use under US$1M annual revenue). Round-two replacements (art/audio_review2) also use recordings from the Sonniss GDC 2026 Game Audio Bundle (royalty-free, commercial use; licence art/audio_sonniss/License - GDC Game Audio.pdf), sliced, pitched or layered. Tonal round-two interface cues (level up, quest, confirm, respawn, chimes) were generated with Stable Audio 3 small-music under the same licence",
+ "license": "generated output, commercial use permitted under the ElevenLabs / fal.ai terms of the generating account. Stupefy (spell_stupefy_*): generated 2026-10-31 with Stable Audio 3 small-sfx (Stability AI Community License, free commercial use under US$1M annual revenue), prompts in art/audio_sa3/sfx_spec.json, takes chosen from art/audio_sa3/takes. Soundtrack variants (*_alt<n>): generated 2026-10-31 with Stable Audio 3 small-music (Stability AI Community License, free commercial use under US$1M annual revenue), picked in art/audio_review. Replacements picked 2026-10-31 in art/audio_review (each entry's source names its take): Stable Audio 3 small-sfx run locally (Stability AI Community License, free commercial use under US$1M annual revenue). Round-two replacements (art/audio_review2) also use recordings from the Sonniss GDC 2026 Game Audio Bundle (royalty-free, commercial use; licence art/audio_sonniss/License - GDC Game Audio.pdf), sliced, pitched or layered. Tonal round-two interface cues (level up, quest, confirm, respawn, chimes) were generated with Stable Audio 3 small-music under the same licence",
  "buses": [
   "Music",
   "SFX",
@@ -73,9 +73,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.577,
+   "seconds": 1.901,
    "purpose": "A dry twig snapping somewhere in the undergrowth nearby, followed by silence, tense",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); amb_branch_snap__s105.wav"
   },
   "amb_bubble": {
    "path": "assets/audio/ambience/nature/mud_bubble.wav",
@@ -112,9 +112,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 2.48,
+   "seconds": 3.53,
    "purpose": "A heavy wooden door closing somewhere far away down a stone corridor, long echo",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); amb_castle_door_far__s102.wav"
   },
   "amb_castle_steps_far": {
    "path": "assets/audio/ambience/castle/steps_far.wav",
@@ -125,9 +125,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 3.0,
+   "seconds": 3.305,
    "purpose": "Distant footsteps hurrying along a stone corridor and fading away, echoing",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); amb_castle_steps_far__s102.wav"
   },
   "amb_corridor": {
    "path": "assets/audio/ambience/forbidden_corridor.wav",
@@ -138,14 +138,14 @@
    "loop_mode": "forward",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 21.88,
+   "seconds": 21.82,
    "purpose": "Forbidden stone corridor at night: heavy ominous silence, low rumbling drone, a huge beast breathing slowly far away behind a door, dread",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); amb_corridor__s105.wav"
   },
   "amb_courtyard": {
    "path": "assets/audio/ambience/courtyard.wav",
    "bus": "ambience",
-   "gain_db": -20.0,
+   "gain_db": -26.0,
    "pitch_variation": 0.0,
    "loop": true,
    "loop_mode": "forward",
@@ -164,9 +164,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 2.0,
+   "seconds": 3.309,
    "purpose": "A crow cawing harshly a few times from a distance",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); amb_crow_1__s102.wav"
   },
   "amb_crow_2": {
    "path": "assets/audio/ambience/nature/crow_02.wav",
@@ -177,9 +177,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 1.139,
+   "seconds": 2.503,
    "purpose": "A raven's deep croak echoing over empty moorland",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); amb_crow_2__s101.wav"
   },
   "amb_despair": {
    "path": "assets/audio/ambience/despair.wav",
@@ -190,9 +190,9 @@
    "loop_mode": "forward",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 13.88,
+   "seconds": 13.82,
    "purpose": "Supernatural icy chill: freezing hollow wind, frost creeping and crackling on stone, a faint ghostly rattling breath, dread",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); amb_despair__s101.wav"
   },
   "amb_dungeon": {
    "path": "assets/audio/ambience/dungeon.wav",
@@ -229,9 +229,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 1.48,
+   "seconds": 2.173,
    "purpose": "A single water drop falling into a puddle in a cave, echoing",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); amb_dungeon_drip_1__s103.wav"
   },
   "amb_dungeon_drip_2": {
    "path": "assets/audio/ambience/dungeon/drip_02.wav",
@@ -242,9 +242,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.907,
+   "seconds": 2.117,
    "purpose": "A slow water drip in a stone dungeon with a long reverberant tail",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); amb_dungeon_drip_2__s101.wav"
   },
   "amb_dungeon_drip_3": {
    "path": "assets/audio/ambience/dungeon/drip_03.wav",
@@ -255,9 +255,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.73,
+   "seconds": 1.967,
    "purpose": "Two water drops plinking into a pool in a deep cavern, echo",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); amb_dungeon_drip_3__s104.wav"
   },
   "amb_dungeon_growl": {
    "path": "assets/audio/ambience/dungeon/growl_far.wav",
@@ -268,9 +268,9 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 2.321,
+   "seconds": 4.641,
    "purpose": "A deep beast growl echoing from far down a dark tunnel, menacing",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); amb_dungeon_growl__s103.wav"
   },
   "amb_dungeon_rumble": {
    "path": "assets/audio/ambience/dungeon/rumble.wav",
@@ -333,9 +333,9 @@
    "loop_mode": "forward",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 21.88,
+   "seconds": 21.82,
    "purpose": "Dense ancient forest: wind high in the canopy, old trees creaking softly, sparse distant birds, insects humming, slightly mysterious",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); amb_forest__s102.wav"
   },
   "amb_forest_dark": {
    "path": "assets/audio/ambience/forest_dark.wav",
@@ -385,9 +385,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 2.48,
-   "purpose": "A faint playful ghostly giggle drifting past and fading, echoing in a stone hall, magical",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "seconds": 3.025,
+   "purpose": "a woman's soft breathy laugh echoing far away in a huge empty stone cathedral, long reverb, eerie and faint",
+   "source": "Stable Audio 3 small-sfx or small-music (local, CPU); amb_ghost_laugh__s301.wav@0.07s"
   },
   "amb_great_hall": {
    "path": "assets/audio/ambience/great_hall.wav",
@@ -411,9 +411,9 @@
    "loop_mode": "forward",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 21.88,
+   "seconds": 21.82,
    "purpose": "Peaceful magical castle grounds on a mild sunny day: soft breeze through tall grass, distant songbirds, gently rustling leaves, calm open meadow, very relaxing",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); amb_grounds__s105.wav"
   },
   "amb_hall_laughter": {
    "path": "assets/audio/ambience/castle/hall_laughter.wav",
@@ -424,9 +424,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 3.0,
+   "seconds": 4.37,
    "purpose": "Distant warm laughter of a crowd echoing in a great hall, faint and muffled",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); amb_hall_laughter__s104.wav"
   },
   "amb_high_wind": {
    "path": "assets/audio/ambience/high_wind.wav",
@@ -450,9 +450,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 2.0,
-   "purpose": "Leaves rustling gently in a passing breeze in a tree",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "seconds": 3.7,
+   "purpose": "field recording of a light breeze rustling the leaves of a single tree, natural, soft, close",
+   "source": "Stable Audio 3 small-sfx or small-music (local, CPU); amb_leaf_rustle_1__s302.wav@0.00s"
   },
   "amb_leaf_rustle_2": {
    "path": "assets/audio/ambience/nature/leaf_rustle_02.wav",
@@ -476,9 +476,9 @@
    "loop_mode": "forward",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 21.88,
+   "seconds": 21.82,
    "purpose": "Silent old library interior: very quiet warm room tone, faint candle flicker, soft creak of wooden shelves, peaceful, no clock",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); amb_library__s104.wav"
   },
   "amb_library_page_1": {
    "path": "assets/audio/ambience/library/page_01.wav",
@@ -489,9 +489,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 1.277,
-   "purpose": "A parchment page being turned slowly",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "seconds": 1.639,
+   "purpose": "close-up recording of a single page of an old paper book being turned, dry paper, quiet room",
+   "source": "Stable Audio 3 small-sfx or small-music (local, CPU); amb_library_page_1__s303.wav@0.31s"
   },
   "amb_library_page_2": {
    "path": "assets/audio/ambience/library/page_02.wav",
@@ -502,9 +502,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.594,
+   "seconds": 0.659,
    "purpose": "An old heavy book being closed softly on a wooden table",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); amb_library_page_2__s104.wav"
   },
   "amb_magic_chime": {
    "path": "assets/audio/ambience/castle/magic_chime.wav",
@@ -515,9 +515,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 3.0,
-   "purpose": "A soft distant magical shimmer, delicate twinkling chimes like enchanted dust, fading slowly",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "seconds": 1.574,
+   "purpose": "glass bell (sfx) / solo celesta (music model) / Sonniss bells",
+   "source": "Sonniss GDC 2026 Game Audio Bundle, art/audio_sonniss/raw; amb_magic_chime__x1.wav@15.96s"
   },
   "amb_marsh": {
    "path": "assets/audio/ambience/marsh.wav",
@@ -567,9 +567,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 1.03,
+   "seconds": 2.241,
    "purpose": "A barn owl's eerie screech far away at night",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); amb_owl_2__s104.wav"
   },
   "amb_owl_flutter": {
    "path": "assets/audio/ambience/castle/owl_flutter.wav",
@@ -645,9 +645,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 2.223,
+   "seconds": 4.532,
    "purpose": "Tall trees swaying and creaking in a forest, wooden strain",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); amb_tree_creak_2__s105.wav"
   },
   "amb_village": {
    "path": "assets/audio/ambience/village.wav",
@@ -684,9 +684,9 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 4.0,
+   "seconds": 5.76,
    "purpose": "A soft rolling gust of wind sweeping across an open field",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); amb_wind_gust_1__s105.wav"
   },
   "amb_wind_gust_2": {
    "path": "assets/audio/ambience/wind/wind_gust_02.wav",
@@ -697,9 +697,9 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 4.0,
+   "seconds": 6.655,
    "purpose": "A long gentle breeze swelling and fading through grass and trees",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); amb_wind_gust_2__s104.wav"
   },
   "amb_wolf_howl": {
    "path": "assets/audio/ambience/nature/wolf_howl.wav",
@@ -788,9 +788,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.8,
+   "seconds": 0.917,
    "purpose": "Fantasy game monster: a heavy steel boot step with chainmail rattle, very short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/armour_move_3.wav"
+   "source": "Stable Audio 3 small-sfx (local, CPU); armour_move_3__s101.wav"
   },
   "boss_alert": {
    "path": "assets/audio/monsters/boss_alert.wav",
@@ -801,9 +801,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 2.107,
+   "seconds": 3.633,
    "purpose": "A colossal stone golem boss awakening: deep earth-shaking roar with grinding rock",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); boss_alert__s101.wav"
   },
   "boss_death": {
    "path": "assets/audio/monsters/boss_death.wav",
@@ -814,9 +814,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 3.0,
+   "seconds": 4.786,
    "purpose": "A colossal boss monster dying: a long fading bellow and a massive rocky collapse",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); boss_death__s105.wav"
   },
   "boss_slam_cast": {
    "path": "assets/audio/monsters/boss_slam_cast.wav",
@@ -840,9 +840,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 1.6,
+   "seconds": 2.369,
    "purpose": "A giant monster slamming the ground: massive impact boom with rocks cracking",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); boss_slam_release__s101.wav"
   },
   "broom_land_blocked": {
    "path": "assets/audio/character/broom_land_blocked.wav",
@@ -866,9 +866,9 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 0.353,
+   "seconds": 1.481,
    "purpose": "A fast swoosh of air as a broom rider banks sharply past",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); broom_swoosh_1__s102.wav"
   },
   "broom_swoosh_2": {
    "path": "assets/audio/character/broom_swoosh_02.wav",
@@ -879,9 +879,9 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 0.616,
+   "seconds": 1.976,
    "purpose": "A quick airy whoosh of a broomstick diving and pulling up",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); broom_swoosh_2__s101.wav"
   },
   "broom_wind": {
    "path": "assets/audio/character/broom_wind.wav",
@@ -895,6 +895,19 @@
    "seconds": 11.88,
    "purpose": "Flying on a broomstick: rushing wind past the ears, airy whoosh with robes fluttering, steady",
    "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+  },
+  "cabinet_vanish": {
+   "path": "assets/audio/transitions/cabinet_vanish.wav",
+   "bus": "sfx",
+   "gain_db": -6.0,
+   "pitch_variation": 0.03,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 2.4,
+   "purpose": "A Vanishing Cabinet: doors thud shut, a hollow magical whoomp",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (Blackweb Caverns S7, art/spider_caverns/audio)"
   },
   "dementor_alert": {
    "path": "assets/audio/monsters/dementor_alert.wav",
@@ -918,9 +931,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 1.0,
+   "seconds": 2.465,
    "purpose": "Fantasy horror: a wraith lunges with a hollow inhuman shriek and a violent sucking rush of air as it drains a soul",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/dementor_attack.wav"
+   "source": "Stable Audio 3 small-sfx (local, CPU); dementor_attack__s105.wav"
   },
   "dementor_death": {
    "path": "assets/audio/monsters/dementor_death.wav",
@@ -931,9 +944,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 2.2,
+   "seconds": 3.685,
    "purpose": "Fantasy horror: a wraith is banished, a fading distorted wail dissolving into rushing icy wind and silence",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/dementor_death.wav"
+   "source": "Stable Audio 3 small-sfx (local, CPU); dementor_death__s104.wav"
   },
   "dementor_move_1": {
    "path": "assets/audio/monsters/dementor_move_1.wav",
@@ -944,9 +957,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 1.165,
+   "seconds": 2.308,
    "purpose": "Fantasy horror: a floating hooded wraith's slow rattling inhale, ragged wet death breath with cold wind, eerie",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/dementor_move_1.wav"
+   "source": "Stable Audio 3 small-sfx (local, CPU); dementor_move_1__s105.wav"
   },
   "dementor_move_2": {
    "path": "assets/audio/monsters/dementor_move_2.wav",
@@ -957,9 +970,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 1.027,
+   "seconds": 2.607,
    "purpose": "Fantasy horror: tattered cloth fluttering in an icy wind around a ghostly wraith, faint hollow whisper of air, eerie",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/dementor_move_2.wav"
+   "source": "Stable Audio 3 small-sfx (local, CPU); dementor_move_2__s105.wav"
   },
   "dementor_move_3": {
    "path": "assets/audio/monsters/dementor_move_3.wav",
@@ -970,9 +983,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 1.112,
+   "seconds": 2.042,
    "purpose": "Fantasy horror: a spectral wraith gliding past, raspy rattling breath fading out with frost crackle, eerie",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/dementor_move_3.wav"
+   "source": "Stable Audio 3 small-sfx (local, CPU); dementor_move_3__s101.wav"
   },
   "dismount": {
    "path": "assets/audio/character/dismount.wav",
@@ -983,9 +996,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.88,
+   "seconds": 2.011,
    "purpose": "Hopping off a broomstick and landing lightly on the feet, cloth rustle",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); dismount__s101.wav"
   },
   "door_close": {
    "path": "assets/audio/transitions/door_close.wav",
@@ -996,9 +1009,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 1.065,
+   "seconds": 2.099,
    "purpose": "A heavy old wooden castle door closing with a deep thud and latch",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); door_close__s101.wav"
   },
   "door_open": {
    "path": "assets/audio/transitions/door_open.wav",
@@ -1009,8 +1022,99 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 1.171,
+   "seconds": 2.343,
    "purpose": "A heavy old wooden castle door creaking open on iron hinges",
+   "source": "Stable Audio 3 small-sfx (local, CPU); door_open__s104.wav"
+  },
+  "floo_whoosh": {
+   "path": "assets/audio/transitions/floo_whoosh.wav",
+   "bus": "sfx",
+   "gain_db": -6.0,
+   "pitch_variation": 0.04,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 2.56,
+   "purpose": "Floo Network travel: powder ignites into roaring emerald flames sucked up the chimney",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (Blackweb Caverns S4, art/spider_caverns/audio)"
+  },
+  "goblin_alert": {
+   "path": "assets/audio/monsters/goblin_alert.wav",
+   "bus": "sfx",
+   "gain_db": -6.0,
+   "pitch_variation": 0.06,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 1.48,
+   "purpose": "Fantasy game monster: a small sly goblin bank guard, sharp nasal hiss of outrage, no words",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+  },
+  "goblin_attack": {
+   "path": "assets/audio/monsters/goblin_attack.wav",
+   "bus": "sfx",
+   "gain_db": -6.0,
+   "pitch_variation": 0.06,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 0.8,
+   "purpose": "Fantasy game monster: a small sly goblin bank guard, quick claw swipe with a vicious little snarl, short",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+  },
+  "goblin_death": {
+   "path": "assets/audio/monsters/goblin_death.wav",
+   "bus": "sfx",
+   "gain_db": -6.0,
+   "pitch_variation": 0.06,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 2.0,
+   "purpose": "Fantasy game monster death: a small sly goblin bank guard, strangled shriek and a jingle of spilled gold coins",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+  },
+  "goblin_move_1": {
+   "path": "assets/audio/monsters/goblin_move_01.wav",
+   "bus": "sfx",
+   "gain_db": -14.0,
+   "pitch_variation": 0.08,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 0.8,
+   "purpose": "Fantasy game monster: a small sly goblin bank guard, quick light footsteps and jingling keys, very short",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+  },
+  "goblin_move_2": {
+   "path": "assets/audio/monsters/goblin_move_02.wav",
+   "bus": "sfx",
+   "gain_db": -14.0,
+   "pitch_variation": 0.08,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 0.8,
+   "purpose": "Fantasy game monster: a small sly goblin bank guard, a wordless muttering hiss and soft footsteps, very short",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+  },
+  "goblin_move_3": {
+   "path": "assets/audio/monsters/goblin_move_03.wav",
+   "bus": "sfx",
+   "gain_db": -14.0,
+   "pitch_variation": 0.08,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 0.478,
+   "purpose": "Fantasy game monster: a small sly goblin bank guard, fast pattering little feet with coins clinking, very short",
    "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
   },
   "hound_alert": {
@@ -1035,9 +1139,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.828,
+   "seconds": 1.827,
    "purpose": "Fantasy game monster: a giant dog's savage snapping bite, jaws clacking shut with a vicious snarl",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/hound_attack.wav"
+   "source": "Stable Audio 3 small-sfx (local, CPU); hound_attack__s105.wav"
   },
   "hound_death": {
    "path": "assets/audio/monsters/hound_death.wav",
@@ -1113,9 +1217,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.737,
+   "seconds": 1.733,
    "purpose": "Fantasy game monster: an undead drowned corpse creature, grasping lunge with a rotten gurgle, short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); inferi_attack__s104.wav"
   },
   "inferi_death": {
    "path": "assets/audio/monsters/inferi_death.wav",
@@ -1139,9 +1243,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.8,
+   "seconds": 1.627,
    "purpose": "Fantasy game monster: an undead drowned corpse creature, slow shuffling wet footsteps with a low moan, very short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); inferi_move_1__s103.wav"
   },
   "inferi_move_2": {
    "path": "assets/audio/monsters/inferi_move_02.wav",
@@ -1152,9 +1256,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.779,
+   "seconds": 1.831,
    "purpose": "Fantasy game monster: an undead drowned corpse creature, a gurgling groan while dragging its feet, very short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); inferi_move_2__s103.wav"
   },
   "inferi_move_3": {
    "path": "assets/audio/monsters/inferi_move_03.wav",
@@ -1165,9 +1269,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.787,
+   "seconds": 1.869,
    "purpose": "Fantasy game monster: an undead drowned corpse creature, a raspy breath and wet shuffle, very short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); inferi_move_3__s101.wav"
   },
   "landing": {
    "path": "assets/audio/character/landing.wav",
@@ -1178,9 +1282,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.54,
+   "seconds": 0.742,
    "purpose": "A person landing on the ground after a short drop, solid soft thud with cloth rustle",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); landing__s103.wav"
   },
   "map_transition": {
    "path": "assets/audio/transitions/map_transition.wav",
@@ -1191,9 +1295,9 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 2.33,
+   "seconds": 4.267,
    "purpose": "Magical teleport: a swirling airy whoosh rising into a soft shimmering pop",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); map_transition__s101.wav"
   },
   "mount": {
    "path": "assets/audio/character/mount.wav",
@@ -1219,7 +1323,23 @@
    "sample_rate": 44100,
    "seconds": 150.05,
    "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Epic boss battle: massive dark choir chanting without words, thundering taiko and timpani, aggressive brass, fast frantic strings, dramatic and overwhelming, 150 bpm, consistent intensity, loopable.",
-   "source": "fal.ai elevenlabs/music/v2.5; tools/audio/audio_spec.json"
+   "source": "fal.ai elevenlabs/music/v2.5; tools/audio/audio_spec.json",
+   "variants": [
+    "music_boss_alt1"
+   ]
+  },
+  "music_boss_alt1": {
+   "path": "assets/audio/music/boss_alt1.mp3",
+   "bus": "music",
+   "gain_db": -11.0,
+   "pitch_variation": 0.0,
+   "loop": true,
+   "loop_mode": "forward",
+   "spatial": false,
+   "sample_rate": 44100,
+   "seconds": 118.0,
+   "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Epic boss battle: massive dark choir chanting without words, thundering taiko and timpani, aggressive brass, fast frantic strings, dramatic and overwhelming, 150 bpm, consistent intensity, loopable.",
+   "source": "Stable Audio 3 small-music (local, CPU); art/audio_sa3/alts_raw/music_boss__s203.wav"
   },
   "music_castle_a": {
    "path": "assets/audio/music/castle_a.mp3",
@@ -1232,7 +1352,23 @@
    "sample_rate": 44100,
    "seconds": 150.05,
    "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Inside an ancient magical castle: grand yet warm, harpsichord and pizzicato strings, woodwinds with a curious playful melody, soft celesta, a hint of mystery, moderate tempo, light.",
-   "source": "fal.ai elevenlabs/music/v2.5; tools/audio/audio_spec.json"
+   "source": "fal.ai elevenlabs/music/v2.5; tools/audio/audio_spec.json",
+   "variants": [
+    "music_castle_a_alt1"
+   ]
+  },
+  "music_castle_a_alt1": {
+   "path": "assets/audio/music/castle_a_alt1.mp3",
+   "bus": "music",
+   "gain_db": -11.0,
+   "pitch_variation": 0.0,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": false,
+   "sample_rate": 44100,
+   "seconds": 120.0,
+   "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Inside an ancient magical castle: grand yet warm, harpsichord and pizzicato strings, woodwinds with a curious playful melody, soft celesta, a hint of mystery, moderate tempo, light.",
+   "source": "Stable Audio 3 small-music (local, CPU); art/audio_sa3/alts_raw/music_castle_a__s203.wav"
   },
   "music_castle_b": {
    "path": "assets/audio/music/castle_b.mp3",
@@ -1245,7 +1381,23 @@
    "sample_rate": 44100,
    "seconds": 120.035,
    "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Quiet castle halls and old library at evening: solo piano and harp with soft strings, contemplative, warm candlelight mood, slow and calm, very gentle.",
-   "source": "fal.ai elevenlabs/music/v2.5; tools/audio/audio_spec.json"
+   "source": "fal.ai elevenlabs/music/v2.5; tools/audio/audio_spec.json",
+   "variants": [
+    "music_castle_b_alt1"
+   ]
+  },
+  "music_castle_b_alt1": {
+   "path": "assets/audio/music/castle_b_alt1.mp3",
+   "bus": "music",
+   "gain_db": -11.0,
+   "pitch_variation": 0.0,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": false,
+   "sample_rate": 44100,
+   "seconds": 120.0,
+   "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Quiet castle halls and old library at evening: solo piano and harp with soft strings, contemplative, warm candlelight mood, slow and calm, very gentle.",
+   "source": "Stable Audio 3 small-music (local, CPU); art/audio_sa3/alts_raw/music_castle_b__s203.wav"
   },
   "music_combat": {
    "path": "assets/audio/music/combat.mp3",
@@ -1258,7 +1410,23 @@
    "sample_rate": 44100,
    "seconds": 120.035,
    "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Battle music for fighting magical creatures: driving staccato strings, bold brass stabs, pounding orchestral percussion, urgent and heroic, fast tempo 140 bpm, consistent energy throughout, loopable.",
-   "source": "fal.ai elevenlabs/music/v2.5; tools/audio/audio_spec.json"
+   "source": "fal.ai elevenlabs/music/v2.5; tools/audio/audio_spec.json",
+   "variants": [
+    "music_combat_alt1"
+   ]
+  },
+  "music_combat_alt1": {
+   "path": "assets/audio/music/combat_alt1.mp3",
+   "bus": "music",
+   "gain_db": -12.0,
+   "pitch_variation": 0.0,
+   "loop": true,
+   "loop_mode": "forward",
+   "spatial": false,
+   "sample_rate": 44100,
+   "seconds": 118.0,
+   "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Battle music for fighting magical creatures: driving staccato strings, bold brass stabs, pounding orchestral percussion, urgent and heroic, fast tempo 140 bpm, consistent energy throughout, loopable.",
+   "source": "Stable Audio 3 small-music (local, CPU); art/audio_sa3/alts_raw/music_combat__s201.wav"
   },
   "music_corridor": {
    "path": "assets/audio/music/forbidden_corridor.mp3",
@@ -1271,7 +1439,23 @@
    "sample_rate": 44100,
    "seconds": 120.035,
    "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Forbidden corridor suspense: creeping staccato low strings, heartbeat-like soft drum pulse, eerie high violin harmonics, building tension, something huge lurks nearby, slow and menacing.",
-   "source": "fal.ai elevenlabs/music/v2.5; tools/audio/audio_spec.json"
+   "source": "fal.ai elevenlabs/music/v2.5; tools/audio/audio_spec.json",
+   "variants": [
+    "music_corridor_alt1"
+   ]
+  },
+  "music_corridor_alt1": {
+   "path": "assets/audio/music/forbidden_corridor_alt1.mp3",
+   "bus": "music",
+   "gain_db": -11.0,
+   "pitch_variation": 0.0,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": false,
+   "sample_rate": 44100,
+   "seconds": 120.0,
+   "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Forbidden corridor suspense: creeping staccato low strings, heartbeat-like soft drum pulse, eerie high violin harmonics, building tension, something huge lurks nearby, slow and menacing.",
+   "source": "Stable Audio 3 small-music (local, CPU); art/audio_sa3/alts_raw/music_corridor__s204.wav"
   },
   "music_dungeon": {
    "path": "assets/audio/music/dungeon.mp3",
@@ -1284,7 +1468,23 @@
    "sample_rate": 44100,
    "seconds": 150.05,
    "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Dark underground dungeon: deep ominous low brass and contrabass drones, slow distant timpani pulses, creeping tremolo strings, metallic scrapes, dread and suspense, slow.",
-   "source": "fal.ai elevenlabs/music/v2.5; tools/audio/audio_spec.json"
+   "source": "fal.ai elevenlabs/music/v2.5; tools/audio/audio_spec.json",
+   "variants": [
+    "music_dungeon_alt1"
+   ]
+  },
+  "music_dungeon_alt1": {
+   "path": "assets/audio/music/dungeon_alt1.mp3",
+   "bus": "music",
+   "gain_db": -11.0,
+   "pitch_variation": 0.0,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": false,
+   "sample_rate": 44100,
+   "seconds": 120.0,
+   "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Dark underground dungeon: deep ominous low brass and contrabass drones, slow distant timpani pulses, creeping tremolo strings, metallic scrapes, dread and suspense, slow.",
+   "source": "Stable Audio 3 small-music (local, CPU); art/audio_sa3/alts_raw/music_dungeon__s203.wav"
   },
   "music_flight": {
    "path": "assets/audio/music/flight.mp3",
@@ -1297,7 +1497,23 @@
    "sample_rate": 44100,
    "seconds": 120.035,
    "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Soaring broomstick flight over castle grounds: uplifting sweeping strings, soaring french horn melody, glittering celesta and harp runs, exhilarating and free, moderate-fast tempo, joyful.",
-   "source": "fal.ai elevenlabs/music/v2.5; tools/audio/audio_spec.json"
+   "source": "fal.ai elevenlabs/music/v2.5; tools/audio/audio_spec.json",
+   "variants": [
+    "music_flight_alt1"
+   ]
+  },
+  "music_flight_alt1": {
+   "path": "assets/audio/music/flight_alt1.mp3",
+   "bus": "music",
+   "gain_db": -11.0,
+   "pitch_variation": 0.0,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": false,
+   "sample_rate": 44100,
+   "seconds": 120.0,
+   "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Soaring broomstick flight over castle grounds: uplifting sweeping strings, soaring french horn melody, glittering celesta and harp runs, exhilarating and free, moderate-fast tempo, joyful.",
+   "source": "Stable Audio 3 small-music (local, CPU); art/audio_sa3/alts_raw/music_flight__s202.wav"
   },
   "music_forest": {
    "path": "assets/audio/music/forest.mp3",
@@ -1310,7 +1526,23 @@
    "sample_rate": 44100,
    "seconds": 150.05,
    "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Mysterious ancient forest exploration: low sustained strings, sparse alto flute, soft harp ostinato, distant french horn, slightly uneasy and curious, slow tempo, quiet.",
-   "source": "fal.ai elevenlabs/music/v2.5; tools/audio/audio_spec.json"
+   "source": "fal.ai elevenlabs/music/v2.5; tools/audio/audio_spec.json",
+   "variants": [
+    "music_forest_alt1"
+   ]
+  },
+  "music_forest_alt1": {
+   "path": "assets/audio/music/forest_alt1.mp3",
+   "bus": "music",
+   "gain_db": -11.0,
+   "pitch_variation": 0.0,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": false,
+   "sample_rate": 44100,
+   "seconds": 120.0,
+   "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Mysterious ancient forest exploration: low sustained strings, sparse alto flute, soft harp ostinato, distant french horn, slightly uneasy and curious, slow tempo, quiet.",
+   "source": "Stable Audio 3 small-music (local, CPU); art/audio_sa3/alts_raw/music_forest__s203.wav"
   },
   "music_grounds_a": {
    "path": "assets/audio/music/grounds_a.mp3",
@@ -1323,7 +1555,23 @@
    "sample_rate": 44100,
    "seconds": 150.05,
    "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Peaceful exploration music for sunny castle grounds: gentle flute and clarinet melody, plucked harp, light strings, pastoral and calm, airy and relaxed, soft dynamics, no drums.",
-   "source": "fal.ai elevenlabs/music/v2.5; tools/audio/audio_spec.json"
+   "source": "fal.ai elevenlabs/music/v2.5; tools/audio/audio_spec.json",
+   "variants": [
+    "music_grounds_a_alt1"
+   ]
+  },
+  "music_grounds_a_alt1": {
+   "path": "assets/audio/music/grounds_a_alt1.mp3",
+   "bus": "music",
+   "gain_db": -11.0,
+   "pitch_variation": 0.0,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": false,
+   "sample_rate": 44100,
+   "seconds": 120.0,
+   "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Peaceful exploration music for sunny castle grounds: gentle flute and clarinet melody, plucked harp, light strings, pastoral and calm, airy and relaxed, soft dynamics, no drums.",
+   "source": "Stable Audio 3 small-music (local, CPU); art/audio_sa3/alts_raw/music_grounds_a__s201.wav"
   },
   "music_grounds_b": {
    "path": "assets/audio/music/grounds_b.mp3",
@@ -1336,7 +1584,23 @@
    "sample_rate": 44100,
    "seconds": 150.05,
    "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Calm magical wandering theme: celesta and glockenspiel sparkles, oboe melody, warm string pads, whimsical yet serene, slow tempo, very gentle, no drums.",
-   "source": "fal.ai elevenlabs/music/v2.5; tools/audio/audio_spec.json"
+   "source": "fal.ai elevenlabs/music/v2.5; tools/audio/audio_spec.json",
+   "variants": [
+    "music_grounds_b_alt1"
+   ]
+  },
+  "music_grounds_b_alt1": {
+   "path": "assets/audio/music/grounds_b_alt1.mp3",
+   "bus": "music",
+   "gain_db": -11.0,
+   "pitch_variation": 0.0,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": false,
+   "sample_rate": 44100,
+   "seconds": 120.0,
+   "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Calm magical wandering theme: celesta and glockenspiel sparkles, oboe melody, warm string pads, whimsical yet serene, slow tempo, very gentle, no drums.",
+   "source": "Stable Audio 3 small-music (local, CPU); art/audio_sa3/alts_raw/music_grounds_b__s201.wav"
   },
   "music_menu": {
    "path": "assets/audio/music/menu_theme.mp3",
@@ -1349,7 +1613,23 @@
    "sample_rate": 44100,
    "seconds": 150.05,
    "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Main menu theme for a magical wizard school MMO: a mysterious, wondrous celesta melody over soft strings and harp, warm horns join, sense of wonder and nostalgia, waltz feel 3/4, moderate tempo, grows gently then settles.",
-   "source": "fal.ai elevenlabs/music/v2.5; tools/audio/audio_spec.json"
+   "source": "fal.ai elevenlabs/music/v2.5; tools/audio/audio_spec.json",
+   "variants": [
+    "music_menu_alt1"
+   ]
+  },
+  "music_menu_alt1": {
+   "path": "assets/audio/music/menu_theme_alt1.mp3",
+   "bus": "music",
+   "gain_db": -11.0,
+   "pitch_variation": 0.0,
+   "loop": true,
+   "loop_mode": "forward",
+   "spatial": false,
+   "sample_rate": 44100,
+   "seconds": 118.0,
+   "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Main menu theme for a magical wizard school MMO: a mysterious, wondrous celesta melody over soft strings and harp, warm horns join, sense of wonder and nostalgia, waltz feel 3/4, moderate tempo, grows gently then settles.",
+   "source": "Stable Audio 3 small-music (local, CPU); art/audio_sa3/alts_raw/music_menu__s201.wav"
   },
   "music_village": {
    "path": "assets/audio/music/village.mp3",
@@ -1362,7 +1642,23 @@
    "sample_rate": 44100,
    "seconds": 110.031,
    "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Cozy fantasy village tavern-town music: acoustic lute, fiddle and recorder, light hand percussion, warm, friendly and relaxed, folk medieval feel, moderate tempo.",
-   "source": "fal.ai elevenlabs/music/v2.5; tools/audio/audio_spec.json"
+   "source": "fal.ai elevenlabs/music/v2.5; tools/audio/audio_spec.json",
+   "variants": [
+    "music_village_alt1"
+   ]
+  },
+  "music_village_alt1": {
+   "path": "assets/audio/music/village_alt1.mp3",
+   "bus": "music",
+   "gain_db": -11.0,
+   "pitch_variation": 0.0,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": false,
+   "sample_rate": 44100,
+   "seconds": 110.031,
+   "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Cozy fantasy village tavern-town music: acoustic lute, fiddle and recorder, light hand percussion, warm, friendly and relaxed, folk medieval feel, moderate tempo.",
+   "source": "Stable Audio 3 small-music (local, CPU); art/audio_sa3/alts_raw/music_village__s203.wav"
   },
   "music_wilds": {
    "path": "assets/audio/music/wilds_dark.mp3",
@@ -1375,7 +1671,36 @@
    "sample_rate": 44100,
    "seconds": 150.05,
    "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Dark dangerous wilderness, misty moors and haunted marshes: eerie low cello drones, dissonant soft choir pads, sparse piano notes, cold wind-like textures, tense and lonely, slow, quiet but unsettling.",
-   "source": "fal.ai elevenlabs/music/v2.5; tools/audio/audio_spec.json"
+   "source": "fal.ai elevenlabs/music/v2.5; tools/audio/audio_spec.json",
+   "variants": [
+    "music_wilds_alt1"
+   ]
+  },
+  "music_wilds_alt1": {
+   "path": "assets/audio/music/wilds_dark_alt1.mp3",
+   "bus": "music",
+   "gain_db": -11.0,
+   "pitch_variation": 0.0,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": false,
+   "sample_rate": 44100,
+   "seconds": 120.0,
+   "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Dark dangerous wilderness, misty moors and haunted marshes: eerie low cello drones, dissonant soft choir pads, sparse piano notes, cold wind-like textures, tense and lonely, slow, quiet but unsettling.",
+   "source": "Stable Audio 3 small-music (local, CPU); art/audio_sa3/alts_raw/music_wilds__s203.wav"
+  },
+  "passage_stone": {
+   "path": "assets/audio/transitions/passage_stone.wav",
+   "bus": "sfx",
+   "gain_db": -6.0,
+   "pitch_variation": 0.03,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 2.56,
+   "purpose": "The One-Eyed Witch passage: stone grinding aside, trickling dust",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (Blackweb Caverns S7, art/spider_caverns/audio)"
   },
   "pixie_alert": {
    "path": "assets/audio/monsters/pixie_alert.wav",
@@ -1386,9 +1711,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 1.103,
-   "purpose": "Fantasy game monster: a swarm of tiny pixies shrieking excitedly, high-pitched chatter and buzzing",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/pixie_alert.wav"
+   "seconds": 0.566,
+   "purpose": "tiny high-pitched girlish giggles and squeaky excited chatter of little fairies, cartoon, playful",
+   "source": "Stable Audio 3 small-sfx or small-music (local, CPU); pixie_alert__s306.wav@0.08s"
   },
   "pixie_attack": {
    "path": "assets/audio/monsters/pixie_attack.wav",
@@ -1399,9 +1724,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.6,
-   "purpose": "Fantasy game monster: a tiny creature's quick scratch and pinch with a squeaky cackle, very short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/pixie_attack.wav"
+   "seconds": 0.417,
+   "purpose": "a tiny high-pitched angry squeak with a quick little hiss, cartoon fairy, very short",
+   "source": "Stable Audio 3 small-sfx or small-music (local, CPU); pixie_attack__s302.wav@0.00s"
   },
   "pixie_death": {
    "path": "assets/audio/monsters/pixie_death.wav",
@@ -1412,9 +1737,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.8,
-   "purpose": "Fantasy game monster: a tiny fairy's squeal popping into silence with a fading wing buzz, short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/pixie_death.wav"
+   "seconds": 0.84,
+   "purpose": "a tiny high-pitched squeal falling in pitch then a soft pop, cartoon fairy",
+   "source": "Sonniss GDC 2026 Game Audio Bundle, art/audio_sonniss/raw; pixie_death__x1.wav"
   },
   "pixie_move_1": {
    "path": "assets/audio/monsters/pixie_move_1.wav",
@@ -1425,9 +1750,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.8,
-   "purpose": "Fantasy game monster: a tiny fairy's fast buzzing insect wings with a high-pitched giggle, very short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/pixie_move_1.wav"
+   "seconds": 1.5,
+   "purpose": "small insect wings buzzing quickly with a tiny high giggle, cartoon fairy",
+   "source": "Sonniss GDC 2026 Game Audio Bundle, art/audio_sonniss/raw; pixie_move_1__x2.wav"
   },
   "pixie_move_2": {
    "path": "assets/audio/monsters/pixie_move_2.wav",
@@ -1438,9 +1763,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.763,
+   "seconds": 1.618,
    "purpose": "Fantasy game monster: a small mischievous pixie's shrill chittering laugh with wing buzz, very short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/pixie_move_2.wav"
+   "source": "Stable Audio 3 small-sfx (local, CPU); pixie_move_2__s104.wav"
   },
   "pixie_move_3": {
    "path": "assets/audio/monsters/pixie_move_3.wav",
@@ -1451,48 +1776,61 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.8,
-   "purpose": "Fantasy game monster: rapid dragonfly wing flutter with a squeaky gibbering voice, very short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/pixie_move_3.wav"
+   "seconds": 1.246,
+   "purpose": "fast hummingbird wing flutter passing close by, short",
+   "source": "Sonniss GDC 2026 Game Audio Bundle, art/audio_sonniss/raw; pixie_move_3__x1.wav"
+  },
+  "portkey_whoosh": {
+   "path": "assets/audio/transitions/portkey_whoosh.wav",
+   "bus": "sfx",
+   "gain_db": -6.0,
+   "pitch_variation": 0.03,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 4.583,
+   "purpose": "A Portkey activating: rising blue chime, a yank into a spinning whirlwind",
+   "source": "Stable Audio 3 small-sfx (local, CPU); portkey_whoosh__s105.wav"
   },
   "robe_1": {
    "path": "assets/audio/character/robe_01.wav",
    "bus": "sfx",
-   "gain_db": -18.0,
+   "gain_db": -26.0,
    "pitch_variation": 0.08,
    "loop": false,
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.564,
+   "seconds": 1.24,
    "purpose": "Heavy wool robe fabric swishing as someone turns",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); robe_1__s103.wav"
   },
   "robe_2": {
    "path": "assets/audio/character/robe_02.wav",
    "bus": "sfx",
-   "gain_db": -18.0,
+   "gain_db": -26.0,
    "pitch_variation": 0.08,
    "loop": false,
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.6,
+   "seconds": 1.942,
    "purpose": "Cloak cloth rustling briefly with movement",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); robe_2__s103.wav"
   },
   "robe_3": {
    "path": "assets/audio/character/robe_03.wav",
    "bus": "sfx",
-   "gain_db": -18.0,
+   "gain_db": -26.0,
    "pitch_variation": 0.08,
    "loop": false,
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.575,
+   "seconds": 1.83,
    "purpose": "A long robe flapping softly once",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); robe_3__s103.wav"
   },
   "snare_alert": {
    "path": "assets/audio/monsters/snare_alert.wav",
@@ -1503,9 +1841,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 1.6,
-   "purpose": "Fantasy game monster: a giant carnivorous plant hissing awake, leaves rustling violently and wood creaking",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/snare_alert.wav"
+   "seconds": 3.031,
+   "purpose": "thick wooden vines creaking and twisting, leaves rustling, a giant plant waking up, creepy",
+   "source": "Stable Audio 3 small-sfx or small-music (local, CPU); snare_alert__s306.wav@0.02s"
   },
   "snare_attack": {
    "path": "assets/audio/monsters/snare_attack.wav",
@@ -1516,9 +1854,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.701,
+   "seconds": 1.632,
    "purpose": "Fantasy game monster: a thorny vine whip lashing through the air with a wet crack",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/snare_attack.wav"
+   "source": "Stable Audio 3 small-sfx (local, CPU); snare_attack__s101.wav"
   },
   "snare_death": {
    "path": "assets/audio/monsters/snare_death.wav",
@@ -1529,9 +1867,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 2.106,
+   "seconds": 4.37,
    "purpose": "Fantasy game monster: a huge plant shrivelling and burning, crackling wood, a long dying hiss",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/snare_death.wav"
+   "source": "Stable Audio 3 small-sfx (local, CPU); snare_death__s104.wav"
   },
   "snare_move_1": {
    "path": "assets/audio/monsters/snare_move_1.wav",
@@ -1555,9 +1893,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.918,
+   "seconds": 1.785,
    "purpose": "Fantasy game monster: a monstrous plant's wet tendrils rustling and tightening, very short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/snare_move_2.wav"
+   "source": "Stable Audio 3 small-sfx (local, CPU); snare_move_2__s101.wav"
   },
   "snare_move_3": {
    "path": "assets/audio/monsters/snare_move_3.wav",
@@ -1568,9 +1906,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.769,
+   "seconds": 2.115,
    "purpose": "Fantasy game monster: woody roots groaning and cracking as they shift underground, very short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/snare_move_3.wav"
+   "source": "Stable Audio 3 small-sfx (local, CPU); snare_move_3__s105.wav"
   },
   "snatcher_alert": {
    "path": "assets/audio/monsters/snatcher_alert.wav",
@@ -1581,9 +1919,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.705,
-   "purpose": "Fantasy game monster: a hooded dark wizard bandit, rasping snarl as he spots prey",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "seconds": 0.25,
+   "purpose": "a rough man shouting angrily, a short gruff yell, human male voice, close",
+   "source": "Sonniss GDC 2026 Game Audio Bundle, art/audio_sonniss/raw; snatcher_alert__x2.wav"
   },
   "snatcher_attack": {
    "path": "assets/audio/monsters/snatcher_attack.wav",
@@ -1594,9 +1932,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.8,
-   "purpose": "Fantasy game monster: a hooded dark wizard bandit, lunging curse with a nasty grunt, short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "seconds": 0.399,
+   "purpose": "a man's short aggressive effort grunt as he swings, human male voice, close",
+   "source": "Sonniss GDC 2026 Game Audio Bundle, art/audio_sonniss/raw; snatcher_attack__x3.wav"
   },
   "snatcher_death": {
    "path": "assets/audio/monsters/snatcher_death.wav",
@@ -1607,9 +1945,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 2.0,
-   "purpose": "Fantasy game monster death: a hooded dark wizard bandit, choked rasp and body collapse",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "seconds": 0.845,
+   "purpose": "a man's pained dying groan fading out, human male voice, then a body falling to the ground",
+   "source": "Stable Audio 3 small-sfx or small-music (local, CPU); snatcher_death__s304.wav@0.18s"
   },
   "snatcher_move_1": {
    "path": "assets/audio/monsters/snatcher_move_01.wav",
@@ -1620,9 +1958,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.728,
-   "purpose": "Fantasy game monster: a hooded dark wizard bandit, rasping breath and quick boot steps, very short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "seconds": 0.754,
+   "purpose": "a man's heavy breathing while running, human male voice, close",
+   "source": "Stable Audio 3 small-sfx or small-music (local, CPU); snatcher_move_1__s305.wav@1.62s"
   },
   "snatcher_move_2": {
    "path": "assets/audio/monsters/snatcher_move_02.wav",
@@ -1633,9 +1971,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.76,
-   "purpose": "Fantasy game monster: a hooded dark wizard bandit, a low mutter-less growl and cloak swish, very short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "seconds": 0.948,
+   "purpose": "a man's low annoyed grunt, human male voice, short",
+   "source": "Stable Audio 3 small-sfx or small-music (local, CPU); snatcher_move_2__s306.wav@1.04s"
   },
   "snatcher_move_3": {
    "path": "assets/audio/monsters/snatcher_move_03.wav",
@@ -1646,9 +1984,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.8,
-   "purpose": "Fantasy game monster: a hooded dark wizard bandit, heavy breathing while running, very short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "seconds": 1.44,
+   "purpose": "a man's low annoyed grunt, human male voice, short",
+   "source": "Sonniss GDC 2026 Game Audio Bundle, art/audio_sonniss/raw; snatcher_move_2__x2.wav@0.00s"
   },
   "spell_basic_cast_cast": {
    "path": "assets/audio/spells/basic_cast/cast.wav",
@@ -1659,9 +1997,13 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.48,
-   "purpose": "Fantasy game basic attack: a quick light wand flick firing a small golden sparkle bolt, airy swish with a soft magical chime, very short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_basic_cast_cast.wav"
+   "seconds": 0.152,
+   "purpose": "a quick soft airy whoosh of a thin stick swung fast through the air, very short swish",
+   "source": "Stable Audio 3 small-sfx or small-music (local, CPU); spell_basic_cast_cast__s304.wav@1.91s",
+   "variants": [
+    "spell_basic_cast_cast_2",
+    "spell_basic_cast_cast_3"
+   ]
   },
   "spell_basic_cast_cast_2": {
    "path": "assets/audio/spells/basic_cast/cast_02.wav",
@@ -1672,9 +2014,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.351,
-   "purpose": "Fantasy game: a fast backhand wand slash, sharp whoosh of air with a bright golden magic shimmer, very short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_basic_cast_cast_2.wav"
+   "seconds": 0.323,
+   "purpose": "a fast sharp swish of a thin rod cutting the air, very short",
+   "source": "Stable Audio 3 small-sfx or small-music (local, CPU); spell_basic_cast_cast_2__s306.wav@0.02s"
   },
   "spell_basic_cast_cast_3": {
    "path": "assets/audio/spells/basic_cast/cast_03.wav",
@@ -1685,9 +2027,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.526,
-   "purpose": "Fantasy game combo finisher: a heavy two-handed magic push, deep whoosh building into a strong golden energy blast release, punchy",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_basic_cast_cast_3.wav"
+   "seconds": 0.697,
+   "purpose": "a deep heavy whoosh ending in a punchy soft thump, short",
+   "source": "Stable Audio 3 small-sfx or small-music (local, CPU); spell_basic_cast_cast_3__s305.wav@0.12s"
   },
   "spell_basic_cast_end": {
    "path": "assets/audio/spells/basic_cast/end.wav",
@@ -1713,7 +2055,10 @@
    "sample_rate": 44100,
    "seconds": 0.329,
    "purpose": "Small golden magic bolt hits a target, crisp sparkly pop with a light thud, very short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_basic_cast_impact.wav"
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_basic_cast_impact.wav",
+   "variants": [
+    "spell_basic_cast_impact_2"
+   ]
   },
   "spell_basic_cast_impact_2": {
    "path": "assets/audio/spells/basic_cast/impact_02.wav",
@@ -1737,9 +2082,9 @@
    "loop_mode": "forward",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 1.44,
-   "purpose": "Small golden magic bolt flying through the air, soft sparkling hum with faint twinkles, steady seamless loop",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_basic_cast_travel.wav"
+   "seconds": 1.94,
+   "purpose": "Small golden magic bolt flying through the air, soft shimmer hum with faint shimmer, steady seamless loop",
+   "source": "Stable Audio 3 small-sfx (local, CPU); spell_basic_cast_travel__s104.wav"
   },
   "spell_bombarda_cast": {
    "path": "assets/audio/spells/bombarda/cast.wav",
@@ -1828,9 +2173,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.564,
+   "seconds": 1.412,
    "purpose": "Disarming spell hit: a sharp magical crack that knocks a weapon away with a metallic clatter and a whoosh, short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_expelliarmus_impact.wav"
+   "source": "Stable Audio 3 small-sfx (local, CPU); spell_expelliarmus_impact__s103.wav"
   },
   "spell_expelliarmus_travel": {
    "path": "assets/audio/spells/expelliarmus/travel.wav",
@@ -1841,9 +2186,61 @@
    "loop_mode": "forward",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 1.44,
+   "seconds": 1.94,
    "purpose": "A spinning crimson magic bolt flying, fast whirring hum with a twisting shimmer, steady seamless loop",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_expelliarmus_travel.wav"
+   "source": "Stable Audio 3 small-sfx (local, CPU); spell_expelliarmus_travel__s102.wav"
+  },
+  "spell_glacius_cast": {
+   "path": "assets/audio/spells/glacius/cast.wav",
+   "bus": "sfx",
+   "gain_db": -2.5,
+   "pitch_variation": 0.02,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 1.36,
+   "purpose": "Ice magic spell charge: a quick rising crystalline shimmer with frosty crackling and a cold airy hiss, then a sharp glassy release, fantasy",
+   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_glacius_cast.wav"
+  },
+  "spell_glacius_end": {
+   "path": "assets/audio/spells/glacius/end.wav",
+   "bus": "sfx",
+   "gain_db": -6.5,
+   "pitch_variation": 0.03,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 2.4,
+   "purpose": "Ice slowly cracking and melting after a frost blast: soft shimmer, tiny ice fragments tinkling and a gentle cold hiss fading away",
+   "source": "Stable Audio 3 small-sfx (local, CPU); spell_glacius_end__s105.wav"
+  },
+  "spell_glacius_impact": {
+   "path": "assets/audio/spells/glacius/impact.wav",
+   "bus": "sfx",
+   "gain_db": 0.0,
+   "pitch_variation": 0.02,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 1.951,
+   "purpose": "Frost nova explosion: a powerful icy burst with ice shattering like breaking glass, sharp crystalline cracks, a deep cold whoosh and freezing shimmer spreading outward, fantasy magic impact",
+   "source": "Stable Audio 3 small-sfx (local, CPU); spell_glacius_impact__s101.wav"
+  },
+  "spell_glacius_travel": {
+   "path": "assets/audio/spells/glacius/travel.wav",
+   "bus": "sfx",
+   "gain_db": -5.0,
+   "pitch_variation": 0.03,
+   "loop": true,
+   "loop_mode": "forward",
+   "spatial": true,
+   "sample_rate": 44100,
+   "seconds": 1.94,
+   "purpose": "A spinning magical ice crystal flying through the air: a cold whistling whoosh with a soft glassy ringing hum and tiny tinkling ice chimes, seamless loop",
+   "source": "Stable Audio 3 small-sfx (local, CPU); spell_glacius_travel__s104.wav"
   },
   "spell_incendio_cast": {
    "path": "assets/audio/spells/incendio/cast.wav",
@@ -1854,9 +2251,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.848,
+   "seconds": 2.296,
    "purpose": "Fire spell: a roaring burst of flame bursting from a wand like a short flamethrower whoosh, crackling fire",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_incendio_cast.wav"
+   "source": "Stable Audio 3 small-sfx (local, CPU); spell_incendio_cast__s105.wav"
   },
   "spell_incendio_end": {
    "path": "assets/audio/spells/incendio/end.wav",
@@ -1867,9 +2264,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.8,
+   "seconds": 2.221,
    "purpose": "Fire dies down, a hiss of smoke and last crackles fading, short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_incendio_end.wav"
+   "source": "Stable Audio 3 small-sfx (local, CPU); spell_incendio_end__s101.wav"
   },
   "spell_incendio_impact": {
    "path": "assets/audio/spells/incendio/impact.wav",
@@ -1880,9 +2277,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.506,
+   "seconds": 1.728,
    "purpose": "Flames engulf a target, fiery whoomph with crackling embers, short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_incendio_impact.wav"
+   "source": "Stable Audio 3 small-sfx (local, CPU); spell_incendio_impact__s101.wav"
   },
   "spell_incendio_sustain": {
    "path": "assets/audio/spells/incendio/sustain.wav",
@@ -1906,9 +2303,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 1.2,
+   "seconds": 2.101,
    "purpose": "Fantasy game protective spell: a bright silvery magical burst from a wand, shimmering crystalline whoosh rushing forward like a charging spirit, warm radiant glow",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_patronum_cast.wav"
+   "source": "Stable Audio 3 small-sfx (local, CPU); spell_patronum_cast__s102.wav"
   },
   "spell_patronum_impact": {
    "path": "assets/audio/spells/patronum/impact.wav",
@@ -1919,9 +2316,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.8,
+   "seconds": 1.764,
    "purpose": "Fantasy game: a silver light spirit slamming through a dark creature, bright crystalline shatter with a soft radiant swell, short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_patronum_impact.wav"
+   "source": "Stable Audio 3 small-sfx (local, CPU); spell_patronum_impact__s104.wav"
   },
   "spell_protego_cast": {
    "path": "assets/audio/spells/protego/cast.wav",
@@ -1958,9 +2355,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.68,
+   "seconds": 1.819,
    "purpose": "A projectile deflects off a magic glass shield, bright ringing ping with a resonant reflection whoosh, short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_protego_impact.wav"
+   "source": "Stable Audio 3 small-sfx (local, CPU); spell_protego_impact__s105.wav"
   },
   "spell_protego_sustain": {
    "path": "assets/audio/spells/protego/sustain.wav",
@@ -1984,9 +2381,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.8,
-   "purpose": "Fantasy game spell cast: a sharp magical wand crack with a bright red energy zap whooshing forward, punchy and short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_stupefy_cast.wav"
+   "seconds": 1.177,
+   "purpose": "Wizard fires a spell: a sharp magical swish followed by a resonant energy whoosh flying away, punchy, short",
+   "source": "Stable Audio 3 small-sfx run locally (client/tools/audio/sa3_generate.py); art/audio_sa3/local/c3_p2_s56.wav"
   },
   "spell_stupefy_end": {
    "path": "assets/audio/spells/stupefy/end.wav",
@@ -1997,9 +2394,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.8,
-   "purpose": "Dizzy stunned daze: faint ringing chimes and fading electric crackle, short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_stupefy_end.wav"
+   "seconds": 0.939,
+   "purpose": "Stunned enemy: a brief muffled low thud with a short high ringing in the ears, like being dazed, fades quickly",
+   "source": "Stable Audio 3 small-sfx run locally (client/tools/audio/sa3_generate.py); art/audio_sa3/local/s3_p2_s71.wav"
   },
   "spell_stupefy_impact": {
    "path": "assets/audio/spells/stupefy/impact.wav",
@@ -2010,9 +2407,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.847,
-   "purpose": "Fantasy game hit: a stunning red magic bolt slams into a target with a crackling electric burst and a heavy thump, short tail",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_stupefy_impact.wav"
+   "seconds": 1.372,
+   "purpose": "Fantasy magic spell impact: a red energy blast slams into a body, deep punchy thump with a bright electric crack and scattering sizzling sparks, short tail, close",
+   "source": "Stable Audio 3 small-sfx via the official stabilityai/stable-audio-3 Hugging Face Space; art/audio_sa3/spell_stupefy_impact.wav"
   },
   "spell_stupefy_travel": {
    "path": "assets/audio/spells/stupefy/travel.wav",
@@ -2023,9 +2420,9 @@
    "loop_mode": "forward",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 1.59,
-   "purpose": "A crackling red stunning spell bolt flying fast, electric buzzing hum with sizzling sparks, steady seamless loop",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_stupefy_travel.wav"
+   "seconds": 2.84,
+   "purpose": "Constant swirling magic energy whoosh, deep rumbling tonal hum and soft wind, sustained at an even level, seamless loop",
+   "source": "Stable Audio 3 small-sfx run locally (client/tools/audio/sa3_generate.py); art/audio_sa3/local/travel_p1_c10_s41.wav"
   },
   "spell_ultimate_cast": {
    "path": "assets/audio/spells/ultimate/cast.wav",
@@ -2088,9 +2485,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 1.08,
+   "seconds": 2.367,
    "purpose": "Fantasy game monster: a giant spider, agitated hiss and chitin clicking",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); spider_alert__s102.wav"
   },
   "spider_bite": {
    "path": "assets/audio/monsters/spider_bite.wav",
@@ -2101,9 +2498,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.526,
+   "seconds": 1.593,
    "purpose": "Fantasy game monster: a giant spider, fast venomous bite snap with a hiss, short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); spider_bite__s103.wav"
   },
   "spider_death": {
    "path": "assets/audio/monsters/spider_death.wav",
@@ -2114,9 +2511,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 2.0,
+   "seconds": 1.571,
    "purpose": "Fantasy game monster death: a giant spider, chitin crunch and expiring hiss, legs twitching",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); spider_death__s101.wav"
   },
   "spider_move_1": {
    "path": "assets/audio/monsters/spider_move_01.wav",
@@ -2127,9 +2524,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.8,
+   "seconds": 2.181,
    "purpose": "Fantasy game monster: a giant spider, many legs skittering fast on the ground, very short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); spider_move_1__s104.wav"
   },
   "spider_move_2": {
    "path": "assets/audio/monsters/spider_move_02.wav",
@@ -2140,9 +2537,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.8,
+   "seconds": 2.241,
    "purpose": "Fantasy game monster: a giant spider, chitin legs clicking while crawling, very short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); spider_move_2__s105.wav"
   },
   "spider_move_3": {
    "path": "assets/audio/monsters/spider_move_03.wav",
@@ -2153,105 +2550,105 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.8,
+   "seconds": 1.845,
    "purpose": "Fantasy game monster: a giant spider, quick hairy legs scuttling, very short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); spider_move_3__s105.wav"
   },
   "step_dirt_1": {
    "path": "assets/audio/footsteps/dirt_01.wav",
    "bus": "sfx",
-   "gain_db": -13.0,
+   "gain_db": -20.0,
    "pitch_variation": 0.07,
    "loop": false,
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.3,
+   "seconds": 0.309,
    "purpose": "A single light footstep of a person in soft leather boots on a dry dirt path, one step only, variation 1",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); step_dirt_1__s102.wav"
   },
   "step_dirt_2": {
    "path": "assets/audio/footsteps/dirt_02.wav",
    "bus": "sfx",
-   "gain_db": -13.0,
+   "gain_db": -20.0,
    "pitch_variation": 0.07,
    "loop": false,
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.3,
+   "seconds": 0.398,
    "purpose": "A single light footstep of a person in soft leather boots on a dry dirt path, one step only, variation 2",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); step_dirt_2__s101.wav"
   },
   "step_dirt_3": {
    "path": "assets/audio/footsteps/dirt_03.wav",
    "bus": "sfx",
-   "gain_db": -13.0,
+   "gain_db": -20.0,
    "pitch_variation": 0.07,
    "loop": false,
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.3,
-   "purpose": "A single light footstep of a person in soft leather boots on a dry dirt path, one step only, variation 3",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "seconds": 0.318,
+   "purpose": "slow footsteps walking on a dry dirt path, outdoors, soft leather boots, close, distinct separate steps",
+   "source": "Stable Audio 3 small-sfx or small-music (local, CPU); step_dirt_3__s304.wav@1.18s"
   },
   "step_dirt_4": {
    "path": "assets/audio/footsteps/dirt_04.wav",
    "bus": "sfx",
-   "gain_db": -13.0,
+   "gain_db": -20.0,
    "pitch_variation": 0.07,
    "loop": false,
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.3,
-   "purpose": "A single light footstep of a person in soft leather boots on a dry dirt path, one step only, variation 4",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "seconds": 0.289,
+   "purpose": "single footstep on a dry dirt path (other steps of the liked walk)",
+   "source": "Stable Audio 3 small-sfx or small-music (local, CPU); step_dirt_4__e303_559.wav@0.00s"
   },
   "step_grass_1": {
    "path": "assets/audio/footsteps/grass_01.wav",
    "bus": "sfx",
-   "gain_db": -13.0,
+   "gain_db": -20.0,
    "pitch_variation": 0.07,
    "loop": false,
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.3,
-   "purpose": "A single light footstep of a person in soft leather boots on soft grass, one step only, variation 1",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "seconds": 0.312,
+   "purpose": "slow footsteps walking on soft grass, outdoors, soft leather boots, close, distinct separate steps",
+   "source": "Stable Audio 3 small-sfx or small-music (local, CPU); step_grass_1__s304.wav@0.06s"
   },
   "step_grass_2": {
    "path": "assets/audio/footsteps/grass_02.wav",
    "bus": "sfx",
-   "gain_db": -13.0,
+   "gain_db": -20.0,
    "pitch_variation": 0.07,
    "loop": false,
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.3,
-   "purpose": "A single light footstep of a person in soft leather boots on soft grass, one step only, variation 2",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "seconds": 0.304,
+   "purpose": "single footstep on soft grass (other steps of the liked walk)",
+   "source": "Stable Audio 3 small-sfx or small-music (local, CPU); step_grass_2__e303_190.wav@0.00s"
   },
   "step_grass_3": {
    "path": "assets/audio/footsteps/grass_03.wav",
    "bus": "sfx",
-   "gain_db": -13.0,
+   "gain_db": -20.0,
    "pitch_variation": 0.07,
    "loop": false,
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.3,
+   "seconds": 0.523,
    "purpose": "A single light footstep of a person in soft leather boots on soft grass, one step only, variation 3",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); step_grass_3__s101.wav"
   },
   "step_grass_4": {
    "path": "assets/audio/footsteps/grass_04.wav",
    "bus": "sfx",
-   "gain_db": -13.0,
+   "gain_db": -20.0,
    "pitch_variation": 0.07,
    "loop": false,
    "loop_mode": "disabled",
@@ -2264,7 +2661,7 @@
   "step_stone_1": {
    "path": "assets/audio/footsteps/stone_01.wav",
    "bus": "sfx",
-   "gain_db": -13.0,
+   "gain_db": -20.0,
    "pitch_variation": 0.07,
    "loop": false,
    "loop_mode": "disabled",
@@ -2277,20 +2674,20 @@
   "step_stone_2": {
    "path": "assets/audio/footsteps/stone_02.wav",
    "bus": "sfx",
-   "gain_db": -13.0,
+   "gain_db": -20.0,
    "pitch_variation": 0.07,
    "loop": false,
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.3,
-   "purpose": "A single light footstep of a person in soft leather boots on hard stone floor, slight castle echo, one step only, variation 2",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "seconds": 0.285,
+   "purpose": "slow footsteps walking on a hard stone floor, indoor, soft leather boots, close, distinct separate steps",
+   "source": "Stable Audio 3 small-sfx or small-music (local, CPU); step_stone_2__s302.wav@2.54s"
   },
   "step_stone_3": {
    "path": "assets/audio/footsteps/stone_03.wav",
    "bus": "sfx",
-   "gain_db": -13.0,
+   "gain_db": -20.0,
    "pitch_variation": 0.07,
    "loop": false,
    "loop_mode": "disabled",
@@ -2303,20 +2700,20 @@
   "step_stone_4": {
    "path": "assets/audio/footsteps/stone_04.wav",
    "bus": "sfx",
-   "gain_db": -13.0,
+   "gain_db": -20.0,
    "pitch_variation": 0.07,
    "loop": false,
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.3,
+   "seconds": 0.589,
    "purpose": "A single light footstep of a person in soft leather boots on hard stone floor, slight castle echo, one step only, variation 4",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); step_stone_4__s101.wav"
   },
   "step_water_1": {
    "path": "assets/audio/footsteps/water_01.wav",
    "bus": "sfx",
-   "gain_db": -13.0,
+   "gain_db": -20.0,
    "pitch_variation": 0.07,
    "loop": false,
    "loop_mode": "disabled",
@@ -2329,7 +2726,7 @@
   "step_water_2": {
    "path": "assets/audio/footsteps/water_02.wav",
    "bus": "sfx",
-   "gain_db": -13.0,
+   "gain_db": -20.0,
    "pitch_variation": 0.07,
    "loop": false,
    "loop_mode": "disabled",
@@ -2342,7 +2739,7 @@
   "step_water_3": {
    "path": "assets/audio/footsteps/water_03.wav",
    "bus": "sfx",
-   "gain_db": -13.0,
+   "gain_db": -20.0,
    "pitch_variation": 0.07,
    "loop": false,
    "loop_mode": "disabled",
@@ -2355,7 +2752,7 @@
   "step_water_4": {
    "path": "assets/audio/footsteps/water_04.wav",
    "bus": "sfx",
-   "gain_db": -13.0,
+   "gain_db": -20.0,
    "pitch_variation": 0.07,
    "loop": false,
    "loop_mode": "disabled",
@@ -2368,20 +2765,20 @@
   "step_wood_1": {
    "path": "assets/audio/footsteps/wood_01.wav",
    "bus": "sfx",
-   "gain_db": -13.0,
+   "gain_db": -20.0,
    "pitch_variation": 0.07,
    "loop": false,
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.269,
+   "seconds": 0.345,
    "purpose": "A single light footstep of a person in soft leather boots on old wooden floorboards, one step only, variation 1",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); step_wood_1__s102.wav"
   },
   "step_wood_2": {
    "path": "assets/audio/footsteps/wood_02.wav",
    "bus": "sfx",
-   "gain_db": -13.0,
+   "gain_db": -20.0,
    "pitch_variation": 0.07,
    "loop": false,
    "loop_mode": "disabled",
@@ -2394,28 +2791,28 @@
   "step_wood_3": {
    "path": "assets/audio/footsteps/wood_03.wav",
    "bus": "sfx",
-   "gain_db": -13.0,
+   "gain_db": -20.0,
    "pitch_variation": 0.07,
    "loop": false,
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.3,
-   "purpose": "A single light footstep of a person in soft leather boots on old wooden floorboards, one step only, variation 3",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "seconds": 0.303,
+   "purpose": "slow footsteps walking on old wooden floorboards, indoor, soft leather boots, close, distinct separate steps",
+   "source": "Stable Audio 3 small-sfx or small-music (local, CPU); step_wood_3__s305.wav@2.02s"
   },
   "step_wood_4": {
    "path": "assets/audio/footsteps/wood_04.wav",
    "bus": "sfx",
-   "gain_db": -13.0,
+   "gain_db": -20.0,
    "pitch_variation": 0.07,
    "loop": false,
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.3,
+   "seconds": 0.593,
    "purpose": "A single light footstep of a person in soft leather boots on old wooden floorboards, one step only, variation 4",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); step_wood_4__s105.wav"
   },
   "stinger_boss": {
    "path": "assets/audio/music/stinger_boss.mp3",
@@ -2428,7 +2825,51 @@
    "sample_rate": 44100,
    "seconds": 6.037,
    "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Short boss appearance stinger: sudden ominous brass blast with deep drum hit and choir swell, dread, 6 seconds.",
-   "source": "fal.ai elevenlabs/music/v2.5; tools/audio/audio_spec.json"
+   "source": "fal.ai elevenlabs/music/v2.5; tools/audio/audio_spec.json",
+   "variants": [
+    "stinger_boss_alt1",
+    "stinger_boss_alt2",
+    "stinger_boss_alt3"
+   ]
+  },
+  "stinger_boss_alt1": {
+   "path": "assets/audio/music/stinger_boss_alt1.mp3",
+   "bus": "music",
+   "gain_db": -8.0,
+   "pitch_variation": 0.0,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": false,
+   "sample_rate": 44100,
+   "seconds": 6.037,
+   "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Short boss appearance stinger: sudden ominous brass blast with deep drum hit and choir swell, dread, 6 seconds.",
+   "source": "Stable Audio 3 small-music (local, CPU); art/audio_sa3/alts_raw/stinger_boss__s201.wav"
+  },
+  "stinger_boss_alt2": {
+   "path": "assets/audio/music/stinger_boss_alt2.mp3",
+   "bus": "music",
+   "gain_db": -8.0,
+   "pitch_variation": 0.0,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": false,
+   "sample_rate": 44100,
+   "seconds": 6.037,
+   "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Short boss appearance stinger: sudden ominous brass blast with deep drum hit and choir swell, dread, 6 seconds.",
+   "source": "Stable Audio 3 small-music (local, CPU); art/audio_sa3/alts_raw/stinger_boss__s204.wav"
+  },
+  "stinger_boss_alt3": {
+   "path": "assets/audio/music/stinger_boss_alt3.mp3",
+   "bus": "music",
+   "gain_db": -8.0,
+   "pitch_variation": 0.0,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": false,
+   "sample_rate": 44100,
+   "seconds": 6.037,
+   "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Short boss appearance stinger: sudden ominous brass blast with deep drum hit and choir swell, dread, 6 seconds.",
+   "source": "Stable Audio 3 small-music (local, CPU); art/audio_sa3/alts_raw/stinger_boss__s203.wav"
   },
   "stinger_death": {
    "path": "assets/audio/music/stinger_death.mp3",
@@ -2441,7 +2882,51 @@
    "sample_rate": 44100,
    "seconds": 8.048,
    "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Short defeat stinger: sorrowful low strings and a mournful horn falling to a dark minor chord, fading, 8 seconds.",
-   "source": "fal.ai elevenlabs/music/v2.5; tools/audio/audio_spec.json"
+   "source": "fal.ai elevenlabs/music/v2.5; tools/audio/audio_spec.json",
+   "variants": [
+    "stinger_death_alt1",
+    "stinger_death_alt2",
+    "stinger_death_alt3"
+   ]
+  },
+  "stinger_death_alt1": {
+   "path": "assets/audio/music/stinger_death_alt1.mp3",
+   "bus": "music",
+   "gain_db": -9.0,
+   "pitch_variation": 0.0,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": false,
+   "sample_rate": 44100,
+   "seconds": 8.048,
+   "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Short defeat stinger: sorrowful low strings and a mournful horn falling to a dark minor chord, fading, 8 seconds.",
+   "source": "Stable Audio 3 small-music (local, CPU); art/audio_sa3/alts_raw/stinger_death__s201.wav"
+  },
+  "stinger_death_alt2": {
+   "path": "assets/audio/music/stinger_death_alt2.mp3",
+   "bus": "music",
+   "gain_db": -9.0,
+   "pitch_variation": 0.0,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": false,
+   "sample_rate": 44100,
+   "seconds": 8.048,
+   "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Short defeat stinger: sorrowful low strings and a mournful horn falling to a dark minor chord, fading, 8 seconds.",
+   "source": "Stable Audio 3 small-music (local, CPU); art/audio_sa3/alts_raw/stinger_death__s202.wav"
+  },
+  "stinger_death_alt3": {
+   "path": "assets/audio/music/stinger_death_alt3.mp3",
+   "bus": "music",
+   "gain_db": -9.0,
+   "pitch_variation": 0.0,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": false,
+   "sample_rate": 44100,
+   "seconds": 8.048,
+   "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Short defeat stinger: sorrowful low strings and a mournful horn falling to a dark minor chord, fading, 8 seconds.",
+   "source": "Stable Audio 3 small-music (local, CPU); art/audio_sa3/alts_raw/stinger_death__s203.wav"
   },
   "stinger_victory": {
    "path": "assets/audio/music/stinger_victory.mp3",
@@ -2454,7 +2939,51 @@
    "sample_rate": 44100,
    "seconds": 8.048,
    "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Short victory fanfare stinger: triumphant brass and strings flourish ending on a bright major chord, 8 seconds.",
-   "source": "fal.ai elevenlabs/music/v2.5; tools/audio/audio_spec.json"
+   "source": "fal.ai elevenlabs/music/v2.5; tools/audio/audio_spec.json",
+   "variants": [
+    "stinger_victory_alt1",
+    "stinger_victory_alt2",
+    "stinger_victory_alt3"
+   ]
+  },
+  "stinger_victory_alt1": {
+   "path": "assets/audio/music/stinger_victory_alt1.mp3",
+   "bus": "music",
+   "gain_db": -9.0,
+   "pitch_variation": 0.0,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": false,
+   "sample_rate": 44100,
+   "seconds": 8.048,
+   "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Short victory fanfare stinger: triumphant brass and strings flourish ending on a bright major chord, 8 seconds.",
+   "source": "Stable Audio 3 small-music (local, CPU); art/audio_sa3/alts_raw/stinger_victory__s202.wav"
+  },
+  "stinger_victory_alt2": {
+   "path": "assets/audio/music/stinger_victory_alt2.mp3",
+   "bus": "music",
+   "gain_db": -9.0,
+   "pitch_variation": 0.0,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": false,
+   "sample_rate": 44100,
+   "seconds": 8.048,
+   "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Short victory fanfare stinger: triumphant brass and strings flourish ending on a bright major chord, 8 seconds.",
+   "source": "Stable Audio 3 small-music (local, CPU); art/audio_sa3/alts_raw/stinger_victory__s204.wav"
+  },
+  "stinger_victory_alt3": {
+   "path": "assets/audio/music/stinger_victory_alt3.mp3",
+   "bus": "music",
+   "gain_db": -9.0,
+   "pitch_variation": 0.0,
+   "loop": false,
+   "loop_mode": "disabled",
+   "spatial": false,
+   "sample_rate": 44100,
+   "seconds": 8.048,
+   "purpose": "Original fantasy video game soundtrack, cinematic orchestral, high production quality, instrumental only. Short victory fanfare stinger: triumphant brass and strings flourish ending on a bright major chord, 8 seconds.",
+   "source": "Stable Audio 3 small-music (local, CPU); art/audio_sa3/alts_raw/stinger_victory__s201.wav"
   },
   "tension_heartbeat": {
    "path": "assets/audio/character/heartbeat.wav",
@@ -2530,9 +3059,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 1.0,
+   "seconds": 2.006,
    "purpose": "Fantasy game: giant troll stomping footstep with a wet snort through the nose, heavy low thud, very short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/troll_move_2.wav"
+   "source": "Stable Audio 3 small-sfx (local, CPU); troll_move_2__s104.wav"
   },
   "troll_move_3": {
    "path": "assets/audio/monsters/troll_move_3.wav",
@@ -2543,9 +3072,9 @@
    "loop_mode": "disabled",
    "spatial": true,
    "sample_rate": 44100,
-   "seconds": 0.782,
+   "seconds": 1.514,
    "purpose": "Fantasy game: lumbering ogre footstep, dull ground thump and a rumbling throaty growl, very short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/troll_move_3.wav"
+   "source": "Stable Audio 3 small-sfx (local, CPU); troll_move_3__s101.wav"
   },
   "ui_button": {
    "path": "assets/audio/ui/button.wav",
@@ -2556,9 +3085,9 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 0.48,
-   "purpose": "A soft wooden click of an old parchment menu button, subtle and warm",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "seconds": 0.432,
+   "purpose": "a single soft click of a small wooden button, close, dry",
+   "source": "Sonniss GDC 2026 Game Audio Bundle, art/audio_sonniss/raw; ui_button__x2.wav@0.00s"
   },
   "ui_cancel": {
    "path": "assets/audio/ui/cancel.wav",
@@ -2569,9 +3098,9 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 0.6,
-   "purpose": "A soft descending parchment swish, cancelling, gentle",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "seconds": 0.552,
+   "purpose": "a soft short paper swish, quick, dry, close",
+   "source": "Stable Audio 3 small-sfx or small-music (local, CPU); ui_cancel__s305.wav@1.72s"
   },
   "ui_chat": {
    "path": "assets/audio/ui/chat.wav",
@@ -2582,9 +3111,9 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 0.48,
-   "purpose": "A tiny soft owl-post paper flutter, very short notification",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "seconds": 0.167,
+   "purpose": "a quick soft flutter of a small paper note, dry, short",
+   "source": "Sonniss GDC 2026 Game Audio Bundle, art/audio_sonniss/raw; ui_chat__x1.wav@0.00s"
   },
   "ui_close": {
    "path": "assets/audio/ui/close.wav",
@@ -2595,9 +3124,9 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 0.542,
+   "seconds": 0.824,
    "purpose": "A leather-bound book closing softly, gentle thump",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); ui_close__s102.wav"
   },
   "ui_coin": {
    "path": "assets/audio/ui/coin.wav",
@@ -2608,9 +3137,9 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 0.667,
-   "purpose": "A few gold coins clinking into a leather purse",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "seconds": 0.194,
+   "purpose": "a few gold coins dropping and clinking together on a wooden table, close, short",
+   "source": "Sonniss GDC 2026 Game Audio Bundle, art/audio_sonniss/raw; ui_coin__x2.wav"
   },
   "ui_confirm": {
    "path": "assets/audio/ui/confirm.wav",
@@ -2621,9 +3150,9 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 0.8,
+   "seconds": 0.399,
    "purpose": "A pleasant bright magical chime confirming a choice, two warm notes",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Sonniss GDC 2026 Game Audio Bundle, art/audio_sonniss/raw; ui_confirm__x3.wav"
   },
   "ui_death": {
    "path": "assets/audio/ui/death.wav",
@@ -2634,9 +3163,9 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 2.943,
+   "seconds": 5.136,
    "purpose": "A dark sorrowful descending magical swell with a deep low gong, fading into silence",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); ui_death__s103.wav"
   },
   "ui_deny": {
    "path": "assets/audio/ui/deny.wav",
@@ -2647,9 +3176,9 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 0.68,
+   "seconds": 1.637,
    "purpose": "A soft muted low wooden knock with a dull fizzle, gentle refusal",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); ui_deny__s105.wav"
   },
   "ui_equip": {
    "path": "assets/audio/ui/equip.wav",
@@ -2660,9 +3189,9 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 0.68,
-   "purpose": "Putting on leather armor gear: buckle clasp and cloth rustle",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "seconds": 0.532,
+   "purpose": "equipping armor in a fantasy game: a leather strap pulled tight and a light metal buckle clink, short",
+   "source": "Sonniss GDC 2026 Game Audio Bundle, art/audio_sonniss/raw; ui_equip__x1.wav@4.33s"
   },
   "ui_hit": {
    "path": "assets/audio/ui/hit.wav",
@@ -2673,9 +3202,9 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 0.278,
+   "seconds": 1.009,
    "purpose": "A soft muted punchy body hit thump, short, subtle",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); ui_hit__s104.wav"
   },
   "ui_hover": {
    "path": "assets/audio/ui/hover.wav",
@@ -2686,9 +3215,9 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 0.48,
-   "purpose": "A tiny faint magical tick of shimmer, extremely subtle and soft",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "seconds": 0.619,
+   "purpose": "a very soft tiny wooden tick, quiet, close",
+   "source": "Stable Audio 3 small-sfx or small-music (local, CPU); ui_hover__s304.wav@0.02s"
   },
   "ui_levelup": {
    "path": "assets/audio/ui/levelup.wav",
@@ -2699,9 +3228,9 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 1.868,
+   "seconds": 1.227,
    "purpose": "Fantasy game level up: a rising shimmering magical whoosh swelling into a bright triumphant golden chime chord with sparkling twinkles, warm and satisfying, rewarding",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/ui_levelup.wav"
+   "source": "Sonniss GDC 2026 Game Audio Bundle, art/audio_sonniss/raw; ui_levelup__x1.wav"
   },
   "ui_loot": {
    "path": "assets/audio/ui/loot.wav",
@@ -2712,9 +3241,9 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 0.73,
-   "purpose": "Picking up a treasure item: soft cloth rustle with a sparkling magical glint",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "seconds": 0.4,
+   "purpose": "picking up a small leather pouch, soft cloth and leather rustle, short, close",
+   "source": "Sonniss GDC 2026 Game Audio Bundle, art/audio_sonniss/raw; ui_loot__x2.wav@7.83s"
   },
   "ui_open": {
    "path": "assets/audio/ui/open.wav",
@@ -2725,9 +3254,9 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 0.56,
+   "seconds": 1.267,
    "purpose": "A leather-bound book opening softly with a faint magic shimmer",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); ui_open__s102.wav"
   },
   "ui_potion": {
    "path": "assets/audio/ui/potion.wav",
@@ -2751,9 +3280,9 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 1.315,
+   "seconds": 1.69,
    "purpose": "Fantasy RPG new quest notification: a gentle rising magical harp arpeggio with a soft sparkle shimmer and a warm bell",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/ui_quest.wav"
+   "source": "Stable Audio 3 small-sfx or small-music (local, CPU); ui_quest__s403.wav@0.01s"
   },
   "ui_quest_complete": {
    "path": "assets/audio/ui/quest_complete.wav",
@@ -2777,9 +3306,9 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 2.48,
+   "seconds": 3.132,
    "purpose": "A warm rising magical shimmer of golden light and soft chimes, revival",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx or small-music (local, CPU); ui_respawn__s401.wav@0.19s"
   },
   "ui_unequip": {
    "path": "assets/audio/ui/unequip.wav",
@@ -2790,9 +3319,9 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 0.68,
+   "seconds": 0.261,
    "purpose": "Taking off leather gear: strap loosening and soft cloth drop",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); ui_unequip__s101.wav"
   },
   "ui_upgrade_fail": {
    "path": "assets/audio/ui/upgrade_fail.wav",
@@ -2803,9 +3332,9 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 1.48,
+   "seconds": 2.205,
    "purpose": "Enchanting an item fails: a hammer strike, a crack and a fizzling dying spark",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "source": "Stable Audio 3 small-sfx (local, CPU); ui_upgrade_fail__s104.wav"
   },
   "ui_upgrade_success": {
    "path": "assets/audio/ui/upgrade_success.wav",
@@ -2816,191 +3345,9 @@
    "loop_mode": "disabled",
    "spatial": false,
    "sample_rate": 44100,
-   "seconds": 1.48,
-   "purpose": "Enchanting an item succeeds: a hammer strike on an anvil with a bright magical sparkle burst",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
-  },
-  "floo_whoosh": {
-   "path": "assets/audio/transitions/floo_whoosh.wav",
-   "bus": "sfx",
-   "gain_db": -6.0,
-   "pitch_variation": 0.04,
-   "loop": false,
-   "loop_mode": "disabled",
-   "spatial": true,
-   "sample_rate": 44100,
-   "seconds": 2.56,
-   "purpose": "Floo Network travel: powder ignites into roaring emerald flames sucked up the chimney",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (Blackweb Caverns S4, art/spider_caverns/audio)"
-  },
-  "portkey_whoosh": {
-   "path": "assets/audio/transitions/portkey_whoosh.wav",
-   "bus": "sfx",
-   "gain_db": -6.0,
-   "pitch_variation": 0.03,
-   "loop": false,
-   "loop_mode": "disabled",
-   "spatial": true,
-   "sample_rate": 44100,
-   "seconds": 2.76,
-   "purpose": "A Portkey activating: rising blue chime, a yank into a spinning whirlwind",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (Blackweb Caverns S5, art/spider_caverns/audio)"
-  },
-  "cabinet_vanish": {
-   "path": "assets/audio/transitions/cabinet_vanish.wav",
-   "bus": "sfx",
-   "gain_db": -6.0,
-   "pitch_variation": 0.03,
-   "loop": false,
-   "loop_mode": "disabled",
-   "spatial": true,
-   "sample_rate": 44100,
-   "seconds": 2.4,
-   "purpose": "A Vanishing Cabinet: doors thud shut, a hollow magical whoomp",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (Blackweb Caverns S7, art/spider_caverns/audio)"
-  },
-  "passage_stone": {
-   "path": "assets/audio/transitions/passage_stone.wav",
-   "bus": "sfx",
-   "gain_db": -6.0,
-   "pitch_variation": 0.03,
-   "loop": false,
-   "loop_mode": "disabled",
-   "spatial": true,
-   "sample_rate": 44100,
-   "seconds": 2.56,
-   "purpose": "The One-Eyed Witch passage: stone grinding aside, trickling dust",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (Blackweb Caverns S7, art/spider_caverns/audio)"
-  },
-  "spell_glacius_cast": {
-   "path": "assets/audio/spells/glacius/cast.wav",
-   "bus": "sfx",
-   "gain_db": -2.5,
-   "pitch_variation": 0.02,
-   "loop": false,
-   "loop_mode": "disabled",
-   "spatial": true,
-   "sample_rate": 44100,
-   "seconds": 1.36,
-   "purpose": "Ice magic spell charge: a quick rising crystalline shimmer with frosty crackling and a cold airy hiss, then a sharp glassy release, fantasy",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_glacius_cast.wav"
-  },
-  "spell_glacius_travel": {
-   "path": "assets/audio/spells/glacius/travel.wav",
-   "bus": "sfx",
-   "gain_db": -5.0,
-   "pitch_variation": 0.03,
-   "loop": true,
-   "loop_mode": "forward",
-   "spatial": true,
-   "sample_rate": 44100,
-   "seconds": 1.8,
-   "purpose": "A spinning magical ice crystal flying through the air: a cold whistling whoosh with a soft glassy ringing hum and tiny tinkling ice chimes, seamless loop",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_glacius_travel.wav"
-  },
-  "spell_glacius_impact": {
-   "path": "assets/audio/spells/glacius/impact.wav",
-   "bus": "sfx",
-   "gain_db": 0.0,
-   "pitch_variation": 0.02,
-   "loop": false,
-   "loop_mode": "disabled",
-   "spatial": true,
-   "sample_rate": 44100,
-   "seconds": 2.0,
-   "purpose": "Frost nova explosion: a powerful icy burst with ice shattering like breaking glass, sharp crystalline cracks, a deep cold whoosh and freezing crackle spreading outward, fantasy magic impact",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_glacius_impact.wav"
-  },
-  "spell_glacius_end": {
-   "path": "assets/audio/spells/glacius/end.wav",
-   "bus": "sfx",
-   "gain_db": -6.5,
-   "pitch_variation": 0.03,
-   "loop": false,
-   "loop_mode": "disabled",
-   "spatial": true,
-   "sample_rate": 44100,
-   "seconds": 1.313,
-   "purpose": "Ice slowly cracking and melting after a frost blast: soft crackles, tiny ice fragments tinkling and a gentle cold hiss fading away",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2 (ElevenLabs Sound Effects v2); art/audio_fal/spell_glacius_end.wav"
-  },
-  "goblin_alert": {
-   "path": "assets/audio/monsters/goblin_alert.wav",
-   "bus": "sfx",
-   "gain_db": -6.0,
-   "pitch_variation": 0.06,
-   "loop": false,
-   "loop_mode": "disabled",
-   "spatial": true,
-   "sample_rate": 44100,
-   "seconds": 1.48,
-   "purpose": "Fantasy game monster: a small sly goblin bank guard, sharp nasal hiss of outrage, no words",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
-  },
-  "goblin_attack": {
-   "path": "assets/audio/monsters/goblin_attack.wav",
-   "bus": "sfx",
-   "gain_db": -6.0,
-   "pitch_variation": 0.06,
-   "loop": false,
-   "loop_mode": "disabled",
-   "spatial": true,
-   "sample_rate": 44100,
-   "seconds": 0.8,
-   "purpose": "Fantasy game monster: a small sly goblin bank guard, quick claw swipe with a vicious little snarl, short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
-  },
-  "goblin_death": {
-   "path": "assets/audio/monsters/goblin_death.wav",
-   "bus": "sfx",
-   "gain_db": -6.0,
-   "pitch_variation": 0.06,
-   "loop": false,
-   "loop_mode": "disabled",
-   "spatial": true,
-   "sample_rate": 44100,
-   "seconds": 2.0,
-   "purpose": "Fantasy game monster death: a small sly goblin bank guard, strangled shriek and a jingle of spilled gold coins",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
-  },
-  "goblin_move_1": {
-   "path": "assets/audio/monsters/goblin_move_01.wav",
-   "bus": "sfx",
-   "gain_db": -14.0,
-   "pitch_variation": 0.08,
-   "loop": false,
-   "loop_mode": "disabled",
-   "spatial": true,
-   "sample_rate": 44100,
-   "seconds": 0.8,
-   "purpose": "Fantasy game monster: a small sly goblin bank guard, quick light footsteps and jingling keys, very short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
-  },
-  "goblin_move_2": {
-   "path": "assets/audio/monsters/goblin_move_02.wav",
-   "bus": "sfx",
-   "gain_db": -14.0,
-   "pitch_variation": 0.08,
-   "loop": false,
-   "loop_mode": "disabled",
-   "spatial": true,
-   "sample_rate": 44100,
-   "seconds": 0.8,
-   "purpose": "Fantasy game monster: a small sly goblin bank guard, a wordless muttering hiss and soft footsteps, very short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
-  },
-  "goblin_move_3": {
-   "path": "assets/audio/monsters/goblin_move_03.wav",
-   "bus": "sfx",
-   "gain_db": -14.0,
-   "pitch_variation": 0.08,
-   "loop": false,
-   "loop_mode": "disabled",
-   "spatial": true,
-   "sample_rate": 44100,
-   "seconds": 0.478,
-   "purpose": "Fantasy game monster: a small sly goblin bank guard, fast pattering little feet with coins clinking, very short",
-   "source": "fal.ai fal-ai/elevenlabs/sound-effects/v2; tools/audio/audio_spec.json"
+   "seconds": 0.406,
+   "purpose": "anvil strike; bright bell chord (music model); and both layered",
+   "source": "Sonniss GDC 2026 Game Audio Bundle, art/audio_sonniss/raw; ui_upgrade_success__x3.wav"
   }
  }
 }
