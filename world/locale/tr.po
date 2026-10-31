@@ -848,8 +848,8 @@ msgid "Generated sound effects and music"
 msgstr "Üretilmiş ses efektleri ve müzik"
 
 #: scripts/ui/game_credits.gd
-msgid "HPMMO is built on the work of the people and tools below. Thank you."
-msgstr "HPMMO, aşağıdaki kişilerin ve araçların emeği üzerine kuruldu. Teşekkürler."
+msgid "%s is built on the work of the people and tools below. Thank you."
+msgstr "%s, aşağıdaki kişilerin ve araçların emeği üzerine kuruldu. Teşekkürler."
 
 #: scripts/ui/game_credits.gd
 msgid "Godot Engine licence"
@@ -4440,8 +4440,8 @@ msgid "Rank %d"
 msgstr "Rütbe %d"
 
 #: scenes/main/character_select.tscn
-msgid "HPMMO — HOGWARTS"
-msgstr "HPMMO — HOGWARTS"
+msgid "Thousand Realms"
+msgstr "Thousand Realms"
 
 #: scenes/main/character_select.tscn
 msgid "SLOT 1 / 2"
@@ -7138,6 +7138,12 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 
 #~ msgid "Goatee"
 #~ msgstr "Keçi Sakal"
+
+#~ msgid "HPMMO is built on the work of the people and tools below. Thank you."
+#~ msgstr "HPMMO, aşağıdaki kişilerin ve araçların emeği üzerine kuruldu. Teşekkürler."
+
+#~ msgid "HPMMO — HOGWARTS"
+#~ msgstr "HPMMO — HOGWARTS"
 
 #~ msgid "Hagrid"
 #~ msgstr "Hagrid"

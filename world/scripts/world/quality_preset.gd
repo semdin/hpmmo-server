@@ -11,8 +11,8 @@ extends RefCounted
 ## What a preset sets, all presentation only (it can never alter the
 ## simulation: mobs, collision, routes and rewards are identical on every
 ## preset):
-##   * 3D render resolution (FSR 1 upscaling below 100 %) and its sharpening,
-##     anti-aliasing;
+##   * 3D render resolution (FSR 1 upscaling below 100 %, of at most a 1080p
+##     frame: see render_scale) and its sharpening, anti-aliasing;
 ##   * sun shadow cascades, reach and atlas size;
 ##   * glow, SSAO;
 ##   * view distance (camera far plane) with fog density matched to it, so the
@@ -117,6 +117,11 @@ const PRESETS := {
 	},
 }
 
+## The most pixels a 3D frame is drawn at before the preset's render scale (a
+## 1080p frame), and the floor below which upscaling turns to mush.
+const RENDER_PIXEL_BUDGET := 1920.0 * 1080.0
+const MIN_RENDER_SCALE := 0.5
+
 static var _current := "high"
 static var _resolved := false
 
@@ -189,10 +194,11 @@ static func apply(world: Node3D) -> void:
 		viewport.msaa_3d = int(preset["msaa"])
 		viewport.use_taa = bool(preset["taa"])
 		viewport.screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA if bool(preset["fxaa"]) else Viewport.SCREEN_SPACE_AA_DISABLED
-		var scale := float(preset["render_scale"])
-		viewport.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR if scale < 1.0 else Viewport.SCALING_3D_MODE_BILINEAR
-		viewport.scaling_3d_scale = scale
-		viewport.fsr_sharpness = float(preset["fsr_sharpness"])
+		apply_render_scale(viewport)
+		# resizing the window or going fullscreen changes the pixel count
+		if not viewport.has_meta("render_scale_follows_size"):
+			viewport.set_meta("render_scale_follows_size", true)
+			viewport.size_changed.connect(apply_render_scale.bind(viewport))
 		apply_camera(viewport.get_camera_3d())
 	RenderingServer.directional_shadow_atlas_set_size(int(preset["shadow_atlas"]), true)
 	var env_node := world.get_node_or_null("WorldEnvironment")
@@ -235,6 +241,35 @@ static func apply(world: Node3D) -> void:
 			geo.visibility_range_end_margin = site_range * 0.1
 			geo.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 	tune_particles(world)
+
+## The 3D frame's scale: the preset's render scale applies to a frame of at
+## most RENDER_PIXEL_BUDGET pixels (1080p), so a Retina Mac (2560x1600 and up,
+## drawn at native pixels) or a 4K monitor renders about what a 1080p screen
+## does instead of two to four times as much; FSR upscales the rest and the UI
+## stays at native resolution. 1080p and smaller windows are unchanged.
+static func render_scale(pixels: Vector2i) -> float:
+	var scale := float(settings()["render_scale"])
+	var count := float(pixels.x) * float(pixels.y)
+	if count > RENDER_PIXEL_BUDGET:
+		scale *= sqrt(RENDER_PIXEL_BUDGET / count)
+	return maxf(scale, MIN_RENDER_SCALE)
+
+static func apply_render_scale(viewport: Viewport) -> void:
+	if viewport == null or not is_instance_valid(viewport):
+		return
+	var scale := render_scale(viewport_pixels(viewport))
+	viewport.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR if scale < 1.0 else Viewport.SCALING_3D_MODE_BILINEAR
+	viewport.scaling_3d_scale = scale
+	viewport.fsr_sharpness = float(settings()["fsr_sharpness"])
+
+## A viewport's size in real pixels: the root window renders 3D at its full
+## pixel size whatever the canvas_items stretch makes of the 2D layout.
+static func viewport_pixels(viewport: Viewport) -> Vector2i:
+	if viewport is Window:
+		return (viewport as Window).size
+	if viewport is SubViewport:
+		return (viewport as SubViewport).size
+	return Vector2i.ZERO
 
 ## View distance on a camera (the player camera is created after the world, so
 ## game_world's sweep calls this too).

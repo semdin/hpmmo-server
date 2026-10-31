@@ -151,7 +151,9 @@ func _ready() -> void:
 		UPGRADE_TABLE[tier] = spec.duplicate(true)
 		UPGRADE_TABLE[tier]["aura"] = WAND_AURAS[tier]
 	_register_input_actions()
-	_apply_custom_cursor()
+	if DisplayServer.get_name() != "headless":
+		CursorKit.apply()
+		get_tree().node_added.connect(CursorKit.point_at_buttons)
 	call_deferred("_apply_saved_settings")
 
 ## Quitting: the custom cursor and the static caches (textures, materials,
@@ -160,8 +162,7 @@ func _ready() -> void:
 ## with the scripts, and every quit printed "RID allocations ... leaked at exit".
 ## The game's own scene has already left the tree when this autoload does.
 func _exit_tree() -> void:
-	if DisplayServer.get_name() != "headless":
-		Input.set_custom_mouse_cursor(null)
+	CursorKit.release()
 	release_static_caches()
 
 ## Every `static var` that holds an engine resource or object, by script. The
@@ -216,20 +217,6 @@ func _apply_saved_settings() -> void:
 	settings.apply_ui_scale()
 	settings.apply_volumes()
 	settings.apply_fps_limit()
-
-func _apply_custom_cursor() -> void:
-	var cursor_path := "res://assets/ui/cursor.png"
-	var tex: Texture2D = null
-	if ResourceLoader.exists(cursor_path):
-		tex = load(cursor_path) as Texture2D
-	if tex == null:
-		var global_path := ProjectSettings.globalize_path(cursor_path)
-		if FileAccess.file_exists(global_path):
-			var img := Image.load_from_file(global_path)
-			if img != null:
-				tex = ImageTexture.create_from_image(img)
-	if tex != null:
-		Input.set_custom_mouse_cursor(tex, Input.CURSOR_ARROW, Vector2.ZERO)
 
 ## Gameplay contracts (spells, safe zones) are server-owned since the authority handover and
 ## consumed from the synced simulation package, together with items/refinement.

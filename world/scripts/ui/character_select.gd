@@ -507,8 +507,14 @@ func _restyle() -> void:
 	# --- top: title and logout
 	var top := $CanvasLayer/TopBar as Control
 	var title := $CanvasLayer/TopBar/TitleLabel as Label
-	title.text = "HOGWARTS"
-	HudKit.style_label(title, 38, HudKit.GOLD_HI, HudKit.deco(), 8)
+	# The horizontal logo stands in for the title text. It is taller than the
+	# bar, so it hangs over it instead of stretching the bar's buttons; the empty
+	# title keeps its width in the row.
+	title.text = ""
+	var logo := UITheme.logo(84.0)
+	logo.position = Vector2(top.offset_left, top.offset_top + (top.offset_bottom - top.offset_top - 84.0) * 0.5)
+	top.get_parent().add_child(logo)
+	title.custom_minimum_size.x = logo.custom_minimum_size.x
 	title.add_theme_color_override("font_outline_color", Color(0.1, 0.06, 0.02, 0.9))
 	HudKit.style_label(slot_label, 16, HudKit.PARCHMENT, HudKit.title(), 4)
 	HudKit.style_button(logout_btn, 15)

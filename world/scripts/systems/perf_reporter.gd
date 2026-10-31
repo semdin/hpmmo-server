@@ -67,6 +67,21 @@ func _process(_delta: float) -> void:
 	if _window >= REPORT_S:
 		_report()
 
+## The machine behind the numbers, for the server log: OS, renderer, GPU, and
+## the window and 3D frame in pixels (a Retina or 4K screen renders far more
+## than the 1080p the presets were tuned on; see QualityPreset.render_scale).
+func _machine() -> Dictionary:
+	var viewport := get_viewport()
+	var screen := QualityPresetScript.viewport_pixels(viewport)
+	var scale := viewport.scaling_3d_scale if viewport != null else 1.0
+	return {
+		"os": OS.get_name(),
+		"renderer": RenderingServer.get_current_rendering_method(),
+		"adapter": RenderingServer.get_video_adapter_name(),
+		"screen": "%dx%d" % [screen.x, screen.y],
+		"render": "%dx%d" % [roundi(screen.x * scale), roundi(screen.y * scale)],
+	}
+
 func _report() -> void:
 	var frames := _frames.duplicate()
 	frames.sort()
@@ -87,6 +102,7 @@ func _report() -> void:
 		"loss_pct": SimNet.packet_loss_pct(),
 		"preset": QualityPresetScript.current(),
 	}
+	report.merge(_machine())
 	print("[Perf] %.0f s: fps %.1f, frame p50 %.1f / p99 %.1f / worst %.0f ms, %d hitches, ping %.0f (p95 %d) ms, loss %.1f %%" % [
 		_window, report["fps"], report["frame_p50_ms"], report["frame_p99_ms"], report["worst_ms"],
 		_hitches, report["ping_avg"], report["ping_p95"], report["loss_pct"]])

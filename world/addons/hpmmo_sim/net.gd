@@ -866,6 +866,9 @@ func sim_attribute_request(stat: String) -> void:
 const PERF_REPORT_MIN_INTERVAL_MS := 20000
 const PERF_REPORT_FIELDS := ["window_s", "fps", "frame_p50_ms", "frame_p99_ms", "worst_ms", "hitches",
 	"ping_avg", "ping_p95", "loss_pct", "gpu_ms"]
+## Short text fields: the machine behind the numbers (OS, renderer, GPU, the
+## window and the 3D frame in pixels). Logged quoted, cut to 48 characters.
+const PERF_REPORT_TEXT_FIELDS := ["os", "renderer", "adapter", "screen", "render"]
 var _last_perf_ms: Dictionary = {}
 
 @rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
@@ -885,6 +888,10 @@ func sim_client_perf(report: Dictionary) -> void:
 		var value = report.get(field, -1)
 		var number := clampf(float(value), -1.0, 100000.0) if (value is int or value is float) else -1.0
 		values.append("%s=%s" % [field, str(snappedf(number, 0.1))])
+	for field in PERF_REPORT_TEXT_FIELDS:
+		var value = report.get(field, "")
+		var text: String = value if value is String else ""
+		values.append("%s=\"%s\"" % [field, text.left(48).replace("\"", "'").replace("\n", " ")])
 	var preset := String(report.get("preset", "")).left(12).validate_filename()
 	print("[SimNet] client perf peer %d uid %d %s map=%s preset=%s enet_rtt=%d %s" % [peer_id,
 		int(record.get("uid", 0)), String(record.get("name", "")).left(24), String(record.get("map_id", "")),

@@ -616,7 +616,8 @@ func _update_ga_emblem() -> void:
 		_ga_emblem.name = "GAEmblem"
 		if ResourceLoader.exists(GA_EMBLEM):
 			_ga_emblem.texture = load(GA_EMBLEM)
-		_ga_emblem.pixel_size = 0.0019
+		_ga_emblem.pixel_size = 0.0011
+		_ga_emblem.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 		_ga_emblem.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		_ga_emblem.shaded = false
 		_ga_emblem.no_depth_test = true
@@ -782,7 +783,7 @@ func _process(delta: float) -> void:
 		# A slow float over the name, like a GM's badge.
 		# A title line over the name lifts it clear.
 		var titled := _nameplate_title != null and _nameplate_title.text != ""
-		_ga_emblem.position = Vector3(0, NAMEPLATE_HEIGHT + (0.86 if titled else 0.66) + sin(Time.get_ticks_msec() * 0.0024) * 0.07, 0)
+		_ga_emblem.position = Vector3(0, NAMEPLATE_HEIGHT + (0.95 if titled else 0.75) + sin(Time.get_ticks_msec() * 0.0024) * 0.07, 0)
 	# Crowd control and damage over time drawn on the body (any player body
 	# a screen shows: this one, another player's view).
 	if not NetworkManager.is_dedicated_server:

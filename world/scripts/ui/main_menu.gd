@@ -1,6 +1,6 @@
 extends Control
 
-## HPMMO login screen - the game's front door.
+## Login screen - the game's front door.
 ##
 ## The launcher only installs, updates and starts the game; signing in happens
 ## here. The screen is built in code from `UITheme` (the palette and faces the
@@ -84,6 +84,7 @@ var _username_re := RegEx.create_from_string("^[A-Za-z0-9_-]+$")
 
 func _ready() -> void:
 	theme = UITheme.get_theme()
+	get_window().title = UITheme.GAME_TITLE
 	_pin_menu_music()
 	_build()
 	_load_client_config()
@@ -215,19 +216,8 @@ func _build_crest() -> Control:
 	box.add_theme_constant_override("separation", 2)
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-	var title := Label.new()
-	title.name = "TitleLabel"
-	title.text = "HPMMO"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var deco := "res://assets/fonts/CinzelDecorative-Bold.ttf"
-	title.add_theme_font_override("font", load(deco) as Font if ResourceLoader.exists(deco) else UITheme.font_title())
-	title.add_theme_font_size_override("font_size", 64)
-	title.add_theme_color_override("font_color", UITheme.c("gold_hi"))
-	title.add_theme_color_override("font_outline_color", Color(0.12, 0.06, 0.02))
-	title.add_theme_constant_override("outline_size", 10)
-	title.add_theme_color_override("font_shadow_color", Color(1.0, 0.55, 0.15, 0.35))
-	title.add_theme_constant_override("shadow_outline_size", 22)
-	box.add_child(title)
+	# no wider than the login panel below it
+	box.add_child(UITheme.logo(180.0))
 
 	var subtitle := Label.new()
 	subtitle.name = "SubtitleLabel"
@@ -612,7 +602,7 @@ func _build_footer() -> void:
 	version_label.offset_top = -34.0
 	version_label.offset_bottom = -12.0
 	version_label.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	version_label.text = "HPMMO  %s" % _client_version()
+	version_label.text = "%s  %s" % [UITheme.GAME_TITLE, _client_version()]
 	version_label.add_theme_font_size_override("font_size", 12)
 	version_label.add_theme_color_override("font_color", UITheme.alpha("text_dim", 0.8))
 	add_child(version_label)

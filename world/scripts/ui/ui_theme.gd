@@ -1,7 +1,7 @@
 extends RefCounted
 class_name UITheme
 
-## The single styling entry point for every HPMMO interface surface.
+## The single styling entry point for every game interface surface.
 ##
 ## The base theme supplies stable flat styles for existing screens. ArcaneSkin
 ## adds opt-in textured roles with coordinated nine-slice margins, shadows and
@@ -11,6 +11,28 @@ class_name UITheme
 ## Text uses Cinzel (headings), Cinzel Decorative (place names) and Marcellus
 ## (body/UI - a classic inscriptional face in the Friz Quadrata tradition), all SIL OFL 1.1 with
 ## the licence vendored beside each face in `assets/fonts/`.
+
+## The game's name and horizontal logo wherever a player sees them: the logo
+## crowns the login screen and character select, the name titles the window
+## and the credits; the round emblem is the app icon (assets/branding/
+## hpmmo_icon.png). Files, folders and executables keep the HPMMO name
+## (application/config/name too): installs, user data and the launcher's
+## self-update depend on it.
+const GAME_TITLE := "Thousand Realms"
+const LOGO := "res://assets/branding/thousand_realms_logo.png"
+
+## The horizontal logo as a control `height` px tall (its width follows).
+static func logo(height: float) -> TextureRect:
+	var rect := TextureRect.new()
+	rect.name = "Logo"
+	rect.texture = load(LOGO)
+	var tex_size := rect.texture.get_size() if rect.texture != null else Vector2(1024, 438)
+	rect.custom_minimum_size = Vector2(height * tex_size.x / tex_size.y, height)
+	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	rect.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return rect
 
 const DIR := "res://assets/ui/"
 const ICON_DIR := "res://assets/ui/icons/"

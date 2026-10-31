@@ -141,7 +141,7 @@ static func build() -> RichTextLabel:
 
 static func _fill(page: RichTextLabel) -> void:
 	page.push_color(HudKit.TEXT_DIM)
-	page.add_text(I18n.t("HPMMO is built on the work of the people and tools below. Thank you."))
+	page.add_text(I18n.t("%s is built on the work of the people and tools below. Thank you.") % UITheme.GAME_TITLE)
 	page.pop()
 	page.newline()
 	for section in SECTIONS:
