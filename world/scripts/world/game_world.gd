@@ -677,6 +677,12 @@ func _on_entity_replicating(record: Dictionary) -> void:
 	if int(record.get("kind", 0)) == HPProtocol.Kind.PLAYER:
 		_create_view(record)
 		return
+	# A creature that is already dead the first time we see it fell before we
+	# got here (a dungeon copy entered again, a corpse in range on arrival): a
+	# fresh view would play its death all over again. It gets one if it rises
+	# (_on_entity_respawned_view).
+	if int(record.get("kind", 0)) == HPProtocol.Kind.MOB and bool(record.get("dead", false)):
+		return
 	_queued[uid] = true
 	_view_queue.append(uid)
 
@@ -885,6 +891,11 @@ func _on_entity_died_view(uid: int, _killer_uid: int) -> void:
 
 func _on_entity_respawned_view(uid: int) -> void:
 	var view = _views.get(uid)
+	if view == null and not SimAuthority.is_authority():
+		var record: Dictionary = SimAuthority.entities.get(uid, {})
+		if bool(record.get("replica", false)) and record.get("node") == null:
+			_on_entity_replicating(record)   # first seen dead, risen now
+		return
 	if is_instance_valid(view) and view.is_in_group("monoliths") and view.has_method("present_respawn"):
 		view.call("present_respawn")
 

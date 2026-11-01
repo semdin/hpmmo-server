@@ -8,12 +8,17 @@ class_name HudDungeonRun
 ##   - the tracker on the right rail under the minimap: the run's curses, the
 ##     clock against the medal times, the clear, the bosses, the deaths and the
 ##     party's lives;
-##   - at completion, the result window (HudDungeonResult).
+##   - at completion, the result window (HudDungeonResult);
+##   - out of the copy while the run is still open to the player (walked out,
+##     died and respawned), a card in the tracker's place: which dungeon, the
+##     clear, and how long it stays open (authority `dungeon_event` "active";
+##     a click lays the footprints to its gate).
 
 const MEDAL_TINTS := {"gold": Color(0.92, 0.74, 0.30), "silver": Color(0.76, 0.80, 0.86), "bronze": Color(0.82, 0.54, 0.32)}
 
 ## Set by the HUD.
 var result_window: HudDungeonResult = null
+var guide: HudDungeonGuide = null
 
 var _count: Label
 var _wait: Label
@@ -38,6 +43,13 @@ var _clear: Label
 var _clear_bar: MedalBar
 var _bosses: VBoxContainer
 var _deaths: Label
+
+var _away: PanelContainer
+var _away_title: Label
+var _away_line: Label
+var _away_time: Label
+var _run: Dictionary = {}      # the authority's view of the run we are out of
+var _run_at_ms := 0
 
 func _init() -> void:
 	name = "DungeonRun"
@@ -68,7 +80,9 @@ func _ready() -> void:
 	_wait.visible = false
 	add_child(_wait)
 	_build_tracker()
+	_build_away_card()
 	SimAuthority.dungeon_state.connect(_on_state)
+	SimAuthority.dungeon_event.connect(_on_event)
 
 func _build_tracker() -> void:
 	_panel = PanelContainer.new()
@@ -129,6 +143,70 @@ func _build_tracker() -> void:
 	_deaths.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(_deaths)
 
+func _build_away_card() -> void:
+	_away = PanelContainer.new()
+	_away.name = "DungeonAwayCard"
+	_away.mouse_filter = Control.MOUSE_FILTER_STOP
+	_away.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	_away.tooltip_text = tr("Show the way to the gate")
+	_away.add_theme_stylebox_override("panel", _panel.get_theme_stylebox("panel"))
+	_away.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_away.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_away.offset_right = _panel.offset_right
+	_away.offset_left = _panel.offset_left
+	_away.offset_top = _panel.offset_top
+	_away.visible = false
+	_away.gui_input.connect(func(event: InputEvent):
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT \
+				and guide != null and not _run.is_empty():
+			guide.show_way_to(String(_run.get("dungeon", ""))))
+	add_child(_away)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 2)
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_away.add_child(column)
+	_away_title = HudKit.label("", 14, HudKit.GOLD_LT, HudKit.title(), 4)
+	_away_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	column.add_child(_away_title)
+	_away_line = HudKit.label("", 13, HudKit.TEXT, HudKit.body(), 3)
+	_away_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	column.add_child(_away_line)
+	_away_time = HudKit.label("", 13, HudKit.GOLD_HI, HudKit.bold(), 3)
+	column.add_child(_away_time)
+
+## The authority's word on the run we are out of ({} = none any more).
+func _on_event(uid: int, event: Dictionary) -> void:
+	if uid != SimAuthority.local_uid and SimAuthority.local_uid != 0:
+		return
+	if String(event.get("kind", "")) == "active":
+		_run = event.get("run", {})
+		_run_at_ms = Time.get_ticks_msec()
+		_refresh_away()
+
+## Seconds the run stays open to us, ticking down from the authority's last
+## word (-1: no limit right now).
+func run_left_s() -> float:
+	var left := float(_run.get("left_s", -1.0))
+	if left < 0.0:
+		return -1.0
+	return maxf(0.0, left - float(Time.get_ticks_msec() - _run_at_ms) / 1000.0)
+
+func _refresh_away() -> void:
+	var dungeon := HPMaps.dungeons().get(String(_run.get("dungeon", "")), {}) as Dictionary
+	if _run.is_empty() or dungeon.is_empty():
+		_away.visible = false
+		return
+	var difficulty := String(_run.get("difficulty", "normal"))
+	_away_title.text = "%s - %s" % [I18n.upper(I18n.t(String(dungeon.get("display", "")))),
+		I18n.t(String(HPRules.dungeon_difficulty(difficulty).get("display", "")))]
+	_away_title.add_theme_color_override("font_color", HudDungeon.COLOURS.get(difficulty, HudKit.GOLD_LT))
+	if bool(_run.get("complete", false)):
+		_away_line.text = tr("Your dungeon is finished - its chests wait inside.")
+	else:
+		var total := int(_run.get("forces_total", 0))
+		var share := 0 if total <= 0 else int(floor(100.0 * minf(1.0, float(_run.get("forces", 0)) / float(total))))
+		_away_line.text = tr("Your dungeon is still open (%d%% cleared). Go back in through its gate.") % share
+
 ## The map the local body is on: the map controller's word (it changes the
 ## moment a transfer lands), the player's record only before a world exists.
 func _local_map() -> String:
@@ -176,6 +254,12 @@ func _process(_delta: float) -> void:
 	var here := _tracking()
 	_panel.visible = here
 	_wait.visible = here and _phase == "gather"
+	_away.visible = not here and not _run.is_empty() and not String(_run.get("map", "")).is_empty() \
+		and _local_map() != String(_run.get("map", "")) and run_left_s() != 0.0
+	if _away.visible:
+		var left := run_left_s()
+		_away_time.text = tr("Open for %s more") % HudDungeon._clock(left) if left > 0.0 else ""
+		_away_time.visible = left > 0.0
 	if not here:
 		_count.visible = false
 		return

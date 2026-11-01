@@ -139,6 +139,12 @@ func _show_way() -> void:
 	waypoints.set_target(String(best["map_id"]), Vector3(float(c[0]), float(c[1]), float(c[2])))
 	close()
 
+## Footprints to the nearest gate of `id` from wherever the player stands
+## (the HUD's "your dungeon is still open" card).
+func show_way_to(id: String) -> void:
+	dungeon_id = id
+	_show_way()
+
 func _pick_dungeon(id: String) -> void:
 	dungeon_id = id
 	_ask()

@@ -1050,13 +1050,15 @@ func _hinted_target(record: Dictionary, target_uid: int, aim: Vector3) -> int:
 	if target.is_empty() or bool(target.get("dead", false)):
 		return 0
 	var kind := int(target.get("kind", 0))
-	if kind != HPProtocol.Kind.MOB and kind != HPProtocol.Kind.PLAYER 			and kind != HPProtocol.Kind.DUMMY and kind != HPProtocol.Kind.MONOLITH:
+	if kind != HPProtocol.Kind.MOB and kind != HPProtocol.Kind.PLAYER \
+			and kind != HPProtocol.Kind.DUMMY and kind != HPProtocol.Kind.MONOLITH:
 		return 0
 	if String(target.get("map_id", HPProtocol.DEFAULT_MAP)) != String(record.get("map_id", HPProtocol.DEFAULT_MAP)):
 		return 0
 	var node = target.get("node")
 	var caster_node = record.get("node")
-	if node == null or not is_instance_valid(node) or not (node is Node3D) 			or caster_node == null or not is_instance_valid(caster_node):
+	if node == null or not is_instance_valid(node) or not (node is Node3D) \
+			or caster_node == null or not is_instance_valid(caster_node):
 		return 0
 	var at: Vector3 = (node as Node3D).global_position
 	if Vector2(aim.x - at.x, aim.z - at.z).length() > AIM_HINT_SLACK:
@@ -4693,6 +4695,7 @@ func request_dungeon_info(peer_id: int, portal_id: String) -> Dictionary:
 	emit_signal("dungeon_event", uid, {"kind": "info", "dungeon": String(gate["dungeon"].get("id", "")),
 		"portal": portal_id, "leader": int(the_party.get("leader", uid)), "members": members,
 		"active": _active_copy(uid, String(gate["map"])) != "",
+		"run": _active_run_view(uid, String(gate["map"])),
 		"check": _dungeon_check_view(check) if not check.is_empty() else {}})
 	return HPProtocol.accept()
 
@@ -4809,6 +4812,12 @@ func _launch_dungeon(check: Dictionary) -> void:
 	var slot := _free_copy_slot(base)
 	if bool(checked.get("ok", false)) and slot == 0:
 		checked = _dungeon_problem(HPProtocol.REJECT_MAP_FULL)
+	# The copy's floors must exist in this process before anyone is sent in -
+	# the door's transfer asks the map host (request_transfer), and so must the
+	# gate: launched without it, the party and every creature the run spawned
+	# fell through a world server's empty copy.
+	if bool(checked.get("ok", false)) and not map_provider_ready(HPMaps.instance_id(base, slot)):
+		checked = _dungeon_problem(HPProtocol.REJECT_MAP_UNAVAILABLE)
 	if not bool(checked.get("ok", false)):
 		dungeon_checks[int(check["id"])] = check
 		_end_dungeon_check(check, String(checked["reason"]), String(checked.get("who", "")))
@@ -4842,11 +4851,22 @@ func _launch_dungeon(check: Dictionary) -> void:
 		var bag: Array = leader_node.inventory.duplicate(true)
 		HPEquipment.take(bag, String(dungeon.get("key", "")), 0, keys)
 		_set_bag(leader, bag)
-	# A member's earlier run (finished, everybody out) no longer takes them back.
-	for copies in instances.values():
-		for info in (copies as Dictionary).values():
+	# A member's earlier run (finished, or left with nobody inside - the gate
+	# asked them first) no longer takes them back; a copy that loses its whole
+	# roster that way closes now instead of idling out its empty TTL.
+	var abandoned: Array = []
+	for old_base in instances.keys():
+		for old_slot in (instances[old_base] as Dictionary).keys():
+			var info: Dictionary = instances[old_base][old_slot]
+			var roster: Array = info.get("roster", [])
+			var had := roster.size()
 			for member_uid in check["roster"]:
-				((info as Dictionary).get("roster", []) as Array).erase(member_uid)
+				roster.erase(member_uid)
+			var old_id := HPMaps.instance_id(String(old_base), int(old_slot))
+			if had > 0 and roster.is_empty() and players_on_map(old_id) + reserved_seats(old_id) == 0:
+				abandoned.append(old_id)
+	for old_id in abandoned:
+		close_instance(old_id)
 	var copies: Dictionary = instances.get(base, {})
 	copies[slot] = {"owner": _instance_owner(leader), "opened_tick": sim_tick, "empty_since_tick": -1,
 		"params": params, "roster": (check["roster"] as Array).duplicate()}
@@ -5166,6 +5186,69 @@ func _tick_instances() -> void:
 				continue
 			if float(sim_tick - int(info["empty_since_tick"])) * TICK_MS / 1000.0 >= HPMaps.instance_empty_ttl(id):
 				close_instance(id)
+	_push_active_runs()
+
+## The run `uid` can still go back to (of `base`, or any), for the gate and the
+## HUD card ({} when none): map, dungeon, difficulty, clear, whether it is
+## finished, and `left_s` - how long it stays open to them (an empty copy closes
+## after its empty TTL, a running run ends at its time limit; -1 = no limit now).
+func _active_run_view(uid: int, base: String = "") -> Dictionary:
+	for each in instances.keys():
+		if base != "" and String(each) != HPMaps.base_map(base):
+			continue
+		var copies: Dictionary = instances[each]
+		for slot in copies.keys():
+			var info: Dictionary = copies[slot]
+			if not (info.get("roster", []) as Array).has(uid):
+				continue
+			var id := HPMaps.instance_id(String(each), int(slot))
+			var state: Dictionary = info.get("state", {})
+			var params: Dictionary = info.get("params", {})
+			var left := INF
+			if int(info.get("empty_since_tick", -1)) >= 0:
+				left = HPMaps.instance_empty_ttl(id) - float(sim_tick - int(info["empty_since_tick"])) / HPProtocol.SIM_HZ
+			if String(state.get("phase", "")) == "running" and not bool(state.get("complete", false)):
+				var limit := float(state.get("par_s", 0.0)) * float(HPMaps.dungeon_rules("medals").get("limit", 2.0))
+				var elapsed := float(state.get("elapsed_s", 0.0)) \
+					+ float(sim_tick - int(info.get("state_tick", sim_tick))) / HPProtocol.SIM_HZ
+				if limit > 0.0:
+					left = minf(left, limit - elapsed)
+			return {"map": id, "dungeon": String(HPMaps.dungeon_for_map(id).get("id", "")),
+				"difficulty": String(params.get("difficulty", "normal")),
+				"forces": int(state.get("forces", 0)), "forces_total": int(state.get("forces_total", 0)),
+				"complete": bool(state.get("complete", false)), "empty": players_on_map(id) == 0,
+				"left_s": maxf(0.0, left) if left != INF else -1.0}
+	return {}
+
+## Each roster member who is out of their copy hears where it stands the
+## moment they step out and every 5 s after (the HUD card under the minimap); a
+## member whose run is gone, or who went back in, hears it once more with an
+## empty run.
+var _active_told: Dictionary = {}   # uid -> true while they are being told
+
+func _push_active_runs() -> void:
+	if instances.is_empty() and _active_told.is_empty():
+		return
+	var out: Dictionary = {}
+	for base in instances.keys():
+		var copies: Dictionary = instances[base]
+		for slot in copies.keys():
+			var id := HPMaps.instance_id(String(base), int(slot))
+			for member_uid in (copies[slot] as Dictionary).get("roster", []):
+				var record := record_by_uid(int(member_uid))
+				if record.is_empty() or String(record.get("map_id", "")) == id \
+						or String((transfers.get(int(record.get("pending_transfer", 0)), {}) as Dictionary).get("to_map", "")) == id:
+					continue   # inside, or on the way in
+				out[int(member_uid)] = true
+	for member_uid in _active_told.keys():
+		if not out.has(member_uid):
+			_active_told.erase(member_uid)
+			emit_signal("dungeon_event", int(member_uid), {"kind": "active", "run": {}})
+	var refresh := sim_tick % (5 * HPProtocol.SIM_HZ) == 0
+	for member_uid in out.keys():
+		if refresh or not _active_told.has(member_uid):   # the moment they step out, then every 5 s
+			_active_told[member_uid] = true
+			emit_signal("dungeon_event", int(member_uid), {"kind": "active", "run": _active_run_view(int(member_uid))})
 
 func close_instance(map_id: String) -> void:
 	var copies: Dictionary = instances.get(HPMaps.base_map(map_id), {})
@@ -5185,6 +5268,7 @@ func publish_dungeon_state(map_id: String, state: Dictionary) -> void:
 	var info := instance_info(map_id)
 	if not info.is_empty():
 		info["state"] = state
+		info["state_tick"] = sim_tick
 	emit_signal("dungeon_state", map_id, state)
 
 ## A loot table dropped at a point (dungeon chests): its roll lands as one loot

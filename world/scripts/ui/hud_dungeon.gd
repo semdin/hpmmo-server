@@ -54,6 +54,10 @@ var _members: VBoxContainer
 var _verdict: Label
 var _start: Button
 var _rejoin: Button
+var _buttons: HBoxContainer
+## Asked before a new start when the player's last run here is still open.
+var _confirm: HBoxContainer
+var _run_at_ms := 0
 
 func _init() -> void:
 	super._init("Dungeon Gate", Vector2(600, 706))
@@ -112,20 +116,63 @@ func _ready() -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	_run_view.add_child(row)
+	_buttons = row
 	_start = HudKit.gold_button(tr("Ready check"))
 	_start.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_start.pressed.connect(_on_start)
 	row.add_child(_start)
-	_rejoin = HudKit.button(tr("Return to your run"), 15)
+	_rejoin = HudKit.button(tr("Return to the dungeon"), 15)
 	_rejoin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_rejoin.custom_minimum_size = Vector2(0, 44)
 	_rejoin.pressed.connect(_on_rejoin)
 	row.add_child(_rejoin)
+	_build_confirm()
 	_show_page("run")
 	SimAuthority.dungeon_event.connect(_on_event)
 
 ## The Dungeon / Seal Shop tabs (the character window's strip); the shop tab
 ## carries the seal count.
+## "Your dungeon is still open": start a new one (the old one is given up) or
+## go back to it. Takes the button row's place until answered.
+func _build_confirm() -> void:
+	# The question is worded on the verdict line; this row takes the buttons' place.
+	_confirm = HBoxContainer.new()
+	_confirm.add_theme_constant_override("separation", 10)
+	_confirm.visible = false
+	_run_view.add_child(_confirm)
+	var row := _confirm
+	var fresh := HudKit.gold_button(tr("Start a new dungeon"))
+	fresh.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	fresh.pressed.connect(func():
+		_hide_confirm()
+		_send_start())
+	row.add_child(fresh)
+	var back := HudKit.button(tr("Return to the dungeon"), 15)
+	back.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	back.custom_minimum_size = Vector2(0, 44)
+	back.pressed.connect(func():
+		_hide_confirm()
+		_on_rejoin())
+	row.add_child(back)
+	var cancel := HudKit.button(tr("Cancel"), 15)
+	cancel.custom_minimum_size = Vector2(110, 44)
+	cancel.pressed.connect(_hide_confirm)
+	row.add_child(cancel)
+
+func _hide_confirm() -> void:
+	if _confirm.visible:
+		_confirm.visible = false
+		_buttons.visible = true
+		_refresh()
+
+## Seconds the open run stays open to us, ticking down from the gate's answer
+## (-1: no limit now).
+func _run_left_s() -> float:
+	var left := float((_info.get("run", {}) as Dictionary).get("left_s", -1.0))
+	if left < 0.0:
+		return -1.0
+	return maxf(0.0, left - float(Time.get_ticks_msec() - _run_at_ms) / 1000.0)
+
 func _build_tabs() -> void:
 	var strip := VBoxContainer.new()
 	strip.add_theme_constant_override("separation", 0)
@@ -275,6 +322,7 @@ func open_at(who: Node, at_portal: String) -> void:
 	player = who
 	portal_id = at_portal
 	_info = {}
+	_hide_confirm()
 	var dungeon := _dungeon()
 	set_title(tr("Dungeon Gate"))
 	_banner.setup(I18n.t(String(dungeon.get("display", "Dungeon"))), _boss_art(dungeon))
@@ -304,6 +352,9 @@ func _process(delta: float) -> void:
 	if not visible:
 		return
 	_refresh_t -= delta
+	if _rejoin.visible:
+		var left := _run_left_s()
+		_rejoin.text = tr("Return to the dungeon") + (" (%s)" % _clock(left) if left > 0.0 else "")
 	if _refresh_t <= 0.0:
 		_ask()
 		_refresh_shop()
@@ -322,6 +373,7 @@ func _on_event(uid: int, event: Dictionary) -> void:
 		"info":
 			if String(event.get("portal", "")) == portal_id:
 				_info = event
+				_run_at_ms = Time.get_ticks_msec()
 				if visible:
 					_refresh()
 		"ready":
@@ -369,7 +421,7 @@ static func reason_text(reason: String, who: String, value: int) -> String:
 		HPProtocol.REJECT_TRANSFER_PENDING:
 			return I18n.t("%s is travelling.") % whom
 		HPProtocol.REJECT_IN_RUN:
-			return I18n.t("%s is in another dungeon run.") % whom
+			return I18n.t("%s is still inside another dungeon.") % whom
 		HPProtocol.REJECT_DIFFICULTY_LOCKED:
 			return I18n.t("%s has not unlocked this difficulty yet.") % whom
 		HPProtocol.REJECT_NO_KEY:
@@ -388,6 +440,8 @@ static func reason_text(reason: String, who: String, value: int) -> String:
 			return I18n.t("Stand at the gate.")
 		HPProtocol.REJECT_USE_GATE:
 			return I18n.t("Start the dungeon at its gate.")
+		HPProtocol.REJECT_MAP_UNAVAILABLE:
+			return I18n.t("The dungeon could not be prepared - try again in a moment.")
 	return I18n.t("The gate stays shut.")
 
 static func _clock(seconds: float) -> String:
@@ -653,13 +707,36 @@ func _judge(members: Array, levels: Array, rules: Dictionary, need: int) -> void
 		if problem == "" and keys > 0 and _key_count(String(_dungeon().get("key", ""))) < keys:
 			problem = reason_text(HPProtocol.REJECT_NO_KEY, tr("You"), keys)
 	var blocked := problem != ""
-	_verdict.text = problem if blocked else (tr("Everyone is ready at the gate.") if members.size() > 1 else tr("The gate is open to you."))
-	_verdict.add_theme_color_override("font_color", HudKit.GOLD_LT if not check.is_empty() else (BAD if blocked else GOOD))
+	if _confirm.visible and blocked:
+		_hide_confirm()   # the start is refused now anyway (a member went in, a check began)
+		return
+	if not _confirm.visible:   # the open-dungeon question holds the line until answered
+		_verdict.text = problem if blocked else (tr("Everyone is ready at the gate.") if members.size() > 1 else tr("The gate is open to you."))
+		_verdict.add_theme_color_override("font_color", HudKit.GOLD_LT if not check.is_empty() else (BAD if blocked else GOOD))
 	_start.text = I18n.upper(tr("Ready check") if members.size() > 1 else tr("Enter"))
 	_start.disabled = blocked
 	_rejoin.visible = bool(_info.get("active", false))
 
 func _on_start() -> void:
+	# The last run here is still open (walked out, or died and came round
+	# outside): a new start gives it up, so ask first.
+	var run: Dictionary = _info.get("run", {})
+	if not run.is_empty() and not bool(run.get("complete", false)):
+		var total := int(run.get("forces_total", 0))
+		var share := 0 if total <= 0 else int(floor(100.0 * minf(1.0, float(run.get("forces", 0)) / float(total))))
+		var left := _run_left_s()
+		var text := tr("You still have an open dungeon here: %s, %d%% cleared.") % [
+			I18n.t(String(HPRules.dungeon_difficulty(String(run.get("difficulty", "normal"))).get("display", ""))), share]
+		if left > 0.0:
+			text += " " + tr("It stays open for %s more.") % _clock(left)
+		_verdict.text = text + "\n" + tr("A new dungeon closes that one for good.")
+		_verdict.add_theme_color_override("font_color", HudKit.GOLD_LT)
+		_confirm.visible = true
+		_buttons.visible = false
+		return
+	_send_start()
+
+func _send_start() -> void:
 	if is_instance_valid(player):
 		SimNet.dungeon_start(player, portal_id, difficulty)
 		AudioManager.play_sound_at("ui_confirm", Vector3.ZERO, null, true)

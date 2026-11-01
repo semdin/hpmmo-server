@@ -1716,8 +1716,16 @@ msgid "Ready check"
 msgstr "Hazırlık kontrolü"
 
 #: scripts/ui/hud_dungeon.gd
-msgid "Return to your run"
-msgstr "Koşuna geri dön"
+msgid "Return to the dungeon"
+msgstr "Zindana geri dön"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "Start a new dungeon"
+msgstr "Yeni zindan başlat"
+
+#: scripts/ui/hud_dungeon.gd scripts/ui/hud_game_menu.gd scripts/ui/inventory_arcane.gd scripts/ui/look_editor.gd scenes/main/character_select.tscn
+msgid "Cancel"
+msgstr "İptal"
 
 #: scripts/ui/hud_dungeon.gd
 msgid "Dungeon"
@@ -1729,7 +1737,7 @@ msgstr "Mühür Dükkânı"
 
 #: scripts/ui/hud_dungeon.gd
 msgid "Dungeon Seals  ·  every finished run pays seals; a medal pays more"
-msgstr "Zindan Mührü  ·  her biten koşu mühür verir, madalya daha fazla"
+msgstr "Zindan Mührü  ·  biten her zindan mühür verir, madalya daha fazla"
 
 #: scripts/ui/hud_dungeon.gd
 msgid "%d seals"
@@ -1808,8 +1816,8 @@ msgid "%s is travelling."
 msgstr "%s yolculukta."
 
 #: scripts/ui/hud_dungeon.gd
-msgid "%s is in another dungeon run."
-msgstr "%s başka bir zindan koşusunda."
+msgid "%s is still inside another dungeon."
+msgstr "%s hâlâ başka bir zindanın içinde."
 
 #: scripts/ui/hud_dungeon.gd
 msgid "%s has not unlocked this difficulty yet."
@@ -1846,6 +1854,10 @@ msgstr "Kapının önünde dur."
 #: scripts/ui/hud_dungeon.gd scripts/world/map_controller.gd
 msgid "Start the dungeon at its gate."
 msgstr "Zindanı kapısından başlat."
+
+#: scripts/ui/hud_dungeon.gd
+msgid "The dungeon could not be prepared - try again in a moment."
+msgstr "Zindan hazırlanamadı - birazdan tekrar dene."
 
 #: scripts/ui/hud_dungeon.gd
 msgid "The gate stays shut."
@@ -1969,7 +1981,7 @@ msgstr "yolculukta"
 
 #: scripts/ui/hud_dungeon.gd
 msgid "in another run"
-msgstr "başka koşuda"
+msgstr "başka zindanda"
 
 #: scripts/ui/hud_dungeon.gd
 msgid "busy"
@@ -2003,6 +2015,18 @@ msgstr "Kapı sana açık."
 msgid "Enter"
 msgstr "Gir"
 
+#: scripts/ui/hud_dungeon.gd
+msgid "You still have an open dungeon here: %s, %d%% cleared."
+msgstr "Burada hâlâ açık bir zindanın var: %s, %%%d temizlendi."
+
+#: scripts/ui/hud_dungeon.gd
+msgid "It stays open for %s more."
+msgstr "%s daha açık kalacak."
+
+#: scripts/ui/hud_dungeon.gd
+msgid "A new dungeon closes that one for good."
+msgstr "Yeni bir zindan başlatırsan o zindan tamamen kapanır."
+
 #: scripts/ui/hud_dungeon_guide.gd scripts/ui/hud_dungeon_result.gd scripts/ui/hud_dungeon_run.gd
 msgid "Gold"
 msgstr "Altın"
@@ -2027,7 +2051,7 @@ msgstr "Zindan Rehberi"
 msgid "Levels %d-%d"
 msgstr "Seviye %d-%d"
 
-#: scripts/ui/hud_dungeon_guide.gd
+#: scripts/ui/hud_dungeon_guide.gd scripts/ui/hud_dungeon_run.gd
 msgid "Show the way to the gate"
 msgstr "Kapıya yolu göster"
 
@@ -2113,11 +2137,11 @@ msgstr "Ölüm"
 
 #: scripts/ui/hud_dungeon_result.gd
 msgid "The run was too slow for a medal."
-msgstr "Madalya için koşu fazla yavaştı."
+msgstr "Zindan madalya için fazla yavaş bitti."
 
 #: scripts/ui/hud_dungeon_result.gd
 msgid "Time ran out (%s) - the run ended where it stood."
-msgstr "Süre doldu (%s) - koşu olduğu yerde bitti."
+msgstr "Süre doldu (%s) - zindan olduğu yerde bitti."
 
 #: scripts/ui/hud_dungeon_result.gd
 msgid "A medal needs every creature cleared, side rooms included."
@@ -2148,12 +2172,24 @@ msgid "Unlocked: %s"
 msgstr "Açıldı: %s"
 
 #: scripts/ui/hud_dungeon_run.gd
+msgid "Your dungeon is finished - its chests wait inside."
+msgstr "Zindanın tamamlandı - sandıkların içeride seni bekliyor."
+
+#: scripts/ui/hud_dungeon_run.gd
+msgid "Your dungeon is still open (%d%% cleared). Go back in through its gate."
+msgstr "Zindanın hâlâ açık (%%%d temizlendi). Kapısından geri girebilirsin."
+
+#: scripts/ui/hud_dungeon_run.gd
 msgid "Waiting for the party to arrive..."
 msgstr "Grubun gelmesi bekleniyor..."
 
 #: scripts/ui/hud_dungeon_run.gd
 msgid "Go!"
 msgstr "Başla!"
+
+#: scripts/ui/hud_dungeon_run.gd
+msgid "Open for %s more"
+msgstr "%s daha açık"
 
 #: scripts/ui/hud_dungeon_run.gd
 msgid "no medal"
@@ -2266,10 +2302,6 @@ msgstr "Oyundan Çık"
 #: scripts/ui/hud_game_menu.gd
 msgid "You cannot leave while defeated."
 msgstr "Yenik düşmüşken ayrılamazsın."
-
-#: scripts/ui/hud_game_menu.gd scripts/ui/inventory_arcane.gd scripts/ui/look_editor.gd scenes/main/character_select.tscn
-msgid "Cancel"
-msgstr "İptal"
 
 #: scripts/ui/hud_game_menu.gd
 msgid "Quitting"
@@ -4257,7 +4289,7 @@ msgstr "Dönüş yolu açık. Toparlanıp yeniden dene."
 
 #: scripts/world/dungeon_director.gd
 msgid "Creatures still stand - clear them all to finish the run."
-msgstr "Hâlâ ayakta yaratıklar var - koşuyu bitirmek için hepsini temizle."
+msgstr "Hâlâ ayakta yaratıklar var - zindanı bitirmek için hepsini temizle."
 
 #: scripts/world/dungeon_director.gd
 msgid "Time is up - the guardians fell, but not every creature did."
@@ -4265,7 +4297,7 @@ msgstr "Süre doldu - bekçiler düştü ama tüm yaratıklar temizlenmedi."
 
 #: scripts/world/dungeon_director.gd
 msgid "Time is up - the run is over."
-msgstr "Süre doldu - koşu sona erdi."
+msgstr "Süre doldu - zindan sona erdi."
 
 #: scripts/world/dungeon_director.gd
 msgid "A dementor's chill sweeps the halls - nobody recovers for a while."
@@ -4281,7 +4313,7 @@ msgstr "Bir yumurta kesesi çatladı!"
 
 #: scripts/world/dungeon_director.gd
 msgid "The party's lives are spent - no medal this run."
-msgstr "Grubun canları tükendi - bu koşuda madalya yok."
+msgstr "Grubun canları tükendi - bu zindanda madalya yok."
 
 #: scripts/world/encounter_director.gd
 msgid "Elite Bodyguard"
@@ -5233,7 +5265,7 @@ msgstr "Zindan Mührü"
 
 #: addons/hpmmo_sim/data/items.json
 msgid "A wax seal stamped at a dungeon's end for every run. Spend seals at any dungeon gate on keys, runes and potions."
-msgstr "Her zindan koşusunun sonunda basılan bir mühür. Mühürleri herhangi bir zindan kapısında anahtar, rün ve iksire harca."
+msgstr "Her zindanın sonunda basılan bir mühür. Mühürleri herhangi bir zindan kapısında anahtar, rün ve iksire harca."
 
 #: addons/hpmmo_sim/data/items.json
 msgid "Trial Hall Key"
@@ -5241,7 +5273,7 @@ msgstr "Sınav Salonu Anahtarı"
 
 #: addons/hpmmo_sim/data/items.json
 msgid "An iron key to the Trial Hall. The party leader spends keys at the gate to open its Very Hard (1 key) and Legendary (3 keys) runs. Found in Hard runs, sold for seals."
-msgstr "Sınav Salonu'nun demir anahtarı. Grup lideri Çok Zor (1 anahtar) ve Efsanevi (3 anahtar) koşuları açmak için kapıda harcar. Zor koşulardan düşer, Mühür karşılığı satılır."
+msgstr "Sınav Salonu'nun demir anahtarı. Grup lideri Çok Zor (1 anahtar) ve Efsanevi (3 anahtar) zorlukları açmak için kapıda harcar. Zor zindanlardan düşer, Mühür karşılığı satılır."
 
 #: addons/hpmmo_sim/data/items.json
 msgid "Forbidden Corridor Key"
@@ -5249,7 +5281,7 @@ msgstr "Yasak Koridor Anahtarı"
 
 #: addons/hpmmo_sim/data/items.json
 msgid "A brass key that fits the locked third-floor door. The party leader spends keys at the gate to open its Very Hard (1 key) and Legendary (3 keys) runs. Found in Hard runs, sold for seals."
-msgstr "Üçüncü kattaki kilitli kapıya uyan pirinç anahtar. Grup lideri Çok Zor (1 anahtar) ve Efsanevi (3 anahtar) koşuları açmak için kapıda harcar. Zor koşulardan düşer, Mühür karşılığı satılır."
+msgstr "Üçüncü kattaki kilitli kapıya uyan pirinç anahtar. Grup lideri Çok Zor (1 anahtar) ve Efsanevi (3 anahtar) zorlukları açmak için kapıda harcar. Zor zindanlardan düşer, Mühür karşılığı satılır."
 
 #: addons/hpmmo_sim/data/mobs.json
 msgid "Drowned Inferius"
@@ -7293,11 +7325,17 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "%s invites you to a party."
 #~ msgstr "%s seni partiye davet ediyor."
 
+#~ msgid "%s is in another dungeon run."
+#~ msgstr "%s başka bir zindan koşusunda."
+
 #~ msgid "A Dark Monolith has risen where Grak fell. Break it with others."
 #~ msgstr "Grak'ın düştüğü yerde bir Karanlık Metin Taşı yükseldi. Diğerleriyle birlikte onu kır."
 
 #~ msgid "A creature that dies strengthens the creatures around it (+15% health and damage, stacking)."
 #~ msgstr "Ölen yaratık çevresindekileri güçlendirir (+%15 can ve hasar, birikerek)."
+
+#~ msgid "A new dungeon gives that one up for good. Start a new one, or go back in?"
+#~ msgstr "Yeni bir zindan başlatırsan o zindan tamamen kapanır. Yenisini mi başlatmak istersin, yoksa geri mi dönmek?"
 
 #~ msgid "A purple beam marks a Dark Monolith. Join others and break it before its waves overrun you."
 #~ msgstr "Mor bir ışın bir Karanlık Metin Taşını işaret eder. Diğerlerine katıl ve dalgaları seni ezmeden onu kır."
@@ -7481,6 +7519,9 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 
 #~ msgid "Report to Hagrid at his hut"
 #~ msgstr "Kulübesinde Hagrid'e rapor ver"
+
+#~ msgid "Return to your run"
+#~ msgstr "Koşuna geri dön"
 
 #~ msgid "Reweave  ·  %d"
 #~ msgstr "Efsun Değiştir  ·  %d"

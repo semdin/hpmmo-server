@@ -229,6 +229,7 @@ func _setup_panels() -> void:
 	dungeon_guide = HudDungeonGuide.new()
 	modal.add_child(dungeon_guide)
 	dungeon_run.result_window = dungeon_result
+	dungeon_run.guide = dungeon_guide
 	skill_pick = HudSkillPick.new()
 	skill_pick.hud = self
 	modal.add_child(skill_pick)

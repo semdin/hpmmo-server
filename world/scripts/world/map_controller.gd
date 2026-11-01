@@ -96,6 +96,7 @@ var _sun_disabled: Array = []
 var _pending_portal: Dictionary = {}
 var _active_portal: Dictionary = {}
 var _active_label: String = ""
+var _prompt_window: Control = null   # the window the interact prompt last opened
 var _fade: float = 0.0
 var _fade_target: float = 0.0
 var _notice: String = ""
@@ -217,6 +218,7 @@ func open_floo(node_id: String) -> void:
 		return
 	floo.on_travel = _floo_depart
 	floo.open_at(local_player, node_id)
+	_prompt_window = floo
 
 ## The traveller walks into the hearth, the powder catches and the green
 ## flames roar up around them; the request follows, and the granted transfer's
@@ -415,6 +417,7 @@ func open_dungeon_gate(portal: Dictionary) -> void:
 		return
 	gate.on_rejoin = func(_portal_id: String) -> void: _begin_transfer(portal)
 	gate.open_at(local_player, String(portal.get("id", "")))
+	_prompt_window = gate
 
 ## The local body is mounted: entering the castle is refused (the authority
 ## refuses it too; this is the presentation half).
@@ -1054,7 +1057,10 @@ func _update_labels() -> void:
 		if flat.length() <= LANDING_PAD_RADIUS and absf(y - LANDING_PAD_CENTRE.y) < 4.0:
 			text += tr("   |   Broom landing pad")
 	_location_label.text = text
-	_prompt_label.text = _active_label
+	# The window the prompt opened (a dungeon gate, a Floo hearth) stands where
+	# the prompt is drawn: the prompt waits until it closes.
+	var window_up := is_instance_valid(_prompt_window) and (_prompt_window as Control).visible
+	_prompt_label.text = "" if window_up else _active_label
 	_notice_label.text = _notice
 
 func _feedback(text: String) -> void:
