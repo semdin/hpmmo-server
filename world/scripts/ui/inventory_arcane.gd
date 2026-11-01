@@ -53,6 +53,9 @@ var _window: UIWindow
 var _tooltip: ItemTooltip
 var _doll_slots: Array[UISlot] = []
 var _bag_slots: Array[UISlot] = []
+## The page's cells, made once and refilled: every refresh (each time the bag
+## opened, every bag change) freed and rebuilt 40 slots, ~37 ms.
+var _bag_pool: Array[UISlot] = []
 var _doll: Control
 var _doll_fig: TextureRect
 var _doll_labels: Dictionary = {}   # slot id -> Label under it
@@ -487,6 +490,15 @@ func _make_slot(minimum: Vector2) -> UISlot:
 	return slot
 
 func open_for_player(value: Node3D) -> void:
+	prepare(value)
+	show()
+	_window.open()
+	_layout()
+
+## Bind the bag to `value` and fill it without showing it. The world loader
+## calls this behind the loading screen: the first opening used to build the
+## cells and load every item icon from disk on that frame (~130 ms).
+func prepare(value: Node3D) -> void:
 	if player != value and is_instance_valid(player):
 		if player.inventory_changed.is_connected(_on_inventory_changed): player.inventory_changed.disconnect(_on_inventory_changed)
 		if player.equipment_answer.is_connected(_answer): player.equipment_answer.disconnect(_answer)
@@ -494,9 +506,6 @@ func open_for_player(value: Node3D) -> void:
 	if not player.inventory_changed.is_connected(_on_inventory_changed): player.inventory_changed.connect(_on_inventory_changed)
 	if not player.equipment_answer.is_connected(_answer): player.equipment_answer.connect(_answer)
 	refresh()
-	show()
-	_window.open()
-	_layout()
 
 func refresh() -> void:
 	if not is_instance_valid(player): return
@@ -510,26 +519,35 @@ func refresh() -> void:
 		if ghost != null:
 			ghost.visible = entry.is_empty()
 		(_doll_labels[slot.equipment_slot] as Label).visible = entry.is_empty()
-	for child in item_container.get_children():
-		item_container.remove_child(child)
-		child.queue_free()
 	_bag_slots.clear()
 	var cells := _arrange_bag()
 	_page = clampi(_page, 0, pages_open() - 1)
 	for tab in _page_tabs:
 		(tab as PageTab).refresh(cells)
-	for index in range(_page * PAGE_CELLS, mini((_page + 1) * PAGE_CELLS, cells.size())):
-		var slot := _make_slot(Vector2(_bag_px, _bag_px))
-		slot.ready.connect(func(): _style_cell(slot, false))
-		slot.set_meta("cell", index)
-		var entry: Dictionary = cells[index]
+	var first := _page * PAGE_CELLS
+	var count := maxi(0, mini(first + PAGE_CELLS, cells.size()) - first)
+	while _bag_pool.size() < count:
+		var made := _make_slot(Vector2(_bag_px, _bag_px))
+		made.ready.connect(func(): _style_cell(made, false))
+		_bag_pool.append(made)
+		item_container.add_child(made)
+	for i in range(_bag_pool.size()):
+		var slot: UISlot = _bag_pool[i]
+		slot.visible = i < count
+		slot.selected = false
+		slot.disabled = false
+		slot.modulate = Color.WHITE
+		if i >= count:
+			slot.set_item("", {})
+			continue
+		slot.set_meta("cell", first + i)
+		var entry: Dictionary = cells[first + i]
+		slot.set_item(String(entry.get("id", "")), entry)
 		if not entry.is_empty():
-			slot.set_item(entry.id, entry)
 			slot.selected = _selection_key(slot) == _selected_key
 			slot.disabled = _pending or _locked(entry)
 			if _locked(entry): slot.modulate = Color(1, 1, 1, 0.35)   # on Ollivander's anvil
 			_bag_slots.append(slot)
-		item_container.add_child(slot)
 	# The staged sale may have left the bag (sold, equipped, consumed).
 	if not _sell_entry.is_empty() and _bag_entry(_sell_entry).is_empty():
 		_clear_offer()

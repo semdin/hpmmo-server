@@ -225,12 +225,33 @@ static var _grid: Dictionary = {}     # map_id -> {Vector2i: Array[key]}
 static func _cell(at: Vector3) -> Vector2i:
 	return Vector2i(floori(at.x / PACK_CELL), floori(at.z / PACK_CELL))
 
-## Full rebuild: only when creatures or static entities are added or removed
-## (boot, a dungeon copy opening or closing). Players are read live from
-## `players_by_peer` and loot is replicated separately, so neither rebuilds it.
+## Creatures and static entities registered or removed since the index was
+## built: [uid, added, key it was filed under]. Applied pack by pack at the
+## next use (`_apply_pending`); a whole rebuild walked all ~4 700 entities
+## (30-100 ms) for every one of them - live, on the first snapshot after each
+## boot, while the world was still spawning.
+static var _pending: Array = []
+static var _uid_key: Dictionary = {}   # uid -> "map|pack" key, "" = loose
+
+## The authority's roster changed (register_node / unregister_node).
+static func note_roster(authority, uid: int, added: bool) -> void:
+	if authority != _index_owner:
+		return   # not built yet: the first build reads the whole table
+	_pending.append([uid, added, _uid_key.get(uid)])
+
+## Build the index now if it is missing or behind (see world_server: it does
+## this while no player is waiting on a snapshot).
+static func warm_index(authority) -> void:
+	_ensure_index(authority)
+
+## Full build: once per authority (or when `roster_revision` moves). Players
+## are read live from `players_by_peer` and loot is replicated separately, so
+## neither is in it.
 static func _ensure_index(authority) -> void:
 	var revision := int(authority.roster_revision)
 	if revision == _index_revision and authority == _index_owner:
+		if not _pending.is_empty():
+			_apply_pending(authority)
 		return
 	_index_revision = revision
 	_index_owner = authority
@@ -240,23 +261,59 @@ static func _ensure_index(authority) -> void:
 	_pack_keys = {}
 	_pack_cells = {}
 	_grid = {}
+	_pending.clear()
+	_uid_key.clear()
 	for uid in authority.entities.keys():
-		var record: Dictionary = authority.entities[uid]
-		var kind := int(record.get("kind", 0))
-		if kind == HPProtocol.Kind.LOOT or kind == HPProtocol.Kind.NPC or kind == HPProtocol.Kind.PLAYER:
-			continue
-		var pack_id := int(record.get("pack_id", 0))
-		if kind != HPProtocol.Kind.MOB or pack_id <= 0:
-			_loose.append(uid)
-			continue
-		var key := "%s|%d" % [String(record.get("map_id", HPProtocol.DEFAULT_MAP)), pack_id]
-		if not _packs.has(key):
-			_packs[key] = []
-			(_pack_keys.get_or_add(pack_id, []) as Array).append(key)
-		(_packs[key] as Array).append(uid)
+		_index_add(authority.entities[uid], int(uid))
 	for key in _packs.keys():
 		_file_pack(authority, key)
 	HPProf.stop("index", t_idx)
+
+## File one entity (no grid work); the key it went under, or null when it is
+## not indexed (loot, NPCs, players).
+static func _index_add(record: Dictionary, uid: int):
+	var kind := int(record.get("kind", 0))
+	if kind == HPProtocol.Kind.LOOT or kind == HPProtocol.Kind.NPC or kind == HPProtocol.Kind.PLAYER:
+		return null
+	var pack_id := int(record.get("pack_id", 0))
+	if kind != HPProtocol.Kind.MOB or pack_id <= 0:
+		_loose.append(uid)
+		_uid_key[uid] = ""
+		return ""
+	var key := "%s|%d" % [String(record.get("map_id", HPProtocol.DEFAULT_MAP)), pack_id]
+	if not _packs.has(key):
+		_packs[key] = []
+		(_pack_keys.get_or_add(pack_id, []) as Array).append(key)
+	(_packs[key] as Array).append(uid)
+	_uid_key[uid] = key
+	return key
+
+static func _apply_pending(authority) -> void:
+	var t_idx := HPProf.start()
+	var touched: Dictionary = {}
+	for change in _pending:
+		var uid := int(change[0])
+		if bool(change[1]):
+			var record: Dictionary = authority.entities.get(uid, {})
+			if record.is_empty() or _uid_key.has(uid):
+				continue   # already gone again, or already filed
+			var key = _index_add(record, uid)
+			if key is String and key != "":
+				touched[key] = true
+		else:
+			var key = change[2] if change[2] != null else _uid_key.get(uid)
+			_uid_key.erase(uid)
+			if key == "":
+				_loose.erase(uid)
+			elif key is String and _packs.has(key):
+				(_packs[key] as Array).erase(uid)
+				touched[key] = true
+	_pending.clear()
+	for key in touched:
+		_file_pack(authority, key)
+	# Cached world interest sets may hold the old members.
+	_reindexed += 1
+	HPProf.stop("index_delta", t_idx)
 
 ## Every creature uid filed under `pack_id` (on any map or copy).
 static func pack_uids(authority, pack_id: int) -> Array:

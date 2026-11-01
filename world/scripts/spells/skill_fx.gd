@@ -132,14 +132,16 @@ static func warm_spell(spell_id: String) -> void:
 		var key := String((VFX.stages_for(spell_id).get(stage, {}) as Dictionary).get("audio", ""))
 		if key != "" and audio != null and audio.has_method("warm_sound"):
 			audio.call("warm_sound", key)
-	for stage in ["travel", "impact", "end"]:
+	# Every stage: the cast flash and the sustained status looks (a stun's
+	# stars, a burn) were left out and loaded on the frame they first showed.
+	for stage in VFX.stages_for(spell_id):
 		for raw in (VFX.stages_for(spell_id).get(stage, {}) as Dictionary).get("layers", []):
 			if not raw is Dictionary:
 				continue
 			for key in ["atlas", "tex", "mesh"]:
 				var path := VFX.asset_path(String(raw.get(key, "")))
 				if path != "" and not _warm_cache.has(path) and ResourceLoader.exists(path):
-					_warm_cache[path] = load(path)
+					_warm_cache[path] = SpellEffect.asset(path)
 
 
 static func _track(effect: Node3D) -> void:

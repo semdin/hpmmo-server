@@ -104,6 +104,7 @@ func _ready() -> void:
 	if _env("HPMMO_LAZY_MAPS", "") != "1":
 		map_host.ensure_map_built(MapHost.MAP_INTERIOR)
 	_warm_player_body()
+	HPSnapshots.warm_index(SimAuthority)
 	# Roster transitions are logged immediately (not only on the 5 s status
 	# tick): operations and the map transfer map tests need to see joins, leaves and
 	# entity counts without waiting for a timer.
@@ -140,6 +141,10 @@ func _ready() -> void:
 ## instead, and the scene stays referenced (a resource nobody holds leaves the
 ## cache), so later joins instantiate it warm. A server body carries no
 ## presentation (player.gd `_strip_presentation`), so nothing else needs it.
+## The body also restores a geared sheet: the first character restore after a
+## boot ran its equipment, quest and stat code cold (24-82 ms on live binds,
+## 144 ms locally) where every later one takes ~1.5 ms.
+const TEST_CHARACTER := "res://scripts/server/test_character.gd"
 var _warm_resources: Array = []
 
 func _warm_player_body() -> void:
@@ -150,6 +155,8 @@ func _warm_player_body() -> void:
 	body.name = "WarmupBody"
 	body.set("is_local_player", false)
 	world.add_child(body)
+	if ResourceLoader.exists(TEST_CHARACTER):
+		body.call("restore_character", load(TEST_CHARACTER).build("30"))
 	body.queue_free()
 	print("[WorldServer] player body warmed in %.1f ms" % ((Time.get_ticks_usec() - started) / 1000.0))
 
@@ -187,6 +194,13 @@ var _hitches := 0
 ## Periodic status line: enough to tell "nobody is connected" from "somebody is
 ## connected but their input is not arriving".
 func _process(delta: float) -> void:
+	# The interest index is kept up to date on use - which was the first
+	# snapshot after a boot, 30-100 ms of the first player's join, because the
+	# creatures register in the frames after the world is up. While nobody is
+	# on, it is brought up to date every frame instead (a no-op when nothing
+	# changed).
+	if SimAuthority.players_by_peer.is_empty():
+		HPSnapshots.warm_index(SimAuthority)
 	_worst_frame_ms = maxf(_worst_frame_ms, delta * 1000.0)
 	if delta > 0.05:
 		_hitches += 1

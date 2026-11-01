@@ -160,6 +160,8 @@ func _process(delta: float) -> void:
 			if ready_world:
 				_status.text = tr("Entering the valley…")
 			if (ready_world and _settle > 0.6 and _shown >= MIN_SHOW) or _settle > 12.0:
+				if ready_world and world.has_method("prewarm_windows"):
+					world.call("prewarm_windows")
 				if ready_world and ShaderWarmup.wanted():
 					_status.text = tr("Preparing spells and creatures…")
 					_warmup = ShaderWarmup.start(world)

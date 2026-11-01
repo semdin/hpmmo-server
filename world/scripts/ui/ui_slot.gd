@@ -207,7 +207,7 @@ func _fit_icon() -> void:
 	var scale := get_viewport().get_final_transform().get_scale().x * _icon.get_global_transform_with_canvas().get_scale().x
 	var px := int(round(minf(_icon.size.x, _icon.size.y) * scale))
 	if px > 0:
-		_icon.texture = UITheme.icon_pixels(item_id, px)
+		_icon.texture = UITheme.icon_pixels(item_id, px, _icon)
 
 
 ## Draw the cooldown veil. `remaining` in seconds, `fraction` 0..1 of the bar.

@@ -83,6 +83,12 @@ var _splats: Array = []
 var _cold: ShaderMaterial = null
 
 ## Draw `status` on `target` (creating its StatusFX child the first time).
+## Load the status looks' own pictures (the world preloads after it is up):
+## the first stun, freeze or burn on a body read them from disk on that frame.
+static func warm_assets() -> void:
+	for path in [STAR_TEX, GLOW_TEX, FLAME_ATLAS, SMOKE_ATLAS, NOISE_TEX]:
+		SpellEffect.asset(path)
+
 static func update(target: Node3D, status: int) -> void:
 	if target == null or not is_instance_valid(target) or not target.is_inside_tree():
 		return

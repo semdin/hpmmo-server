@@ -148,9 +148,9 @@ var players_by_peer: Dictionary = {} # peer_id -> uid
 var players_by_character: Dictionary = {} # character_id -> uid
 
 var _next_uid: int = 1
-## Bumped whenever a creature, dummy or monolith is registered or removed (not
-## loot, not players). HPSnapshots rebuilds its spatial interest index only
-## when this changes.
+## Bumping this makes HPSnapshots rebuild its spatial interest index from the
+## whole entity table. Single creatures, dummies and monoliths coming and
+## going are filed incrementally instead (HPSnapshots.note_roster).
 var roster_revision: int = 0
 ## The loot entries of `entities`, rebuilt only when the table changed (an
 ## added entry bumps _next_uid, a removed one shrinks it): per-peer snapshots
@@ -318,7 +318,9 @@ func register(kind: int, node: Node3D, extra: Dictionary = {}) -> int:
 	if kind == HPProtocol.Kind.LOOT:
 		_loot_set[uid] = true
 	elif kind != HPProtocol.Kind.PLAYER:
-		roster_revision += 1
+		# The interest index files it at its next use (HPSnapshots.note_roster);
+		# `roster_revision` is kept for a wholesale rebuild.
+		HPSnapshots.note_roster(self, uid, true)
 	return uid
 
 func unregister_node(node: Node3D) -> void:
@@ -330,7 +332,7 @@ func unregister_node(node: Node3D) -> void:
 	var uid: int = by_node[iid]
 	by_node.erase(iid)
 	if not (int((entities.get(uid, {}) as Dictionary).get("kind", 0)) in [HPProtocol.Kind.LOOT, HPProtocol.Kind.PLAYER]):
-		roster_revision += 1
+		HPSnapshots.note_roster(self, uid, false)
 	entities.erase(uid)
 	casts_by_node.erase(iid)
 	emit_signal("entity_despawned", uid)

@@ -243,13 +243,61 @@ static func chrome_at(id: String, px: float) -> Texture2D:
 ## and cached, for the slots: a 512 px master squeezed into a ~56 px cell by the
 ## GPU's bilinear sampling read only 4 of its texels per pixel - grainy and
 ## shimmering. Drawn 1:1, the icon is as crisp as the master allows.
-static func icon_pixels(id: String, px: int) -> Texture2D:
+##
+## A copy costs a read of the master back from the GPU and a resize, a few ms
+## each: the first time the bag opened it made one per item in one frame
+## (~290 ms with a full bag). Copies are made within RESAMPLE_BUDGET_USEC a
+## frame; past it the master is returned and `rect` (when given) gets the copy
+## when it is made, a frame or a few later.
+const RESAMPLE_BUDGET_USEC := 3000
+static var _resample_frame := -1
+static var _resample_spent := 0
+static var _waiting: Dictionary = {}   # key -> [id, px, Array[WeakRef]]
+
+static func icon_pixels(id: String, px: int, rect: TextureRect = null) -> Texture2D:
 	var source := icon_for(id)
 	if source == null or px < 8 or px >= source.get_width():
 		return source
 	var key := "%s#%d" % [id, px]
 	if _icons.has(key):
 		return _icons[key]
+	if _resample_budget_left():
+		return _resample(source, px, key)
+	var waiting: Array = _waiting.get_or_add(key, [id, px, []])
+	if rect != null:
+		(waiting[2] as Array).append(weakref(rect))
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree != null and not tree.process_frame.is_connected(_drain_waiting):
+		tree.process_frame.connect(_drain_waiting)
+	return source
+
+static func _resample_budget_left() -> bool:
+	var frame := Engine.get_process_frames()
+	if frame != _resample_frame:
+		_resample_frame = frame
+		_resample_spent = 0
+	return _resample_spent < RESAMPLE_BUDGET_USEC
+
+## Make waiting copies within this frame's budget and hand each to the rects
+## still showing that icon's master.
+static func _drain_waiting() -> void:
+	for key in _waiting.keys():
+		if not _resample_budget_left():
+			return
+		var waiting: Array = _waiting[key]
+		_waiting.erase(key)
+		var source := icon_for(String(waiting[0]))
+		var copy := _resample(source, int(waiting[1]), String(key))
+		for ref in waiting[2]:
+			var rect := (ref as WeakRef).get_ref() as TextureRect
+			if rect != null and rect.texture == source:
+				rect.texture = copy
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree != null and tree.process_frame.is_connected(_drain_waiting):
+		tree.process_frame.disconnect(_drain_waiting)
+
+static func _resample(source: Texture2D, px: int, key: String) -> Texture2D:
+	var started := Time.get_ticks_usec()
 	var out: Texture2D = source
 	var img := source.get_image()
 	if img != null:
@@ -266,6 +314,7 @@ static func icon_pixels(id: String, px: int) -> Texture2D:
 		scaled.resize(w, h, Image.INTERPOLATE_LANCZOS)
 		out = ImageTexture.create_from_image(scaled)
 	_icons[key] = out
+	_resample_spent += Time.get_ticks_usec() - started
 	return out
 
 

@@ -403,6 +403,12 @@ func _talk_to_npc(npc: Node3D) -> void:
 		else:
 			overlay.show_dialogue(npc.npc_name, npc.talk(local_player), npc)
 
+## Behind the loading screen (WorldLoader): fill the windows a player opens
+## first, so their first opening does not build and load them on that frame.
+func prewarm_windows() -> void:
+	if inventory_ui != null and inventory_ui.has_method("prepare") and is_instance_valid(local_player):
+		inventory_ui.call("prepare", local_player)
+
 func _toggle_inventory() -> void:
 	if inventory_ui.visible:
 		inventory_ui.hide()
@@ -623,6 +629,7 @@ func _queue_preloads() -> void:
 			_preload_queue.append(["mob", String(path)])
 	for spell_id in preload("res://scripts/spells/skill_fx.gd").VFX.SPELLS.keys():
 		_preload_queue.append(["spell", String(spell_id)])
+	_preload_queue.append(["status", ""])
 
 func _preload_next(delta: float) -> void:
 	if _preload_queue.is_empty():
@@ -639,6 +646,8 @@ func _preload_next(delta: float) -> void:
 			var scene := load(String(next[1])) as PackedScene
 			if scene != null:
 				_mob_scene_cache[next[1]] = scene
+	elif next[0] == "status":
+		StatusFX.warm_assets()
 	else:
 		preload("res://scripts/spells/skill_fx.gd").warm_spell(String(next[1]))
 
