@@ -95,8 +95,11 @@ func _ready() -> void:
 	add_child(_cooldown)
 
 	_count_label = Label.new()
-	_count_label.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	_count_label.offset_left = -30
+	# The whole bottom edge, right-aligned: a fixed 27 px box let "x200" grow
+	# past the cell's right edge, where clip_contents cut its last digit.
+	_count_label.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	_count_label.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_count_label.offset_left = 3
 	_count_label.offset_top = -18
 	_count_label.offset_right = -3
 	_count_label.offset_bottom = -1

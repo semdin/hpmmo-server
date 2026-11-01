@@ -1,15 +1,18 @@
 extends HudWindow
 class_name HudDungeon
 
-## The dungeon gate window (interact at a dungeon door, protocol v30). Five
-## difficulty tabs; for the chosen one it shows what the run will be for this
-## party (reference level, creature levels, power, the party it needs, the gold
-## medal time), the party at the gate with whether each can go in, and the
-## leader's button that opens the ready check. A run of the party's that is
-## still open offers its way back in instead. The authority decides everything
-## (SimNet.dungeon_info / dungeon_start); the checks here only explain early
-## what it would refuse. Its second page is the seal shop: Zindan Muhru from
-## finished runs buys keys, runes and potions (equipment op `seal_buy`).
+## The dungeon gate window (interact at a dungeon door, protocol v30). A banner
+## with the dungeon's boss, its level band and the medal times; five
+## difficulty cards (1-5 diamonds, each in its colour); for the chosen one the
+## run for this party as chips (creature levels, power, what it needs, the gold
+## medal, the final chest, the key) and this week's curses; the party at the
+## gate with a status tag each (empty places up to the party cap); then the
+## verdict and the leader's button that opens the ready check. A run of the
+## party's that is still open offers its way back in instead. The authority
+## decides everything (SimNet.dungeon_info / dungeon_start); the checks here
+## only explain early what it would refuse. Its second tab is the seal shop:
+## Zindan Muhru from finished runs buys keys, runes and potions (equipment op
+## `seal_buy`).
 
 const COLOURS := {
 	"easy": Color(0.44, 0.81, 0.55),
@@ -18,7 +21,12 @@ const COLOURS := {
 	"very_hard": Color(0.94, 0.48, 0.45),
 	"legendary": Color(0.77, 0.61, 1.0),
 }
+const MEDAL_COLOURS := {"gold": Color("e8c34a"), "silver": Color("c8ccd6"), "bronze": Color("c98a4a")}
 const REFRESH_S := 1.5
+const WELL := Color("070b12")
+const GOOD := Color(0.498, 0.839, 0.478)
+const BAD := Color(0.937, 0.416, 0.373)
+const FAINT := Color(0.435, 0.424, 0.400)
 
 var player: Node = null
 var hud: Node = null
@@ -30,79 +38,71 @@ var difficulty := "normal"
 var _info: Dictionary = {}
 var _refresh_t := 0.0
 
-var _band: Label
-var _pages: HBoxContainer
+var _banner: DungeonBanner
+var _page_tabs: Dictionary = {}   # page id -> HudCharacterWindow.TabChip
+var _tab_seals: Label
 var _run_view: VBoxContainer
 var _shop_view: VBoxContainer
 var _seals: Label
-var _shop_rows: VBoxContainer
+var _shop_grid: GridContainer
 var _buy_id := -1
-var _tabs: HBoxContainer
-var _facts: GridContainer
+var _cards: Dictionary = {}   # difficulty -> DifficultyCard
+var _detail: PanelContainer
+var _chips: GridContainer
+var _curses: HFlowContainer
 var _members: VBoxContainer
 var _verdict: Label
 var _start: Button
 var _rejoin: Button
 
 func _init() -> void:
-	super._init("Dungeon", Vector2(560, 660))
+	super._init("Dungeon Gate", Vector2(600, 706))
 	name = "DungeonGate"
 
 func _ready() -> void:
 	super._ready()
 	body.add_theme_constant_override("separation", 10)
-	_band = HudKit.label("", 13, HudKit.TEXT_DIM, HudKit.body(), 3)
-	_band.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	body.add_child(_band)
-	_pages = HBoxContainer.new()
-	_pages.add_theme_constant_override("separation", 6)
-	body.add_child(_pages)
-	for page in [["run", tr("Dungeon")], ["shop", tr("Seal Shop")]]:
-		var b := HudKit.button(String(page[1]), 13)
-		b.name = "Page_" + String(page[0])
-		b.toggle_mode = true
-		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		b.pressed.connect(_show_page.bind(String(page[0])))
-		_pages.add_child(b)
+	_banner = DungeonBanner.new()
+	body.add_child(_banner)
+	_build_tabs()
 	_run_view = VBoxContainer.new()
-	_run_view.add_theme_constant_override("separation", 10)
+	_run_view.add_theme_constant_override("separation", 8)
 	_run_view.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body.add_child(_run_view)
 	_shop_view = _build_shop()
 	body.add_child(_shop_view)
-	_tabs = HBoxContainer.new()
-	_tabs.add_theme_constant_override("separation", 6)
-	_run_view.add_child(_tabs)
+
+	var cards := HBoxContainer.new()
+	cards.add_theme_constant_override("separation", 6)
+	_run_view.add_child(cards)
+	var diamonds := 1
 	for id in HPRules.DUNGEON_DIFFICULTIES:
-		var tab := HudKit.button(I18n.t(String(HPRules.dungeon_difficulty(id).get("display", id))), 14)
-		tab.name = "Tab_" + id
-		tab.toggle_mode = true
-		tab.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		tab.custom_minimum_size = Vector2(0, 34)
-		var colour: Color = COLOURS[id]
-		tab.add_theme_color_override("font_color", colour)
-		tab.add_theme_color_override("font_pressed_color", Color.WHITE)
-		tab.add_theme_color_override("font_hover_pressed_color", Color.WHITE)
-		# The chosen difficulty wears its own colour.
-		var chosen := HudKit.button_box("pressed").duplicate() as StyleBoxFlat
-		chosen.bg_color = colour.darkened(0.62)
-		chosen.border_color = colour
-		chosen.set_border_width_all(2)
-		tab.add_theme_stylebox_override("pressed", chosen)
-		tab.add_theme_stylebox_override("hover_pressed", chosen)
-		tab.pressed.connect(_pick.bind(String(id)))
-		_tabs.add_child(tab)
-	var card := PanelContainer.new()
-	card.add_theme_stylebox_override("panel", HudFloo._card_box(HudKit.NAVY_LT, HudKit.GOLD_DK, 0.9))
-	_run_view.add_child(card)
-	_facts = GridContainer.new()
-	_facts.columns = 2
-	_facts.add_theme_constant_override("h_separation", 14)
-	_facts.add_theme_constant_override("v_separation", 4)
-	card.add_child(_facts)
+		var card := DifficultyCard.new(I18n.t(String(HPRules.dungeon_difficulty(id).get("display", id))), COLOURS[id], diamonds)
+		card.name = "Tab_" + id
+		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		card.chosen.connect(_pick.bind(String(id)))
+		cards.add_child(card)
+		_cards[String(id)] = card
+		diamonds += 1
+
+	_detail = PanelContainer.new()
+	_run_view.add_child(_detail)
+	var detail_col := VBoxContainer.new()
+	detail_col.add_theme_constant_override("separation", 8)
+	_detail.add_child(detail_col)
+	_chips = GridContainer.new()
+	_chips.columns = 3
+	_chips.add_theme_constant_override("h_separation", 6)
+	_chips.add_theme_constant_override("v_separation", 6)
+	detail_col.add_child(_chips)
+	_curses = HFlowContainer.new()
+	_curses.add_theme_constant_override("h_separation", 6)
+	_curses.add_theme_constant_override("v_separation", 4)
+	detail_col.add_child(_curses)
+
 	_run_view.add_child(section(tr("Party at the gate")))
 	_members = VBoxContainer.new()
-	_members.add_theme_constant_override("separation", 4)
+	_members.add_theme_constant_override("separation", 3)
 	_members.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_run_view.add_child(_members)
 	_verdict = HudKit.label("", 14, HudKit.TEXT, HudKit.bold(), 3)
@@ -112,72 +112,109 @@ func _ready() -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	_run_view.add_child(row)
-	_start = HudKit.button(tr("Ready check"), 15)
+	_start = HudKit.gold_button(tr("Ready check"))
 	_start.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_start.custom_minimum_size = Vector2(0, 40)
 	_start.pressed.connect(_on_start)
 	row.add_child(_start)
 	_rejoin = HudKit.button(tr("Return to your run"), 15)
 	_rejoin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_rejoin.custom_minimum_size = Vector2(0, 40)
+	_rejoin.custom_minimum_size = Vector2(0, 44)
 	_rejoin.pressed.connect(_on_rejoin)
 	row.add_child(_rejoin)
 	_show_page("run")
 	SimAuthority.dungeon_event.connect(_on_event)
 
-## The seal shop page: what the purse holds, then one row per ware.
+## The Dungeon / Seal Shop tabs (the character window's strip); the shop tab
+## carries the seal count.
+func _build_tabs() -> void:
+	var strip := VBoxContainer.new()
+	strip.add_theme_constant_override("separation", 0)
+	body.add_child(strip)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 4)
+	strip.add_child(row)
+	var pad := Control.new()
+	pad.custom_minimum_size = Vector2(2, 0)
+	row.add_child(pad)
+	for page in [["run", tr("Dungeon")], ["shop", tr("Seal Shop")]]:
+		var tab := HudCharacterWindow.TabChip.new(String(page[1]))
+		tab.name = "Page_" + String(page[0])
+		tab.chosen.connect(_show_page.bind(String(page[0])))
+		row.add_child(tab)
+		_page_tabs[String(page[0])] = tab
+	var shop_tab := _page_tabs["shop"] as HudCharacterWindow.TabChip
+	shop_tab.row.add_child(UITheme.icon_rect("dungeon_seal", 16))
+	_tab_seals = HudKit.label("", 12, HudKit.GOLD_LT, HudKit.body(), 0)
+	shop_tab.row.add_child(_tab_seals)
+	var rule := ColorRect.new()
+	rule.color = HudKit.GOLD_DK
+	rule.custom_minimum_size = Vector2(0, 1)
+	strip.add_child(rule)
+
+## The seal shop page: the purse, then the wares as a two-column card grid.
 func _build_shop() -> VBoxContainer:
 	var view := VBoxContainer.new()
-	view.add_theme_constant_override("separation", 8)
+	view.add_theme_constant_override("separation", 10)
 	view.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	var purse := PanelContainer.new()
-	purse.add_theme_stylebox_override("panel", HudFloo._card_box(HudKit.NAVY_LT, HudKit.GOLD_DK, 0.9))
+	purse.add_theme_stylebox_override("panel", _box(WELL, Color("3a3122"), 5, 10))
 	view.add_child(purse)
 	var line := HBoxContainer.new()
-	line.add_theme_constant_override("separation", 10)
+	line.add_theme_constant_override("separation", 12)
 	purse.add_child(line)
 	line.add_child(UITheme.icon_rect("dungeon_seal", 40))
-	_seals = HudKit.label("", 17, HudKit.GOLD_HI, HudKit.bold(), 3)
-	_seals.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_seals.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	line.add_child(_seals)
-	var note := HudKit.label(tr("Every finished run pays seals; a medal pays more."), 12, HudKit.TEXT_DIM, HudKit.body(), 2)
-	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	view.add_child(note)
-	_shop_rows = VBoxContainer.new()
-	_shop_rows.add_theme_constant_override("separation", 6)
-	view.add_child(_shop_rows)
+	var words := VBoxContainer.new()
+	words.add_theme_constant_override("separation", 0)
+	words.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	line.add_child(words)
+	_seals = HudKit.label("", 22, HudKit.GOLD_HI, HudKit.title(), 3)
+	words.add_child(_seals)
+	words.add_child(HudKit.label(tr("Dungeon Seals  ·  every finished run pays seals; a medal pays more"), 12, HudKit.TEXT_DIM, HudKit.body(), 0))
+	_shop_grid = GridContainer.new()
+	_shop_grid.columns = 2
+	_shop_grid.add_theme_constant_override("h_separation", 6)
+	_shop_grid.add_theme_constant_override("v_separation", 6)
+	view.add_child(_shop_grid)
 	for entry in HPRules.dungeon_rewards().get("shop", []):
 		var card := PanelContainer.new()
-		card.add_theme_stylebox_override("panel", HudFloo._card_box(HudKit.NAVY, HudKit.GOLD_DK, 0.8))
-		_shop_rows.add_child(card)
+		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		card.add_theme_stylebox_override("panel", _box(Color(0.086, 0.141, 0.227, 0.45), Color("23324c"), 5, 8))
+		_shop_grid.add_child(card)
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 10)
 		card.add_child(row)
 		var item_id := String(entry.get("item", ""))
-		row.add_child(UITheme.icon_rect(item_id, 34))
+		row.add_child(UITheme.icon_rect(item_id, 38))
+		var col := VBoxContainer.new()
+		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		col.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		col.add_theme_constant_override("separation", 2)
+		row.add_child(col)
 		var amount := int(entry.get("amount", 1))
 		var name_text := I18n.t(String(HPEquipment.item(item_id).get("name", item_id)))
-		var label := HudKit.label(name_text if amount == 1 else "%s x%d" % [name_text, amount], 14, HudKit.PARCHMENT, HudKit.bold(), 2)
-		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		row.add_child(label)
-		var price := HudKit.label(tr("%d seals") % int(entry.get("seals", 1)), 13, HudKit.GOLD_LT, HudKit.body(), 2)
-		price.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		row.add_child(price)
-		var buy := HudKit.button(tr("Buy"), 13)
-		buy.custom_minimum_size = Vector2(70, 30)
-		buy.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		var label := HudKit.label(name_text if amount == 1 else "%s ×%d" % [name_text, amount], 14, HudKit.PARCHMENT, HudKit.body(), 0)
+		label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		label.custom_minimum_size.x = 60
+		col.add_child(label)
+		var price := HBoxContainer.new()
+		price.add_theme_constant_override("separation", 4)
+		col.add_child(price)
+		price.add_child(UITheme.icon_rect("dungeon_seal", 15))
+		price.add_child(HudKit.label(tr("%d seals") % int(entry.get("seals", 1)), 13, HudKit.GOLD_LT, HudKit.body(), 0))
+		var buy := HudKit.gold_button_small(tr("Buy"))
 		buy.set_meta("seals", int(entry.get("seals", 1)))
 		buy.pressed.connect(_buy.bind(item_id))
 		row.add_child(buy)
 	return view
 
+static func _box(bg: Color, border: Color, radius: int, margin: float) -> StyleBoxFlat:
+	return HudSkillWindow._box(bg, border, radius, margin)
+
 func _show_page(page: String) -> void:
 	_run_view.visible = page == "run"
 	_shop_view.visible = page == "shop"
-	for b in _pages.get_children():
-		(b as Button).set_pressed_no_signal(String(b.name) == "Page_" + page)
+	for id in _page_tabs:
+		(_page_tabs[id] as HudCharacterWindow.TabChip).selected = id == page
 	_refresh_shop()
 
 func _seal_count() -> int:
@@ -192,8 +229,9 @@ func _refresh_shop() -> void:
 	if _seals == null:
 		return
 	var seals := _seal_count()
-	_seals.text = tr("Dungeon Seals: %d") % seals
-	for card in _shop_rows.get_children():
+	_seals.text = str(seals)
+	_tab_seals.text = str(seals)
+	for card in _shop_grid.get_children():
 		var row := card.get_child(0)
 		var buy := row.get_child(row.get_child_count() - 1) as Button
 		buy.disabled = seals < int(buy.get_meta("seals", 1))
@@ -238,13 +276,24 @@ func open_at(who: Node, at_portal: String) -> void:
 	portal_id = at_portal
 	_info = {}
 	var dungeon := _dungeon()
-	set_title(String(dungeon.get("display", "Dungeon")))
+	set_title(tr("Dungeon Gate"))
+	_banner.setup(I18n.t(String(dungeon.get("display", "Dungeon"))), _boss_art(dungeon))
 	_ask()
 	_refresh()
 	open()
 
 func _dungeon() -> Dictionary:
 	return HPMaps.dungeon_for_map(String(HPMaps.portal(portal_id).get("to_map", "")))
+
+## The bestiary picture of the dungeon's boss (the first boss its steps spawn).
+static func _boss_art(dungeon: Dictionary) -> Texture2D:
+	for step in dungeon.get("steps", []):
+		for spawn in (step as Dictionary).get("spawn", []):
+			if String((spawn as Dictionary).get("role", "")) == "boss":
+				var path := "res://assets/ui/bestiary/%s.png" % String(spawn.get("mob", ""))
+				if ResourceLoader.exists(path):
+					return load(path)
+	return null
 
 func _ask() -> void:
 	_refresh_t = REFRESH_S
@@ -348,15 +397,12 @@ static func _clock(seconds: float) -> String:
 ## Rebuild the view for the chosen difficulty from the dungeon data and the
 ## authority's last word on the party.
 func _refresh() -> void:
-	if _facts == null:
+	if _chips == null:
 		return
 	var dungeon := _dungeon()
 	var rules := HPRules.dungeon_difficulty(difficulty)
 	var group := HPRules.dungeon_group()
-	_band.text = tr("Levels %d-%d · 1-%d players") % [int(dungeon.get("level_min", 1)),
-		int(dungeon.get("level_max", 1)), int(group.get("max_party", 5))]
-	for tab in _tabs.get_children():
-		(tab as Button).set_pressed_no_signal(String(tab.name) == "Tab_" + difficulty)
+	var accent: Color = COLOURS.get(difficulty, HudKit.GOLD)
 	var members: Array = _info.get("members", [])
 	var levels: Array = []
 	for m in members:
@@ -368,31 +414,96 @@ func _refresh() -> void:
 	var high := HPRules.dungeon_mob_level(params, {"role": "boss", "lvl": 1})
 	var trash := HPRules.dungeon_stat_scale(params, {"role": "trash"})
 	var need := int(dungeon.get("level_min", 1)) + int(rules.get("min_level_add", 0))
-	var par := float(dungeon.get("par_s", 1200)) * float(rules.get("par_mult", 1.0)) * float(HPMaps.dungeon_rules("medals").get("gold", 1.0))
-	for child in _facts.get_children():
-		child.queue_free()
-	_fact(tr("For your party"), tr("reference level %d - creatures level %d-%d") % [int(params["ref_level"]), low, high])
-	_fact(tr("Power"), tr("health x%.2f, damage x%.2f") % [float(trash["hp"]), float(rules.get("damage", 1.0))])
-	_fact(tr("Needs"), tr("%d+ players, level %d+") % [int(rules.get("min_party", 1)), need])
-	_fact(tr("Gold medal"), tr("full clear within %s") % _clock(par))
-	# This week's curses on the chosen difficulty (the run keeps the ones it starts with).
-	for id in HPRules.dungeon_week_affixes(int(rules.get("affixes", 0))):
-		var curse := HPRules.dungeon_affix(String(id))
-		_fact(tr("Curse"), "%s - %s" % [I18n.t(String(curse.get("display", id))), I18n.t(String(curse.get("desc", "")))])
+	var par := float(dungeon.get("par_s", 1200)) * float(rules.get("par_mult", 1.0))
+	var medals := HPMaps.dungeon_rules("medals")
+	_banner.band = tr("Levels %d-%d · 1-%d players") % [int(dungeon.get("level_min", 1)),
+		int(dungeon.get("level_max", 1)), int(group.get("max_party", 5))]
+	_banner.medals = [[MEDAL_COLOURS.gold, _clock(par * float(medals.get("gold", 1.0)))],
+		[MEDAL_COLOURS.silver, _clock(par * float(medals.get("silver", 1.3)))],
+		[MEDAL_COLOURS.bronze, _clock(par * float(medals.get("bronze", 1.6)))]]
+	_banner.queue_redraw()
 	var me := _me(members)
+	for id in _cards:
+		var card := _cards[id] as DifficultyCard
+		card.selected = id == difficulty
+		card.locked = not me.is_empty() and not (me.get("unlocked", []) as Array).has(id)
+
+	for child in _chips.get_children():
+		_chips.remove_child(child)
+		child.queue_free()
+	_chip(tr("Creatures"), tr("Lv %d–%d") % [low, high])
+	_chip(tr("Health · damage"), "×%.2f · ×%.2f" % [float(trash["hp"]), float(rules.get("damage", 1.0))])
+	_chip(tr("Needs"), tr("%d+ players · Lv %d+") % [int(rules.get("min_party", 1)), need],
+		BAD if members.size() > 0 and members.size() < int(rules.get("min_party", 1)) else HudKit.PARCHMENT)
+	_chip(tr("Gold medal"), tr("full clear within %s") % _clock(par * float(medals.get("gold", 1.0))))
+	var left := int((me.get("rights", {}) as Dictionary).get(difficulty, -1))
+	_chip(tr("Final chest"), tr("unlimited") if left < 0 else (tr("%d left today") % left if left > 0 else tr("none left - helper")),
+		BAD if left == 0 else HudKit.PARCHMENT)
 	var keys := int(rules.get("keys", 0))
 	if keys > 0:
-		_fact(tr("Key"), tr("the leader spends %d (you have %d)") % [keys, _key_count(String(dungeon.get("key", "")))])
-	var left := int((me.get("rights", {}) as Dictionary).get(difficulty, -1))
-	_fact(tr("Final chest"), tr("unlimited") if left < 0 else (tr("%d left today") % left if left > 0 else tr("none left today - you would go in as a helper")))
-	var best: Dictionary = me.get("best", {})
-	if best.has(difficulty):
-		_fact(tr("Your best"), _clock(float(best[difficulty])))
-	for tab in _tabs.get_children():
-		var id := String(tab.name).trim_prefix("Tab_")
-		tab.modulate.a = 1.0 if me.is_empty() or (me.get("unlocked", []) as Array).has(id) else 0.45
-	_fill_members(members, need)
+		var have := _key_count(String(dungeon.get("key", "")))
+		_chip(tr("Key"), tr("%d needed · you have %d") % [keys, have], GOOD if have >= keys else BAD)
+	else:
+		var best: Dictionary = me.get("best", {})
+		_chip(tr("Your best"), _clock(float(best[difficulty])) if best.has(difficulty) else "—")
+
+	for child in _curses.get_children():
+		_curses.remove_child(child)
+		child.queue_free()
+	# This week's curses on the chosen difficulty (the run keeps the ones it starts with).
+	var curses := HPRules.dungeon_week_affixes(int(rules.get("affixes", 0)))
+	if curses.is_empty():
+		_curses.add_child(HudKit.label(tr("No curses on this difficulty."), 12, FAINT, HudKit.body(), 0))
+	else:
+		_curses.add_child(HudKit.label(tr("This week's curses:"), 12, HudKit.TEXT_DIM, HudKit.body(), 0))
+		for id in curses:
+			var curse := HPRules.dungeon_affix(String(id))
+			_curses.add_child(_curse(I18n.t(String(curse.get("display", id))), I18n.t(String(curse.get("desc", "")))))
+	_set_accent(accent)
+	_fill_members(members, need, int(group.get("max_party", 5)))
 	_judge(members, levels, rules, need)
+
+## The detail panel's left edge in the chosen difficulty's colour.
+func _set_accent(accent: Color) -> void:
+	var box := StyleBoxFlat.new()
+	box.bg_color = WELL
+	box.border_color = accent
+	box.border_width_left = 3
+	box.set_corner_radius_all(5)
+	box.content_margin_left = 12
+	box.content_margin_right = 12
+	box.content_margin_top = 10
+	box.content_margin_bottom = 10
+	_detail.add_theme_stylebox_override("panel", box)
+
+## One fact as a small card: caption over value.
+func _chip(caption: String, value: String, colour: Color = HudKit.PARCHMENT) -> void:
+	var chip := PanelContainer.new()
+	chip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	chip.add_theme_stylebox_override("panel", _box(Color(0.114, 0.184, 0.29, 0.35), Color("1f2b40"), 4, 6))
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 0)
+	chip.add_child(col)
+	col.add_child(HudKit.label(caption, 11, HudKit.TEXT_DIM, HudKit.body(), 0))
+	var v := HudKit.label(value, 14, colour, HudKit.body(), 0)
+	v.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.custom_minimum_size.x = 140
+	col.add_child(v)
+	_chips.add_child(chip)
+
+## A curse as a red tag; its description on hover.
+func _curse(title: String, desc: String) -> PanelContainer:
+	var tag := PanelContainer.new()
+	tag.mouse_filter = Control.MOUSE_FILTER_STOP
+	tag.tooltip_text = desc
+	var sb := _box(Color(0.43, 0.1, 0.055, 0.25), Color("5a2a2a"), 11, 0)
+	sb.content_margin_left = 9
+	sb.content_margin_right = 9
+	sb.content_margin_top = 2
+	sb.content_margin_bottom = 2
+	tag.add_theme_stylebox_override("panel", sb)
+	tag.add_child(HudKit.label("☠ " + title, 12, Color("ffb4a8"), HudKit.body(), 0))
+	return tag
 
 ## The local player's row in the gate's view ({} before the first answer).
 func _me(members: Array) -> Dictionary:
@@ -409,15 +520,11 @@ func _key_count(item_id: String) -> int:
 				n += int((entry as Dictionary).get("amount", 1))
 	return n
 
-func _fact(key: String, value: String) -> void:
-	_facts.add_child(HudKit.label(key, 13, HudKit.TEXT_DIM, HudKit.body(), 2))
-	var v := HudKit.label(value, 14, HudKit.PARCHMENT, HudKit.bold(), 2)
-	v.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_facts.add_child(v)
-
-func _fill_members(members: Array, need: int) -> void:
+## One row per member (crown for the leader, level, a status tag), then
+## dashed empty places up to the party cap.
+func _fill_members(members: Array, need: int, cap: int) -> void:
 	for child in _members.get_children():
+		_members.remove_child(child)
 		child.queue_free()
 	var leader := int(_info.get("leader", 0))
 	var check: Dictionary = _info.get("check", {})
@@ -426,36 +533,72 @@ func _fill_members(members: Array, need: int) -> void:
 		if bool((m as Dictionary).get("ready", false)):
 			ready[int(m["uid"])] = true
 	for m in members:
+		var card := PanelContainer.new()
+		card.custom_minimum_size = Vector2(0, 34)
+		card.add_theme_stylebox_override("panel", _box(Color(0.086, 0.141, 0.227, 0.45), Color("23324c"), 4, 0))
+		_members.add_child(card)
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 10)
-		_members.add_child(row)
+		var margin := MarginContainer.new()
+		margin.add_theme_constant_override("margin_left", 12)
+		margin.add_theme_constant_override("margin_right", 10)
+		card.add_child(margin)
+		margin.add_child(row)
 		var who := String(m.get("name", "?"))
 		if int(m.get("uid", 0)) == leader:
 			who = "♛ " + who
-		var name_label := HudKit.label(who, 15, HudKit.GOLD_HI, HudKit.bold(), 3)
+		var name_label := HudKit.label(who, 15, HudKit.GOLD_HI, HudKit.body(), 2)
 		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row.add_child(name_label)
 		var level := int(m.get("level", 1))
-		row.add_child(HudKit.label(tr("Lv %d") % level, 14, HudKit.TEXT if level >= need else HudKit.RED, HudKit.body(), 2))
+		var lv := HudKit.label(tr("Lv %d") % level, 14, HudKit.TEXT if level >= need else BAD, HudKit.body(), 0)
+		lv.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(lv)
 		var status := String(m.get("status", ""))
 		var text := tr("at the gate")
-		var colour := HudKit.GREEN
+		var colour := GOOD
 		if not check.is_empty():
 			text = tr("ready") if ready.has(int(m.get("uid", 0))) else tr("answering...")
-			colour = HudKit.GREEN if ready.has(int(m.get("uid", 0))) else HudKit.GOLD_LT
+			colour = GOOD if ready.has(int(m.get("uid", 0))) else HudKit.GOLD_LT
 		elif status != "":
 			text = _status_word(status)
-			colour = HudKit.RED
+			colour = BAD
+		elif level < need:
+			text = tr("level too low")
+			colour = BAD
 		elif not (m.get("unlocked", HPRules.DUNGEON_DIFFICULTIES) as Array).has(difficulty):
 			text = tr("locked")
-			colour = HudKit.RED
+			colour = BAD
 		elif int((m.get("rights", {}) as Dictionary).get(difficulty, -1)) == 0:
 			text = tr("helper (no chest)")
 			colour = HudKit.GOLD_LT
-		var status_label := HudKit.label(text, 13, colour, HudKit.body(), 2)
-		status_label.custom_minimum_size = Vector2(150, 0)
-		status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		row.add_child(status_label)
+		row.add_child(_pill(text, colour))
+	for i in range(members.size(), cap):
+		var empty := PanelContainer.new()
+		empty.custom_minimum_size = Vector2(0, 30)
+		empty.add_theme_stylebox_override("panel", _box(Color(0, 0, 0, 0), Color("1c2638"), 4, 0))
+		var label := HudKit.label(tr("empty place"), 12, FAINT, HudKit.body(), 0)
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		empty.add_child(label)
+		_members.add_child(empty)
+
+## A status tag: its colour on a faint fill of the same.
+func _pill(text: String, colour: Color) -> PanelContainer:
+	var pill := PanelContainer.new()
+	pill.custom_minimum_size = Vector2(110, 0)
+	pill.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var sb := _box(Color(colour, 0.14), Color(colour, 0.45), 11, 0)
+	sb.content_margin_left = 10
+	sb.content_margin_right = 10
+	sb.content_margin_top = 1
+	sb.content_margin_bottom = 2
+	pill.add_theme_stylebox_override("panel", sb)
+	var label := HudKit.label(text, 12, colour, HudKit.body(), 0)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	pill.add_child(label)
+	return pill
 
 func _status_word(status: String) -> String:
 	match status:
@@ -511,8 +654,8 @@ func _judge(members: Array, levels: Array, rules: Dictionary, need: int) -> void
 			problem = reason_text(HPProtocol.REJECT_NO_KEY, tr("You"), keys)
 	var blocked := problem != ""
 	_verdict.text = problem if blocked else (tr("Everyone is ready at the gate.") if members.size() > 1 else tr("The gate is open to you."))
-	_verdict.add_theme_color_override("font_color", HudKit.GOLD_LT if not check.is_empty() else (HudKit.RED if blocked else HudKit.GREEN))
-	_start.text = tr("Ready check") if members.size() > 1 else tr("Enter")
+	_verdict.add_theme_color_override("font_color", HudKit.GOLD_LT if not check.is_empty() else (BAD if blocked else GOOD))
+	_start.text = I18n.upper(tr("Ready check") if members.size() > 1 else tr("Enter"))
 	_start.disabled = blocked
 	_rejoin.visible = bool(_info.get("active", false))
 
@@ -525,3 +668,119 @@ func _on_rejoin() -> void:
 	close()
 	if on_rejoin.is_valid():
 		on_rejoin.call(portal_id)
+
+
+## The dungeon's banner: a dark red glow behind its boss on the right, the
+## name, the level band and the three medal times on the left.
+class DungeonBanner extends Control:
+	var title := ""
+	var band := ""
+	var medals: Array = []   # [[colour, "15:00"], ...] gold, silver, bronze
+	var art: Texture2D
+
+	func _init() -> void:
+		custom_minimum_size = Vector2(0, 100)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		clip_contents = true
+
+	func setup(p_title: String, p_art: Texture2D) -> void:
+		title = p_title
+		art = p_art
+		queue_redraw()
+
+	func _draw() -> void:
+		var r := Rect2(Vector2.ZERO, size)
+		draw_rect(r, Color("0a0f1a"))
+		# The glow: rings of warm red, fading out from behind the boss.
+		var glow_c := Vector2(size.x * 0.8, size.y * 0.5)
+		for i in 12:
+			var t := 1.0 - float(i) / 12.0
+			draw_circle(glow_c, size.y * (0.4 + 1.6 * t), Color(0.55, 0.16, 0.12, 0.035))
+		if art != null:
+			var h := size.y * 1.45
+			var w := h * art.get_width() / art.get_height()
+			draw_texture_rect(art, Rect2(size.x - w + 10.0, size.y - h + 20.0, w, h), false, Color(1, 1, 1, 0.9))
+		# Fade the art into the dark on its left.
+		var fade := 180.0
+		for i in 18:
+			var t := float(i) / 18.0
+			draw_rect(Rect2(size.x * 0.52 + fade * t, 0, fade / 18.0 + 1.0, size.y), Color(0.04, 0.06, 0.1, 0.9 * (1.0 - t)))
+		draw_rect(Rect2(0, 0, size.x * 0.52, size.y), Color(0.04, 0.06, 0.1, 0.9))
+		var deco := HudKit.deco()
+		draw_string_outline(deco, Vector2(18, 38), title, HORIZONTAL_ALIGNMENT_LEFT, -1, 26, 4, Color(0, 0, 0, 0.8))
+		draw_string(deco, Vector2(18, 38), title, HORIZONTAL_ALIGNMENT_LEFT, -1, 26, HudKit.GOLD_HI)
+		draw_string(HudKit.body(), Vector2(18, 60), band, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, HudKit.PARCHMENT)
+		var x := 18.0
+		for medal in medals:
+			draw_circle(Vector2(x + 6.0, 80.0), 6.0, medal[0])
+			draw_arc(Vector2(x + 6.0, 80.0), 6.0, 0.0, TAU, 16, Color(0, 0, 0, 0.6), 1.0, true)
+			draw_string(HudKit.body(), Vector2(x + 16.0, 85.0), String(medal[1]), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, HudKit.TEXT_DIM)
+			x += 74.0
+		draw_rect(r, Color("3a3122"), false, 1.0)
+
+
+## A difficulty to pick: 1-5 diamonds and the name in its colour; the chosen
+## one fills with a dark shade of it and glows; a locked one dims with a lock.
+class DifficultyCard extends Control:
+	signal chosen
+	var caption := ""
+	var colour := Color.WHITE
+	var diamonds := 1
+	var selected := false:
+		set(value):
+			selected = value
+			queue_redraw()
+	var locked := false:
+		set(value):
+			locked = value
+			modulate.a = 0.45 if value else 1.0
+			queue_redraw()
+	var _hover := false
+
+	func _init(p_caption: String, p_colour: Color, p_diamonds: int) -> void:
+		caption = p_caption
+		colour = p_colour
+		diamonds = p_diamonds
+		custom_minimum_size = Vector2(0, 58)
+		mouse_filter = Control.MOUSE_FILTER_STOP
+		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		mouse_entered.connect(func(): _hover = true; queue_redraw())
+		mouse_exited.connect(func(): _hover = false; queue_redraw())
+
+	func _gui_input(event: InputEvent) -> void:
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			chosen.emit()
+			accept_event()
+
+	func _draw() -> void:
+		var r := Rect2(Vector2.ZERO, size)
+		var box := StyleBoxFlat.new()
+		box.set_corner_radius_all(5)
+		box.set_border_width_all(1)
+		if selected:
+			box.bg_color = colour.darkened(0.72)
+			box.border_color = colour
+			box.shadow_color = Color(colour, 0.3)
+			box.shadow_size = 8
+		else:
+			box.bg_color = Color(0.067, 0.11, 0.18, 0.8)
+			box.border_color = colour if _hover else Color("23324c")
+		draw_style_box(box, r)
+		var y := size.y * 0.36
+		var step := 12.0
+		var x0 := size.x * 0.5 - step * 2.0
+		for i in 5:
+			var c := Vector2(x0 + step * i, y)
+			var pts := PackedVector2Array([c + Vector2(0, -4.5), c + Vector2(4.5, 0), c + Vector2(0, 4.5), c + Vector2(-4.5, 0)])
+			if i < diamonds:
+				draw_colored_polygon(pts, colour)
+			else:
+				pts.append(pts[0])
+				draw_polyline(pts, Color(colour, 0.35), 1.0, true)
+		var font := HudKit.body()
+		var w := font.get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
+		draw_string(font, Vector2((size.x - w) * 0.5, size.y * 0.78), caption, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.WHITE if selected else colour)
+		if locked:
+			var lock := UITheme.icon_for("ui_lock")
+			if lock != null:
+				draw_texture_rect(lock, Rect2(size.x - 17.0, 5.0, 12.0, 12.0), false)

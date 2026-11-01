@@ -194,6 +194,47 @@ static func style_button(b: Button, size: int = 15) -> void:
 	b.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
 	b.add_theme_constant_override("outline_size", 3)
 
+## The window's main action (Upgrade, Enter, Sell): gold on dark wood with a
+## lit edge, the title face; greyed out while disabled.
+static func gold_button(text: String, height: float = 44.0, font_size: int = 17) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.focus_mode = Control.FOCUS_NONE
+	b.custom_minimum_size = Vector2(0, height)
+	b.add_theme_font_override("font", title())
+	b.add_theme_font_size_override("font_size", font_size)
+	for colour_name in ["font_color", "font_hover_color", "font_pressed_color"]:
+		b.add_theme_color_override(colour_name, GOLD_HI)
+	b.add_theme_color_override("font_disabled_color", Color("3b465c"))
+	var looks := {"normal": Color("6a4a14"), "hover": Color("8a611a"), "pressed": Color("4a330b"), "disabled": Color("0d1320")}
+	for state in looks:
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = looks[state]
+		sb.border_color = Color("283247") if state == "disabled" else GOLD_LT
+		sb.set_border_width_all(1)
+		sb.set_corner_radius_all(5)
+		sb.anti_aliasing = true
+		if state != "disabled":
+			sb.shadow_color = Color(0.91, 0.78, 0.48, 0.2)
+			sb.shadow_size = 6
+		b.add_theme_stylebox_override(state, sb)
+	return b
+
+## A small gold button for a row (Buy): the body face, tight padding.
+static func gold_button_small(text: String) -> Button:
+	var b := gold_button(text, 28.0, 13)
+	b.add_theme_font_override("font", body())
+	b.custom_minimum_size = Vector2(48, 28)
+	b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	for state in ["normal", "hover", "pressed", "disabled"]:
+		var sb := (b.get_theme_stylebox(state) as StyleBoxFlat).duplicate() as StyleBoxFlat
+		sb.set_corner_radius_all(4)
+		sb.shadow_size = 0
+		sb.content_margin_left = 10
+		sb.content_margin_right = 10
+		b.add_theme_stylebox_override(state, sb)
+	return b
+
 static func button(text: String, size: int = 15) -> Button:
 	var b := Button.new()
 	b.text = text

@@ -466,7 +466,7 @@ func _build_refine(id: String, tier: int) -> void:
 	var spacer := Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	page.add_child(spacer)
-	_upgrade_button = _big_button(I18n.upper(tr("Upgrade now")))
+	_upgrade_button = HudKit.gold_button(I18n.upper(tr("Upgrade now")), 40.0, 16)
 	_upgrade_button.disabled = busy or not cost_ok or not mats_ok
 	_upgrade_button.pressed.connect(_on_refine_pressed)
 	page.add_child(_upgrade_button)
@@ -552,25 +552,6 @@ func _material_cell(id: String, need: int, have: int) -> Control:
 	cell.add_child(count)
 	cell.ready.connect(func(): cell.move_child(count, -1))   # over the icon UISlot adds in _ready
 	return cell
-
-func _big_button(text: String) -> Button:
-	var button := Button.new()
-	button.text = text
-	button.focus_mode = Control.FOCUS_NONE
-	button.custom_minimum_size = Vector2(0, 40)
-	button.add_theme_font_override("font", HudKit.title())
-	button.add_theme_font_size_override("font_size", 16)
-	for colour_name in ["font_color", "font_hover_color", "font_pressed_color"]:
-		button.add_theme_color_override(colour_name, HudKit.GOLD_HI)
-	button.add_theme_color_override("font_disabled_color", Color("3b465c"))
-	var looks := {"normal": Color("6a4a14"), "hover": Color("8a611a"), "pressed": Color("4a330b"), "disabled": Color("0d1320")}
-	for state in looks:
-		var sb := _box(looks[state], Color("283247") if state == "disabled" else HudKit.GOLD_LT, 5, 0)
-		if state != "disabled":
-			sb.shadow_color = Color(0.91, 0.78, 0.48, 0.2)
-			sb.shadow_size = 6
-		button.add_theme_stylebox_override(state, sb)
-	return button
 
 # ------------------------------------------------------------------ enchant
 

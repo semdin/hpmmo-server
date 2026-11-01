@@ -1307,7 +1307,7 @@ msgstr "  ·  zindan"
 msgid "Lv %d"
 msgstr "Sv %d"
 
-#: scripts/ui/hud_bestiary.gd scripts/ui/hud_world_map.gd
+#: scripts/ui/hud_bestiary.gd scripts/ui/hud_dungeon.gd scripts/ui/hud_world_map.gd
 msgid "Lv %d–%d"
 msgstr "Sv %d–%d"
 
@@ -1543,7 +1543,7 @@ msgstr "Büyü gücü"
 msgid "Skill power"
 msgstr "Beceri gücü"
 
-#: scripts/ui/hud_character_window.gd scripts/ui/inventory_arcane.gd
+#: scripts/ui/hud_character_window.gd scripts/ui/hud_quest_scroll.gd scripts/ui/inventory_arcane.gd
 msgid "Galleons"
 msgstr "Galleon"
 
@@ -1704,12 +1704,8 @@ msgid "vs"
 msgstr "vs"
 
 #: scripts/ui/hud_dungeon.gd
-msgid "Dungeon"
-msgstr "Zindan"
-
-#: scripts/ui/hud_dungeon.gd
-msgid "Seal Shop"
-msgstr "Mühür Dükkânı"
+msgid "Dungeon Gate"
+msgstr "Zindan Kapısı"
 
 #: scripts/ui/hud_dungeon.gd
 msgid "Party at the gate"
@@ -1724,8 +1720,16 @@ msgid "Return to your run"
 msgstr "Koşuna geri dön"
 
 #: scripts/ui/hud_dungeon.gd
-msgid "Every finished run pays seals; a medal pays more."
-msgstr "Biten her koşu Mühür verir; madalya daha fazlasını."
+msgid "Dungeon"
+msgstr "Zindan"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "Seal Shop"
+msgstr "Mühür Dükkânı"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "Dungeon Seals  ·  every finished run pays seals; a medal pays more"
+msgstr "Zindan Mührü  ·  her biten koşu mühür verir, madalya daha fazla"
 
 #: scripts/ui/hud_dungeon.gd
 msgid "%d seals"
@@ -1734,10 +1738,6 @@ msgstr "%d Mühür"
 #: scripts/ui/hud_dungeon.gd scripts/ui/hud_floo.gd
 msgid "Buy"
 msgstr "Satın Al"
-
-#: scripts/ui/hud_dungeon.gd
-msgid "Dungeon Seals: %d"
-msgstr "Zindan Mührü: %d"
 
 #: scripts/ui/hud_dungeon.gd
 msgid "Bought."
@@ -1856,28 +1856,20 @@ msgid "Levels %d-%d · 1-%d players"
 msgstr "Seviye %d-%d · 1-%d kişi"
 
 #: scripts/ui/hud_dungeon.gd
-msgid "For your party"
-msgstr "Grubun için"
+msgid "Creatures"
+msgstr "Yaratıklar"
 
 #: scripts/ui/hud_dungeon.gd
-msgid "reference level %d - creatures level %d-%d"
-msgstr "referans seviye %d - yaratıklar %d-%d. seviye"
-
-#: scripts/ui/hud_dungeon.gd
-msgid "Power"
-msgstr "Güç"
-
-#: scripts/ui/hud_dungeon.gd
-msgid "health x%.2f, damage x%.2f"
-msgstr "can x%.2f, hasar x%.2f"
+msgid "Health · damage"
+msgstr "Can · hasar"
 
 #: scripts/ui/hud_dungeon.gd
 msgid "Needs"
 msgstr "Şartlar"
 
 #: scripts/ui/hud_dungeon.gd
-msgid "%d+ players, level %d+"
-msgstr "en az %d kişi, en az %d. seviye"
+msgid "%d+ players · Lv %d+"
+msgstr "%d+ kişi · Sv %d+"
 
 #: scripts/ui/hud_dungeon.gd scripts/ui/hud_dungeon_guide.gd
 msgid "Gold medal"
@@ -1886,18 +1878,6 @@ msgstr "Altın madalya"
 #: scripts/ui/hud_dungeon.gd scripts/ui/hud_dungeon_guide.gd
 msgid "full clear within %s"
 msgstr "%s içinde tam temizlik"
-
-#: scripts/ui/hud_dungeon.gd scripts/ui/hud_dungeon_guide.gd
-msgid "Curse"
-msgstr "Lanet"
-
-#: scripts/ui/hud_dungeon.gd
-msgid "Key"
-msgstr "Anahtar"
-
-#: scripts/ui/hud_dungeon.gd
-msgid "the leader spends %d (you have %d)"
-msgstr "lider %d harcar (sende %d)"
 
 #: scripts/ui/hud_dungeon.gd scripts/ui/hud_dungeon_guide.gd
 msgid "Final chest"
@@ -1912,12 +1892,28 @@ msgid "%d left today"
 msgstr "bugün %d hak kaldı"
 
 #: scripts/ui/hud_dungeon.gd
-msgid "none left today - you would go in as a helper"
-msgstr "bugün hak kalmadı - yardımcı olarak girersin"
+msgid "none left - helper"
+msgstr "kalmadı - yardımcı"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "Key"
+msgstr "Anahtar"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "%d needed · you have %d"
+msgstr "%d gerekir · elinde %d"
 
 #: scripts/ui/hud_dungeon.gd scripts/ui/hud_dungeon_guide.gd
 msgid "Your best"
 msgstr "En iyi süren"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "No curses on this difficulty."
+msgstr "Bu zorlukta lanet yok."
+
+#: scripts/ui/hud_dungeon.gd
+msgid "This week's curses:"
+msgstr "Bu haftanın lanetleri:"
 
 #: scripts/ui/hud_dungeon.gd
 msgid "at the gate"
@@ -1932,12 +1928,20 @@ msgid "answering..."
 msgstr "cevaplıyor..."
 
 #: scripts/ui/hud_dungeon.gd
+msgid "level too low"
+msgstr "seviye düşük"
+
+#: scripts/ui/hud_dungeon.gd
 msgid "locked"
 msgstr "kilitli"
 
 #: scripts/ui/hud_dungeon.gd
 msgid "helper (no chest)"
 msgstr "yardımcı (sandık yok)"
+
+#: scripts/ui/hud_dungeon.gd
+msgid "empty place"
+msgstr "boş yer"
 
 #: scripts/ui/hud_dungeon.gd
 msgid "away"
@@ -2054,6 +2058,10 @@ msgstr "Senin derecen"
 #: scripts/ui/hud_dungeon_guide.gd
 msgid "Not yet"
 msgstr "Henüz yok"
+
+#: scripts/ui/hud_dungeon_guide.gd
+msgid "Curse"
+msgstr "Lanet"
 
 #: scripts/ui/hud_dungeon_guide.gd
 msgid "No full clear this week yet - the first one sets the record."
@@ -2408,12 +2416,12 @@ msgid "Every task open to you is done. Level up to unlock more, hunt the Dark Mo
 msgstr "Sana açık tüm görevler tamamlandı. Yenilerini açmak için seviye atla, Karanlık Metin Taşlarını avla ve ekipmanını yükselt."
 
 #: scripts/ui/hud_quest_scroll.gd
-msgid "%d experience  ·  %d Galleons"
-msgstr "%d tecrübe  ·  %d Galleon"
+msgid "experience"
+msgstr "tecrübe"
 
 #: scripts/ui/hud_quest_scroll.gd
-msgid "  ·  %d %s reputation"
-msgstr "  ·  %d %s itibarı"
+msgid "%s reputation"
+msgstr "%s itibarı"
 
 #: scripts/ui/hud_skill_pick.gd
 msgid "Choose Your First Spell"
@@ -2832,12 +2840,40 @@ msgid "Open the merchant to sell items"
 msgstr "Eşya satmak için tüccarı aç"
 
 #: scripts/ui/inventory_arcane.gd
-msgid "Drag an item here, or right-click it in your bag."
-msgstr "Bir eşyayı buraya sürükle ya da çantanda sağ tıkla."
+msgid "Travelling Merchant"
+msgstr "Gezgin Tüccar"
+
+#: scripts/ui/inventory_arcane.gd
+msgid "Turns your items into Galleons"
+msgstr "Eşyalarını Galleon'a çevirir"
+
+#: scripts/ui/inventory_arcane.gd
+msgid "Drag the item you want to sell here, or right-click it in your bag."
+msgstr "Satmak istediğin eşyayı buraya sürükle ya da çantanda sağ tıkla."
+
+#: scripts/ui/inventory_arcane.gd
+msgid "Worn items cannot be sold."
+msgstr "Takılı eşyalar satılamaz."
+
+#: scripts/ui/inventory_arcane.gd
+msgid "Each"
+msgstr "Tanesi"
+
+#: scripts/ui/inventory_arcane.gd
+msgid "Total"
+msgstr "Toplam"
 
 #: scripts/ui/inventory_arcane.gd
 msgid "Sell"
 msgstr "Sat"
+
+#: scripts/ui/inventory_arcane.gd
+msgid "Sold this session"
+msgstr "Bu oturumda satılan"
+
+#: scripts/ui/inventory_arcane.gd
+msgid "Nothing sold yet."
+msgstr "Henüz bir şey satmadın."
 
 #: scripts/ui/inventory_arcane.gd
 msgid "Magic Attack %+.0f"
@@ -2876,8 +2912,20 @@ msgid "%s: replace %s"
 msgstr "%s: %s yerine tak"
 
 #: scripts/ui/inventory_arcane.gd
-msgid "Sell this item?"
-msgstr "Bu eşya satılsın mı?"
+msgid "%d enchantments"
+msgstr "%d efsunlu"
+
+#: scripts/ui/inventory_arcane.gd
+msgid "This item is %s. It cannot be bought back once sold."
+msgstr "Bu eşya %s. Sattıktan sonra geri alınamaz."
+
+#: scripts/ui/inventory_arcane.gd
+msgid "A %s item. It cannot be bought back once sold."
+msgstr "%s bir eşya. Sattıktan sonra geri alınamaz."
+
+#: scripts/ui/inventory_arcane.gd
+msgid "%s Galleons × %d"
+msgstr "%s Galleon × %d"
 
 #: scripts/ui/inventory_arcane.gd
 msgid "Destroy Item"
@@ -2910,6 +2958,14 @@ msgstr "Eşya yok edildi."
 #: scripts/ui/inventory_arcane.gd
 msgid "Unable to change equipment."
 msgstr "Ekipman değiştirilemedi."
+
+#: scripts/ui/inventory_arcane.gd
+msgid "Page %s  ·  %d/%d"
+msgstr "Sayfa %s  ·  %d/%d"
+
+#: scripts/ui/inventory_arcane.gd
+msgid "Page %s  ·  opens soon"
+msgstr "Sayfa %s  ·  yakında açılacak"
 
 #: scripts/ui/item_tooltip.gd
 msgid "One-Handed Wand"
@@ -7222,6 +7278,15 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "  (failure: +%d)"
 #~ msgstr "  (başarısızlık: +%d)"
 
+#~ msgid "  ·  %d %s reputation"
+#~ msgstr "  ·  %d %s itibarı"
+
+#~ msgid "%d experience  ·  %d Galleons"
+#~ msgstr "%d tecrübe  ·  %d Galleon"
+
+#~ msgid "%d+ players, level %d+"
+#~ msgstr "en az %d kişi, en az %d. seviye"
+
 #~ msgid "%s has no entries left today."
 #~ msgstr "%s bugünkü giriş hakkını bitirdi."
 
@@ -7303,8 +7368,17 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "Drag an item here"
 #~ msgstr "Bir eşyayı buraya sürükle"
 
+#~ msgid "Drag an item here, or right-click it in your bag."
+#~ msgstr "Bir eşyayı buraya sürükle ya da çantanda sağ tıkla."
+
+#~ msgid "Dungeon Seals: %d"
+#~ msgstr "Zindan Mührü: %d"
+
 #~ msgid "Enter the Trial Hall from the courtyard portal, clear the corridor and defeat the Trial Warden."
 #~ msgstr "Avludaki geçitten Sınav Salonu'na gir, koridoru temizle ve Sınav Muhafızı'nı alt et."
+
+#~ msgid "Every finished run pays seals; a medal pays more."
+#~ msgstr "Biten her koşu Mühür verir; madalya daha fazlasını."
 
 #~ msgid "Find the snatcher captain's camp deep in the southern woods. Do not engage alone."
 #~ msgstr "Güney korusunun derinliklerinde kapkaççı kaptanının kampını bul. Yalnız saldırma."
@@ -7314,6 +7388,9 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 
 #~ msgid "Fluffy collapses. The trapdoor swings open - claim your reward."
 #~ msgstr "Fluffy yığıldı. Kapak açılıyor - ödülünü al."
+
+#~ msgid "For your party"
+#~ msgstr "Grubun için"
 
 #~ msgid "From Level: %d"
 #~ msgstr "Seviye: %d"
@@ -7387,6 +7464,9 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "Points  %d"
 #~ msgstr "Puan  %d"
 
+#~ msgid "Power"
+#~ msgstr "Güç"
+
 #~ msgid "Press O near Ollivander, drag your wand onto the anvil and refine it with Phoenix Ash and Galleons."
 #~ msgstr "Ollivander'ın yanında O'ya bas, asanı örse sürükle ve Anka Külü ile Galleon kullanarak yükselt."
 
@@ -7404,6 +7484,9 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 
 #~ msgid "Reweave  ·  %d"
 #~ msgstr "Efsun Değiştir  ·  %d"
+
+#~ msgid "Sell this item?"
+#~ msgstr "Bu eşya satılsın mı?"
 
 #~ msgid "Side Fringe"
 #~ msgstr "Yan Perçem"
@@ -7468,11 +7551,23 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "[Shift] Mount or dismount the broom"
 #~ msgstr "[Shift] Süpürgeye bin ya da in"
 
+#~ msgid "health x%.2f, damage x%.2f"
+#~ msgstr "can x%.2f, hasar x%.2f"
+
 #~ msgid "no entries left"
 #~ msgstr "hakkı bitti"
+
+#~ msgid "none left today - you would go in as a helper"
+#~ msgstr "bugün hak kalmadı - yardımcı olarak girersin"
 
 #~ msgid "or right-click it in your bag"
 #~ msgstr "ya da çantanda sağ tıkla"
 
+#~ msgid "reference level %d - creatures level %d-%d"
+#~ msgstr "referans seviye %d - yaratıklar %d-%d. seviye"
+
 #~ msgid "the leader spends %d"
 #~ msgstr "lider %d anahtar harcar"
+
+#~ msgid "the leader spends %d (you have %d)"
+#~ msgstr "lider %d harcar (sende %d)"
