@@ -303,6 +303,9 @@ const TEMPLE_REF_LUMA := 0.2218
 ## How far a face type (HPRules.LOOK_FACES) goes: MakeHuman's whole-face
 ## targets at full strength bloated the triangular and square faces.
 const FACE_TYPE_WEIGHT := 0.7
+## A face slider at +-1 sets its shape key to this: at 1.0 faces stayed too
+## alike (20 random faces, 2026-11-02); 1.6 turned some into caricatures.
+const FACE_SLIDER_GAIN := 1.3
 ## The head's scalp masks, one per hairstyle (build_rig.py), as one array.
 const SCALP_DIR := "res://assets/models/characters/scalp/"
 static var _scalp_masks: Texture2DArray = null
@@ -310,6 +313,10 @@ static var _scalp_masks: Texture2DArray = null
 ## that breaks the painted shade (art/characters/hero_q/skin_grain.py).
 const FACE_MASKS := "res://assets/models/characters/face_masks.png"
 const SKIN_GRAIN := "res://assets/models/characters/skin_grain.png"
+## tiling pore normal (RG) + cavity (B), HumanShaders by MatMADNESS, CC BY 4.0
+const SKIN_MICRO := "res://assets/models/characters/skin_micro.png"
+## a 1024 px iris photo for the eye shader, HumanShaders by MatMADNESS, CC BY 4.0
+const EYE_IRIS := "res://assets/models/characters/eye_iris.png"
 ## HPRules.LOOK_BEARDS -> the painted shade's strength (beard_shade) and the
 ## beard mesh shown ("" = none; the kit's beard).
 const BEARDS := {
@@ -381,6 +388,9 @@ static func _dressed(part: String, base: StandardMaterial3D) -> Material:
 		if base.roughness_texture != null:
 			skin.set_shader_parameter("roughness_tex", base.roughness_texture)
 			skin.set_shader_parameter("has_roughness", true)
+		if ResourceLoader.exists(SKIN_MICRO):
+			skin.set_shader_parameter("micro_tex", load(SKIN_MICRO))
+			skin.set_shader_parameter("has_micro", true)
 		# only the head carries the scalp masks and the beard areas
 		skin.set_shader_parameter("has_scalp", part == "Hero_Head")
 		if part == "Hero_Head":
@@ -400,6 +410,9 @@ static func _dressed(part: String, base: StandardMaterial3D) -> Material:
 		eye.set_shader_parameter("iris_a", IRIS_CENTRE)
 		eye.set_shader_parameter("iris_b", IRIS_CENTRE)
 		eye.set_shader_parameter("iris_radius", IRIS_RADIUS)
+		if ResourceLoader.exists(EYE_IRIS):
+			eye.set_shader_parameter("iris_tex", load(EYE_IRIS))
+			eye.set_shader_parameter("has_iris", true)
 		return eye
 	if part == "Hero_BrowPaint":
 		return _shader_material(BROW_PAINT_SHADER, base)
@@ -556,7 +569,7 @@ static func apply_look(visuals: Node, raw_look: Dictionary) -> void:
 		for key: String in HPRules.LOOK_SLIDERS:
 			if key == "height":
 				continue
-			var v := float(look.get(key, 0.0))
+			var v := float(look.get(key, 0.0)) * FACE_SLIDER_GAIN
 			var neg := mi.find_blend_shape_by_name("face_%s_neg" % key)
 			var pos := mi.find_blend_shape_by_name("face_%s_pos" % key)
 			if neg >= 0:

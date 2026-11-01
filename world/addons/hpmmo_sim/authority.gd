@@ -5633,7 +5633,7 @@ func player_info_of(record: Dictionary) -> Dictionary:
 	if cached is Dictionary and key == cached["key"] and is_same(look, cached["look"]):
 		return cached["info"]
 	var info := {"name": key[0], "house": key[1], "level": key[2], "gear": record.get("gear", {}), "ga": key[4],
-		"look": look if look != null else HPRules.default_look()}
+		"look": HPRules.wire_look(look if look is Dictionary else HPRules.default_look())}
 	info["rev"] = ("%s|%s|%d|%d|%s|%s" % [info["name"], info["house"], info["level"], key[3],
 		str(info["ga"]), str(info["look"])]).hash()
 	record["__info"] = {"key": key, "look": look, "info": info}

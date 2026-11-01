@@ -606,7 +606,11 @@ const LOOK_SKIN_TONES := ["ffffff", "f1ded3", "dcc0ab", "b8977f", "8f7160", "625
 ## keys, art/characters/hero_q/face_morphs.py).
 const LOOK_SLIDERS := {"height": [-1.0, 1.0], "jaw": [-1.0, 1.0], "chin": [-1.0, 1.0], "chin_height": [-1.0, 1.0],
 	"cheekbones": [-1.0, 1.0], "cheeks": [-1.0, 1.0], "nose_length": [-1.0, 1.0], "nose_width": [-1.0, 1.0],
-	"nose_bridge": [-1.0, 1.0], "lips": [-1.0, 1.0], "brow_ridge": [-1.0, 1.0]}
+	"nose_bridge": [-1.0, 1.0], "lips": [-1.0, 1.0], "brow_ridge": [-1.0, 1.0],
+	"eye_size": [-1.0, 1.0], "eye_spacing": [-1.0, 1.0], "eye_height": [-1.0, 1.0], "eye_tilt": [-1.0, 1.0],
+	"eyelids": [-1.0, 1.0], "eye_bags": [-1.0, 1.0], "nose_tip": [-1.0, 1.0], "nostrils": [-1.0, 1.0],
+	"nose_curve": [-1.0, 1.0], "mouth_width": [-1.0, 1.0], "mouth_corners": [-1.0, 1.0],
+	"jaw_angle": [-1.0, 1.0], "age": [-1.0, 1.0], "ear_size": [-1.0, 1.0], "ear_out": [-1.0, 1.0]}
 ## Face types: MakeHuman whole-face targets (face_type_<name> shape keys).
 const LOOK_FACES := ["default", "oval", "round", "square", "triangular", "diamond"]
 
@@ -635,6 +639,17 @@ static func clean_look(raw: Variant) -> Dictionary:
 			var span: Array = LOOK_SLIDERS[key]
 			# two decimals: a look travels in every player-info packet
 			out[key] = snappedf(clampf(float(src[key]), float(span[0]), float(span[1])), 0.01)
+	return out
+
+## A look for the wire (player info): sliders left at 0 are dropped, so the
+## 25 face sliders cost bytes only when moved; the receiver's clean_look
+## puts them back.
+static func wire_look(look: Dictionary) -> Dictionary:
+	var out := {}
+	for key in look:
+		if LOOK_SLIDERS.has(key) and is_zero_approx(float(look[key])):
+			continue
+		out[key] = look[key]
 	return out
 
 static func attribute_points_available(character_level: int, attributes: Dictionary) -> int:

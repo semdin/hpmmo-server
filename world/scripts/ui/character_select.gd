@@ -274,6 +274,8 @@ func _apply_rune_color(col: Color) -> void:
 		embers.color = col.lightened(0.35)
 	if podium_light:
 		podium_light.light_color = col
+	if _rim_light != null:
+		_rim_light.light_color = Color(0.78, 0.84, 1.0).lerp(col.lightened(0.45), 0.35)
 	if rune_ring and rune_ring.get_surface_override_material(0):
 		var mat = rune_ring.get_surface_override_material(0)
 		if mat is StandardMaterial3D:
@@ -445,6 +447,47 @@ var _roster: VBoxContainer = null
 var _roster_title: Label = null
 var _drag_turn := false
 
+## The podium's portrait lighting: a warm key from the camera's left, high
+## and in front (casting the one shadow, above the low preset), a cool fill
+## from the right and a rim from behind, in a pale wash of the house colour,
+## that draws the outline off the dark backdrop. The house-coloured podium
+## light stays on the dais and the boots: reaching up from below it painted
+## the eyelids, nostrils and jaw red.
+const QualityPreset = preload("res://scripts/world/quality_preset.gd")
+var _rim_light: DirectionalLight3D = null
+
+func _stage_lights() -> void:
+	var key := get_node_or_null("DirectionalLight3D") as DirectionalLight3D
+	if key == null:
+		return
+	var target := Vector3(0, 1.4, 0)
+	key.look_at_from_position(Vector3(-2.0, 3.0, 2.8), target)
+	key.light_color = Color(1.0, 0.94, 0.86)
+	key.light_energy = 1.5
+	# the shadow pass is ~0.5 ms on an iGPU: the low preset goes without
+	key.shadow_enabled = QualityPreset.current() != "low"
+	key.shadow_blur = 1.5
+	key.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+	key.directional_shadow_max_distance = 8.0
+	var fill := DirectionalLight3D.new()
+	fill.name = "FillLight"
+	add_child(fill)
+	fill.look_at_from_position(Vector3(2.8, 1.5, 2.2), target)
+	fill.light_color = Color(0.72, 0.8, 1.0)
+	fill.light_energy = 0.35
+	_rim_light = DirectionalLight3D.new()
+	_rim_light.name = "RimLight"
+	add_child(_rim_light)
+	_rim_light.look_at_from_position(Vector3(-0.3, 3.0, -3.0), target)
+	_rim_light.light_color = Color(0.78, 0.84, 1.0)
+	_rim_light.light_energy = 1.2
+	# grazing from behind its highlight burnt white patches on the hair
+	_rim_light.light_specular = 0.15
+	# (a cull mask cannot leave the wizard out: its meshes are on layer 1 too)
+	if podium_light != null:
+		podium_light.omni_range = 0.9
+		podium_light.light_energy = 1.8
+
 func _restyle() -> void:
 	var canvas: CanvasLayer = $CanvasLayer
 	# --- backdrop: key art behind the 3D stage
@@ -454,6 +497,8 @@ func _restyle() -> void:
 		env.background_mode = Environment.BG_CANVAS
 		env.glow_enabled = true
 		env.glow_intensity = 0.6
+		# the world's low bloom: 0.25 washed the skin in an orange haze
+		env.glow_bloom = 0.04
 		env_node.environment = env
 	var back := CanvasLayer.new()
 	back.layer = -1
@@ -488,7 +533,8 @@ func _restyle() -> void:
 			stone.normal_texture = load(base + "normal_2k.png")
 			stone.uv1_triplanar = true
 			stone.uv1_scale = Vector3(0.9, 0.9, 0.9)
-		stone.albedo_color = Color(0.3, 0.29, 0.32)
+		# darker: the key light that models the face also falls on the dais
+		stone.albedo_color = Color(0.2, 0.19, 0.22)
 		stone.roughness = 0.85
 		dais.material_override = stone
 	if rune_ring != null:
@@ -504,6 +550,7 @@ func _restyle() -> void:
 		rune_ring.set_surface_override_material(0, glow)
 	if podium_light != null:
 		podium_light.light_energy = 1.4
+	_stage_lights()
 	# --- top: title and logout
 	var top := $CanvasLayer/TopBar as Control
 	var title := $CanvasLayer/TopBar/TitleLabel as Label
@@ -773,6 +820,10 @@ func _process(delta: float) -> void:
 		_camera_far = camera.transform
 	_zoom = lerpf(_zoom, _zoom_target, 1.0 - exp(-10.0 * delta))
 	_pitch = lerpf(_pitch, _pitch_target, 1.0 - exp(-10.0 * delta))
+	# close up the embers drift past the lens as big blobs
+	var embers := get_node_or_null("Podium/EmbersParticles") as CPUParticles3D
+	if embers != null:
+		embers.visible = _zoom < 0.3
 	if absf(_zoom - _zoom_target) < 0.001 and _zoom_target == 0.0 and _zoom < 0.001 and absf(_pitch) < 0.0005 and _pitch_target == 0.0:
 		camera.transform = _camera_far
 		return

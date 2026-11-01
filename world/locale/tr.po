@@ -3204,6 +3204,66 @@ msgid "Brow Ridge"
 msgstr "Kaş Kemeri"
 
 #: scripts/ui/look_editor.gd
+msgid "Eye Size"
+msgstr "Göz Boyu"
+
+#: scripts/ui/look_editor.gd
+msgid "Eye Spacing"
+msgstr "Göz Arası"
+
+#: scripts/ui/look_editor.gd
+msgid "Eye Height"
+msgstr "Göz Yüksekliği"
+
+#: scripts/ui/look_editor.gd
+msgid "Eye Tilt"
+msgstr "Göz Eğimi"
+
+#: scripts/ui/look_editor.gd
+msgid "Eyelids"
+msgstr "Göz Kapağı"
+
+#: scripts/ui/look_editor.gd
+msgid "Under-Eyes"
+msgstr "Göz Altı"
+
+#: scripts/ui/look_editor.gd
+msgid "Nose Tip"
+msgstr "Burun Ucu"
+
+#: scripts/ui/look_editor.gd
+msgid "Nostrils"
+msgstr "Burun Kanadı"
+
+#: scripts/ui/look_editor.gd
+msgid "Nose Curve"
+msgstr "Burun Kavisi"
+
+#: scripts/ui/look_editor.gd
+msgid "Mouth Width"
+msgstr "Ağız Genişliği"
+
+#: scripts/ui/look_editor.gd
+msgid "Mouth Corners"
+msgstr "Ağız Köşesi"
+
+#: scripts/ui/look_editor.gd
+msgid "Jaw Angle"
+msgstr "Çene Açısı"
+
+#: scripts/ui/look_editor.gd
+msgid "Age"
+msgstr "Yaş"
+
+#: scripts/ui/look_editor.gd
+msgid "Ear Size"
+msgstr "Kulak Boyu"
+
+#: scripts/ui/look_editor.gd
+msgid "Ear Angle"
+msgstr "Kulak Açısı"
+
+#: scripts/ui/look_editor.gd
 msgid "Classic Face"
 msgstr "Klasik Yüz"
 
@@ -3226,6 +3286,66 @@ msgstr "Üçgen Yüz"
 #: scripts/ui/look_editor.gd
 msgid "Diamond Face"
 msgstr "Elmas Yüz"
+
+#: scripts/ui/look_editor.gd
+msgid "Shape"
+msgstr "Şekil"
+
+#: scripts/ui/look_editor.gd
+msgid "Eyes"
+msgstr "Gözler"
+
+#: scripts/ui/look_editor.gd
+msgid "Nose"
+msgstr "Burun"
+
+#: scripts/ui/look_editor.gd
+msgid "Mouth"
+msgstr "Ağız"
+
+#: scripts/ui/look_editor.gd
+msgid "Ears"
+msgstr "Kulaklar"
+
+#: scripts/ui/look_editor.gd
+msgid "Classic"
+msgstr "Klasik"
+
+#: scripts/ui/look_editor.gd
+msgid "Noble"
+msgstr "Asil"
+
+#: scripts/ui/look_editor.gd
+msgid "Stern"
+msgstr "Sert"
+
+#: scripts/ui/look_editor.gd
+msgid "Youthful"
+msgstr "Genç"
+
+#: scripts/ui/look_editor.gd
+msgid "Sage"
+msgstr "Bilge"
+
+#: scripts/ui/look_editor.gd
+msgid "Sharp"
+msgstr "Keskin"
+
+#: scripts/ui/look_editor.gd
+msgid "Gentle"
+msgstr "Yumuşak"
+
+#: scripts/ui/look_editor.gd
+msgid "Warrior"
+msgstr "Savaşçı"
+
+#: scripts/ui/look_editor.gd
+msgid "Cunning"
+msgstr "Kurnaz"
+
+#: scripts/ui/look_editor.gd
+msgid "Highlander"
+msgstr "Dağlı"
 
 #: scripts/ui/look_editor.gd
 msgid "APPEARANCE"
@@ -3264,6 +3384,10 @@ msgid "Skin tone"
 msgstr "Ten Rengi"
 
 #: scripts/ui/look_editor.gd
+msgid "Preset face"
+msgstr "Hazır Yüz"
+
+#: scripts/ui/look_editor.gd
 msgid "Face type"
 msgstr "Yüz Tipi"
 
@@ -3272,12 +3396,24 @@ msgid "Random"
 msgstr "Rastgele"
 
 #: scripts/ui/look_editor.gd
+msgid "Reset Section"
+msgstr "Bölümü Sıfırla"
+
+#: scripts/ui/look_editor.gd
 msgid "Reset"
 msgstr "Sıfırla"
 
 #: scripts/ui/look_editor.gd
 msgid "Save"
 msgstr "Kaydet"
+
+#: scripts/ui/look_editor.gd
+msgid "Custom"
+msgstr "Özel"
+
+#: scripts/ui/look_editor.gd
+msgid "Changed from %s"
+msgstr "%s yüzünden değiştirildi"
 
 #: scripts/ui/loot_window.gd
 msgid "Take all"
@@ -7489,9 +7625,6 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 
 #~ msgid "No enchantments (0/%d)"
 #~ msgstr "Efsun yok (0/%d)"
-
-#~ msgid "Nose"
-#~ msgstr "Burun"
 
 #~ msgid "OK"
 #~ msgstr "Tamam"
