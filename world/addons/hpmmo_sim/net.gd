@@ -685,7 +685,7 @@ func sim_bind_character(character_id: int) -> void:
 			(node as Node3D).global_position, "")
 
 @rpc("any_peer", "call_remote", "unreliable_ordered", HPProtocol.CH_INPUT)
-func sim_input(seq: int, move: Vector2, yaw: float, jump: bool, descend: bool) -> void:
+func sim_input(seq: int, move: Vector2, yaw: float, jump: bool, descend: bool, pos: Vector3, vel: Vector3) -> void:
 	if is_client:
 		return
 	inputs_received += 1
@@ -693,7 +693,7 @@ func sim_input(seq: int, move: Vector2, yaw: float, jump: bool, descend: bool) -
 	if _loading_peers.has(sender):
 		_loading_peers.erase(sender)
 		_set_loading_timeout(_peer_object(sender), false)
-	SimAuthority.submit_input(sender, seq, move, yaw, jump, descend)
+	SimAuthority.submit_input(sender, seq, move, yaw, jump, descend, pos, vel)
 
 @rpc("any_peer", "call_remote", "reliable", HPProtocol.CH_INTENT)
 func sim_cast_request(spell_id: String, aim: Vector3, cast_seq: int, target_uid: int) -> void:
@@ -1409,15 +1409,22 @@ func _send_local_input() -> void:
 	# integrates it against the body IT spawned, and a client never decides its
 	# own position. Without a forced intent there is nothing to send, exactly as
 	# before.
-	if forced_intent.is_empty():
-		var player = SimAuthority.local_player_node()
-		if player == null or not is_instance_valid(player):
-			return
+	var player = SimAuthority.local_player_node()
+	var has_body: bool = player != null and is_instance_valid(player)
+	if forced_intent.is_empty() and not has_body:
+		return
 	_input_seq += 1
 	var intent: Dictionary = _local_intent()
 	input_frames_sent += 1
 	var values := profile_values()
-	var args := [_input_seq, intent["move"], intent["yaw"], intent["jump"], intent["descend"]]
+	# Where the predicted body is (v32): the server takes it when its own body
+	# could have got there. INF: no body, nothing to claim.
+	var pos := Vector3.INF
+	var vel := Vector3.ZERO
+	if has_body and player is CharacterBody3D:
+		pos = (player as CharacterBody3D).global_position
+		vel = (player as CharacterBody3D).velocity
+	var args := [_input_seq, intent["move"], intent["yaw"], intent["jump"], intent["descend"], pos, vel]
 	if float(values["loss"]) > 0.0 and randf() < float(values["loss"]):
 		return
 	_send_delayed(1, "sim_input", args, int(values["delay_ms"]))

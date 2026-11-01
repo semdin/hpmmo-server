@@ -187,9 +187,13 @@ func _env(name: String, fallback: String) -> String:
 var _status_accumulator: float = 0.0
 ## Worst frame and hitches (frames over 50 ms) since the last status line. The
 ## physics/process numbers below are one frame's sample; a hitch between two
-## lines only shows here.
+## lines only shows here. Measured on the wall clock: the engine clamps the
+## frame `delta` it hands out, so a 10 s freeze of the host read as one 139 ms
+## frame and the status line itself came 16 s apart.
 var _worst_frame_ms := 0.0
 var _hitches := 0
+var _frame_usec := 0
+var _stall_ms_logged := 0
 
 ## Periodic status line: enough to tell "nobody is connected" from "somebody is
 ## connected but their input is not arriving".
@@ -201,10 +205,16 @@ func _process(delta: float) -> void:
 	# changed).
 	if SimAuthority.players_by_peer.is_empty():
 		HPSnapshots.warm_index(SimAuthority)
-	_worst_frame_ms = maxf(_worst_frame_ms, delta * 1000.0)
-	if delta > 0.05:
+	var now_usec := Time.get_ticks_usec()
+	var frame_s := delta if _frame_usec == 0 else float(now_usec - _frame_usec) / 1000000.0
+	_frame_usec = now_usec
+	_worst_frame_ms = maxf(_worst_frame_ms, frame_s * 1000.0)
+	if frame_s > 0.05:
 		_hitches += 1
-	_status_accumulator += delta
+	if frame_s > 1.0:
+		# Nothing in this process takes a second: the host did not run it.
+		print("[WorldServer] stall %.0f ms (players=%d)" % [frame_s * 1000.0, SimAuthority.players_by_peer.size()])
+	_status_accumulator += frame_s
 	if _status_accumulator < 5.0:
 		return
 	_status_accumulator = 0.0
@@ -213,23 +223,34 @@ func _process(delta: float) -> void:
 		var record := SimAuthority.player_record(int(peer_id))
 		var node = record.get("node")
 		if node != null and is_instance_valid(node):
-			players.append("peer %d uid %d map=%s at (%.1f, %.1f, %.1f) hp %d exp %d rtt %d" % [
+			# claims: positions its client claimed that the body took, and the
+			# refused ones by reason (player.gd claim_position), since the last line
+			var refused: Dictionary = node.get("claims_refused") if "claims_refused" in node else {}
+			players.append("peer %d uid %d map=%s at (%.1f, %.1f, %.1f) hp %d exp %d rtt %d claims %d %s" % [
 				int(peer_id), int(record.get("uid", 0)), String(record.get("map_id", "")),
 				(node as Node3D).global_position.x, (node as Node3D).global_position.y,
 				(node as Node3D).global_position.z, int(record.get("hp", 0)),
-				int(record.get("exp", 0)), SimNet.peer_rtt_ms(int(peer_id))])
+				int(record.get("exp", 0)), SimNet.peer_rtt_ms(int(peer_id)),
+				int(node.get("claims_taken")) if "claims_taken" in node else 0,
+				JSON.stringify(refused)])
+			if "claims_taken" in node:
+				node.set("claims_taken", 0)
+				refused.clear()
 	# Frame cost: one physics step per sim tick, so physics_ms + process_ms
 	# near 1000 / SIM_HZ means the server cannot hold its tick rate (players
 	# then see their corrections pull them back).
 	# `prof` is ms per second / slowest call per section (HPProf); `mobs` and
 	# `players` are the bodies' own physics frames, `net` the end-of-frame ENet
 	# service with the RPCs it dispatched.
-	print("[WorldServer] tick=%d state=%s entities=%d players=%d inputs=%d casts=%d physics_ms=%.1f process_ms=%.1f worst_frame_ms=%.0f hitches=%d prof: %s | %s" % [
+	# `stalled_ms`: wall time the simulation lost since the last line (frames
+	# far past their budget; SimAuthority.stall_ms).
+	print("[WorldServer] tick=%d state=%s entities=%d players=%d inputs=%d casts=%d physics_ms=%.1f process_ms=%.1f worst_frame_ms=%.0f hitches=%d stalled_ms=%d prof: %s | %s" % [
 		SimAuthority.sim_tick, SimAuthority.maintenance_state(), SimAuthority.entities.size(),
 		SimAuthority.players_by_peer.size(), SimNet.inputs_received, SimNet.cast_requests_received,
 		Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0,
 		Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
-		_worst_frame_ms, _hitches, HPProf.report(),
+		_worst_frame_ms, _hitches, SimAuthority.stall_ms - _stall_ms_logged, HPProf.report(),
 		" ; ".join(players)])
 	_worst_frame_ms = 0.0
 	_hitches = 0
+	_stall_ms_logged = SimAuthority.stall_ms

@@ -987,7 +987,11 @@ func _physics_process(delta: float) -> void:
 	# Timed for the world server's status line (HPProf; off elsewhere).
 	var t := HPProf.start()
 	var before := global_position
+	if sim_server_controlled:
+		_note_placement()
 	_physics_step(delta)
+	if sim_server_controlled:
+		_claim_step_end = global_position
 	if is_local_player:
 		_note_physics_step(before)
 	HPProf.stop("players", t)
@@ -1077,13 +1081,7 @@ func _physics_step(delta: float) -> void:
 	# Input direction relative to camera yaw
 	var input_dir := _intent_move()
 
-	# Item Movement Speed (boots, cloak penalty, efsun) applies on foot only.
-	var walk := walk_speed * (1.0 + float(derived_stats.get("move_speed", 0.0)) / 100.0)
-	# Webbed by a cavern spider (authority apply_web): the server body and the
-	# owner's prediction both read the tick from the record (stats payload).
-	if int(SimAuthority.record_for(self).get("webbed_until_tick", 0)) > SimAuthority.sim_tick:
-		walk *= WEBBED_FACTOR
-	var active_speed := mounted_speed if is_mounted else (swim_speed if is_swimming else walk)
+	var active_speed := _active_speed()
 	var is_moving := input_dir.length_squared() > 0.01
 
 	if is_moving:
@@ -1145,6 +1143,20 @@ func _physics_step(delta: float) -> void:
 	if is_local_player:
 		_pos_history.record(global_position)
 	_update_animation_state()
+
+## Top steering speed right now.
+func _active_speed() -> float:
+	if is_mounted:
+		return mounted_speed
+	if is_swimming:
+		return swim_speed
+	# Item Movement Speed (boots, cloak penalty, efsun) applies on foot only.
+	var walk := walk_speed * (1.0 + float(derived_stats.get("move_speed", 0.0)) / 100.0)
+	# Webbed by a cavern spider (authority apply_web): the server body and the
+	# owner's prediction both read the tick from the record (stats payload).
+	if int(SimAuthority.record_for(self).get("webbed_until_tick", 0)) > SimAuthority.sim_tick:
+		walk *= WEBBED_FACTOR
+	return walk
 
 ## Wheel zoom: from a close look at the face out to an overview. Each notch
 ## moves a share of the distance, so close up it is a fine step.
@@ -2545,6 +2557,111 @@ func on_authoritative_damage(spell_type: String, attacker: Node3D, _stun_ms: int
 			anim_player.play("Hit_A", 0.1)
 		_hit_recovery = 0.22
 	emit_stats()
+
+## ------------------------------------------------ claimed positions (server)
+## The client predicts this body with the same code, yet the two runs part ways:
+## the server hears a jump up to an input tick later and a few centimetres
+## further on, so a low wall the client cleared stops the server's body; it
+## meets a slope crest at its own frame boundaries; and while the host stalls
+## it does not move at all. Every parting came back to the player as a snap
+## back down the slope or in front of the wall. Each input now also carries
+## where the client's body is (v32), and the server takes that position when
+## this body could have got there:
+##   - travel within a time credit at the body's top speed (real time, so the
+##     average can never beat it; time the host stalled is added),
+##   - no wall between the last position and the claim (a knee-high and a
+##     chest-high ray), and ground under a rising claim on foot (no flying),
+##   - not while thrown, stunned or frozen, and not across a move the server
+##     made itself (teleport, rescue, stair ride) until the client has seen it.
+## A refused claim changes nothing: the body runs on the input as before and
+## the client is corrected by the snapshot.
+const CLAIM_CREDIT_S := 1.0
+const CLAIM_SPEED_SLACK := 1.25
+## Upward travel: a jump leaves at 8 m/s, the broom climbs at 7.
+const CLAIM_RISE_SPEED := 9.0
+## Ground a rising claim on foot must have under it: a jump's apex
+## (8² / 2g = 1.33 m) plus a step.
+const CLAIM_GROUND_BELOW := 2.2
+const CLAIM_PLACED_HOLD_MS := 1000
+const CLAIM_KNEE := 0.5
+const CLAIM_CHEST := 1.1
+var _claim_from := Vector3.INF
+var _claim_ms := 0
+var _claim_credit := 0.0
+var _claim_stall_ms := 0
+var _claim_step_end := Vector3.INF
+var _claim_placed_ms := -CLAIM_PLACED_HOLD_MS
+## For the world server's status line: claims taken, and refused by reason.
+var claims_taken := 0
+var claims_refused: Dictionary = {}
+
+func _refuse_claim(reason: String) -> void:
+	claims_refused[reason] = int(claims_refused.get(reason, 0)) + 1
+
+## Moved since its last physics step by something other than its own motion
+## or a claim: the server placed it.
+func _note_placement() -> void:
+	if _claim_step_end.is_finite() and global_position.distance_squared_to(_claim_step_end) > 0.0001:
+		_claim_placed_ms = Time.get_ticks_msec()
+		_claim_from = global_position
+	_claim_step_end = global_position
+
+## Authority: the owning client says its body is at `pos` moving at `vel`.
+## `stall_ms` is the authority's running total of stalled wall time.
+func claim_position(pos: Vector3, vel: Vector3, stall_ms: int) -> void:
+	if not sim_server_controlled or is_dead:
+		return
+	var now := Time.get_ticks_msec()
+	if _claim_ms > 0:
+		var lost := float(stall_ms - _claim_stall_ms) / 1000.0
+		_claim_credit = minf(_claim_credit + float(now - _claim_ms) / 1000.0, CLAIM_CREDIT_S + lost)
+	_claim_ms = now
+	_claim_stall_ms = stall_ms
+	_note_placement()
+	var from := _claim_from if _claim_from.is_finite() else global_position
+	_claim_from = global_position
+	if now - _claim_placed_ms < CLAIM_PLACED_HOLD_MS:
+		_refuse_claim("placed")
+		return
+	if cc_locked():
+		_refuse_claim("cc")
+		return
+	var top := maxf(_active_speed(), STEEP_SLIDE_MAX) * CLAIM_SPEED_SLACK
+	var need := Vector2(pos.x - from.x, pos.z - from.z).length() / top
+	need = maxf(need, (pos.y - from.y) / CLAIM_RISE_SPEED)
+	if need > _claim_credit:
+		_refuse_claim("speed")
+		return
+	if is_mounted and pos.y > _flight_ceiling() + 0.5:
+		_refuse_claim("ceiling")
+		return
+	var space := get_world_3d().direct_space_state
+	for lift in [CLAIM_KNEE, CLAIM_CHEST]:
+		var ray := PhysicsRayQueryParameters3D.create(from + Vector3.UP * lift, pos + Vector3.UP * lift, 1)
+		ray.exclude = [get_rid()]
+		if not space.intersect_ray(ray).is_empty():
+			_refuse_claim("wall")
+			return
+	# Feet under a floor (sunk into the ground or below a deck): a surface
+	# between the chest and the ankles.
+	var sunk := PhysicsRayQueryParameters3D.create(pos + Vector3.UP * CLAIM_CHEST, pos + Vector3.UP * 0.15, 1)
+	sunk.exclude = [get_rid()]
+	if not space.intersect_ray(sunk).is_empty():
+		_refuse_claim("sunk")
+		return
+	if pos.y > from.y + 0.05 and not is_mounted and not is_swimming:
+		var down := PhysicsRayQueryParameters3D.create(pos + Vector3.UP * 0.1, pos + Vector3.DOWN * CLAIM_GROUND_BELOW, 1)
+		down.exclude = [get_rid()]
+		if space.intersect_ray(down).is_empty():
+			_refuse_claim("air")
+			return
+	claims_taken += 1
+	_claim_credit -= maxf(need, 0.0)
+	global_position = pos
+	var planar := Vector2(vel.x, vel.z).limit_length(top)
+	velocity = Vector3(planar.x, clampf(vel.y, -60.0, CLAIM_RISE_SPEED), planar.y)
+	_claim_from = pos
+	_claim_step_end = pos
 
 ## Reconciliation. Absorbs network propagation delay: server snapshots reflect
 ## where the client was RTT/2 in the past. We compare against recent trajectory

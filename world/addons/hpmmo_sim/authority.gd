@@ -854,9 +854,12 @@ func player_record(peer_id: int) -> Dictionary:
 
 # -------------------------------------------------------------- intent intake
 
-## Movement input. The authority never accepts a claimed position - it stores the
-## input vector and integrates it itself, so a forged teleport is not expressible.
-func submit_input(peer_id: int, seq: int, move: Vector2, yaw: float, jump: bool, descend: bool) -> void:
+## Movement input. The authority stores the input vector and integrates it
+## itself; the client's own position (`pos`, v32) is only a claim the body takes
+## when it could have reached it (player.gd `claim_position`), so a forged
+## teleport, a wall walked through or a speed beyond the body's is still refused.
+func submit_input(peer_id: int, seq: int, move: Vector2, yaw: float, jump: bool, descend: bool,
+		pos := Vector3.INF, vel := Vector3.ZERO) -> void:
 	if not is_authority():
 		return
 	if mutations_frozen():
@@ -881,6 +884,9 @@ func submit_input(peer_id: int, seq: int, move: Vector2, yaw: float, jump: bool,
 	intent["seq"] = seq
 	record["input_ms"] = Time.get_ticks_msec()
 	touch(record)
+	var node = record.get("node")
+	if pos.is_finite() and node != null and is_instance_valid(node) and node.has_method("claim_position"):
+		node.claim_position(pos, vel if vel.is_finite() else Vector3.ZERO, stall_ms)
 
 ## Cast request. Returns {ok, reason, cast_id}. Rejections are explicit so the
 ## client can drop its predicted feedback.
@@ -1775,6 +1781,20 @@ static func to_map_of(portal: Dictionary) -> String:
 
 # ------------------------------------------------------------------ sim loop
 
+## Wall-clock time this process has lost to stalls (a host that froze the VM,
+## a frame far past its budget): the engine runs at most a few physics steps
+## per frame, so the bodies simply did not move for that time while their
+## clients did. Claimed positions may cover it (player.gd `claim_position`).
+var stall_ms := 0
+var _physics_wall_ms := 0
+const STALL_GRACE_MS := 100
+
+func _note_stall() -> void:
+	var now := Time.get_ticks_msec()
+	if _physics_wall_ms > 0:
+		stall_ms += maxi(0, now - _physics_wall_ms - STALL_GRACE_MS)
+	_physics_wall_ms = now
+
 func _physics_process(delta: float) -> void:
 	if not is_authority():
 		return
@@ -1786,6 +1806,7 @@ func _physics_process(delta: float) -> void:
 	# visit quests, auras ...).
 	if world != null and is_instance_valid(world) and not world.is_inside_tree():
 		return
+	_note_stall()
 	_accumulator += delta
 	var steps := 0
 	while _accumulator >= HPProtocol.SIM_DT and steps < 5:

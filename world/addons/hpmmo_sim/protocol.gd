@@ -133,7 +133,11 @@ class_name HPProtocol
 ## v31: `sim_client_perf(report)` - every 30 s a client tells the server how
 ##     its frames and connection held up (fps, frame p99, hitches, ping, loss);
 ##     the server only logs it, next to the peer's own ENet round trip.
-const PROTOCOL_VERSION := 31
+## v32: `sim_input` also carries where the client's body is and how it moves
+##     (`pos`, `vel`); the server takes that position when this body could have
+##     reached it (`claim_position` on the player body), instead of snapping the
+##     client back wherever the two simulations parted.
+const PROTOCOL_VERSION := 32
 
 ## Death choice (v18 `sim_respawn_request`).
 const RESPAWN_TOWN := 0
