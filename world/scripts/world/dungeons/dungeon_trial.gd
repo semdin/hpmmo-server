@@ -7,7 +7,8 @@ extends "res://scripts/world/dungeons/dungeon_greybox.gd"
 ##   corridor      z -12 ..  -36   a pack; side rooms west/east (slots)  gate_h
 ##   great hall    z -36 ..  -80   packs between pillars; ossuaries west/east (slots)
 ##   passage       z -80 .. -100   a pack                               gate_a
-##   arena         z -100 .. -152  the Trial Warden
+##   arena         z -100 .. -152  the Trial Warden                    gate_x
+##   way out       z -152 .. -168  the exit once the trial is complete
 ## Positions here and in dungeons.json ("trial") are local to the copy.
 
 func _build() -> void:
@@ -34,12 +35,17 @@ func _build() -> void:
 	_wall_x(-4.5, wy, -100, -80, [])
 	_wall_x(4.5, wy, -100, -80, [])
 	_deco(Vector3(0, f + wall_h + 0.25, -90), Vector3(10, 0.5, 20), _vault)
-	_room(Vector2(0, -126), Vector2(40, 52), [-100.0])
+	_room(Vector2(0, -126), Vector2(40, 52), [-100.0, -152.0])
+	# Behind the arena: the way out, opened when the trial is complete
+	# (dungeons.json "done" opens gate_x; maps.json trial_reward_exit).
+	_room(Vector2(0, -160), Vector2(16, 16), [-152.0])
 	# Holds the party in the entry hall until the run's countdown ends.
 	_gate("start", Vector3(0, f + 3.0, -12), Vector3(8, 6, 0.8))
 	_gate("gate_h", Vector3(0, f + 3.0, -36), Vector3(8, 6, 0.8))
 	_gate("gate_a", Vector3(0, f + 3.0, -100), Vector3(8, 6, 0.8))
+	_gate("gate_x", Vector3(0, f + 3.0, -152), Vector3(8, 6, 0.8))
 	_portal_ring(Vector3(0, f + 0.05, 11))
+	_portal_ring(Vector3(0, f + 0.05, -161))
 	for z in [8.0, -8.0]:
 		for x in [-10.0, 10.0]:
 			_torch(Vector3(x, f + 3.5, z))

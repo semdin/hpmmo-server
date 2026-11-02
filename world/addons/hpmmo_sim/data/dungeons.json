@@ -1,7 +1,7 @@
 {
   "_comment": "Scripted dungeon runs (v2). A run starts when the first player enters a copy of `map` and walks `steps` in order: each step waits for its trigger, then acts. Positions are local to the copy (the instance offset is added). Triggers: enter | cleared:<step id> (every creature that step spawned is dead) | area:<z_below> (a player stands deeper than local z) | hp_below:<step id>:<fraction> (a creature that step spawned is alive below that share of its hit points). A step with `optional: true` is a side slot: it is not part of the chain (the run never waits for it) and fires on its own trigger; its creatures count toward the clear like any other. Actions: spawn (creatures, optional boss_key/template; `assist` narrows how far they answer a fight, so a side room is not pulled by the corridor), open / close (gate ids), message (shown to the copy), chest (loot table at a point), complete. A spawn entry has no fixed level: `role` (roles block) and an optional extra `lvl` offset put it above the run's level, and the role picks its party HP scaling and clear share (`forces`). A spawn entry may carry `harp` (local point; Fluffy's lullaby pedestal). Run level: ref = round(group.ref_max_weight x highest + (1 - ref_max_weight) x average party level), clamped to the dungeon's level_min..level_max, plus the difficulty's level_offset; it is fixed when the run opens. Creature stats follow that level (bosses scale their boss_overrides numbers from the override's stat_level), then the difficulty's hp/damage and the party HP scaling. `key`: the item the leader spends to open a difficulty that asks for keys. Wipe: while a step's closed gates hold a living boss and no living player is past its area, the gates open (respawned players walk back; crossing again seals them). hazards: periodic shoves of every player inside a local z band (and x band, when given) while the run is between from_step and until_step. first_clear_title: granted to everyone in the copy when the run completes. par_s: the gold-medal time of a full clear; medals multiply it. The clock starts when the start gate opens and stops when the run completes; deaths add the difficulty's death_penalty_s and spend its party lives. Spider lair extras: a spawn entry's `hatch` {after_s, into: [entries]} breaks it open into those creatures if it still stands then; a step's `cocoon` {mob, hold_s, hp_share} wraps a random player (stunned until the cocoon is broken, the share of their health lost if it is not); a step's `pools` [{at, radius, duration_s, hp_share_s}] are venom pools that hurt every second. `min_difficulty` on a step or a spawn entry keeps it out of runs below that difficulty (extra waves, twins); a spawn entry's `harp_scale` {difficulty: x} slows Fluffy's harp and `marks` {difficulty: [meta]} sets creature marks such as curse_bleed; a pool with `kind` web is a sticky web patch.",
   "difficulty": {
-    "_comment": "Per difficulty: creature level_offset / hp / damage, mobs (x every spawn group's count), weekly affix count, minimum party size and the level above the dungeon's level_min it asks for, death time penalty and party lives (-1 = none), reward scales (exp_budget = share of the player's own level threshold a full clear pays, gold, drop, bonus_count [min, max] efsun on the final chest item, tier_up chance), daily_rewards (-1 = unlimited), unlock_after (the difficulty a character must have cleared), keys the leader spends to open the gate, par_mult on the dungeon's par_s, seals (Zindan Muhru) per run. unlock_medal: the medal (bronze < silver < gold) the unlock_after clear must have earned. telegraph: multiplier on every telegraphed windup (shorter is harder); hazard_mult: on a dungeon hazard's period; boss_enrage_s: a boss still fighting after this many seconds enrages (0 = never).",
+    "_comment": "Per difficulty: creature level_offset / hp / damage, mobs (x every spawn group's count), weekly affix count, minimum party size and the level above the dungeon's level_min it asks for, death time penalty and party lives (-1 = none), reward scales (exp_budget = share of the player's own level threshold the completion pays from, kill_exp = x on every creature's own open-world experience, gold, drop, bonus_count [min, max] efsun on the final chest item, tier_up chance), daily_rewards (-1 = unlimited), unlock_after (the difficulty a character must have cleared), keys the leader spends to open the gate, par_mult on the dungeon's par_s, seals (Zindan Muhru) per run. unlock_medal: the medal (bronze < silver < gold) the unlock_after clear must have earned. telegraph: multiplier on every telegraphed windup (shorter is harder); hazard_mult: on a dungeon hazard's period; boss_enrage_s: a boss still fighting after this many seconds enrages (0 = never).",
     "easy": {
       "display": "Easy",
       "level_offset": -2,
@@ -14,6 +14,7 @@
       "death_penalty_s": 0,
       "lives": -1,
       "exp_budget": 0.15,
+      "kill_exp": 0.6,
       "gold": 0.7,
       "drop": 0.8,
       "bonus_count": [
@@ -25,7 +26,7 @@
       "unlock_after": "",
       "keys": 0,
       "par_mult": 1.0,
-      "seals": 1,
+      "seals": 0,
       "telegraph": 1.25,
       "hazard_mult": 1.2,
       "boss_enrage_s": 0
@@ -33,8 +34,8 @@
     "normal": {
       "display": "Normal",
       "level_offset": 0,
-      "hp": 1.0,
-      "damage": 1.0,
+      "hp": 1.15,
+      "damage": 1.15,
       "mobs": 1.0,
       "affixes": 0,
       "min_party": 1,
@@ -42,6 +43,7 @@
       "death_penalty_s": 0,
       "lives": -1,
       "exp_budget": 0.22,
+      "kill_exp": 0.75,
       "gold": 1.0,
       "drop": 1.0,
       "bonus_count": [
@@ -53,7 +55,7 @@
       "unlock_after": "",
       "keys": 0,
       "par_mult": 1.0,
-      "seals": 2,
+      "seals": 1,
       "telegraph": 1.0,
       "hazard_mult": 1.0,
       "boss_enrage_s": 0
@@ -61,8 +63,8 @@
     "hard": {
       "display": "Hard",
       "level_offset": 2,
-      "hp": 1.4,
-      "damage": 1.2,
+      "hp": 1.6,
+      "damage": 1.45,
       "mobs": 1.2,
       "affixes": 1,
       "min_party": 1,
@@ -70,6 +72,7 @@
       "death_penalty_s": 10,
       "lives": -1,
       "exp_budget": 0.3,
+      "kill_exp": 0.9,
       "gold": 1.4,
       "drop": 1.25,
       "bonus_count": [
@@ -81,7 +84,7 @@
       "unlock_after": "normal",
       "keys": 0,
       "par_mult": 1.1,
-      "seals": 3,
+      "seals": 2,
       "telegraph": 1.0,
       "hazard_mult": 1.0,
       "boss_enrage_s": 0
@@ -89,8 +92,8 @@
     "very_hard": {
       "display": "Very Hard",
       "level_offset": 4,
-      "hp": 1.9,
-      "damage": 1.4,
+      "hp": 2.2,
+      "damage": 1.75,
       "mobs": 1.35,
       "affixes": 2,
       "min_party": 2,
@@ -98,6 +101,7 @@
       "death_penalty_s": 15,
       "lives": 10,
       "exp_budget": 0.4,
+      "kill_exp": 1.1,
       "gold": 1.9,
       "drop": 1.5,
       "bonus_count": [
@@ -109,7 +113,7 @@
       "unlock_after": "hard",
       "keys": 1,
       "par_mult": 1.2,
-      "seals": 5,
+      "seals": 3,
       "telegraph": 0.85,
       "hazard_mult": 0.85,
       "boss_enrage_s": 0
@@ -117,8 +121,8 @@
     "legendary": {
       "display": "Legendary",
       "level_offset": 6,
-      "hp": 2.6,
-      "damage": 1.65,
+      "hp": 3.0,
+      "damage": 2.1,
       "mobs": 1.5,
       "affixes": 3,
       "min_party": 3,
@@ -126,6 +130,7 @@
       "death_penalty_s": 20,
       "lives": 5,
       "exp_budget": 0.55,
+      "kill_exp": 1.3,
       "gold": 2.6,
       "drop": 1.8,
       "bonus_count": [
@@ -137,7 +142,7 @@
       "unlock_after": "very_hard",
       "keys": 3,
       "par_mult": 1.3,
-      "seals": 8,
+      "seals": 5,
       "unlock_medal": "silver",
       "telegraph": 0.75,
       "hazard_mult": 0.65,
@@ -199,9 +204,8 @@
     "limit": 2.0
   },
   "rewards": {
-    "_comment": "What a run pays. Experience is a budget: a full clear pays the difficulty's exp_budget share of the player's own level threshold, kill_share of it across the clear (each creature its forces' part) and completion_share at the end (x medal_exp); x party_exp for the party, x first_run_exp for the character's first rewarded run of the day, and never more than the level gap allows downward. The final chest (only for a member with a daily reward right left; the others went in as helpers) holds the dungeon chest table, one gear piece with bonus_count enchantments, Zindan Muhru (seals), the dungeon's key on key_drop difficulties, and the medal's extras; its galleons are galleons_per_level [min, max] x the run level x the difficulty's gold (+ medal_gold). The seal shop sells for seals at every dungeon gate. creature_drop: the item chances of a run's ordinary creatures (not bosses) x this on top of the difficulty's drop - a run fields dozens of them, and every kill rolling at open-world odds buried the party in chests. It stacks on loot_tables.json creature_drop (the open world's).",
+    "_comment": "What a run pays. Experience: every creature the run kills pays each member in the copy what it pays in the open world (its level and species, through the level gap) x the difficulty's kill_exp; completion pays exp_budget x completion_share of the member's own level threshold (x medal_exp, never more than the level gap allows downward); both x party_exp for the party and x first_run_exp for the character's first rewarded run of the day. The final chest (only for a member with a daily reward right left; the others went in as helpers) holds the dungeon chest table, one gear piece with bonus_count enchantments, Zindan Muhru (seals), the dungeon's key on key_drop difficulties, and the medal's extras; its galleons are galleons_per_level [min, max] x the run level x the difficulty's gold (+ medal_gold). The seal shop sells for seals at every dungeon gate. creature_drop: the item chances of a run's ordinary creatures (not bosses) x this on top of the difficulty's drop - a run fields dozens of them, and every kill rolling at open-world odds buried the party in chests. It stacks on loot_tables.json creature_drop (the open world's).",
     "creature_drop": 0.75,
-    "kill_share": 0.6,
     "completion_share": 0.4,
     "first_run_exp": 1.25,
     "galleons_per_level": [
@@ -219,16 +223,16 @@
       "bronze": 0.0
     },
     "medal_seals": {
-      "gold": 3,
-      "silver": 2,
-      "bronze": 1
+      "gold": 1,
+      "silver": 0,
+      "bronze": 0
     },
     "medal_item": {
       "gold": 1.0,
       "silver": 0.5,
       "bronze": 0.0
     },
-    "flawless_seals": 1,
+    "flawless_seals": 0,
     "key_drop": {
       "hard": 1
     },
@@ -345,7 +349,7 @@
       "display": "Trial Hall",
       "level_min": 5,
       "level_max": 30,
-      "par_s": 900,
+      "par_s": 600,
       "steps": [
         {
           "id": "wave",
@@ -712,7 +716,10 @@
           "id": "done",
           "on": "cleared:all",
           "complete": true,
-          "message": "The trial is complete. Claim your reward.",
+          "open": [
+            "gate_x"
+          ],
+          "message": "The trial is complete. Claim your reward - the way out opens behind the arena.",
           "chest": {
             "table": "dungeon_trial",
             "at": [

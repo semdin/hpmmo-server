@@ -164,8 +164,11 @@ const SNAPSHOT_INTERVAL_TICKS := SIM_HZ / SNAPSHOT_HZ
 ## client that froze or lost its connection stops instead of running on.
 const INPUT_BUFFER_MS := 300
 ## A cast request arriving this close to the end of recovery is queued instead
-## of refused (bounded input buffer, 100-150 ms).
-const CAST_QUEUE_MS := 120
+## of refused (bounded input buffer). It matches the client's own queue window
+## (player.gd, 0.25 s): at 120 ms a click the client had queued and sent on
+## time still reached a server whose cooldown had a tick or a jittery packet
+## left, and a fast basic-attack chain read "Still recovering".
+const CAST_QUEUE_MS := 250
 ## Damage within this window of a kill credits the player with the reward.
 const KILL_CREDIT_MS := 10000
 

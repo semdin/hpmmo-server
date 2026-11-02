@@ -644,8 +644,8 @@ msgid "Not while mounted"
 msgstr "Binekliyken olmaz"
 
 #: scripts/ui/combat_feedback.gd
-msgid "Still recovering"
-msgstr "Henüz toparlanıyorsun"
+msgid "Not ready yet"
+msgstr "Henüz hazır değil"
 
 #: scripts/ui/combat_feedback.gd scripts/ui/hud_action_bar.gd
 msgid "You are defeated"
@@ -1736,8 +1736,8 @@ msgid "Seal Shop"
 msgstr "Mühür Dükkânı"
 
 #: scripts/ui/hud_dungeon.gd
-msgid "Dungeon Seals  ·  every finished run pays seals; a medal pays more"
-msgstr "Zindan Mührü  ·  biten her zindan mühür verir, madalya daha fazla"
+msgid "Dungeon Seals  ·  Normal and harder clears pay seals; a gold medal adds one"
+msgstr "Zindan Mührü  ·  Orta ve üstü zorlukta biten zindan mühür verir; altın madalya bir tane daha ekler"
 
 #: scripts/ui/hud_dungeon.gd
 msgid "%d seals"
@@ -5856,8 +5856,8 @@ msgid "The Warden falls. Clear every creature left in the hall to finish the tri
 msgstr "Muhafız düştü. Sınavı bitirmek için salonda kalan tüm yaratıkları temizle."
 
 #: addons/hpmmo_sim/data/dungeons.json
-msgid "The trial is complete. Claim your reward."
-msgstr "Sınav tamamlandı. Ödülünü al."
+msgid "The trial is complete. Claim your reward - the way out opens behind the arena."
+msgstr "Sınav tamamlandı. Ödülünü al - çıkış yolu arenanın arkasında açıldı."
 
 #: addons/hpmmo_sim/data/dungeons.json
 msgid "The third-floor corridor is out of bounds... something is buzzing."
@@ -7545,6 +7545,9 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "Drag an item here, or right-click it in your bag."
 #~ msgstr "Bir eşyayı buraya sürükle ya da çantanda sağ tıkla."
 
+#~ msgid "Dungeon Seals  ·  every finished run pays seals; a medal pays more"
+#~ msgstr "Zindan Mührü  ·  biten her zindan mühür verir, madalya daha fazla"
+
 #~ msgid "Dungeon Seals: %d"
 #~ msgstr "Zindan Mührü: %d"
 
@@ -7671,6 +7674,9 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "Status points: %d  ·  %d per level"
 #~ msgstr "Statü puanı: %d  ·  seviye başına %d"
 
+#~ msgid "Still recovering"
+#~ msgstr "Henüz toparlanıyorsun"
+
 #~ msgid "Straight Brows"
 #~ msgstr "Düz Kaş"
 
@@ -7688,6 +7694,9 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 
 #~ msgid "The snatchers have a camp in the woods south of the castle. Drive them out."
 #~ msgstr "Kapkaççıların şatonun güneyindeki koruda bir kampı var. Onları oradan sür."
+
+#~ msgid "The trial is complete. Claim your reward."
+#~ msgstr "Sınav tamamlandı. Ödülünü al."
 
 #~ msgid "Thick Brows"
 #~ msgstr "Kalın Kaş"

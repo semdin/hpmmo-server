@@ -33,7 +33,7 @@ const REASONS := {
 	HPProtocol.REJECT_PROTECTED: "That ground is protected",
 	HPProtocol.REJECT_LINE_OF_SIGHT: "No line of sight",
 	HPProtocol.REJECT_MOUNTED: "Not while mounted",
-	HPProtocol.REJECT_COOLDOWN: "Still recovering",
+	HPProtocol.REJECT_COOLDOWN: "Not ready yet",
 	HPProtocol.REJECT_DEAD: "You are defeated",
 	HPProtocol.REJECT_UNKNOWN_SPELL: "Unknown spell",
 	HPProtocol.REJECT_HOUSE_RANK: "Your house rank is too low",
@@ -348,6 +348,10 @@ func _on_cast_released(p_cast_id: int, spell_id: String) -> void:
 
 func _on_cast_rejected(_cast_seq: int, spell_id: String, reason: String) -> void:
 	if reason == "" or reason == "queued" or reason == "sent":
+		return
+	# The basic attack is clicked as fast as it goes: a refusal on its own
+	# cooldown is the click landing early, not news (the action bar shows it).
+	if reason == HPProtocol.REJECT_COOLDOWN and spell_id == "basic_cast":
 		return
 	var text := reason_text(reason)
 	if spell_id != "":

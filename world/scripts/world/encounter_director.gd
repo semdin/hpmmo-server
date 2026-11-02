@@ -403,6 +403,10 @@ func _apply_boss(mob: Node3D, pack: Dictionary) -> void:
 	# The authored creature cycle has a real ground speed; the boss uses it so
 	# the walk does not skate (exit: coordinated walking).
 	mob.walk_speed = float(data.get("walk_speed", 0.0))
+	# A boss's own extra moves on top of its species' (the Trial Warden's
+	# boulder at a target that keeps its distance - mob_base._ranged_ability).
+	for ability in data.get("abilities", []):
+		mob.abilities.append((ability as Dictionary).duplicate(true))
 	mob.boss_style = String(pack.get("template", {}).get("attack_style", "spider"))
 	mob.boss_arena_radius = float(pack.get("template", {}).get("arena_radius", 18.0))
 	var scale := float(data.get("scale", 1.0))

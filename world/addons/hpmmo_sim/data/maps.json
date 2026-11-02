@@ -344,6 +344,23 @@
       }
     },
     {
+      "id": "trial_reward_exit",
+      "map_id": "dng_trial",
+      "to_map": "grounds",
+      "to_spawn": "trial_return",
+      "label": "Hogwarts Grounds",
+      "trigger": {
+        "center": [
+          0.0,
+          1000.5,
+          -161.0
+        ],
+        "radius": 2.5,
+        "y_min": 995.0,
+        "y_max": 1008.0
+      }
+    },
+    {
       "id": "crypt_descend",
       "map_id": "grounds",
       "to_map": "spider_caverns",

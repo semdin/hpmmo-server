@@ -62,7 +62,7 @@
     "magic_attack_coef": 1.01,
     "radius": 9.0,
     "falloff_floor": 0.4,
-    "launch": {"push": 9.0, "lift": 8.0, "land_stun_ms": 800},
+    "launch": {"push": 5.5, "lift": 6.0, "land_stun_ms": 800},
     "cooldown": 6.5,
     "mana_cost": 55,
     "cast_lock": 0.28,

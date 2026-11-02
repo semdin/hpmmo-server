@@ -65,7 +65,7 @@ func open_run(map_id: String) -> void:
 	runs[map_id] = {"def": def, "params": params, "step": 0, "spawned": {}, "open": {}, "message": "",
 		"complete": false, "origin": HPMaps.instance_origin(map_id), "done": {}, "lock": {}, "hazard_t": {},
 		"phase": "gather", "phase_t": 0.0, "start_tick": -1, "end_tick": -1,
-		"forces": 0, "forces_total": _total_forces(def, params), "pending": {}, "left": -1,
+		"forces": 0, "forces_total": _total_forces(def, params), "pending": {}, "exp_due": {}, "left": -1,
 		"deaths": 0, "down": {},
 		"lives_left": int(HPRules.dungeon_difficulty(String(params["difficulty"])).get("lives", -1)),
 		"broken": false, "result": {}, "affixes": (params.get("affixes", []) as Array).duplicate(),
@@ -610,9 +610,13 @@ func _tick_score(map_id: String, run: Dictionary) -> void:
 			pending.erase(id)
 	if credited > 0:
 		run["forces"] = int(run["forces"]) + credited
-		# The run's creatures pay out of its experience budget, not their own.
-		SimAuthority.grant_dungeon_kill_exp(map_id, run["params"], credited, int(run["forces_total"]))
 		changed = true
+	var due: Dictionary = run["exp_due"]
+	for id in due.keys():
+		var mob = instance_from_id(int(id))
+		if mob == null or not is_instance_valid(mob) or mob.state == mob.State.DEAD:
+			SimAuthority.grant_dungeon_kill_exp(map_id, run["params"], int(due[id][0]), int(due[id][1]))
+			due.erase(id)
 	var down: Dictionary = run["down"]
 	for record in _players(map_id, false):
 		var uid := int(record.get("uid", 0))
@@ -815,9 +819,13 @@ func _spawn(map_id: String, entry: Dictionary, origin: Vector3, pack_id: int) ->
 		mob.attack_power = int(float(mob.attack_power) * strength)
 		mob.exp_reward = int(float(mob.exp_reward) * HPRules.level_exp_ratio(stat_level, level))
 		mob.max_hp = int(float(mob.max_hp) * strength)
-	# Experience comes from the run's budget (SimAuthority.grant_dungeon_kill_exp);
+	# Its kill pays every roster member in the copy what the same creature pays
+	# in the open world, x the difficulty's kill_exp (SimAuthority.
+	# grant_dungeon_kill_exp, credited by _tick_score) - not the killer alone;
 	# drops follow the difficulty; the run's many ordinary creatures roll at
 	# rewards.creature_drop of that (bosses keep their full drop).
+	if runs.has(map_id):
+		runs[map_id]["exp_due"][mob.get_instance_id()] = [int(mob.exp_reward), level]
 	mob.exp_reward = 0
 	var drop := float(HPRules.dungeon_difficulty(String(params.get("difficulty", ""))).get("drop", 1.0))
 	if not mob.is_boss:

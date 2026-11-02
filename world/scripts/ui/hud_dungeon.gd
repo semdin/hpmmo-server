@@ -216,7 +216,7 @@ func _build_shop() -> VBoxContainer:
 	line.add_child(words)
 	_seals = HudKit.label("", 22, HudKit.GOLD_HI, HudKit.title(), 3)
 	words.add_child(_seals)
-	words.add_child(HudKit.label(tr("Dungeon Seals  ·  every finished run pays seals; a medal pays more"), 12, HudKit.TEXT_DIM, HudKit.body(), 0))
+	words.add_child(HudKit.label(tr("Dungeon Seals  ·  Normal and harder clears pay seals; a gold medal adds one"), 12, HudKit.TEXT_DIM, HudKit.body(), 0))
 	_shop_grid = GridContainer.new()
 	_shop_grid.columns = 2
 	_shop_grid.add_theme_constant_override("h_separation", 6)

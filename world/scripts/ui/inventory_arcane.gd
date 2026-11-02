@@ -552,6 +552,13 @@ func refresh() -> void:
 	if not _sell_entry.is_empty() and _bag_entry(_sell_entry).is_empty():
 		_clear_offer()
 	_sell_button.disabled = _pending or _sell_entry.is_empty()
+	# The cells are reused, so the slot under the cursor may hold another item
+	# now (a right-click swapped the worn wand into it): its tooltip follows.
+	if _tooltip != null and _tooltip.visible and is_instance_valid(_hover_slot):
+		if _hover_slot.visible and _hover_slot.item_id != "":
+			_on_slot_entered(_hover_slot)
+		else:
+			_tooltip.hide_item()
 
 func _on_inventory_changed() -> void:
 	if visible: refresh()

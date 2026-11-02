@@ -4888,10 +4888,10 @@ func _launch_dungeon(check: Dictionary) -> void:
 
 # ---------------------------------------------------------- dungeon rewards
 #
-# A run pays out of an experience budget (HPRules.dungeon_exp): kills pay
-# their forces' part of rewards.kill_share as the clear grows, completion
-# pays rewards.completion_share x the medal - each to every roster member in
-# the copy, on their own level. The final chest is per member with a reward
+# Every creature a run kills pays each roster member in the copy its own
+# open-world experience x the difficulty's kill_exp (grant_dungeon_kill_exp);
+# completion pays a budget share of the member's level threshold
+# (HPRules.dungeon_exp: exp_budget x rewards.completion_share x the medal). The final chest is per member with a reward
 # right left (helpers get none).
 
 ## The roster members standing in `map_id` (dead or alive).
@@ -4913,13 +4913,21 @@ func _dungeon_exp_for(record: Dictionary, params: Dictionary, share: float) -> i
 		exp *= float(HPRules.dungeon_rewards().get("first_run_exp", 1.0))
 	return int(round(exp))
 
-## Creatures worth `forces` of the clear died: their part of the kill share.
-func grant_dungeon_kill_exp(map_id: String, params: Dictionary, forces: int, total: int) -> void:
-	if forces <= 0 or total <= 0:
+## A run's creature died: every roster member in the copy earns what that
+## creature pays in the open world (`base_exp` at `mob_level`, through the
+## level gap like any kill) x the difficulty's kill_exp, the party bonus and the
+## first run of the day. A share of a level budget used to stand in for it, and
+## ninety creatures paid what a few dozen open-world kills did.
+func grant_dungeon_kill_exp(map_id: String, params: Dictionary, base_exp: int, mob_level: int) -> void:
+	if base_exp <= 0:
 		return
-	var share := float(HPRules.dungeon_rewards().get("kill_share", 0.6)) * float(forces) / float(total)
+	var mult := float(HPRules.dungeon_difficulty(String(params.get("difficulty", ""))).get("kill_exp", 1.0)) \
+		* HPRules.dungeon_party_exp(int(params.get("party_size", 1)))
 	for record in _run_members(map_id, params):
-		var exp := _dungeon_exp_for(record, params, share)
+		var earned := float(base_exp) * HPRules.level_gap_exp(_player_level(record), mob_level) * mult
+		if (params.get("first_run", []) as Array).has(int(record.get("uid", 0))):
+			earned *= float(HPRules.dungeon_rewards().get("first_run_exp", 1.0))
+		var exp := int(round(earned))
 		_grant_exp(record, exp)
 		emit_signal("reward_granted", int(record.get("uid", 0)), int(record.get("character_id", 0)), exp, 0, [],
 			"dungeon:kill:%s:%d:%d" % [map_id, int(record.get("uid", 0)), sim_tick])

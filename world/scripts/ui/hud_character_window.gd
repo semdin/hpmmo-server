@@ -432,7 +432,7 @@ func _refresh() -> void:
 	var exp_now := int(player.current_exp)
 	var exp_max := maxi(1, int(player.max_exp))
 	var text := {
-		"exp": "%s / %s  ·  %.1f%%" % [galleon_text.call(exp_now), galleon_text.call(exp_max), 100.0 * exp_now / exp_max],
+		"exp": "%s / %s  ·  %.1f%%" % [galleon_text.call(exp_now), galleon_text.call(exp_max), floorf(1000.0 * exp_now / exp_max) / 10.0],
 		"hp": "%d / %d" % [player.current_hp, player.max_hp],
 		"mana": "%d / %d" % [player.current_mana, player.max_mana],
 		"attack": _range_text(stats, "attack_value"),

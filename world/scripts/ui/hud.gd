@@ -524,7 +524,8 @@ func _on_binder_stats(stats: Dictionary) -> void:
 	_mana_stat.set_value(mana, max_mana)
 	mana_label.text = "%d / %d" % [mana, max_mana]
 	_exp_stat.set_value(exp, max_exp)
-	var exp_pct := (float(exp) / maxf(1.0, float(max_exp))) * 100.0
+	# Rounded down: 7347 / 7350 is 99.9 %, never a full bar that has not levelled.
+	var exp_pct := floorf(float(exp) / maxf(1.0, float(max_exp)) * 1000.0) / 10.0
 	_level = int(stats.get("level", _level))
 	exp_label.text = tr("Level %d   ·   %d / %d EXP   ·   %.1f%%") % [_level, exp, max_exp, exp_pct]
 	if unit_frame != null and is_instance_valid(player):
