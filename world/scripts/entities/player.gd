@@ -641,7 +641,10 @@ func set_duel_mark(mark: int) -> void:
 
 func _update_nameplate() -> void:
 	_update_ga_emblem()
-	if nameplate == null:
+	# Nobody looks on the world server: a character with a title paid 164 ms
+	# at bind for the title label's first glyphs (a new font size), and every
+	# other player stood still for it.
+	if nameplate == null or NetworkManager.is_dedicated_server:
 		return
 	var bold_path := "res://assets/fonts/Marcellus-Regular.ttf"
 	var font: Font = load(bold_path) if ResourceLoader.exists(bold_path) else null
