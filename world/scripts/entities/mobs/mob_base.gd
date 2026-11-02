@@ -1481,6 +1481,31 @@ func _voice_key(kind: String, variant: int = 0) -> String:
 		return pattern % maxi(1, variant)
 	return pattern
 
+## The telegraph material every mask copies, kept for the whole process. Godot
+## frees a material's shader with its last user, so while each mask's own
+## material died with it every telegraph recompiled the same pipelines
+## (110-150 ms hitches every few seconds in dungeon and cavern fights, Intel
+## iGPU); this one keeps the shader alive.
+static var _warning_material: StandardMaterial3D = null
+## The layered warning effect, kept loaded with its script (and so its kept
+## shaders) instead of loaded and dropped with every telegraph.
+static var _warning_scene: PackedScene = null
+
+static func warning_material() -> StandardMaterial3D:
+	if _warning_material == null:
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color(1, 0.15, 0.06, 0.36)
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		# The hit-area mask carries the rune/ground-mark texture so the
+		# area itself reads as magic rather than as a flat red disc.
+		mat.albedo_texture = load("res://assets/vfx/atlases/rune_masks_2x2_1k.png")
+		# cell 0 of the 2x2 rune atlas (the telegraph circle)
+		mat.uv1_scale = Vector3(0.5, 0.5, 1.0)
+		mat.uv1_offset = Vector3(0.0, 0.0, 0.0)
+		_warning_material = mat
+	return _warning_material
+
 func _show_warning(plan: Dictionary = {}) -> void:
 	if is_instance_valid(_warning):
 		_warning.queue_free()
@@ -1497,17 +1522,8 @@ func _show_warning(plan: Dictionary = {}) -> void:
 		mesh.top_radius = radius
 		mesh.bottom_radius = radius
 		mesh.height = 0.03
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(1, 0.15, 0.06, 0.36)
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	# The hit-area mask carries the rune/ground-mark texture so the
-	# area itself reads as magic rather than as a flat red disc.
-	mat.albedo_texture = load("res://assets/vfx/atlases/rune_masks_2x2_1k.png")
-	# cell 0 of the 2x2 rune atlas (the telegraph circle)
-	mat.uv1_scale = Vector3(0.5, 0.5, 1.0)
-	mat.uv1_offset = Vector3(0.0, 0.0, 0.0)
-	mesh.material = mat
+	# a copy: the fill colour follows this telegraph's own progress
+	mesh.material = warning_material().duplicate()
 	_warning = MeshInstance3D.new()
 	_warning.mesh = mesh
 	if kind == "directional":
@@ -1525,7 +1541,9 @@ func _show_warning(plan: Dictionary = {}) -> void:
 func _attach_warning_effect(plan: Dictionary, kind: String, radius: float, length: float, width: float) -> void:
 	if _warning == null or not is_instance_valid(_warning):
 		return
-	var scene: PackedScene = load("res://scenes/spells/fx_boss_warning.tscn")
+	if _warning_scene == null:
+		_warning_scene = load("res://scenes/spells/fx_boss_warning.tscn")
+	var scene := _warning_scene
 	if scene == null:
 		return
 	var effect := scene.instantiate()

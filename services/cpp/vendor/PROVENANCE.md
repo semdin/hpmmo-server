@@ -31,12 +31,12 @@ from its upstream release and hash-pinned here.
 | vendor/argon2/blake2/blamka-round-opt.h | 21361 | ba5a9c1fef492cc6ce8d5b5217d6e7cd7983de10f16762f84e284d0ed9972e3b |
 | vendor/argon2/blake2/blamka-round-ref.h | 2730 | bcfdcf785218cf897f05b144e80b659e611188fee3887d533bdcb7a6aa4c336b |
 | vendor/httplib/LICENSE | 1075 | 4b45cbe16d7b71b89ae6127e26e0d90a029198ca5e958ad8e3d0b8bbed364d8b |
-| vendor/httplib/httplib.h | 357227 | f81548031db8543a46170431afac1d2d9b305fc52cfd356a672de6688c2bf697 |
+| vendor/httplib/httplib.h | 859599 | 805169049e6a6e9ba7729d7e01d14ced825029c88a277586602a6b38df4d5357 |
 | vendor/nlohmann/LICENSE.MIT | 1076 | 86b998c792894ccb911a1cb7994f7a9652894e7a094c0b5e45be2f553f45cf14 |
 | vendor/nlohmann/json.hpp | 919975 | 9bea4c8066ef4a1c206b2be5a36302f8926f7fdc6087af5d20b417d0cf103ea6 |
 
 Sources:
-- cpp-httplib v0.22.0 - MIT - https://github.com/yhirose/cpp-httplib
+- cpp-httplib v0.64.0 - MIT - https://github.com/yhirose/cpp-httplib
 - nlohmann/json v3.11.3 - MIT - https://github.com/nlohmann/json
 - phc-winner-argon2 20190702 (full src/ + include/argon2.h) - CC0-1.0 / Apache-2.0 - https://github.com/P-H-C/phc-winner-argon2
 - libpq comes from the PostgreSQL binaries (see deploy docs); not vendored.

@@ -335,6 +335,7 @@ func _scene_map(map_id: String) -> bool:
 # ------------------------------------------------------------------ process
 
 func _process(delta: float) -> void:
+	_watch_after_transfer()
 	_fade = move_toward(_fade, _fade_target, delta / FADE_TIME)
 	if _fade_rect != null:
 		_fade_rect.color = Color(0.02, 0.02, 0.04, _fade)
@@ -533,6 +534,8 @@ func _start_transfer(map_id: String, spawn_id: String, token: int, forced_pos: V
 		_feedback(tr("That map is not available in this build."))
 		return
 	busy = true
+	_stage_ms = {}
+	var t0 := Time.get_ticks_usec()
 	_floo_pending = false
 	_expired_return = {}
 	_active_portal = {}
@@ -540,9 +543,14 @@ func _start_transfer(map_id: String, spawn_id: String, token: int, forced_pos: V
 	await _loading_screen.open(_loading_title(map_id), _loading_text(map_id))
 
 	_loading_screen.set_progress(10.0, tr("Leaving %s…") % _place_name(current_map))
+	_stage_ms["open"] = (Time.get_ticks_usec() - t0) / 1000.0
+	var t := Time.get_ticks_usec()
 	await _unload_map(current_map)
+	_stage_ms["unload"] = (Time.get_ticks_usec() - t) / 1000.0
 	_loading_screen.set_progress(20.0, _loading_text(map_id))
+	t = Time.get_ticks_usec()
 	var loaded := await _load_map(map_id)
+	_stage_ms["load"] = (Time.get_ticks_usec() - t) / 1000.0
 	if not loaded:
 		_feedback(tr("The map failed to load; staying where you are."))
 		await _load_map(current_map)
@@ -562,9 +570,11 @@ func _start_transfer(map_id: String, spawn_id: String, token: int, forced_pos: V
 	# the destination's y-band before ownership moved would look like a fall to
 	# the map's own out-of-band check.
 	_commit_seen = false
+	t = Time.get_ticks_usec()
 	if token != 0:
 		SimNet.mark_transfer_ready(token)
 		await _await_commit(2.0)
+	_stage_ms["commit"] = (Time.get_ticks_usec() - t) / 1000.0
 	if not _commit_seen:
 		var target: Vector3 = forced_pos if forced_pos is Vector3 else _spawn_point(map_id, spawn_id)
 		_place_player(target)
@@ -576,8 +586,13 @@ func _start_transfer(map_id: String, spawn_id: String, token: int, forced_pos: V
 	if spawn_id.begins_with("portkey:") and is_instance_valid(local_player) and local_player.has_method("portkey_hide"):
 		local_player.call("portkey_hide")   # the arrival boot lets the body out
 	await _loading_screen.close()
+	_stage_ms["total"] = (Time.get_ticks_usec() - t0) / 1000.0
 	busy = false
 	_record_transfer(map_id, spawn_id, token)
+	_watch_until_us = Time.get_ticks_usec() + WATCH_AFTER_US
+	_watch_last_us = 0
+	_watch_worst_ms = 0.0
+	_watch_pipelines = ShaderWarmup.pipeline_count()
 	var kind := spawn_id.get_slice(":", 0)
 	if is_instance_valid(local_player) and local_player.has_method("floo_walk_reset"):
 		local_player.call("floo_walk_reset")
@@ -779,11 +794,13 @@ func _load_instance(map_id: String) -> bool:
 	var packed := await _load_scene(path)
 	if packed == null:
 		return false
+	var t := Time.get_ticks_usec()
 	_instance_node = packed.instantiate()
 	_instance_node.name = "Instance_" + map_id.replace("#", "_")
 	if _instance_node.has_method("setup"):
 		_instance_node.call("setup", map_id, false)
 	world.add_child(_instance_node)
+	_stage_ms["build"] = (Time.get_ticks_usec() - t) / 1000.0
 	_apply_interior_ambience(true, map_id)
 	# A map whose creatures live in the world's own containers (the caverns'
 	# packs are encounter-director packs like the grounds'): show them again.
@@ -868,7 +885,10 @@ func _load_scene(path: String) -> PackedScene:
 		_loading_screen.set_progress(40.0)
 	await get_tree().process_frame
 	await get_tree().process_frame
-	return load(path) as PackedScene
+	var t := Time.get_ticks_usec()
+	var packed := load(path) as PackedScene
+	_stage_ms["scene_load"] = (Time.get_ticks_usec() - t) / 1000.0
+	return packed
 
 func _directional_lights(root: Node) -> Array:
 	var out: Array = []
@@ -1136,8 +1156,34 @@ func _record_transfer(map_id: String, spawn_id: String, token: int) -> void:
 		"staticmethod": Performance.get_monitor(Performance.MEMORY_STATIC),
 	}
 	transfer_log.append(entry)
-	print("[MapController] transfer -> %s (spawn %s, token %d) nodes=%d orphans=%d resources=%d" % [
-		map_id, spawn_id, token, int(entry["nodes"]), int(entry["orphans"]), int(entry["resources"])])
+	var stages: Array = []
+	for key in _stage_ms:
+		stages.append("%s %.0f" % [key, float(_stage_ms[key])])
+	print("[MapController] transfer -> %s (spawn %s, token %d) nodes=%d orphans=%d resources=%d | ms: %s" % [
+		map_id, spawn_id, token, int(entry["nodes"]), int(entry["orphans"]), int(entry["resources"]), ", ".join(stages)])
+
+## Where a transfer's time went (ms per stage, printed with the transfer line),
+## and the worst frame in the seconds after the loading screen closed: a
+## player's log then says whether a slow map entry was the load, the build or
+## the first frames drawn in the new map.
+var _stage_ms: Dictionary = {}
+const WATCH_AFTER_US := 5000000
+var _watch_until_us := 0
+var _watch_last_us := 0
+var _watch_worst_ms := 0.0
+var _watch_pipelines := 0
+
+func _watch_after_transfer() -> void:
+	if _watch_until_us == 0:
+		return
+	var now := Time.get_ticks_usec()
+	if _watch_last_us != 0:
+		_watch_worst_ms = maxf(_watch_worst_ms, (now - _watch_last_us) / 1000.0)
+	_watch_last_us = now
+	if now >= _watch_until_us:
+		_watch_until_us = 0
+		print("[MapController] after transfer to %s: worst frame %.0f ms in %d s, %d pipelines compiled" % [
+			current_map, _watch_worst_ms, WATCH_AFTER_US / 1000000, ShaderWarmup.pipeline_count() - _watch_pipelines])
 
 func map_stats() -> Dictionary:
 	return {

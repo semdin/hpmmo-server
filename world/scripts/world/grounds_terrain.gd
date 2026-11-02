@@ -169,8 +169,9 @@ static func active() -> GroundsTerrain:
 
 
 ## Ground height at (x, z), or NAN outside the terrain or with no terrain loaded.
+## The surface the collision is built from (interpolated between texels).
 static func height_at(x: float, z: float) -> float:
 	var t := active()
 	if t == null or t.data == null:
 		return NAN
-	return t.data.get_height(Vector3(x, 0.0, z))
+	return t.data.get_surface_height(Vector3(x, 0.0, z))

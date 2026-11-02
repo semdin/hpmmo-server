@@ -16,6 +16,11 @@ endif()
 # this directory so any Windows header inclusion anywhere in the service is
 # safe, vendor code included.
 add_compile_definitions(NOMINMAX)
+# cpp-httplib 0.5x+ refuses Windows headers older than Windows 10 (it calls
+# CreateFile2), and MinGW's default _WIN32_WINNT is lower.
+if(WIN32)
+    add_compile_definitions(_WIN32_WINNT=0x0A00)
+endif()
 
 # --- vendored headers (see vendor/PROVENANCE.md) ---
 add_library(vendor_headers INTERFACE)

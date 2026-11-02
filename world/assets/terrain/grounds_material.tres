@@ -49,4 +49,6 @@ _shader_parameters = {
 "tri_scale_reduction": 0.3
 }
 world_background = 0
-dual_scaling = true
+dual_scaling_enabled = true
+macro_variation_enabled = true
+projection_enabled = true

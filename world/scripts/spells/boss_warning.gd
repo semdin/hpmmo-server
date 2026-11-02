@@ -29,6 +29,21 @@ var _layers := {}
 var _released := false
 var _audio: Node = null
 
+## The shaders, textures and one material of each kind this effect uses, kept
+## for the whole process. A telegraph lives a second or two; once the last one
+## was freed Godot dropped these shaders, and the next telegraph compiled the
+## same pipelines again in the middle of a fight.
+static var _kept: Dictionary = {}
+
+static func _resource(path: String) -> Resource:
+	if not _kept.has(path):
+		_kept[path] = load(path)
+	return _kept[path]
+
+static func _keep_one(kind: String, material: Material) -> void:
+	if not _kept.has(kind):
+		_kept[kind] = material
+
 const CHARGE_SOUND := "boss_slam_cast"
 const RELEASE_SOUND := "boss_slam_release"
 
@@ -93,8 +108,9 @@ func _build() -> void:
 		pmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		pmat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 		pmat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-		pmat.albedo_texture = load(VFX.asset_path("vfx_spark_static"))
+		pmat.albedo_texture = _resource(VFX.asset_path("vfx_spark_static"))
 		pmat.albedo_color = colour
+		_keep_one("motes_material", pmat)
 		quad.material = pmat
 		motes.draw_pass_1 = quad
 		var process := ParticleProcessMaterial.new()
@@ -108,6 +124,7 @@ func _build() -> void:
 		process.initial_velocity_max = 0.9
 		process.gravity = Vector3(0, 0.3, 0)
 		process.color = colour
+		_keep_one("motes_process", process)
 		motes.process_material = process
 		add_child(motes)
 		motes.emitting = true
@@ -128,8 +145,8 @@ func _make_quad(shader_path: String, asset_id: String, frame: int, size: float, 
 	var quad := QuadMesh.new()
 	quad.size = Vector2(size, size)
 	var material := ShaderMaterial.new()
-	material.shader = load(shader_path)
-	material.set_shader_parameter("atlas", load(VFX.asset_path(asset_id)))
+	material.shader = _resource(shader_path)
+	material.set_shader_parameter("atlas", _resource(VFX.asset_path(asset_id)))
 	material.set_shader_parameter("grid", VFX.asset(asset_id).get("grid", Vector2.ONE))
 	material.set_shader_parameter("frame", float(frame))
 	material.set_shader_parameter("billboard", false)
