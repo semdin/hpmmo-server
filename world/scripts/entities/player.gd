@@ -77,7 +77,9 @@ var animation_events: Array[String] = []
 var look: Dictionary = HPRules.default_look():
 	set(value):
 		look = HPRules.clean_look(value)
-		if is_inside_tree() and visuals != null:
+		# Nobody looks on the world server: a first-seen outfit built its cloth
+		# materials there at bind (177 ms for Edilee, everyone stood still).
+		if is_inside_tree() and visuals != null and not NetworkManager.is_dedicated_server:
 			HeroAppearance.apply_look(visuals, look)
 
 # Base Stats

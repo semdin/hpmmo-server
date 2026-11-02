@@ -65,6 +65,11 @@ const MAP_PX := 178
 ## World units across the minimap. Raised and lowered by the +/- buttons.
 const MAP_ZOOM_MIN := 60.0
 const MAP_ZOOM_MAX := 420.0
+## Ground drawn past the disc on every side: the picture is redrawn at MAP_HZ
+## and slid under the disc in between, so a broom's 3 m per redraw scrolls the
+## map instead of stepping it.
+const MAP_MARGIN_PX := 24
+const MAP_VIEW_PX := MAP_PX + 2 * MAP_MARGIN_PX
 
 ## A live top-down render of the world, clipped to a circle and ringed in brass.
 ##
@@ -87,7 +92,7 @@ func _build() -> void:
 	# parented to the overlay and pointed at the player's world in `attach`.
 	_map_view = SubViewport.new()
 	_map_view.name = "MinimapView"
-	_map_view.size = Vector2i(int(MAP_PX), int(MAP_PX))
+	_map_view.size = Vector2i(MAP_VIEW_PX, MAP_VIEW_PX)
 	_map_view.transparent_bg = false
 	_map_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_map_view.msaa_3d = Viewport.MSAA_DISABLED
@@ -98,13 +103,14 @@ func _build() -> void:
 
 	_map_cam = Camera3D.new()
 	_map_cam.projection = Camera3D.PROJECTION_ORTHOGONAL
-	_map_cam.size = 150.0
+	_map_cam.size = _map_zoom * MAP_VIEW_PX / MAP_PX
 	_map_cam.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
 	_map_cam.current = true
 	_map_cam.far = 400.0
 	_map_view.add_child(_map_cam)
 
 	var disc := TextureRect.new()
+	_disc = disc
 	disc.name = "Disc"
 	disc.texture = _map_view.get_texture()
 	disc.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -319,11 +325,15 @@ func _disc_mask_material() -> ShaderMaterial:
 	var sh := Shader.new()
 	sh.code = """
 shader_type canvas_item;
+// The disc's share of the picture, and how far the player moved since it was
+// drawn (both in picture UV).
+uniform float view_scale = 1.0;
+uniform vec2 slide = vec2(0.0);
 void fragment() {
 	vec2 p = UV - vec2(0.5);
 	float d = length(p);
 	float edge = 1.0 - smoothstep(0.487, 0.500, d);
-	vec4 c = texture(TEXTURE, UV);
+	vec4 c = texture(TEXTURE, vec2(0.5) + p * view_scale + slide);
 	c.a *= edge;
 	// Slight vignette so the map sits inside the bezel rather than touching it.
 	c.rgb *= mix(0.55, 1.0, smoothstep(0.50, 0.18, d));
@@ -332,6 +342,7 @@ void fragment() {
 """
 	var mat := ShaderMaterial.new()
 	mat.shader = sh
+	mat.set_shader_parameter("view_scale", float(MAP_PX) / float(MAP_VIEW_PX))
 	return mat
 
 
@@ -377,7 +388,7 @@ func _map_zoom_step(direction: int) -> void:
 		_map_zoom = clampf(_map_zoom * (0.72 if direction > 0 else 1.39),
 			MAP_ZOOM_MIN, MAP_ZOOM_MAX)
 	if _map_cam != null:
-		_map_cam.size = _map_zoom
+		_map_cam.size = _map_zoom * MAP_VIEW_PX / MAP_PX
 
 
 ## Talk to `npc`: its name and lines (English message ids, shown translated).
@@ -436,6 +447,7 @@ func _process(delta: float) -> void:
 		_update_minimap()
 	else:
 		_update_marker()
+	_slide_minimap()
 	_zone_wait -= delta
 	if _zone_wait <= 0.0:
 		_zone_wait = 0.25
@@ -482,6 +494,11 @@ const INDOOR_SLAB_ABOVE := 2.6
 const INDOOR_SLAB_BELOW := 4.0
 const MAP_HZ := 10.0
 var _map_wait := 0.0
+## Where the player stood when the picture, and the dots and zone rings, were
+## last drawn: each frame slides them by the distance walked since.
+var _map_drawn_at := Vector3.INF
+var _dots_drawn_at := Vector3.INF
+var _disc: TextureRect = null
 
 ## Park the map camera over the player. It only renders while the overlay is on
 ## screen: the viewport is a second pass over the whole 3D scene, and the perf
@@ -518,8 +535,26 @@ func _follow_minimap(delta: float) -> void:
 		if _map_wait <= 0.0:
 			_map_wait = 1.0 / MAP_HZ
 			_map_view.render_target_update_mode = SubViewport.UPDATE_ONCE
+			_map_drawn_at = _player.global_position
 		elif _map_view.render_target_update_mode == SubViewport.UPDATE_ALWAYS:
 			_map_view.render_target_update_mode = SubViewport.UPDATE_DISABLED
+
+## Between redraws the picture, the dots and the zone rings slide by the ground
+## the player covered since they were drawn (pixels: world +X right, +Z down).
+func _slide_minimap() -> void:
+	var span := maxf(_map_zoom, 1.0)
+	if _disc != null and _map_drawn_at.is_finite():
+		var moved := _player.global_position - _map_drawn_at
+		var room := 0.5 - 0.5 * float(MAP_PX) / float(MAP_VIEW_PX)
+		var slide := Vector2(moved.x, moved.z) / (span * MAP_VIEW_PX / MAP_PX)
+		(_disc.material as ShaderMaterial).set_shader_parameter("slide", slide.clampf(-room, room))
+	if _dots_drawn_at.is_finite():
+		var moved := _player.global_position - _dots_drawn_at
+		var shift := (-Vector2(moved.x, moved.z) / span * MAP_PX).clampf(-MAP_MARGIN_PX, MAP_MARGIN_PX)
+		if _map_overlay != null:
+			_map_overlay.position = shift
+		if _zone_layer != null:
+			_zone_layer.position = shift
 
 ## Hunting regions (spawn_tables.json regions with a level band) inside the
 ## disc: a filled tint and a ring coloured like the zone banner's level band.
@@ -643,6 +678,7 @@ func _update_minimap() -> void:
 		_marker.queue_redraw()
 	if _zone_layer != null:
 		_zone_layer.queue_redraw()
+	_dots_drawn_at = _player.global_position
 	# mobs: the crown for a world boss, the shard for the rest. Offline play
 	# holds every pack on the map: bodies outside the disc get no marker work.
 	var reach := maxf(_map_zoom, 1.0) * 0.75

@@ -1,7 +1,7 @@
 {
  "generated": "2026-11-02",
  "source_repository": "hpmmo-client",
- "source_revision": "63d0250002f89e310dd1e1b7082d7379a2f5c748",
+ "source_revision": "d5adb6c980944c88743ace61b3039d1b41ee6675",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/audio/sound_library.json": "c1d191056275c9a8d4657bf650376060444d8a0a1af7eaeca72cc30b632c60cc",
@@ -662,7 +662,7 @@
   "scripts/entities/mobs/wing_flap.gd": "f1c0ed4f1d22dfe9551490d60053557339e89e04e2f0e65c2e7353874fb6b0a9",
   "scripts/entities/monolith/dark_monolith.gd": "89eaf60778ced05e855597e4bb544a4763e49d3c20ef7227cb46d5f3c6fb50af",
   "scripts/entities/monolith/monolith_beacons.gd": "485baf88b2156532c6bac65d9b55261c068c5f020e894a79084e7a80df97d5fb",
-  "scripts/entities/player.gd": "951f3791605c268e9a40863501c448c63205ed78030777aa6d68e6a6f1660c60",
+  "scripts/entities/player.gd": "842124353223e7265c85c04614a6e048e040c68c9ef211fac889f1811121c4cc",
   "scripts/entities/prediction_history.gd": "abfde25d332e9a2c97f9aaaa6af8b0c62c712d280d0cbeba24581d52228f4df4",
   "scripts/entities/replica_motion.gd": "475c2e08ebe8ecb0f28f564df03392966b0fee790efaa294dff84a0724d9f322",
   "scripts/entities/rig_follower.gd": "d514f42422830babf483b21eab4f801d163862f97a2e603f74318518a481615f",
@@ -736,7 +736,7 @@
   "scripts/ui/maintenance_ui.gd": "96d322b72a793923bfd4040f5005b20c491baf961976b9e3a601386b4dfde6b0",
   "scripts/ui/map_loading_screen.gd": "f67d251a0d2a72b46f773610af855e3d46bd325d5d4841940ec57b342f067f65",
   "scripts/ui/map_marker.gd": "9d9306f5ac56641f942cd178e899e8a1e51103343d046121a111d022b8e060ac",
-  "scripts/ui/mmorpg_overlay.gd": "60fec1df0ada101ac0e096165a194b4ad9966ae4f418c2cd0b2d99958d83a995",
+  "scripts/ui/mmorpg_overlay.gd": "cd28e7f1e1087e3bdf069e3a255ae3c0e47b5661a6ca9da9f68c023062ba5e65",
   "scripts/ui/npc_dialogue.gd": "8519ba811b2a94117c002939fbed863088abf36f98fbc981194bf5b2c94a37ff",
   "scripts/ui/ollivander_ui.gd": "95b48bde7a3038c948f06a12cce09da5629122806d907f257d954f66825721dc",
   "scripts/ui/onboarding_ui.gd": "5c98cec5c8c8e405e7b0e31cb3b4a30244fa78c81ed466eeccdfbd73c34b0c8c",
