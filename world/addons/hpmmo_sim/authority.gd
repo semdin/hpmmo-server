@@ -1857,9 +1857,11 @@ func _step() -> void:
 			persistence.autosave_all(entities, players_by_peer)
 
 ## A remote body runs on the last intent its client sent. When the frames
-## stop (a frozen client, a dead connection that ENet only notices after
-## PEER_TIMEOUT_MAX_MS) the intent is let go after HPProtocol.INPUT_BUFFER_MS,
-## so the body stops instead of walking on into a pack or off a cliff.
+## stop (an uplink stall, a frozen client, a dead connection that ENet only
+## notices after PEER_TIMEOUT_MAX_MS) the intent is let go after
+## HPProtocol.INPUT_BUFFER_MS and the body halts on the spot: it waits on the
+## client's own path for the next claimed position instead of walking on into
+## a pack, off a cliff or away from where the player turned.
 func _expire_stale_inputs() -> void:
 	var now := Time.get_ticks_msec()
 	for uid in _player_uids():
@@ -1874,6 +1876,12 @@ func _expire_stale_inputs() -> void:
 		intent["move"] = Vector2.ZERO
 		intent["jump"] = false
 		intent["descend"] = false
+		var body = record.get("node")
+		# (a throw or a shove in flight keeps carrying the body)
+		if body is CharacterBody3D and is_instance_valid(body) and not (body.has_method("cc_locked") and body.cc_locked()):
+			var v: Vector3 = (body as CharacterBody3D).velocity
+			# a rider holds its height; a walker keeps falling
+			(body as CharacterBody3D).velocity = Vector3(0.0, 0.0 if bool(record.get("mounted", false)) else minf(v.y, 0.0), 0.0)
 		touch(record)
 
 # ------------------------------------------------------------- mount phase

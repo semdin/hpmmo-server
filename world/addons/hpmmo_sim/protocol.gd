@@ -159,10 +159,13 @@ const SNAPSHOT_HZ := 10
 const SNAPSHOT_INTERVAL_TICKS := SIM_HZ / SNAPSHOT_HZ
 
 ## How long a client's movement input stays valid while packets are missing.
-## Input older than this is discarded (the player simply stops accelerating).
-## Inputs travel at 20 Hz unreliably, so this rides out a few lost frames; a
-## client that froze or lost its connection stops instead of running on.
-const INPUT_BUFFER_MS := 300
+## Input older than this is discarded and the body stops where it is. Inputs
+## travel at 20 Hz unreliably, so this rides out two lost frames. Since v32 the
+## next input carries where the client really is, so the server needs no
+## guess: running on along the last input for 300 ms (and a broom's ~7 m of
+## braking after it) left the body off the path the client turned onto in an
+## uplink stall, and the client was snapped back to it in mid-flight.
+const INPUT_BUFFER_MS := 150
 ## A cast request arriving this close to the end of recovery is queued instead
 ## of refused (bounded input buffer). It matches the client's own queue window
 ## (player.gd, 0.25 s): at 120 ms a click the client had queued and sent on

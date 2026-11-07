@@ -2,8 +2,11 @@ extends RefCounted
 
 ## Only recent predicted motion can explain an old authoritative position.
 ## Wall time bounds the grace period even if rendering or simulation slows.
-const MAX_AGE_MS := 1000
-const MAX_SAMPLES := 90
+## Two seconds: in an uplink stall the server halts the body on this path
+## (authority `_expire_stale_inputs`) until the next claimed position, and a
+## one-second window snapped the player back to it in mid-flight.
+const MAX_AGE_MS := 2000
+const MAX_SAMPLES := 180
 var _positions: Array[Vector3] = []
 var _times: Array[int] = []
 

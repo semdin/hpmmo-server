@@ -2580,7 +2580,9 @@ func on_authoritative_damage(spell_type: String, attacker: Node3D, _stun_ms: int
 ##     made itself (teleport, rescue, stair ride) until the client has seen it.
 ## A refused claim changes nothing: the body runs on the input as before and
 ## the client is corrected by the snapshot.
-const CLAIM_CREDIT_S := 1.0
+## Two seconds, matching the client's path history: after an uplink stall the
+## halted body must take the claim the client sends from where it flew on to.
+const CLAIM_CREDIT_S := 2.0
 const CLAIM_SPEED_SLACK := 1.25
 ## Upward travel: a jump leaves at 8 m/s, the broom climbs at 7.
 const CLAIM_RISE_SPEED := 9.0
