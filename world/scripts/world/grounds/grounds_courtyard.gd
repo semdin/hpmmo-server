@@ -49,6 +49,9 @@ static func build(world: Node3D, visuals: bool) -> Node3D:
 	_portal_arches(solid, c)
 	shapes.cylinder(c + Vector3(0, -0.4, 0), 3.35, 1.4, "x", 16)
 	shapes.cylinder(c + Vector3(0, 0.6, 0), 0.7, 3.4, "x", 10)
+	# the model's middle and top bowls (lips at y 3.0 r 1.45 and y 3.9 r 0.75)
+	shapes.cylinder(c + Vector3(0, 2.55, 0), 1.6, 0.6, "x", 14)
+	shapes.cylinder(c + Vector3(0, 3.5, 0), 0.85, 0.5, "x", 12)
 	for at in _bench_spots(c):
 		shapes.box(at[0] + Vector3(0, 0.45, 0), Vector3(2.5, 0.9, 0.7), at[1], "x")
 	for at in _lamp_spots(c):

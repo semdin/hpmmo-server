@@ -124,7 +124,7 @@ static func cottage(kit: ArchKit, c: Vector2, rot: float, w: float, d: float, fl
 	var roof_h := (d * 0.85) if not tall else d * 1.15
 	kit.gable(at.call(0, y, 0), Vector2(w + 0.6, d + 0.6), roof_h, rot, roof_key, "plaster" if floors > 1 else "stone", 0.9)
 	# chimney
-	kit.box(at.call(w * 0.32, y + roof_h * 0.7, -d * 0.18), Vector3(0.9, roof_h * 1.1, 0.9), rot, "stone", false)
+	kit.box(at.call(w * 0.32, y + roof_h * 0.7, -d * 0.18), Vector3(0.9, roof_h * 1.1, 0.9), rot, "stone")
 	# door and windows on the street face, windows at the back and the ends
 	kit.box(at.call(0, floor_y + 1.15, d * 0.5 + 0.06), Vector3(1.3, 2.3, 0.15), rot, "wood", false)
 	kit.box(at.call(0, floor_y + 2.45, d * 0.5 + 0.1), Vector3(1.7, 0.25, 0.25), rot, "timber", false)
@@ -249,7 +249,7 @@ static func _hagrid(parent: Node3D, visuals: bool) -> void:
 	var fy := span.y + 0.1
 	kit.cylinder(Vector3(h.x, span.x - 1.0, h.z), 4.6, fy + 3.6 - span.x + 1.0, "rubble", 18)
 	kit.cone(Vector3(h.x, fy + 3.6, h.z), 4.6, 4.2, "roof_warm", 18, 1.2)
-	kit.box(Vector3(h.x + 2.2, fy + 5.0, h.z - 1.5), Vector3(1.0, 4.0, 1.0), 0.0, "rubble", false)
+	kit.box(Vector3(h.x + 2.2, fy + 5.0, h.z - 1.5), Vector3(1.0, 4.0, 1.0), 0.0, "rubble")
 	kit.box(Vector3(h.x, fy + 1.3, h.z + 4.62), Vector3(1.6, 2.6, 0.3), 0.0, "wood", false)
 	kit.window(Vector3(h.x + 3.2, fy + 1.9, h.z + 3.2), Vector3(0.7, 0, 0.7), 0.8, 1.0, "timber", "glass")
 	kit.window(Vector3(h.x - 3.2, fy + 1.9, h.z + 3.2), Vector3(-0.7, 0, 0.7), 0.8, 1.0, "timber", "glass")
@@ -348,6 +348,11 @@ static func _greenhouses(parent: Node3D, visuals: bool) -> void:
 		var fy := span.y + 0.05
 		kit.box(Vector3(c.x, (span.x - 1.0 + fy + 0.6) * 0.5, c.y), Vector3(9.4, fy + 0.6 - span.x + 1.0, 18.4), 0.0, "stone")
 		kit.box(Vector3(c.x, fy + 0.6 + 1.6, c.y), Vector3(9.0, 3.2, 18.0), 0.0, "glasshouse")
+		# the model's pitched glass roof (eaves 3.2 m, ridge 5.05 m, along z;
+		# only the finials reach the model's 7 m top)
+		kit.gable(Vector3(c.x, fy + 0.6 + 3.2, c.y), Vector2(18.4, 9.2), 1.85, PI * 0.5, "glasshouse", "", 0.0)
+		# and the ventilation lantern on the middle of the ridge (1.74 m wide, to 6 m)
+		kit.box(Vector3(c.x, fy + 0.6 + 5.5, c.y), Vector3(1.74, 1.0, 10.0), 0.0, "glasshouse")
 		tops.append(Vector3(c.x, fy + 0.6, c.y))
 	var root := kit.finish(parent, materials() if visuals else {}, "Greenhouses", 1, visuals)
 	if not visuals or not ResourceLoader.exists(GREENHOUSE):
@@ -480,8 +485,8 @@ static func _station(parent: Node3D, visuals: bool) -> void:
 		kit.box(Vector3(s.x + 6.75, s.y - 0.02, s.z - 108.0 + k * 3.1), Vector3(2.4, 0.16, 0.3), 0.0, "timber", false)
 	cottage(kit, Vector2(s.x - 7.5, s.z), PI * 0.5, 14.0, 7.0, 1, "roof")
 	for k in 3:
-		kit.box(Vector3(s.x + 2.2, fy + 1.6, s.z - 20.0 + k * 20.0), Vector3(0.25, 3.2, 0.25), 0.0, "metal", false)
-	kit.box(Vector3(s.x + 1.0, fy + 3.3, s.z), Vector3(3.4, 0.2, 46.0), 0.0, "roof", false)
+		kit.box(Vector3(s.x + 2.2, fy + 1.6, s.z - 20.0 + k * 20.0), Vector3(0.25, 3.2, 0.25), 0.0, "metal")
+	kit.box(Vector3(s.x + 1.0, fy + 3.3, s.z), Vector3(3.4, 0.2, 46.0), 0.0, "roof")
 	var root := kit.finish(parent, materials() if visuals else {}, "HogsmeadeStation", 1, visuals)
 	if visuals:
 		for k in 3:

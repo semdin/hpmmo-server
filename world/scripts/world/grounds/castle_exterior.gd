@@ -130,8 +130,8 @@ static func _hall(kit: ArchKit, h: Array, top: float) -> void:
 	var height := top + wall_h - base
 	kit.box(Vector3(c.x, base + height * 0.5, c.z), Vector3(size.x, height, size.y), 0.0, "stone")
 	# plinth and cornice bands
-	kit.box(Vector3(c.x, top + 0.6, c.z), Vector3(size.x + 0.8, 1.2, size.y + 0.8), 0.0, "trim", false)
-	kit.box(Vector3(c.x, top + wall_h - 0.4, c.z), Vector3(size.x + 0.6, 0.8, size.y + 0.6), 0.0, "trim", false)
+	kit.box(Vector3(c.x, top + 0.6, c.z), Vector3(size.x + 0.8, 1.2, size.y + 0.8), 0.0, "trim")
+	kit.box(Vector3(c.x, top + wall_h - 0.4, c.z), Vector3(size.x + 0.6, 0.8, size.y + 0.6), 0.0, "trim")
 	var roof_base := Vector3(c.x, top + wall_h, c.z)
 	match String(h[7]):
 		"x":
@@ -171,9 +171,9 @@ static func _tower(kit: ArchKit, t: Array, top: float) -> void:
 	# battered base, shaft, corbelled crown, spire
 	kit.cylinder(foot, r * 1.18, top - base + 4.0, "stone", 20, true, r * 1.02)
 	kit.cylinder(Vector3(c.x, top + 4.0, c.z), r, h - 4.0, "stone", 20)
-	kit.cylinder(Vector3(c.x, top + h - 1.2, c.z), r * 1.14, 1.6, "trim", 20, false)
+	kit.cylinder(Vector3(c.x, top + h - 1.2, c.z), r * 1.14, 1.6, "trim", 20)
 	kit.tower_battlements(Vector3(c.x, top + h + 0.4, c.z), r * 1.08, "trim", int(r * 2.2))
-	kit.cylinder(Vector3(c.x, top + h + 0.4, c.z), r * 0.86, 3.2, "stone", 18, false)
+	kit.cylinder(Vector3(c.x, top + h + 0.4, c.z), r * 0.86, 3.2, "stone", 18)
 	kit.cone(Vector3(c.x, top + h + 3.6, c.z), r * 0.86, t[5], "roof", 18, 1.18)
 	var rings := maxi(2, int(h / 11.0))
 	for k in rings:
@@ -204,7 +204,7 @@ static func _clock_tower(kit: ArchKit, top: float) -> void:
 	var span := _ground_span(c, Vector2(s, s))
 	var base := minf(span.x, top) - 3.0
 	kit.box(Vector3(c.x, base + (top + h - base) * 0.5, c.z), Vector3(s, top + h - base, s), 0.0, "stone")
-	kit.box(Vector3(c.x, top + h - 0.5, c.z), Vector3(s + 1.0, 1.0, s + 1.0), 0.0, "trim", false)
+	kit.box(Vector3(c.x, top + h - 0.5, c.z), Vector3(s + 1.0, 1.0, s + 1.0), 0.0, "trim")
 	kit.pyramid(Vector3(c.x, top + h, c.z), Vector2(s, s), CLOCK[4], 0.0, "roof", 0.5)
 	for n: Vector3 in [Vector3(0, 0, 1), Vector3(1, 0, 0), Vector3(-1, 0, 0), Vector3(0, 0, -1)]:
 		var face := Vector3(c.x, top + h - 6.0, c.z) + n * (s * 0.5 + 0.06)

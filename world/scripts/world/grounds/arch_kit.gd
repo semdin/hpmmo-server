@@ -95,10 +95,12 @@ func cylinder(base: Vector3, radius: float, height: float, key: String, segments
 
 
 ## Cone (spire) on a base circle; `flare` makes the eaves overhang the wall.
-func cone(base: Vector3, radius: float, height: float, key: String, segments: int = 16, flare: float = 1.12) -> void:
+func cone(base: Vector3, radius: float, height: float, key: String, segments: int = 16, flare: float = 1.12,
+		collide: bool = true) -> void:
 	var r := radius * flare
 	var apex := base + Vector3.UP * height
 	var inside := base + Vector3.UP * height * 0.25
+	var hull := PackedVector3Array([apex])
 	for i in segments:
 		var a0 := TAU * i / segments
 		var a1 := TAU * (i + 1) / segments
@@ -106,10 +108,14 @@ func cone(base: Vector3, radius: float, height: float, key: String, segments: in
 		var b1 := base + Vector3(cos(a1) * r, 0, sin(a1) * r)
 		tri(key, b0, b1, apex, inside)
 		tri(key, b0, b1, base, base + Vector3.UP)
+		hull.append(b0)
+	if collide:
+		_hull(hull)
 
 
 ## Pyramid roof over a rectangle (size x, z) rotated by rot_y.
-func pyramid(base_center: Vector3, size_xz: Vector2, height: float, rot_y: float, key: String, overhang: float = 0.6) -> void:
+func pyramid(base_center: Vector3, size_xz: Vector2, height: float, rot_y: float, key: String, overhang: float = 0.6,
+		collide: bool = true) -> void:
 	var basis := Basis(Vector3.UP, rot_y)
 	var hx := size_xz.x * 0.5 + overhang
 	var hz := size_xz.y * 0.5 + overhang
@@ -119,12 +125,14 @@ func pyramid(base_center: Vector3, size_xz: Vector2, height: float, rot_y: float
 	for i in 4:
 		tri(key, base_center + c[i], base_center + c[(i + 1) % 4], apex, inside)
 	quad(key, base_center + c[0], base_center + c[1], base_center + c[2], base_center + c[3], base_center + Vector3.UP)
+	if collide:
+		_hull(PackedVector3Array([apex, base_center + c[0], base_center + c[1], base_center + c[2], base_center + c[3]]))
 
 
 ## Gable roof: ridge along local x over a footprint (size x, z), rotated by rot_y.
 ## The triangular ends use `gable_key` (usually the wall material).
 func gable(base_center: Vector3, size_xz: Vector2, height: float, rot_y: float, key: String,
-		gable_key: String = "", overhang: float = 0.7) -> void:
+		gable_key: String = "", overhang: float = 0.7, collide: bool = true) -> void:
 	var basis := Basis(Vector3.UP, rot_y)
 	var hx := size_xz.x * 0.5 + overhang * 0.5
 	var hz := size_xz.y * 0.5 + overhang
@@ -142,6 +150,9 @@ func gable(base_center: Vector3, size_xz: Vector2, height: float, rot_y: float, 
 	var h_end := height * (gz / hz)
 	tri(gk, _c(b, basis, o, gx, 0, gz), _c(b, basis, o, gx, 0, -gz), _c(b, basis, o, gx, h_end, 0), inside)
 	tri(gk, _c(b, basis, o, -gx, 0, -gz), _c(b, basis, o, -gx, 0, gz), _c(b, basis, o, -gx, h_end, 0), inside)
+	if collide:
+		_hull(PackedVector3Array([ra, rb, _c(b, basis, o, -hx, 0, hz), _c(b, basis, o, hx, 0, hz),
+			_c(b, basis, o, hx, 0, -hz), _c(b, basis, o, -hx, 0, -hz)]))
 
 
 ## Crenellated parapet along a wall top from a to b (merlons every `pitch`).
@@ -152,14 +163,24 @@ func battlements(a: Vector3, b: Vector3, thickness: float, key: String, merlon_h
 	var count := maxi(1, int(length / pitch))
 	for i in count:
 		var t := (i + 0.5) / count
-		box(a.lerp(b, t) + Vector3.UP * merlon_h * 0.5, Vector3(pitch * 0.55, merlon_h, thickness), rot, key, false)
+		box(a.lerp(b, t) + Vector3.UP * merlon_h * 0.5, Vector3(pitch * 0.55, merlon_h, thickness), rot, key)
 
 
 ## Ring of merlons on a tower top.
 func tower_battlements(center_top: Vector3, radius: float, key: String, count: int = 12) -> void:
 	for i in count:
 		var a := TAU * (i + 0.5) / count
-		box(center_top + Vector3(cos(a) * radius, 0.7, sin(a) * radius), Vector3(1.0, 1.4, 1.2), -a, key, false)
+		box(center_top + Vector3(cos(a) * radius, 0.7, sin(a) * radius), Vector3(1.0, 1.4, 1.2), -a, key)
+
+
+## A convex collider through world points (roofs, spires): sloped surfaces
+## a body can stand on or bump into, matching what is drawn.
+func _hull(points: PackedVector3Array) -> void:
+	if not _with_collision:
+		return
+	var s := ConvexPolygonShape3D.new()
+	s.points = points
+	_shapes.append([s, Transform3D.IDENTITY])
 
 
 ## A box with an arbitrary orientation (no collision): slanted mouldings.

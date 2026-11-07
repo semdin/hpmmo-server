@@ -1,9 +1,11 @@
 {
   "_comment": "Server-owned map catalog. Maps, spawn points, safe-zone references, entity sets and the portals between maps. The authority validates every transfer against this file; clients load one map at a time and build trigger volumes, landing pads and floor labels from the same data, so the two sides share contracts and nothing else.",
+  "_coords": "coord_origin [x, z]: the world point a map shows as 0, 0 (its north-west corner). Players read every position as two positive whole metres, X east and Y south, counted from it (an instanced copy adds its own offset); the world keeps its own coordinates.",
   "_membership": "A map is a y-band (y_min..y_max). The grounds own everything from -30 (below the Black Lake bed) to 185; the castle interior is authored above it, so the two maps never overlap in space and the server can keep both registered while a client has one loaded.",
   "maps": {
     "grounds": {
       "display": "Hogwarts Grounds",
+      "coord_origin": [-1010.0, -1010.0],
       "available": true,
       "flight_allowed": true,
       "capacity": 64,
@@ -51,6 +53,7 @@
     },
     "castle_interior": {
       "display": "Hogwarts Castle",
+      "coord_origin": [-110.0, -90.0],
       "available": true,
       "flight_allowed": false,
       "capacity": 64,
@@ -79,6 +82,7 @@
     },
     "dng_trial": {
       "display": "Trial Hall",
+      "coord_origin": [-256.0, -256.0],
       "available": true,
       "flight_allowed": false,
       "capacity": 5,
@@ -107,6 +111,7 @@
     },
     "dng_forbidden_corridor": {
       "display": "The Forbidden Corridor",
+      "coord_origin": [-256.0, -256.0],
       "available": true,
       "flight_allowed": false,
       "capacity": 5,
@@ -135,6 +140,7 @@
     },
     "spider_caverns": {
       "display": "Blackweb Caverns",
+      "coord_origin": [-256.0, -256.0],
       "available": true,
       "flight_allowed": false,
       "capacity": 64,
@@ -184,6 +190,7 @@
     },
     "dng_spider_lair": {
       "display": "The Queen's Lair",
+      "coord_origin": [-256.0, -256.0],
       "available": true,
       "flight_allowed": false,
       "capacity": 5,

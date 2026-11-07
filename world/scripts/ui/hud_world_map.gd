@@ -202,10 +202,21 @@ func _process(_delta: float) -> void:
 		view.queue_redraw()
 		_update_coords()
 
-## One way to write a place everywhere (minimap, this map, the waypoint):
-## whole metres, x then z.
-static func coords_text(at: Vector2) -> String:
-	return "%d, %d" % [roundi(at.x), roundi(at.y)]
+## One way to write a place everywhere (minimap, this map, the waypoint): the
+## map's own player coordinates (HPMaps.display_coords: X east, Y south, whole
+## metres from its north-west corner, never negative), from a world (x, z).
+static func coords_text(at: Vector2, map_id: String = HPProtocol.DEFAULT_MAP) -> String:
+	var c := HPMaps.display_coords(map_id, at)
+	return "%d, %d" % [c.x, c.y]
+
+## The map this sheet shows (an instanced copy keeps its slot, for its offset).
+func shown_map() -> String:
+	if guide != null and is_instance_valid(guide) and guide.current_map() != "":
+		var current := guide.current_map()
+		if mode == "caverns" and HPMaps.base_map(current) != CAVERNS_MAP:
+			return CAVERNS_MAP
+		return current
+	return {"caverns": CAVERNS_MAP, "castle": "castle_interior"}.get(mode, HPProtocol.DEFAULT_MAP)
 
 ## You, the cursor and the waypoint, in world coordinates.
 func _update_coords() -> void:
@@ -213,11 +224,11 @@ func _update_coords() -> void:
 		return
 	var parts: Array = []
 	if player != null and is_instance_valid(player):
-		parts.append(tr("You") + "  " + coords_text(Vector2(player.global_position.x, player.global_position.z)))
+		parts.append(tr("You") + "  " + coords_text(Vector2(player.global_position.x, player.global_position.z), shown_map()))
 	if view.hovering:
-		parts.append(tr("Cursor") + "  " + coords_text(view.hover))
+		parts.append(tr("Cursor") + "  " + coords_text(view.hover, shown_map()))
 	if guide != null and is_instance_valid(guide) and guide.has_target():
-		var mark := tr("Waypoint") + "  " + coords_text(Vector2(guide.target.x, guide.target.z))
+		var mark := tr("Waypoint") + "  " + coords_text(Vector2(guide.target.x, guide.target.z), shown_map())
 		if player != null and is_instance_valid(player):
 			mark += "  (%d m)" % roundi(Vector2(player.global_position.x, player.global_position.z).distance_to(Vector2(guide.target.x, guide.target.z)))
 		parts.append(mark)
@@ -416,7 +427,7 @@ class MapView extends Control:
 			return
 		hover = screen_to_world(_hover_px)
 		var f := HudKit.bold()
-		var txt := HudWorldMap.coords_text(hover)
+		var txt := HudWorldMap.coords_text(hover, host.shown_map())
 		var tw := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
 		var at := _hover_px + Vector2(14, 18)
 		at.x = minf(at.x, size.x - tw - 12.0)
@@ -658,7 +669,7 @@ class MapView extends Control:
 			draw_circle(pin + Vector2(0, -14), 2.4, Color(1, 1, 1, 0.9))
 			# the mark's coordinates over the pin
 			var f := HudKit.bold()
-			var txt := HudWorldMap.coords_text(Vector2(g.target.x, g.target.z))
+			var txt := HudWorldMap.coords_text(Vector2(g.target.x, g.target.z), host.shown_map())
 			var tw := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
 			var tp := pin + Vector2(-tw * 0.5, -26)
 			draw_string_outline(f, tp, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, 4, Color(0, 0, 0, 0.9))

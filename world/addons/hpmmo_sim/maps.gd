@@ -58,6 +58,20 @@ static func maps() -> Dictionary:
 static func map_info(map_id: String) -> Dictionary:
 	return maps().get(base_map(map_id), {})
 
+## The world (x, z) a map shows as 0, 0 to players (maps.json coord_origin,
+## its north-west corner), with an instanced copy's own offset added.
+static func coord_origin(map_id: String) -> Vector2:
+	var raw: Array = map_info(map_id).get("coord_origin", [0.0, 0.0])
+	var base := Vector2(float(raw[0]), float(raw[1])) if raw.size() >= 2 else Vector2.ZERO
+	var copy := instance_origin(map_id)
+	return base + Vector2(copy.x, copy.z)
+
+## A world (x, z) as players read it on this map: X east, Y south, whole
+## metres from the map's north-west corner (never negative on the map).
+static func display_coords(map_id: String, world_xz: Vector2) -> Vector2i:
+	var local := world_xz - coord_origin(map_id)
+	return Vector2i(roundi(local.x), roundi(local.y))
+
 static func map_exists(map_id: String) -> bool:
 	if not maps().has(base_map(map_id)):
 		return false

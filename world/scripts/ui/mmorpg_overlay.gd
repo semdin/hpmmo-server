@@ -466,7 +466,9 @@ func _update_coords() -> void:
 	if _coords_label == null:
 		return
 	var p := _player.global_position
-	var text := HudWorldMap.coords_text(Vector2(p.x, p.z))
+	var controller := _map_controller()
+	var map_id := String(controller.get("current_map")) if controller != null else HPProtocol.DEFAULT_MAP
+	var text := HudWorldMap.coords_text(Vector2(p.x, p.z), map_id)
 	if _coords_label.text != text:
 		_coords_label.text = text
 
@@ -739,13 +741,8 @@ func zone_at(pos: Vector3) -> String:
 	var layout := _grounds_layout()
 	if xz.distance_to(Vector2(0, 65)) < 34.0:
 		return "Hogwarts Courtyard"  # i18n
-	var lake: Dictionary = layout.get("lake", {})
-	if not lake.is_empty():
-		var c := Vector2(float(lake.center[0]), float(lake.center[1]))
-		var r := Vector2(float(lake.radii[0]), float(lake.radii[1]))
-		var d := (xz - c) / r
-		if d.length() < 1.0:
-			return "Black Lake"  # i18n
+	if GroundsLake.at_lake(xz.x, xz.y):
+		return "Black Lake"  # i18n
 	var feature_names := {"castle_promontory": "Hogwarts Castle", "greenhouse_terrace": "Greenhouses", "hagrid_glade": "Borin's Hut"}  # i18n
 	for f in layout.get("features", []):
 		var id := String(f.get("id", ""))

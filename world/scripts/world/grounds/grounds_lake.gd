@@ -26,6 +26,35 @@ static func is_water_at(x: float, z: float) -> bool:
 	return not is_nan(h) and h < WATER_Y - SWIM_DEPTH
 
 
+## True when (x, z) is at the lake: over its water, on its beach, or on low
+## ground with water in reach. Measured on the terrain itself, so the place
+## name follows the real shoreline (the layout's lake ellipse is only the
+## basin's outer bound and covers the castle promontory's lawns).
+static func at_lake(x: float, z: float) -> bool:
+	if not DEPTH_RECT.grow(SHORE_REACH).has_point(Vector2(x, z)):
+		return false
+	var h := GroundsTerrain.height_at(x, z)
+	if is_nan(h):
+		return false
+	if h < WATER_Y + BEACH_Y:
+		return true
+	if h > WATER_Y + BANK_Y:
+		return false
+	for r in [SHORE_REACH * 0.5, SHORE_REACH]:
+		for i in 8:
+			var a := TAU * i / 8.0
+			var w := GroundsTerrain.height_at(x + cos(a) * r, z + sin(a) * r)
+			if not is_nan(w) and w < WATER_Y:
+				return true
+	return false
+
+## at_lake: ground below this (m above the water) is the beach itself; low
+## ground up to BANK_Y with water within SHORE_REACH metres is the shore.
+const BEACH_Y := 2.5
+const BANK_Y := 12.0
+const SHORE_REACH := 50.0
+
+
 static func build(parent: Node3D) -> MeshInstance3D:
 	var water := MeshInstance3D.new()
 	water.name = "LakeWater"
