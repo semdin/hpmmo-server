@@ -336,6 +336,8 @@ func _scene_map(map_id: String) -> bool:
 
 func _process(delta: float) -> void:
 	_watch_after_transfer()
+	if world != null:
+		GroundsBuilder.mask_parked_ground(world)
 	_fade = move_toward(_fade, _fade_target, delta / FADE_TIME)
 	if _fade_rect != null:
 		_fade_rect.color = Color(0.02, 0.02, 0.04, _fade)

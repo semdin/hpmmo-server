@@ -82,11 +82,11 @@ static func teardown(world: Node3D) -> void:
 		if node != null:
 			node.visible = false
 	# Inside the castle nothing of the grounds is visible; the ground keeps its
-	# collision (other players are still out there on the server).
-	var t := world.get_node_or_null(TERRAIN_NODE) as Node3D
-	if t:
-		t.visible = false
+	# collision (other players are still out there on the server). The ground
+	# stays a visible node and the camera stops drawing its layer: a hidden
+	# Terrain3D destroys its vegetation and rebuilds all of it when shown again.
 	world.set_meta(PARKED_META, true)
+	mask_parked_ground(world)
 
 const PARKED_META := "grounds_parked"
 
@@ -101,12 +101,28 @@ static func _unpark(world: Node3D) -> void:
 		var node := world.get_node_or_null(node_name) as Node3D
 		if node != null:
 			node.visible = true
-	var t := world.get_node_or_null(TERRAIN_NODE) as Node3D
-	if t:
-		t.visible = true
 	# Sky, sun and environment are untouched by parking: the map controller
 	# restores the outdoor environment and the sun on its own.
 	world.remove_meta(PARKED_META)
+	mask_parked_ground(world)
+
+## The world camera draws the ground's layer exactly while the grounds are not
+## parked (map_controller also calls this every frame, for a camera made later).
+static func mask_parked_ground(world: Node3D) -> void:
+	if world == null or not world.is_inside_tree():
+		return
+	var camera := world.get_viewport().get_camera_3d()
+	if camera == null:
+		return
+	var shown := not is_parked(world)
+	if camera.get_cull_mask_value(GroundsTerrain.RENDER_LAYER) != shown:
+		camera.set_cull_mask_value(GroundsTerrain.RENDER_LAYER, shown)
+		# Out of the castle's SDFGI (high preset) too, as the hidden node was.
+		var terrain := world.get_node_or_null(TERRAIN_NODE) as GroundsTerrain
+		if terrain != null:
+			if not terrain.has_meta("outdoor_gi_mode"):
+				terrain.set_meta("outdoor_gi_mode", terrain.gi_mode)
+			terrain.gi_mode = terrain.get_meta("outdoor_gi_mode") if shown else GeometryInstance3D.GI_MODE_DISABLED
 
 
 # ------------------------------------------------------------------ sky

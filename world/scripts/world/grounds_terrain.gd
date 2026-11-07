@@ -19,6 +19,13 @@ class_name GroundsTerrain
 ## and never loads a texture or a tree.
 
 const GROUND_LAYER := 1
+## The render layer (1-based) of the ground and its vegetation. Parking the
+## grounds (GroundsBuilder.teardown) takes it out of the camera's cull mask:
+## hiding the node made Terrain3D destroy every vegetation multimesh and
+## rebuild them all on the way back out, one ~420 ms frame on every dungeon
+## exit (Intel iGPU; ~610 ms on an Apple M1).
+const RENDER_LAYER := 18
+const RENDER_BIT := 1 << (RENDER_LAYER - 1)
 ## Client dynamic-collision radius around the camera, in metres. The broom camera
 ## sits within ~12 m of the hero, so this covers the hero with a wide margin.
 const CLIENT_COLLISION_RADIUS := 96
@@ -37,6 +44,13 @@ func _init() -> void:
 	# path, and an in-memory one makes it load an empty path (an error).
 	material = load(MATERIAL)
 	assets = load(ASSETS if DisplayServer.get_name() != "headless" else SERVER_ASSETS)
+	# Ground and vegetation draw on their own layer (before any instance is
+	# added: Terrain3D must not see a mesh asset change under live instances).
+	render_layers = (render_layers & ~1) | RENDER_BIT
+	for i in assets.get_mesh_count():
+		var asset := assets.get_mesh_asset(i)
+		if asset != null:
+			asset.visibility_layers = RENDER_BIT
 
 
 func _enter_tree() -> void:
