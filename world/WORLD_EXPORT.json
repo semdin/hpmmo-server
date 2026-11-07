@@ -1,7 +1,7 @@
 {
  "generated": "2026-11-07",
  "source_repository": "hpmmo-client",
- "source_revision": "b2a46d2065f3c64be14de63cd7d2d1f93d8da09a",
+ "source_revision": "6f08b89c59adbaefa233462593004b0c25cc83e6",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/audio/sound_library.json": "c1d191056275c9a8d4657bf650376060444d8a0a1af7eaeca72cc30b632c60cc",
@@ -662,8 +662,8 @@
   "scripts/entities/mobs/wing_flap.gd": "f1c0ed4f1d22dfe9551490d60053557339e89e04e2f0e65c2e7353874fb6b0a9",
   "scripts/entities/monolith/dark_monolith.gd": "89eaf60778ced05e855597e4bb544a4763e49d3c20ef7227cb46d5f3c6fb50af",
   "scripts/entities/monolith/monolith_beacons.gd": "485baf88b2156532c6bac65d9b55261c068c5f020e894a79084e7a80df97d5fb",
-  "scripts/entities/player.gd": "b6066b00d2b8ea1cdde7acb5bdc3837791f5faf1b3bffa40b405c561ecbed2df",
-  "scripts/entities/prediction_history.gd": "96f2bfd5d62e76521997ec17ab91057956c5f126e8610276e8ba1bce68997d1a",
+  "scripts/entities/player.gd": "16c1adc5e99142cb75afadb9154e46df149841ad93c9d83f06afa619de7de41b",
+  "scripts/entities/prediction_history.gd": "37fb7c2c999e7f823a7fbc6c55302f1b74191fe70944b0147e64e85b4e6963df",
   "scripts/entities/replica_motion.gd": "475c2e08ebe8ecb0f28f564df03392966b0fee790efaa294dff84a0724d9f322",
   "scripts/entities/rig_follower.gd": "d514f42422830babf483b21eab4f801d163862f97a2e603f74318518a481615f",
   "scripts/entities/rig_ik.gd": "fca7bd28c5e91ef68c910928d8bb65efc7f876daf0c270b733a5ff7ce9d37a62",
@@ -687,7 +687,7 @@
   "scripts/spells/spell_projectile.gd": "5c1c11764cbae4f39388446079f0136446e556def5dfed52ff4538fec2cc73bd",
   "scripts/spells/vfx_library.gd": "07ad4211d2e6d3c5f30991d0c8c20b9baff4ec946022ff0a7bed5ed89c153d04",
   "scripts/systems/audio_manager.gd": "8862c448191e48ee3b022991d9855f509f19ae5c87a2d8f85ce3351a2ecf7c66",
-  "scripts/systems/perf_reporter.gd": "14e42c4562ab895c591672c3b38369fd427b100409467e82f1925a1b6ed72d40",
+  "scripts/systems/perf_reporter.gd": "14a897a2d3cbab4b97bc51debe02550b0e19dd594b2fdd520d279ad28e5d0d5b",
   "scripts/systems/quest_manager.gd": "363634652e815ef63670054c6af535e9635fb6e583421c2b8e4d7743b2029557",
   "scripts/ui/arcane_skin.gd": "c3e0288355634acb06cd0f1a02b0eac517feea57cbfcc3a7fc1a697fb30cbb3c",
   "scripts/ui/character_preview.gd": "57e69dcad7a1e25ec7deab2695ce8db68983a98f332539f71324945bbefed5df",

@@ -27,13 +27,14 @@ const DEFAULT_PORT := 7777
 const MAX_PLAYERS := 64
 const CLIENT_VERSION := "0.7.0"
 
-enum NetProfile { LOCAL, BROADBAND, MOBILE, AWFUL }
+enum NetProfile { LOCAL, BROADBAND, MOBILE, AWFUL, LOSSY }
 
 const PROFILES := {
 	"local": {"delay_ms": 0, "loss": 0.0},
 	"broadband": {"delay_ms": 60, "loss": 0.005},
 	"mobile": {"delay_ms": 150, "loss": 0.03},
 	"awful": {"delay_ms": 300, "loss": 0.10},
+	"lossy": {"delay_ms": 100, "loss": 0.30},
 }
 
 var is_client: bool = false
@@ -62,6 +63,12 @@ var _input_accumulator: float = 0.0
 var _send_clock_usec: int = 0
 var _last_sent_input_seq: int = -1
 var _input_seq: int = 0
+## v33 ack: when each recent input left (seq -> ticks_msec), and what the
+## latest snapshot said the server last took.
+const SENT_MS_KEEP := 200
+var _sent_ms: Dictionary = {}
+var ack_input_seq := -1
+var ack_input_age_ms := -1
 ## Diagnostics for the multiplayer tests.
 var input_frames_sent: int = 0
 var inputs_received: int = 0
@@ -124,6 +131,18 @@ const PEER_TIMEOUT_MAX_MS := 40000
 
 ## Client: smoothed round-trip time to the world server in ms (ENet's own
 ## estimate), or -1 when this process is not connected as a client.
+## The moment (this client's ticks_msec) the server's body in the latest
+## snapshot stands for: when the input it last took left here plus how long it
+## has run on it. `stale` when the server has been waiting for inputs longer
+## than it keeps one (HPProtocol.INPUT_BUFFER_MS): it halted the body and the
+## next claimed position will move it. Empty when unknown (no ack yet, an old
+## input fell out of the table, or this process is the authority).
+func ack_reference() -> Dictionary:
+	if not is_client or ack_input_seq < 0 or not _sent_ms.has(ack_input_seq):
+		return {}
+	return {"t_ms": int(_sent_ms[ack_input_seq]) + ack_input_age_ms,
+		"stale": ack_input_age_ms > HPProtocol.INPUT_BUFFER_MS}
+
 func ping_ms() -> int:
 	if not is_client or not (multiplayer.multiplayer_peer is ENetMultiplayerPeer):
 		return -1
@@ -865,7 +884,7 @@ func sim_attribute_request(stat: String) -> void:
 ## from a peer without a body is dropped.
 const PERF_REPORT_MIN_INTERVAL_MS := 20000
 const PERF_REPORT_FIELDS := ["window_s", "fps", "frame_p50_ms", "frame_p99_ms", "worst_ms", "hitches",
-	"ping_avg", "ping_p95", "loss_pct", "gpu_ms"]
+	"ping_avg", "ping_p95", "loss_pct", "gpu_ms", "snaps", "snap_m", "pulls", "pull_m"]
 ## Short text fields: the machine behind the numbers (OS, renderer, GPU, the
 ## window and the 3D frame in pixels). Logged quoted, cut to 48 characters.
 const PERF_REPORT_TEXT_FIELDS := ["os", "renderer", "adapter", "screen", "render"]
@@ -1312,7 +1331,7 @@ func sim_map_state(map_id: String, pos: Vector3, spawn_id: String) -> void:
 	SimAuthority.note_map_state(map_id, pos, spawn_id)
 
 @rpc("authority", "call_remote", "unreliable", HPProtocol.CH_SNAPSHOT)
-func sim_snapshot(tick: int, chunk: int, chunks: int, data: PackedByteArray) -> void:
+func sim_snapshot(tick: int, chunk: int, chunks: int, data: PackedByteArray, ack_seq: int, ack_age_ms: int) -> void:
 	if not is_client:
 		return
 	# The snapshot carries the server's clock: mirroring it here is what lets a
@@ -1323,6 +1342,9 @@ func sim_snapshot(tick: int, chunk: int, chunks: int, data: PackedByteArray) -> 
 	if tick > SimAuthority.sim_tick:
 		SimAuthority.sim_tick = tick
 	SimAuthority.snapshot_tick = tick
+	if ack_seq >= 0:
+		ack_input_seq = ack_seq
+		ack_input_age_ms = ack_age_ms
 	HPSnapshots.apply(data, SimAuthority)
 
 @rpc("authority", "call_remote", "reliable", HPProtocol.CH_SNAPSHOT)
@@ -1424,6 +1446,9 @@ func _send_local_input() -> void:
 	if has_body and player is CharacterBody3D:
 		pos = (player as CharacterBody3D).global_position
 		vel = (player as CharacterBody3D).velocity
+	# v33: when this input left, for the snapshot acks that name it.
+	_sent_ms[_input_seq] = Time.get_ticks_msec()
+	_sent_ms.erase(_input_seq - SENT_MS_KEEP)
 	var args := [_input_seq, intent["move"], intent["yaw"], intent["jump"], intent["descend"], pos, vel]
 	if float(values["loss"]) > 0.0 and randf() < float(values["loss"]):
 		return
@@ -1765,9 +1790,15 @@ func _broadcast_snapshots(slot := -1) -> void:
 
 		var chunk_size := 900
 		var chunks := maxi(1, int(ceil(float(bytes.size()) / float(chunk_size))))
+		# v33: the newest input this body runs on and how long it has (-1: none yet).
+		var intent: Dictionary = record.get("input", {})
+		var ack_seq := int(intent.get("seq", -1))
+		var ack_age := Time.get_ticks_msec() - int(record.get("input_ms", 0)) if record.has("input_ms") else -1
+		if ack_age < 0:
+			ack_seq = -1
 		for index in range(chunks):
 			var slice := bytes.slice(index * chunk_size, mini(bytes.size(), (index + 1) * chunk_size))
-			sim_snapshot.rpc_id(peer_id, SimAuthority.sim_tick, index, chunks, slice)
+			sim_snapshot.rpc_id(peer_id, SimAuthority.sim_tick, index, chunks, slice, ack_seq, ack_age)
 	HPProf.stop("snap", snap_t)
 
 ## Event fan-out used by the world server for authority signals. Clients that

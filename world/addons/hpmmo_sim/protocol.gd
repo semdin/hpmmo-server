@@ -137,7 +137,11 @@ class_name HPProtocol
 ##     (`pos`, `vel`); the server takes that position when this body could have
 ##     reached it (`claim_position` on the player body), instead of snapping the
 ##     client back wherever the two simulations parted.
-const PROTOCOL_VERSION := 32
+## v33: every `sim_snapshot` tells the client which of its inputs the server
+##     last took and how long ago (`ack_seq`, `ack_age_ms`), so the client
+##     compares the server's body with where it itself was at that very moment
+##     instead of with the nearest point of its recent path.
+const PROTOCOL_VERSION := 33
 
 ## Death choice (v18 `sim_respawn_request`).
 const RESPAWN_TOWN := 0

@@ -2678,9 +2678,73 @@ func reset_prediction_history() -> void:
 	_pos_history.clear()
 	_standing_time = 0.0
 
+## How much the snapshots moved this body (perf reporting and network probes):
+## hard snaps (> 1 m) and gentle pulls, with the metres each moved it.
+var reconcile_stats := {"snaps": 0, "snap_m": 0.0, "pulls": 0, "pull_m": 0.0}
+
 func apply_authoritative_position(pos: Vector3, rot_y: float) -> void:
 	if not is_local_player:
 		return
+	var before := global_position
+	_reconcile(pos, rot_y)
+	var moved := global_position.distance_to(before)
+	if moved > 1.0:
+		reconcile_stats["snaps"] += 1
+		reconcile_stats["snap_m"] += moved
+	elif moved > 0.001:
+		reconcile_stats["pulls"] += 1
+		reconcile_stats["pull_m"] += moved
+
+## v33 reconciliation tolerances (metres between the server's body and where
+## this body was at the moment that snapshot stands for).
+const RECONCILE_AGREE := 0.35
+const RECONCILE_PULL_MAX := 1.5
+const RECONCILE_SNAP := 6.0
+
+func _reconcile(pos: Vector3, rot_y: float) -> void:
+	if not is_dead and _reconcile_acked(pos, rot_y):
+		return
+	_reconcile_by_path(pos, rot_y)
+
+## v33: compare the server's body with this body at the moment the snapshot
+## stands for (SimNet.ack_reference). Returns false when that moment is not
+## known, and the path heuristic below decides.
+func _reconcile_acked(pos: Vector3, rot_y: float) -> bool:
+	if _pos_history.is_empty():
+		return false
+	var ref := SimNet.ack_reference()
+	if ref.is_empty():
+		return false
+	if bool(ref["stale"]) and global_position.distance_to(pos) < 30.0:
+		# The server is waiting for this client's inputs (an uplink stall): it
+		# halted the body, and the next claimed position moves it. Nothing here
+		# is a correction.
+		return true
+	var expected: Vector3 = _pos_history.at(int(ref["t_ms"]))
+	if not expected.is_finite():
+		return false
+	var err := pos - expected
+	var e := err.length()
+	if e < RECONCILE_AGREE:
+		return true
+	if e > RECONCILE_SNAP:
+		# A teleport, a rescue, a far throw: the server put the body elsewhere.
+		global_position = pos
+		velocity = Vector3.ZERO
+		_pos_history.clear()
+		if visuals:
+			visuals.rotation.y = rot_y
+		return true
+	# A real disagreement at that moment: the body moves by it and keeps the
+	# motion it made since (what replaying the later inputs would give).
+	var step := err if e > RECONCILE_PULL_MAX else err * 0.25
+	global_position += step
+	_pos_history.shift(step)
+	if e > RECONCILE_PULL_MAX and err.y < -0.5 and velocity.y > 0.0:
+		velocity.y = 0.0   # a jump the server never made
+	return true
+
+func _reconcile_by_path(pos: Vector3, rot_y: float) -> void:
 
 	if is_dead:
 		global_position = pos

@@ -29,6 +29,8 @@ var _ping_wait := 0.0
 var _window := 0.0
 var _pipelines := 0
 var _hitches := 0
+## The local body's reconcile_stats at the last report (corrections per window).
+var _reconcile_last := {}
 
 static func create(world: Node) -> PerfReporter:
 	var reporter := PerfReporter.new()
@@ -102,10 +104,20 @@ func _report() -> void:
 		"loss_pct": SimNet.packet_loss_pct(),
 		"preset": QualityPresetScript.current(),
 	}
+	# How often the server's snapshots moved this body (snaps > 1 m, pulls).
+	var player = SimAuthority.local_player_node()
+	if player != null and is_instance_valid(player) and player.get("reconcile_stats") is Dictionary:
+		var now: Dictionary = player.get("reconcile_stats")
+		report["snaps"] = int(now["snaps"]) - int(_reconcile_last.get("snaps", 0))
+		report["snap_m"] = float(now["snap_m"]) - float(_reconcile_last.get("snap_m", 0.0))
+		report["pulls"] = int(now["pulls"]) - int(_reconcile_last.get("pulls", 0))
+		report["pull_m"] = float(now["pull_m"]) - float(_reconcile_last.get("pull_m", 0.0))
+		_reconcile_last = now.duplicate()
 	report.merge(_machine())
-	print("[Perf] %.0f s: fps %.1f, frame p50 %.1f / p99 %.1f / worst %.0f ms, %d hitches, ping %.0f (p95 %d) ms, loss %.1f %%" % [
+	print("[Perf] %.0f s: fps %.1f, frame p50 %.1f / p99 %.1f / worst %.0f ms, %d hitches, ping %.0f (p95 %d) ms, loss %.1f %%, corrections %d snaps (%.1f m) %d pulls (%.1f m)" % [
 		_window, report["fps"], report["frame_p50_ms"], report["frame_p99_ms"], report["worst_ms"],
-		_hitches, report["ping_avg"], report["ping_p95"], report["loss_pct"]])
+		_hitches, report["ping_avg"], report["ping_p95"], report["loss_pct"],
+		int(report.get("snaps", 0)), float(report.get("snap_m", 0.0)), int(report.get("pulls", 0)), float(report.get("pull_m", 0.0))])
 	SimNet.submit_perf_report(report)
 	_frames.clear()
 	_pings.clear()

@@ -30,6 +30,27 @@ func is_empty() -> bool:
 	_prune(Time.get_ticks_msec())
 	return _positions.is_empty()
 
+## Where the body was at `t_ms` (linear between samples), or Vector3.INF when
+## that moment is older than the history.
+func at(t_ms: int) -> Vector3:
+	_prune(Time.get_ticks_msec())
+	if _positions.is_empty() or t_ms < _times[0]:
+		return Vector3.INF
+	for i in range(_times.size() - 1, -1, -1):
+		if _times[i] <= t_ms:
+			if i == _times.size() - 1:
+				return _positions[i]
+			var span := float(_times[i + 1] - _times[i])
+			var f := 0.0 if span <= 0.0 else float(t_ms - _times[i]) / span
+			return _positions[i].lerp(_positions[i + 1], f)
+	return _positions[0]
+
+## A correction moved the body: its past moves with it, so the next snapshot
+## is compared against where the corrected body would have been.
+func shift(delta: Vector3) -> void:
+	for i in _positions.size():
+		_positions[i] += delta
+
 func closest(pos: Vector3, current: Vector3, now_ms: int = -1) -> Vector3:
 	if now_ms < 0:
 		now_ms = Time.get_ticks_msec()
