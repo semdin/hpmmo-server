@@ -3,7 +3,7 @@
   "_resist_note": "resist[element] is a damage reduction fraction: 0.5 takes half, -1.0 takes double. Elements come from spells.json `element`. Absent = 0 (normal damage).",
   "mobs": {
     "inferi": {
-      "display": "Drowned Inferius",
+      "display": "Drowned One",
       "family": "undead",
       "role": "brute",
       "scene": "res://scenes/entities/mobs/mob_inferi.tscn",
@@ -22,7 +22,7 @@
       "loot_table": "undead"
     },
     "acromantula": {
-      "display": "Acromantula",
+      "display": "Black Weaver",
       "family": "beast",
       "role": "skirmisher",
       "scene": "res://scenes/entities/mobs/mob_acromantula.tscn",
@@ -40,7 +40,7 @@
       "loot_table": "spider"
     },
     "acromantula_venomfang": {
-      "display": "Venomfang Acromantula",
+      "display": "Venomfang Weaver",
       "family": "beast",
       "role": "skirmisher",
       "scene": "res://scenes/entities/mobs/mob_acromantula_venomfang.tscn",
@@ -155,7 +155,7 @@
       "displace_resist": 0.4
     },
     "darksnatcher": {
-      "display": "Dark Snatcher",
+      "display": "Dark Bandit",
       "family": "dark_wizard",
       "role": "caster",
       "scene": "res://scenes/entities/mobs/mob_darksnatcher.tscn",
@@ -262,7 +262,7 @@
       "displace_resist": 0.6
     },
     "dementor": {
-      "display": "Dementor",
+      "display": "Pallid",
       "family": "dementor",
       "role": "caster",
       "scene": "res://scenes/entities/mobs/mob_dementor.tscn",
@@ -307,7 +307,7 @@
       "displace_resist": 0.3
     },
     "cornish_pixie": {
-      "display": "Cornish Pixie",
+      "display": "Fidgetling",
       "family": "pixie",
       "role": "swarm",
       "scene": "res://scenes/entities/mobs/mob_cornish_pixie.tscn",
@@ -402,7 +402,7 @@
       "displace_resist": 0.7
     },
     "devils_snare": {
-      "display": "Devil's Snare",
+      "display": "Strangling Vine",
       "family": "snare",
       "role": "boss",
       "scene": "res://scenes/entities/mobs/mob_devils_snare.tscn",
@@ -454,7 +454,7 @@
       "displace_resist": 1.0
     },
     "fluffy": {
-      "display": "Fluffy",
+      "display": "Threehead",
       "family": "hound",
       "role": "boss",
       "scene": "res://scenes/entities/mobs/mob_fluffy.tscn",
@@ -481,7 +481,7 @@
       "displace_resist": 1.0
     },
     "fluffy_head": {
-      "display": "Fluffy's Head",
+      "display": "Threehead's Head",
       "family": "hound",
       "role": "part",
       "scene": "res://scenes/entities/mobs/mob_fluffy_head.tscn",
@@ -500,7 +500,7 @@
       "displace_resist": 1.0
     },
     "inferi_warden": {
-      "display": "Inferius Lake Warden",
+      "display": "Drowned Warden of Lunra",
       "family": "undead",
       "role": "brute",
       "scene": "res://scenes/entities/mobs/mob_inferi_warden.tscn",

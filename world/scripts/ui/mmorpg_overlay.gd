@@ -153,7 +153,7 @@ func _build() -> void:
 
 	# Where you are, under the disc: the place name in the map's own lettering.
 	# (It replaces the fixed "HOGWARTS VALLEY" caption and the top-centre line.)
-	_map_title = HudKit.label(tr("Hogwarts Valley"), 15, HudKit.GOLD_HI, HudKit.deco(), 5)
+	_map_title = HudKit.label(tr("Kaf Valley"), 15, HudKit.GOLD_HI, HudKit.deco(), 5)
 	_map_title.name = "PlaceName"
 	_map_title.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	_map_title.offset_left = -130.0
@@ -257,7 +257,7 @@ func _build() -> void:
 	_boss_panel.theme = UITheme.get_theme()
 	_boss_panel.theme_type_variation = UITheme.V_WINDOW
 	_boss_name = Label.new()
-	_boss_name.text = tr("Dark Monolith")
+	_boss_name.text = tr("Dark Shard")
 	_boss_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_boss_name.add_theme_font_override("font", UITheme.font_title())
 	_boss_name.add_theme_font_size_override("font_size", UITheme.FS_BODY)
@@ -308,7 +308,7 @@ func _build() -> void:
 	_help_panel.theme = UITheme.get_theme()
 	_help_panel.theme_type_variation = UITheme.V_CARD
 	var help_label := UITheme.body(
-		tr("WASD move · right-drag camera · wheel zoom\nLMB attack · 1–4 / Q / E skills · Tab target\nShift mount · Space rise · Ctrl descend · F talk\nZ loot · I bag · O Ollivander · J guide · F1 settings"),
+		tr("WASD move · right-drag camera · wheel zoom\nLMB attack · 1–4 / Q / E skills · Tab target\nShift mount · Space rise · Ctrl descend · F talk\nZ loot · I bag · O Kestrin · J guide · F1 settings"),
 		UITheme.FS_SMALL,
 		UITheme.c("text"))
 	help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -731,7 +731,7 @@ func _update_minimap() -> void:
 ## The place at a point on the grounds, from the grounds layout itself
 ## (assets/terrain/grounds/layout.json): the lake, the castle promontory and its
 ## courtyard, the authored glades and the named regions. The old table still
-## pointed at the first prototype map, so everywhere read "Hogwarts Grounds".
+## pointed at the first prototype map, so everywhere read "Kaf Valley".
 func zone_at(pos: Vector3) -> String:
 	var xz := Vector2(pos.x, pos.z)
 	# Quest places first: the banner names the same area the server counts.
@@ -740,15 +740,15 @@ func zone_at(pos: Vector3) -> String:
 		return place
 	var layout := _grounds_layout()
 	if xz.distance_to(Vector2(0, 65)) < 34.0:
-		return "Hogwarts Courtyard"  # i18n
+		return "Castle Courtyard"  # i18n
 	if GroundsLake.at_lake(xz.x, xz.y):
-		return "Black Lake"  # i18n
-	var feature_names := {"castle_promontory": "Hogwarts Castle", "greenhouse_terrace": "Greenhouses", "hagrid_glade": "Borin's Hut"}  # i18n
+		return "Lake Lunra"  # i18n
+	var feature_names := {"castle_promontory": "Kaf Castle", "greenhouse_terrace": "Greenhouses", "hagrid_glade": "Borin's Hut"}  # i18n
 	for f in layout.get("features", []):
 		var id := String(f.get("id", ""))
 		if feature_names.has(id) and xz.distance_to(Vector2(float(f.center[0]), float(f.center[1]))) < float(f.get("radius", 0.0)):
 			return String(feature_names[id])
-	var region_names := {"forbidden_forest": "Forbidden Forest", "north_moor": "Northern Moors", "hogsmeade": "Hogsmeade Village"}  # i18n
+	var region_names := {"forbidden_forest": "Raven Woods", "north_moor": "Northern Moors", "hogsmeade": "Orvell"}  # i18n
 	for region in layout.get("regions", []):
 		var poly := PackedVector2Array()
 		for p in region.get("polygon", []):
@@ -757,7 +757,7 @@ func zone_at(pos: Vector3) -> String:
 			return String(region_names.get(String(region.get("id", "")), String(region.get("name", ""))))
 	if xz.length() > 760.0:
 		return "Mountain Pass"  # i18n
-	return "Hogwarts Valley"  # i18n
+	return "Kaf Valley"  # i18n
 
 func _grounds_layout() -> Dictionary:
 	if not _layout.is_empty():
@@ -773,7 +773,7 @@ func _grounds_layout() -> Dictionary:
 
 ## The banner announces the place the player actually is. Indoors the
 ## outdoor zones do not apply, so the floor name from the map controller's
-## authored floor table is announced instead of a stale "Hogwarts Grounds".
+## authored floor table is announced instead of a stale "Kaf Valley".
 func location_for_banner() -> String:
 	var controller := _map_controller()
 	var current := String(controller.get("current_map")) if controller != null else HPProtocol.DEFAULT_MAP

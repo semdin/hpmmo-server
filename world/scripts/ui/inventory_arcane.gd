@@ -15,7 +15,7 @@ extends Control
 
 # i18n-begin
 const SLOT_LABELS := {"head":"Head", "chest":"Robes", "hands":"Hands", "feet":"Feet", "main_hand":"Wand", "off_hand":"Focus", "neck":"Neck", "ring_left":"Ring I", "ring_right":"Ring II", "broom":"Broom"}
-const REASONS := {"in_combat":"Wait five seconds after combat.", "casting":"Finish casting first.", "dead":"You are defeated.", "mounted":"Dismount before changing your broom.", "level_too_low":"Your level is too low for that item.", "bag_full":"No room for the replaced item.", "wrong_slot":"That item does not fit.", "item_missing":"That item is no longer available.", "stale_inventory":"Inventory changed. Please try again.", "stale_request":"Action already handled.", "no_gold":"Not enough Galleons.", "no_material":"Missing refinement material.", "no_wand":"Equip a wand first.", "max_tier":"Already fully refined.", "refined":"Refined!", "enchanted":"The enchantment holds!", "enchant_failed":"The weave slipped - the scroll is spent.", "no_scroll":"You have no such scroll.", "bonus_full":"This item cannot hold more enchantments.", "no_bonus":"There is nothing to reweave yet.", "not_enchantable":"That item cannot be enchanted.", "nothing_equipped":"Equip an item in that slot first.", "not_refinable":"That item cannot be refined.", "refinement_failed":"Refinement failed.", "save_conflict":"Inventory refreshed from your saved character.", "transfer_pending":"Wait until the map loads.", "invalid_state":"Equipment temporarily unavailable.", "resource_full":"That resource is already full.", "consumed":"", "sold":"", "not_sellable":"No merchant wants that.", "destroyed":"", "not_destroyable":"Take it off before destroying it."}
+const REASONS := {"in_combat":"Wait five seconds after combat.", "casting":"Finish casting first.", "dead":"You are defeated.", "mounted":"Dismount before changing your broom.", "level_too_low":"Your level is too low for that item.", "bag_full":"No room for the replaced item.", "wrong_slot":"That item does not fit.", "item_missing":"That item is no longer available.", "stale_inventory":"Inventory changed. Please try again.", "stale_request":"Action already handled.", "no_gold":"Not enough Oril.", "no_material":"Missing refinement material.", "no_wand":"Equip a wand first.", "max_tier":"Already fully refined.", "refined":"Refined!", "enchanted":"The enchantment holds!", "enchant_failed":"The weave slipped - the scroll is spent.", "no_scroll":"You have no such scroll.", "bonus_full":"This item cannot hold more enchantments.", "no_bonus":"There is nothing to reweave yet.", "not_enchantable":"That item cannot be enchanted.", "nothing_equipped":"Equip an item in that slot first.", "not_refinable":"That item cannot be refined.", "refinement_failed":"Refinement failed.", "save_conflict":"Inventory refreshed from your saved character.", "transfer_pending":"Wait until the map loads.", "invalid_state":"Equipment temporarily unavailable.", "resource_full":"That resource is already full.", "consumed":"", "sold":"", "not_sellable":"No merchant wants that.", "destroyed":"", "not_destroyable":"Take it off before destroying it."}
 # i18n-end
 const COLUMNS := 5
 const ROWS := 8
@@ -208,10 +208,10 @@ func _build_inventory() -> void:
 	footer.add_child(spacer)
 	footer.add_child(_coin_icon(18))
 	galleons_label = UITheme.body("0", UITheme.FS_LABEL, UITheme.c("gold_hi"))
-	galleons_label.tooltip_text = tr("Galleons")
+	galleons_label.tooltip_text = tr("Oril")
 	galleons_label.mouse_filter = Control.MOUSE_FILTER_PASS
 	footer.add_child(galleons_label)
-	footer.add_child(UITheme.body(tr("Galleons"), UITheme.FS_SMALL, UITheme.c("gold_lt")))
+	footer.add_child(UITheme.body(tr("Oril"), UITheme.FS_SMALL, UITheme.c("gold_lt")))
 
 ## The merchant (sell only): who he is, the counter the item to sell lies on
 ## (its name in its rarity colour, the price per piece and the total, a
@@ -245,7 +245,7 @@ func _build_merchant() -> void:
 	names.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	who.add_child(names)
 	names.add_child(UITheme.body(tr("Travelling Merchant"), UITheme.FS_BODY, UITheme.c("gold_hi")))
-	names.add_child(UITheme.body(tr("Turns your items into Galleons"), UITheme.FS_SMALL, UITheme.c("text_dim")))
+	names.add_child(UITheme.body(tr("Turns your items into Oril"), UITheme.FS_SMALL, UITheme.c("text_dim")))
 
 	# The counter: the item being priced, or the hint while it is empty.
 	var zone := PanelContainer.new()
@@ -735,7 +735,7 @@ func _on_slot_entered(slot: UISlot) -> void:
 	if slot != _offer_slot and is_instance_valid(player):
 		if _merchant.visible and slot.equipment_slot == "":
 			var price := _price_of(slot.entry)
-			if price > 0: _tooltip._add_lore(tr("Sells for %s Galleons") % galleon_text(price))
+			if price > 0: _tooltip._add_lore(tr("Sells for %s Oril") % galleon_text(price))
 	_tooltip.follow_cursor()
 
 func _on_slot_exited(slot: UISlot) -> void:
@@ -879,7 +879,7 @@ func _offer(entry: Dictionary) -> void:
 		_offer_warn_text.text = tr("A %s item. It cannot be bought back once sold.") % ItemTooltip.rarity_label(id)
 	_offer_warn.visible = not worth.is_empty() or ItemTooltip.rarity_of(id) in ["epic", "legendary"]
 	_offer_each.visible = int(held.get("uid", 0)) <= 0 and amount > 1
-	_offer_each_text.text = tr("%s Galleons × %d") % [galleon_text(HPEquipment.sell_price(id, tier)), amount]
+	_offer_each_text.text = tr("%s Oril × %d") % [galleon_text(HPEquipment.sell_price(id, tier)), amount]
 	_offer_price.text = galleon_text(price)
 	_offer_box.visible = true
 	_offer_empty.visible = false
@@ -1005,7 +1005,7 @@ func _answer(answer: Dictionary) -> void:
 			_sold_entry = []
 			_refresh_sales()
 			_place_merchant()
-		_notify(tr("Sold for %s Galleons.") % galleon_text(_sold_price), "good")
+		_notify(tr("Sold for %s Oril.") % galleon_text(_sold_price), "good")
 	elif ok and reason == "destroyed":
 		_notify(tr("Item destroyed."), "info")
 	elif not ok:

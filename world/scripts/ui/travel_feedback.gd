@@ -224,7 +224,7 @@ func location_text() -> String:
 			if map_id == "castle_interior":
 				return floor_text
 	if map_id == "castle_interior":
-		return "Hogwarts Castle"  # i18n
+		return "Kaf Castle"  # i18n
 	return _outdoor_place_name(map_id)
 
 ## The place the player is standing in, outside the castle.
@@ -242,7 +242,7 @@ func _outdoor_place_name(map_id: String) -> String:
 				return named
 	var region := HPRules.zone_id_for_map(map_id, player.global_position)
 	if region == "":
-		return "Hogwarts Grounds"  # i18n
+		return "Kaf Valley"  # i18n
 	return region.capitalize()
 
 func _update_location() -> void:

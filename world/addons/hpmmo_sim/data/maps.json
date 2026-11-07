@@ -4,7 +4,7 @@
   "_membership": "A map is a y-band (y_min..y_max). The grounds own everything from -30 (below the Black Lake bed) to 185; the castle interior is authored above it, so the two maps never overlap in space and the server can keep both registered while a client has one loaded.",
   "maps": {
     "grounds": {
-      "display": "Hogwarts Grounds",
+      "display": "Kaf Valley",
       "coord_origin": [-1010.0, -1010.0],
       "available": true,
       "flight_allowed": true,
@@ -52,7 +52,7 @@
       }
     },
     "castle_interior": {
-      "display": "Hogwarts Castle",
+      "display": "Kaf Castle",
       "coord_origin": [-110.0, -90.0],
       "available": true,
       "flight_allowed": false,
@@ -110,7 +110,7 @@
       }
     },
     "dng_forbidden_corridor": {
-      "display": "The Forbidden Corridor",
+      "display": "The Sealed Wing",
       "coord_origin": [-256.0, -256.0],
       "available": true,
       "flight_allowed": false,
@@ -189,7 +189,7 @@
       }
     },
     "dng_spider_lair": {
-      "display": "The Queen's Lair",
+      "display": "The Web Mother's Lair",
       "coord_origin": [-256.0, -256.0],
       "available": true,
       "flight_allowed": false,
@@ -225,7 +225,7 @@
       "map_id": "grounds",
       "to_map": "castle_interior",
       "to_spawn": "vestibule",
-      "label": "Hogwarts Entrance",
+      "label": "Castle Entrance",
       "trigger": {
         "center": [
           0.0,
@@ -286,7 +286,7 @@
       "map_id": "dng_trial",
       "to_map": "grounds",
       "to_spawn": "trial_return",
-      "label": "Hogwarts Grounds",
+      "label": "Kaf Valley",
       "trigger": {
         "center": [
           0.0,
@@ -303,7 +303,7 @@
       "map_id": "castle_interior",
       "to_map": "dng_forbidden_corridor",
       "to_spawn": "entry",
-      "label": "the Forbidden Corridor",
+      "label": "the Sealed Wing",
       "dressing": "locked_door",
       "trigger": {
         "center": [
@@ -321,7 +321,7 @@
       "map_id": "dng_forbidden_corridor",
       "to_map": "castle_interior",
       "to_spawn": "fc_return",
-      "label": "Hogwarts Castle",
+      "label": "Kaf Castle",
       "trigger": {
         "center": [
           0.0,
@@ -338,7 +338,7 @@
       "map_id": "dng_forbidden_corridor",
       "to_map": "castle_interior",
       "to_spawn": "fc_return",
-      "label": "Hogwarts Castle",
+      "label": "Kaf Castle",
       "trigger": {
         "center": [
           0.0,
@@ -355,7 +355,7 @@
       "map_id": "dng_trial",
       "to_map": "grounds",
       "to_spawn": "trial_return",
-      "label": "Hogwarts Grounds",
+      "label": "Kaf Valley",
       "trigger": {
         "center": [
           0.0,
@@ -389,7 +389,7 @@
       "map_id": "spider_caverns",
       "to_map": "grounds",
       "to_spawn": "crypt_return",
-      "label": "Hogwarts Grounds",
+      "label": "Kaf Valley",
       "dressing": "crypt_stair",
       "trigger": {
         "center": [
@@ -407,7 +407,7 @@
       "map_id": "spider_caverns",
       "to_map": "dng_spider_lair",
       "to_spawn": "entry",
-      "label": "the Queen's Lair",
+      "label": "the Web Mother's Lair",
       "dressing": "web_gate",
       "trigger": {
         "center": [
@@ -425,7 +425,7 @@
       "map_id": "spider_caverns",
       "to_map": "dng_spider_lair",
       "to_spawn": "entry",
-      "label": "the Queen's Lair",
+      "label": "the Web Mother's Lair",
       "dressing": "web_gate",
       "trigger": {
         "center": [

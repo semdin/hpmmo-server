@@ -131,7 +131,7 @@ func _show_rewards() -> void:
 		_line(tr("You came as a helper: no final chest today."), HudKit.GOLD_LT)
 	else:
 		_line(tr("+%d EXP") % int(_rewards.get("exp", 0)), Color(0.5, 1.0, 0.6))
-		_line(tr("+%d Galleons") % int(_rewards.get("galleons", 0)), Color(1.0, 0.85, 0.35))
+		_line(tr("+%d Oril") % int(_rewards.get("galleons", 0)), Color(1.0, 0.85, 0.35))
 		var parts: Array[String] = []
 		for item in _rewards.get("items", []):
 			var item_name := I18n.t(String(HPEquipment.item(String(item.get("id", ""))).get("name", item.get("id", ""))))

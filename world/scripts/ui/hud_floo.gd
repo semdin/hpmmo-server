@@ -28,7 +28,7 @@ var _buy_id := -1
 var _travel_buttons: Array[Button] = []
 
 func _init() -> void:
-	super._init("Floo Network", Vector2(520, 620))
+	super._init("Hearthway", Vector2(520, 620))
 	name = "FlooNetwork"
 
 func _ready() -> void:
@@ -103,8 +103,8 @@ func _boot_row() -> PanelContainer:
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	text.add_theme_constant_override("separation", 0)
 	row.add_child(text)
-	text.add_child(HudKit.label(tr("Old Boot (Portkey)"), 14, HudKit.PARCHMENT, HudKit.bold(), 3))
-	var boot_note := HudKit.label(tr("%s Galleons - carries your party anywhere") % _galleons(int(HPEquipment.item(BOOT).get("buy_price", 0))), 12, HudKit.TEXT_DIM, HudKit.body(), 2)
+	text.add_child(HudKit.label(tr("Old Boot (Waylink)"), 14, HudKit.PARCHMENT, HudKit.bold(), 3))
+	var boot_note := HudKit.label(tr("%s Oril - carries your party anywhere") % _galleons(int(HPEquipment.item(BOOT).get("buy_price", 0))), 12, HudKit.TEXT_DIM, HudKit.body(), 2)
 	boot_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	text.add_child(boot_note)
 	var buy := HudKit.button(tr("Buy"), 14)
@@ -131,7 +131,7 @@ static func _card_box(bg: Color, rim: Color, alpha: float) -> StyleBoxFlat:
 func open_at(who: Node, at_node: String) -> void:
 	player = who
 	node_id = at_node
-	set_title("Floo Network")  # i18n
+	set_title("Hearthway")  # i18n
 	if _here_label != null:
 		_here_label.text = tr("You stand at the hearth of %s") % I18n.t(String(HPMaps.travel_node(at_node).get("label", "")))
 	if is_instance_valid(player) and player.has_signal("equipment_answer") \
@@ -157,8 +157,8 @@ func _refresh_powder() -> void:
 		return
 	var price := int(HPEquipment.item(POWDER).get("buy_price", 0))
 	var count := _powder_count()
-	_powder_label.text = (tr("Floo Powder: %d pinch") if count == 1 else tr("Floo Powder: %d pinches")) % count
-	_price_label.text = tr("%s Galleons a pinch, one per journey") % _galleons(price)
+	_powder_label.text = (tr("Hearth Dust: %d pinch") if count == 1 else tr("Hearth Dust: %d pinches")) % count
+	_price_label.text = tr("%s Oril a pinch, one per journey") % _galleons(price)
 	var cost := int(HPMaps.floo_rules().get("cost", 1))
 	for button in _travel_buttons:
 		if is_instance_valid(button):
@@ -221,7 +221,7 @@ func _destination(id: String, level: int) -> PanelContainer:
 	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	name_label.clip_text = true
 	text.add_child(name_label)
-	var note := tr("1 pinch of Floo Powder")
+	var note := tr("1 pinch of Hearth Dust")
 	if level < need:
 		note = tr("Requires level %d (you are %d)") % [need, level]
 	var note_label := HudKit.label(note, 12, EMERALD.darkened(0.1) if open_to_travel else HudKit.TEXT_DIM.darkened(0.15), HudKit.body(), 2)
@@ -264,7 +264,7 @@ func _answer(answer: Dictionary) -> void:
 	_buy_id = -1
 	var hud: Node = get_parent().get_parent() if get_parent() != null else null
 	var reason := String(answer.get("reason", ""))
-	var fails := {"no_gold": tr("Not enough Galleons."), "bag_full": tr("Your bag is full.")}
+	var fails := {"no_gold": tr("Not enough Oril."), "bag_full": tr("Your bag is full.")}
 	var text := tr("%s bought.") % I18n.t(String(HPEquipment.item(_bought).get("name", _bought)))
 	if not bool(answer.get("ok", false)):
 		text = String(fails.get(reason, tr("The fireplace keeper shakes his head.")))

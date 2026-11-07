@@ -64,20 +64,20 @@ msgid "Elite %s"
 msgstr "Elit %s"
 
 #: scripts/autoload/i18n.gd
-msgid "Fluffy's %s Head"
-msgstr "Fluffy'nin %s Başı"
+msgid "Threehead's %s Head"
+msgstr "Üçbaş'ın %s Başı"
 
 #: scripts/autoload/i18n.gd
 msgid "Snare %s Vine"
 msgstr "%s Kapan Sarmaşığı"
 
 #: scripts/autoload/i18n.gd
-msgid "Fluffy's %s head slumps!"
-msgstr "Fluffy'nin %s başı yığılıp kaldı!"
+msgid "Threehead's %s head slumps!"
+msgstr "Üçbaş'ın %s başı yığılıp kaldı!"
 
 #: scripts/autoload/i18n.gd scripts/entities/mobs/fluffy_boss.gd
-msgid "%s begins to play the harp..."
-msgstr "%s arp çalmaya başlıyor..."
+msgid "%s begins to ring the sleep chime..."
+msgstr "%s uyku çanını çalmaya başlıyor..."
 
 #: scripts/autoload/i18n.gd
 msgid "A vine shrivels in the flames! %d left."
@@ -240,16 +240,16 @@ msgid "Chest"
 msgstr "Sandık"
 
 #: scripts/entities/mobs/fluffy_boss.gd
-msgid "Fluffy is enraged!"
-msgstr "Fluffy öfkeden çıldırdı!"
+msgid "Threehead is enraged!"
+msgstr "Üçbaş öfkeden çıldırdı!"
 
 #: scripts/entities/mobs/fluffy_boss.gd
-msgid "Fluffy howls in fury!"
-msgstr "Fluffy öfkeyle uluyor!"
+msgid "Threehead howls in fury!"
+msgstr "Üçbaş öfkeyle uluyor!"
 
 #: scripts/entities/mobs/fluffy_boss.gd
-msgid "Fluffy is frenzied - the harp holds it only briefly!"
-msgstr "Fluffy kudurdu - arp onu ancak kısa süre tutabiliyor!"
+msgid "Threehead is frenzied - the chime holds it only briefly!"
+msgstr "Üçbaş kudurdu - çan onu ancak kısa süre tutabiliyor!"
 
 #: scripts/entities/mobs/fluffy_boss.gd
 msgid "Someone"
@@ -260,8 +260,8 @@ msgid "The music breaks off!"
 msgstr "Müzik kesildi!"
 
 #: scripts/entities/mobs/fluffy_boss.gd
-msgid "The music lulls Fluffy to sleep! Its heads take more damage."
-msgstr "Müzik Fluffy'yi uyuttu! Başları artık daha fazla hasar alıyor."
+msgid "The music lulls Threehead to sleep! Its heads take more damage."
+msgstr "Müzik Üçbaş'ı uyuttu! Başları artık daha fazla hasar alıyor."
 
 #: scripts/entities/mobs/mob_base.gd
 msgid " • ENRAGED"
@@ -292,12 +292,12 @@ msgid "A brave Wizard"
 msgstr "Cesur bir büyücü"
 
 #: scripts/entities/monolith/dark_monolith.gd scripts/ui/hud.gd scripts/ui/mmorpg_overlay.gd addons/hpmmo_sim/data/spawn_tables.json
-msgid "Dark Monolith"
-msgstr "Karanlık Metin Taşı"
+msgid "Dark Shard"
+msgstr "Kara Kırık"
 
 #: scripts/entities/player.gd addons/hpmmo_sim/data/dungeons.json
-msgid "Forbidden Corridor Explorer"
-msgstr "Yasak Koridor Kâşifi"
+msgid "Sealed Wing Explorer"
+msgstr "Mühürlü Kanat Kâşifi"
 
 #: scripts/entities/player.gd addons/hpmmo_sim/data/dungeons.json
 msgid "Queen's Bane"
@@ -408,16 +408,16 @@ msgid "Cast refused"
 msgstr "Büyü reddedildi"
 
 #: scripts/entities/player.gd scripts/ui/hud_buff_bar.gd addons/hpmmo_sim/data/spells.json
-msgid "Protego"
-msgstr "Protego"
+msgid "Ward Shield"
+msgstr "Koruma Kalkanı"
 
 #: scripts/entities/player.gd scripts/ui/hud_buff_bar.gd
 msgid "Reflects projectiles; other damage reduced by 60%."
 msgstr "Mermileri geri yansıtır; diğer hasarlar %60 azalır."
 
 #: scripts/entities/player.gd
-msgid "Protego!"
-msgstr "Protego!"
+msgid "Ward Shield!"
+msgstr "KORUMA KALKANI!"
 
 #: scripts/entities/player.gd
 msgid "Defeated!"
@@ -520,12 +520,12 @@ msgid "Wand  +%d"
 msgstr "Asa  +%d"
 
 #: scripts/ui/character_select.gd
-msgid "Galleons  %d"
-msgstr "Galleon  %d"
+msgid "Oril  %d"
+msgstr "Oril  %d"
 
-#: scripts/ui/character_select.gd scripts/ui/mmorpg_overlay.gd
-msgid "Hogwarts Valley"
-msgstr "Hogwarts Vadisi"
+#: scripts/ui/character_select.gd scripts/ui/mmorpg_overlay.gd scripts/ui/travel_feedback.gd scripts/world/map_controller.gd addons/hpmmo_sim/data/maps.json
+msgid "Kaf Valley"
+msgstr "Kaf Vadisi"
 
 #: scripts/ui/character_select.gd scenes/main/character_select.tscn
 msgid "ENTER WORLD"
@@ -736,8 +736,8 @@ msgid "DEFEATED\nReturning to town in %d:%02d"
 msgstr "YENİLDİN\n%d:%02d sonra şehre dönülüyor"
 
 #: scripts/ui/combat_feedback.gd scripts/ui/hud_dungeon_result.gd
-msgid "+%d Galleons"
-msgstr "+%d Galleon"
+msgid "+%d Oril"
+msgstr "+%d Oril"
 
 #: scripts/ui/combat_feedback.gd
 msgid "Protected ground - combat is disabled here%s"
@@ -876,8 +876,8 @@ msgid "Critical"
 msgstr "Kritik"
 
 #: scripts/ui/hud.gd
-msgid "Welcome to Hogwarts! Spells on 1-4, Q, E · potions on F1-F4 · Shift mounts the broom."
-msgstr "Hogwarts'a hoş geldin! Büyüler 1-4, Q, E tuşlarında · iksirler F1-F4'te · Shift ile süpürgeye binersin."
+msgid "Welcome to Kaf Castle! Spells on 1-4, Q, E · potions on F1-F4 · Shift mounts the broom."
+msgstr "Kaf Kalesi'ne hoş geldin! Büyüler 1-4, Q, E tuşlarında · iksirler F1-F4'te · Shift ile süpürgeye binersin."
 
 #: scripts/ui/hud.gd
 msgid "Enter to chat, start a line with ! to shout to everyone. M opens the map, Esc the menu."
@@ -956,8 +956,8 @@ msgid "%s Rank %d · %s"
 msgstr "%s Rütbe %d · %s"
 
 #: scripts/ui/hud.gd
-msgid "%s · %s\n%d Galleons"
-msgstr "%s · %s\n%d Galleon"
+msgid "%s · %s\n%d Oril"
+msgstr "%s · %s\n%d Oril"
 
 #: scripts/ui/hud.gd
 msgid "[%s] %s\n%d mana • %.1fs cooldown\n%s"
@@ -992,8 +992,8 @@ msgid "%s · Duel opponent"
 msgstr "%s · Düello rakibi"
 
 #: scripts/ui/hud.gd
-msgid "Ancient Monolith"
-msgstr "Kadim Metin Taşı"
+msgid "Fallen Star Shard"
+msgstr "Düşmüş Yıldız Kırığı"
 
 #: scripts/ui/hud.gd
 msgid "Training Dummy"
@@ -1008,8 +1008,8 @@ msgid "Lv. %d"
 msgstr "Sv. %d"
 
 #: scripts/ui/hud.gd
-msgid "Collected %d Galleons."
-msgstr "%d Galleon toplandı."
+msgid "Collected %d Oril."
+msgstr "%d Oril toplandı."
 
 #: scripts/ui/hud.gd
 msgid "Obtained %s (x%d)."
@@ -1076,8 +1076,8 @@ msgid "[I] Bag - the potions you carry"
 msgstr "[I] Çanta - taşıdığın iksirler"
 
 #: scripts/ui/hud.gd
-msgid "[O] Ollivander - forge the wand higher"
-msgstr "[O] Ollivander - asanı yükselt"
+msgid "[O] Kestrin - forge the wand higher"
+msgstr "[O] Kestrin - asanı yükselt"
 
 #: scripts/ui/hud.gd scripts/ui/hud_player_menu.gd
 msgid "Invite to Party"
@@ -1148,12 +1148,12 @@ msgid "Drowned corpses bewitched to serve a dark wizard. Slow, relentless and te
 msgstr "Kara bir büyücüye hizmet etsin diye büyülenmiş boğulmuş cesetler. Yavaş, amansız ve ateşten ödleri kopar."
 
 #: scripts/ui/hud_bestiary.gd
-msgid "Inferi raised from a cursed lake to guard what lies beneath. Their cold grip drags you down; fire still breaks them."
-msgstr "Lanetli bir gölden, derinde yatanı korumak için kaldırılmış Inferius'lar. Soğuk pençeleri seni aşağı çeker; ateş yine de onları kırar."
+msgid "Drowned Ones raised from a cursed lake to guard what lies beneath. Their cold grip drags you down; fire still breaks them."
+msgstr "Lanetli bir gölden, derinde yatanı korumak için kaldırılmış Boğulmuş Ölüler. Soğuk pençeleri seni aşağı çeker; ateş yine de onları kırar."
 
 #: scripts/ui/hud_bestiary.gd
-msgid "Goblin clerks of the wizarding bank, out collecting debts. They count every Knut and carry a heavy purse."
-msgstr "Büyücü bankasının goblin memurları, borç tahsilatına çıkmış. Her Knut'u sayarlar ve keseleri ağırdır."
+msgid "Goblin moneylenders from Orvell's vaults, out collecting debts. They count every coin and carry a heavy purse."
+msgstr "Orvell'in hazinelerinden gelen goblin tefeciler, borç tahsilatına çıkmış. Her sikkeyi sayarlar ve keseleri ağırdır."
 
 #: scripts/ui/hud_bestiary.gd
 msgid "Vault guards in goblin-wrought silver. Shoving, stubborn and well paid; what they carry is rarely ordinary."
@@ -1164,8 +1164,8 @@ msgid "Goblin magic needs no wand. Hexers walk with the tellers and the guards a
 msgstr "Goblin büyüsü asa istemez. Büyücüler veznedarlar ve muhafızlarla birlikte dolaşır, borçluları çıplak elleriyle savurduğu büyüyle yere serer."
 
 #: scripts/ui/hud_bestiary.gd
-msgid "Giant spiders of the Forbidden Forest, bred from Aragog's line. They hunt in packs."
-msgstr "Yasak Orman'ın dev örümcekleri, Aragog'un soyundan. Sürüler halinde avlanırlar."
+msgid "Giant spiders of the Raven Woods, bred from an ancient brood-mother. They hunt in packs."
+msgstr "Kuzgun Ormanı'nın dev örümcekleri, kadim bir yuva anasının soyundan. Sürüler halinde avlanırlar."
 
 #: scripts/ui/hud_bestiary.gd
 msgid "Wizards turned bounty hunters, roaming the roads in gangs. Some cast from range."
@@ -1180,16 +1180,16 @@ msgid "The largest trolls, grey-skinned and thick-hided, guarding the high moors
 msgstr "Yüksek bozkırları koruyan, gri tenli ve kalın derili en büyük troller."
 
 #: scripts/ui/hud_bestiary.gd
-msgid "Soul-sucking guards of Azkaban. Their cold drains your will; only a Patronus truly drives them off."
-msgstr "Azkaban'ın ruh emen gardiyanları. Soğukları iradeni tüketir; onları gerçekten ancak bir Patronus kovar."
+msgid "Soul-sucking wardens of Morhal. Their cold drains your will; only the Light of Ithrel truly drives them off."
+msgstr "Morhal'ın ruh emen gardiyanları. Soğukları iradeni tüketir; onları gerçekten ancak bir Ithrel Işığı kovar."
 
 #: scripts/ui/hud_bestiary.gd
 msgid "Electric-blue pests that lift wizards off their feet and hurl them about."
 msgstr "Büyücüleri yerden kaldırıp oraya buraya fırlatan elektrik mavisi baş belaları."
 
 #: scripts/ui/hud_bestiary.gd
-msgid "Suits of armour enchanted to defend the forbidden third floor."
-msgstr "Yasak üçüncü katı korumak için büyülenmiş zırhlar."
+msgid "Suits of armour enchanted to defend the castle's sealed wing."
+msgstr "Kalenin mühürlü kanadını korumak için büyülenmiş zırhlar."
 
 #: scripts/ui/hud_bestiary.gd
 msgid "A cursed suit that commands the others. Its shield turns aside blows from the front."
@@ -1200,8 +1200,8 @@ msgid "A creeping plant that strangles whatever struggles. Burn its vines to rea
 msgstr "Çırpınan her şeyi boğan sürüngen bir bitki. Kalbine ulaşmak için sarmaşıklarını yak."
 
 #: scripts/ui/hud_bestiary.gd
-msgid "Borin's three-headed dog, guarding the trapdoor. Music sends it to sleep."
-msgstr "Borin'in kapağı koruyan üç başlı köpeği. Müzik onu uyutur."
+msgid "A three-headed hound bound to guard the sealed wing's stone hatch. The sleep chime lulls it."
+msgstr "Mühürlü kanadın taş kapağını korumaya bağlanmış üç başlı bir tazı. Uyku çanı onu uyutur."
 
 #: scripts/ui/hud_bestiary.gd
 msgid "Lean, long-legged hunters of the Blackweb Caverns. Their emerald venom burns for seconds after the bite."
@@ -1212,20 +1212,20 @@ msgid "Bone-plated giants that guard the egg caverns. Their armour turns blows f
 msgstr "Yumurta mağaralarını koruyan kemik zırhlı devler. Zırhları önden gelen darbeleri savuşturur; ağları seni yere çiviler."
 
 #: scripts/ui/hud_bestiary.gd
-msgid "Fire (Incendio)"
-msgstr "Ateş (Incendio)"
+msgid "Fire (Flame Wave)"
+msgstr "Ateş (Alev Dalgası)"
 
 #: scripts/ui/hud_bestiary.gd
 msgid "Stuns"
 msgstr "Sersemletme"
 
 #: scripts/ui/hud_bestiary.gd
-msgid "Force (Depulso)"
-msgstr "Kuvvet (Depulso)"
+msgid "Force (Repel)"
+msgstr "Kuvvet (İtme)"
 
-#: scripts/ui/hud_bestiary.gd
-msgid "Patronus"
-msgstr "Patronus"
+#: scripts/ui/hud_bestiary.gd addons/hpmmo_sim/data/spells.json addons/hpmmo_sim/data/quests.json
+msgid "Light of Ithrel"
+msgstr "Ithrel Işığı"
 
 #: scripts/ui/hud_bestiary.gd
 msgid "Arcane"
@@ -1240,12 +1240,12 @@ msgid "beside the courtyard"
 msgstr "avlunun yanında"
 
 #: scripts/ui/hud_bestiary.gd addons/hpmmo_sim/data/maps.json addons/hpmmo_sim/data/dungeons.json addons/hpmmo_sim/data/quests.json
-msgid "The Forbidden Corridor"
-msgstr "Yasak Koridor"
+msgid "The Sealed Wing"
+msgstr "Mühürlü Kanat"
 
 #: scripts/ui/hud_bestiary.gd
-msgid "Hogwarts Castle, third-floor east corridor"
-msgstr "Hogwarts Şatosu, üçüncü kat doğu koridoru"
+msgid "Kaf Castle, the sealed east wing"
+msgstr "Kaf Kalesi, mühürlü doğu kanadı"
 
 #: scripts/ui/hud_bestiary.gd
 msgid "Troll"
@@ -1260,16 +1260,16 @@ msgid "Dark wizard"
 msgstr "Kara büyücü"
 
 #: scripts/ui/hud_bestiary.gd addons/hpmmo_sim/data/mobs.json
-msgid "Dementor"
-msgstr "Ruh Emici"
+msgid "Pallid"
+msgstr "Solgun"
 
 #: scripts/ui/hud_bestiary.gd
 msgid "Beast"
 msgstr "Canavar"
 
-#: scripts/ui/hud_bestiary.gd
-msgid "Pixie"
-msgstr "Cin"
+#: scripts/ui/hud_bestiary.gd addons/hpmmo_sim/data/mobs.json
+msgid "Fidgetling"
+msgstr "Kıpırcık"
 
 #: scripts/ui/hud_bestiary.gd
 msgid "Plant"
@@ -1292,12 +1292,12 @@ msgid "Goblin"
 msgstr "Goblin"
 
 #: scripts/ui/hud_bestiary.gd addons/hpmmo_sim/data/spawn_tables.json
-msgid "Acromantula Matriarch"
-msgstr "Akromantula Anası"
+msgid "Black Widow"
+msgstr "Kara Dul"
 
 #: scripts/ui/hud_bestiary.gd addons/hpmmo_sim/data/spawn_tables.json
-msgid "Dark Snatcher Commander"
-msgstr "Kara Kapkaççı Komutanı"
+msgid "Bandit Chief"
+msgstr "Haydutbaşı"
 
 #: scripts/ui/hud_bestiary.gd
 msgid "  ·  dungeon"
@@ -1385,7 +1385,7 @@ msgstr "Umutsuzluk"
 
 #: scripts/ui/hud_buff_bar.gd
 msgid "A dementor's cold: no natural health recovery."
-msgstr "Bir Ruh Emici'nin soğuğu: doğal can yenilenmesi yok."
+msgstr "Bir Solgunun soğuğu: doğal can yenilenmesi yok."
 
 #: scripts/ui/hud_buff_bar.gd
 msgid "Spider venom: damage over time."
@@ -1504,8 +1504,8 @@ msgid "Experience"
 msgstr "Tecrübe"
 
 #: scripts/ui/hud_character_window.gd
-msgid "Galleons found"
-msgstr "Bulunan Galleon"
+msgid "Oril found"
+msgstr "Bulunan Oril"
 
 #: scripts/ui/hud_character_window.gd
 msgid "Level"
@@ -1544,8 +1544,8 @@ msgid "Skill power"
 msgstr "Beceri gücü"
 
 #: scripts/ui/hud_character_window.gd scripts/ui/hud_quest_scroll.gd scripts/ui/inventory_arcane.gd
-msgid "Galleons"
-msgstr "Galleon"
+msgid "Oril"
+msgstr "Oril"
 
 #: scripts/ui/hud_character_window.gd
 msgid "Status Points"
@@ -2216,8 +2216,8 @@ msgid "Lives %d / %d"
 msgstr "Can %d / %d"
 
 #: scripts/ui/hud_floo.gd
-msgid "Floo Network"
-msgstr "Uçuç Ağı"
+msgid "Hearthway"
+msgstr "Ocak Yolu"
 
 #: scripts/ui/hud_floo.gd
 msgid "Destinations"
@@ -2228,32 +2228,32 @@ msgid "Buy %d"
 msgstr "%d Satın Al"
 
 #: scripts/ui/hud_floo.gd addons/hpmmo_sim/data/items.json
-msgid "Old Boot (Portkey)"
-msgstr "Eski Çizme (Portkey)"
+msgid "Old Boot (Waylink)"
+msgstr "Eski Çizme (Göç Nesnesi)"
 
 #: scripts/ui/hud_floo.gd
-msgid "%s Galleons - carries your party anywhere"
-msgstr "%s Galleon - grubunu her yere taşır"
+msgid "%s Oril - carries your party anywhere"
+msgstr "%s Oril - grubunu her yere taşır"
 
 #: scripts/ui/hud_floo.gd
 msgid "You stand at the hearth of %s"
 msgstr "%s ocağının başındasın"
 
 #: scripts/ui/hud_floo.gd
-msgid "Floo Powder: %d pinch"
-msgstr "Uçuç Tozu: %d tutam"
+msgid "Hearth Dust: %d pinch"
+msgstr "Ocak Tozu: %d tutam"
 
 #: scripts/ui/hud_floo.gd
-msgid "Floo Powder: %d pinches"
-msgstr "Uçuç Tozu: %d tutam"
+msgid "Hearth Dust: %d pinches"
+msgstr "Ocak Tozu: %d tutam"
 
 #: scripts/ui/hud_floo.gd
-msgid "%s Galleons a pinch, one per journey"
-msgstr "Tutamı %s Galleon, her yolculuğa bir tutam"
+msgid "%s Oril a pinch, one per journey"
+msgstr "Tutamı %s Oril, her yolculuğa bir tutam"
 
 #: scripts/ui/hud_floo.gd
-msgid "1 pinch of Floo Powder"
-msgstr "1 tutam Uçuç Tozu"
+msgid "1 pinch of Hearth Dust"
+msgstr "1 tutam Ocak Tozu"
 
 #: scripts/ui/hud_floo.gd
 msgid "Requires level %d (you are %d)"
@@ -2264,8 +2264,8 @@ msgid "Travel"
 msgstr "Yolculuk Et"
 
 #: scripts/ui/hud_floo.gd scripts/ui/inventory_arcane.gd
-msgid "Not enough Galleons."
-msgstr "Yeterli Galleon yok."
+msgid "Not enough Oril."
+msgstr "Yeterli Oril yok."
 
 #: scripts/ui/hud_floo.gd
 msgid "%s bought."
@@ -2392,8 +2392,8 @@ msgid "They are in your party."
 msgstr "Bu oyuncu senin grubunda."
 
 #: scripts/ui/hud_portkey.gd
-msgid "Portkey"
-msgstr "Portkey"
+msgid "Waylink"
+msgstr "Göç Nesnesi"
 
 #: scripts/ui/hud_portkey.gd
 msgid "Set the boot down and choose where it goes. For ten seconds your party may grab hold; then everyone holding on is carried there together."
@@ -2424,8 +2424,8 @@ msgid "New"
 msgstr "Yeni"
 
 #: scripts/ui/hud_quest_log.gd
-msgid "%d EXP  ·  %d Galleons"
-msgstr "%d EXP  ·  %d Galleon"
+msgid "%d EXP  ·  %d Oril"
+msgstr "%d EXP  ·  %d Oril"
 
 #: scripts/ui/hud_quest_log.gd scripts/ui/hud_quest_scroll.gd
 msgid "Claim reward"
@@ -2444,8 +2444,8 @@ msgid "No Open Quests"
 msgstr "Açık Görev Yok"
 
 #: scripts/ui/hud_quest_scroll.gd
-msgid "Every task open to you is done. Level up to unlock more, hunt the Dark Monoliths and refine your gear."
-msgstr "Sana açık tüm görevler tamamlandı. Yenilerini açmak için seviye atla, Karanlık Metin Taşlarını avla ve ekipmanını yükselt."
+msgid "Every task open to you is done. Level up to unlock more, hunt the Dark Shards and refine your gear."
+msgstr "Sana açık tüm görevler tamamlandı. Yenilerini açmak için seviye atla, Kara Kırıkları avla ve ekipmanını yükselt."
 
 #: scripts/ui/hud_quest_scroll.gd
 msgid "experience"
@@ -2624,24 +2624,24 @@ msgid "Rank %d · %s"
 msgstr "Rütbe %d · %s"
 
 #: scripts/ui/hud_world_map.gd scripts/ui/mmorpg_overlay.gd scripts/ui/travel_feedback.gd scripts/world/castle_interior.gd scripts/world/map_controller.gd addons/hpmmo_sim/data/maps.json
-msgid "Hogwarts Castle"
-msgstr "Hogwarts Şatosu"
+msgid "Kaf Castle"
+msgstr "Kaf Kalesi"
 
 #: scripts/ui/hud_world_map.gd scripts/ui/mmorpg_overlay.gd
-msgid "Black Lake"
-msgstr "Kara Göl"
+msgid "Lake Lunra"
+msgstr "Lunra Gölü"
 
 #: scripts/ui/hud_world_map.gd scripts/ui/mmorpg_overlay.gd
-msgid "Forbidden Forest"
-msgstr "Yasak Orman"
+msgid "Raven Woods"
+msgstr "Kuzgun Ormanı"
 
-#: scripts/ui/hud_world_map.gd
-msgid "Hogsmeade"
-msgstr "Hogsmeade"
+#: scripts/ui/hud_world_map.gd scripts/ui/mmorpg_overlay.gd
+msgid "Orvell"
+msgstr "Orvell"
 
 #: scripts/ui/hud_world_map.gd scripts/ui/mmorpg_overlay.gd
 msgid "Northern Moors"
-msgstr "Kuzey Bozkırları"
+msgstr "Kuzey Bozkırı"
 
 #: scripts/ui/hud_world_map.gd scripts/ui/mmorpg_overlay.gd addons/hpmmo_sim/data/travel.json addons/hpmmo_sim/data/quests.json
 msgid "Borin's Hut"
@@ -2876,8 +2876,8 @@ msgid "Travelling Merchant"
 msgstr "Gezgin Tüccar"
 
 #: scripts/ui/inventory_arcane.gd
-msgid "Turns your items into Galleons"
-msgstr "Eşyalarını Galleon'a çevirir"
+msgid "Turns your items into Oril"
+msgstr "Eşyalarını Oril'e çevirir"
 
 #: scripts/ui/inventory_arcane.gd
 msgid "Drag the item you want to sell here, or right-click it in your bag."
@@ -2936,8 +2936,8 @@ msgid "Speed %+.0f"
 msgstr "Hız %+.0f"
 
 #: scripts/ui/inventory_arcane.gd
-msgid "Sells for %s Galleons"
-msgstr "%s Galleon'a satılır"
+msgid "Sells for %s Oril"
+msgstr "%s Oril'e satılır"
 
 #: scripts/ui/inventory_arcane.gd
 msgid "%s: replace %s"
@@ -2956,8 +2956,8 @@ msgid "A %s item. It cannot be bought back once sold."
 msgstr "%s bir eşya. Sattıktan sonra geri alınamaz."
 
 #: scripts/ui/inventory_arcane.gd
-msgid "%s Galleons × %d"
-msgstr "%s Galleon × %d"
+msgid "%s Oril × %d"
+msgstr "%s Oril × %d"
 
 #: scripts/ui/inventory_arcane.gd
 msgid "Destroy Item"
@@ -2980,8 +2980,8 @@ msgid "Destroy %s?\nIt is gone for good."
 msgstr "%s yok edilsin mi?\nSonsuza dek kaybolur."
 
 #: scripts/ui/inventory_arcane.gd
-msgid "Sold for %s Galleons."
-msgstr "%s Galleon'a satıldı."
+msgid "Sold for %s Oril."
+msgstr "%s Oril'e satıldı."
 
 #: scripts/ui/inventory_arcane.gd
 msgid "Item destroyed."
@@ -3428,8 +3428,8 @@ msgid "Usernames cannot contain Turkish letters (ç, ğ, ı, İ, ö, ş, ü) or 
 msgstr "Kullanıcı adında Türkçe karakter (ç, ğ, ı, İ, ö, ş, ü) ve boşluk olamaz: yalnızca İngilizce harf, rakam, '_' ve '-'."
 
 #: scripts/ui/main_menu.gd
-msgid "REALM OF WIZARDRY"
-msgstr "BÜYÜCÜLÜK DİYARI"
+msgid "REALM OF KAF"
+msgstr "KAF DİYARI"
 
 #: scripts/ui/main_menu.gd
 msgid "LOG IN"
@@ -3720,8 +3720,8 @@ msgid "Quest"
 msgstr "Görev"
 
 #: scripts/ui/mmorpg_overlay.gd
-msgid "WASD move · right-drag camera · wheel zoom\nLMB attack · 1–4 / Q / E skills · Tab target\nShift mount · Space rise · Ctrl descend · F talk\nZ loot · I bag · O Ollivander · J guide · F1 settings"
-msgstr "WASD hareket · sağ sürükle kamera · tekerlek yakınlaştır\nSol tık saldır · 1–4 / Q / E beceriler · Tab hedef\nShift bin · Boşluk yüksel · Ctrl alçal · F konuş\nZ ganimet · I çanta · O Ollivander · J rehber · F1 ayarlar"
+msgid "WASD move · right-drag camera · wheel zoom\nLMB attack · 1–4 / Q / E skills · Tab target\nShift mount · Space rise · Ctrl descend · F talk\nZ loot · I bag · O Kestrin · J guide · F1 settings"
+msgstr "WASD hareket · sağ sürükle kamera · tekerlek yakınlaştır\nSol tık saldır · 1–4 / Q / E beceriler · Tab hedef\nShift bin · Boşluk yüksel · Ctrl alçal · F konuş\nZ ganimet · I çanta · O Kestrin · J rehber · F1 ayarlar"
 
 #: scripts/ui/mmorpg_overlay.gd
 msgid "Zoom out"
@@ -3735,13 +3735,9 @@ msgstr "Beni ortala"
 msgid "Zoom in"
 msgstr "Yakınlaştır"
 
-#: scripts/ui/mmorpg_overlay.gd
-msgid "Hogwarts Courtyard"
-msgstr "Hogwarts Avlusu"
-
-#: scripts/ui/mmorpg_overlay.gd
-msgid "Hogsmeade Village"
-msgstr "Hogsmeade Köyü"
+#: scripts/ui/mmorpg_overlay.gd addons/hpmmo_sim/data/travel.json
+msgid "Castle Courtyard"
+msgstr "Kale Avlusu"
 
 #: scripts/ui/mmorpg_overlay.gd
 msgid "Mountain Pass"
@@ -3752,16 +3748,16 @@ msgid "Hunting grounds  ·  Lv %d-%d"
 msgstr "Av bölgesi  ·  Sv %d-%d"
 
 #: scripts/ui/npc_dialogue.gd
-msgid "Hogwarts Professor"
-msgstr "Hogwarts Profesörü"
+msgid "Master of Kaf Castle"
+msgstr "Kaf Kalesi'nin Üstadı"
 
 #: scripts/ui/npc_dialogue.gd
 msgid "Wandmaker"
 msgstr "Asa Ustası"
 
 #: scripts/ui/npc_dialogue.gd
-msgid "Landlady of the Three Broomsticks"
-msgstr "Üç Süpürge'nin Sahibi"
+msgid "Landlady of the Red Lantern"
+msgstr "Kızıl Fener Hanı'nın sahibi"
 
 #: scripts/ui/npc_dialogue.gd
 msgid "Forest Keeper"
@@ -3772,8 +3768,8 @@ msgid "Librarian"
 msgstr "Kütüphaneci"
 
 #: scripts/ui/npc_dialogue.gd
-msgid "Charms Professor"
-msgstr "Tılsım Profesörü"
+msgid "Flight & Duelling Master"
+msgstr "Uçuş ve Düello Ustası"
 
 #: scripts/ui/npc_dialogue.gd
 msgid "Open the workshop"
@@ -3812,8 +3808,8 @@ msgid "new quest"
 msgstr "yeni görev"
 
 #: scripts/ui/ollivander_ui.gd scripts/world/game_world.gd addons/hpmmo_sim/data/quests.json
-msgid "Ollivander"
-msgstr "Ollivander"
+msgid "Kestrin"
+msgstr "Asacı Kestrin"
 
 #: scripts/ui/ollivander_ui.gd
 msgid "Upgrade"
@@ -3948,8 +3944,8 @@ msgid "Provoke a pack"
 msgstr "Bir sürüyü kışkırt"
 
 #: scripts/ui/onboarding_ui.gd
-msgid "Hit an Acromantula or Inferi outside the safe zone and survive the pack's answer."
-msgstr "Güvenli bölgenin dışında bir Akromantula ya da Inferius'a vur ve sürünün karşılığından sağ çık."
+msgid "Hit an Black Weaver or Drowned Ones outside the safe zone and survive the pack's answer."
+msgstr "Güvenli bölgenin dışında bir Kara Ağcı ya da Boğulmuş Ölüye vur ve sürünün karşılığından sağ çık."
 
 #: scripts/ui/onboarding_ui.gd
 msgid "Broom controls"
@@ -3964,8 +3960,8 @@ msgid "Enter the castle"
 msgstr "Şatoya gir"
 
 #: scripts/ui/onboarding_ui.gd
-msgid "Dismount at the entrance and press F in the doorway to enter Hogwarts."
-msgstr "Girişte süpürgeden in ve Hogwarts'a girmek için kapıda F'ye bas."
+msgid "Dismount at the entrance and press F in the doorway to enter Kaf Castle."
+msgstr "Girişte süpürgeden in ve Kaf Kalesi'ne girmek için kapıda F'ye bas."
 
 #: scripts/ui/onboarding_ui.gd
 msgid "Getting started"
@@ -4052,8 +4048,8 @@ msgid "Bag"
 msgstr "Çanta"
 
 #: scripts/ui/settings_ui.gd
-msgid "Ollivander's forge"
-msgstr "Ollivander'ın atölyesi"
+msgid "Kestrin's forge"
+msgstr "Kestrin'in atölyesi"
 
 #: scripts/ui/settings_ui.gd
 msgid "Chat"
@@ -4283,10 +4279,6 @@ msgstr "Reddedildi: %s."
 msgid "Loading..."
 msgstr "Yükleniyor..."
 
-#: scripts/ui/travel_feedback.gd scripts/world/map_controller.gd addons/hpmmo_sim/data/maps.json
-msgid "Hogwarts Grounds"
-msgstr "Hogwarts Arazisi"
-
 #: scripts/ui/travel_feedback.gd
 msgid "Travelling..."
 msgstr "Yolculuk ediliyor..."
@@ -4304,12 +4296,12 @@ msgid "Drag a potion from your bag onto F1-F4 to drink it with one key."
 msgstr "Tek tuşla içmek için çantandan bir iksiri F1-F4'e sürükle."
 
 #: scripts/ui/world_loader.gd
-msgid "Protego reflects projectiles back at their caster."
-msgstr "Protego mermileri atana geri yansıtır."
+msgid "Ward Shield reflects projectiles back at their caster."
+msgstr "Koruma Kalkanı mermileri atana geri yansıtır."
 
 #: scripts/ui/world_loader.gd
-msgid "Inferi fear fire: Incendio burns them for double damage."
-msgstr "Inferius'lar ateşten korkar: Incendio onları iki kat hasarla yakar."
+msgid "Drowned Ones fear fire: Flame Wave burns them for double damage."
+msgstr "Boğulmuş Ölüler ateşten korkar: Alev Dalgası onları iki kat hasarla yakar."
 
 #: scripts/ui/world_loader.gd
 msgid "Hold the right mouse button to turn the camera; the wheel zooms."
@@ -4320,12 +4312,12 @@ msgid "Land on level ground before you dismount your broom."
 msgstr "Süpürgeden inmeden önce düz bir zemine kon."
 
 #: scripts/ui/world_loader.gd
-msgid "Dark Monoliths summon waves of creatures - bring friends."
-msgstr "Karanlık Metin Taşları yaratık dalgaları çağırır - arkadaşlarını getir."
+msgid "Dark Shards summon waves of creatures - bring friends."
+msgstr "Kara Kırıklar yaratık dalgaları çağırır - arkadaşlarını getir."
 
 #: scripts/ui/world_loader.gd
-msgid "Ollivander can refine your wand. Higher tiers glow brighter."
-msgstr "Ollivander asanı yükseltebilir. Yüksek seviyeler daha parlak ışıldar."
+msgid "Kestrin can refine your wand. Higher tiers glow brighter."
+msgstr "Kestrin asanı yükseltebilir. Yüksek seviyeler daha parlak ışıldar."
 
 #: scripts/ui/world_loader.gd
 msgid "Press M for the map of the valley, Esc for the menu."
@@ -4456,48 +4448,48 @@ msgid "Elite Bodyguard"
 msgstr "Elit Koruma"
 
 #: scripts/world/game_world.gd addons/hpmmo_sim/data/quests.json data/json/quests.json
-msgid "Professor Fig"
-msgstr "Profesör Fig"
+msgid "Master Teral Venn"
+msgstr "Üstat Teral Venn"
 
 #: scripts/world/game_world.gd
-msgid "Ah, a new student! Hogwarts needs brave wizards."
-msgstr "Ah, yeni bir öğrenci! Hogwarts'ın cesur büyücülere ihtiyacı var."
+msgid "Ah, a new student! Beneath the lake lies Kaf's shard of the World-Star Ithrel - this castle was raised to guard it."
+msgstr "Ah, yeni bir öğrenci! Gölün dibinde Dünya Yıldızı Ithrel'in Kaf'taki kırığı yatar; bu kale onu korumak için kuruldu."
 
 #: scripts/world/game_world.gd
-msgid "Acromantulas infest the Forbidden Forest to the west. Inferi haunt its edge, past Borin's hut."
-msgstr "Batıdaki Yasak Orman Akromantulalarla dolu. Borin'in kulübesinin ötesinde, ormanın kıyısında Inferius'lar dolaşıyor."
+msgid "Black Weavers infest the Raven Woods to the west. Drowned Ones haunt its edge, past Borin's hut."
+msgstr "Batıdaki Kuzgun Ormanı Kara Ağcılarla dolu. Borin'in kulübesinin ötesinde, ormanın kıyısında Boğulmuş Ölüler dolaşıyor."
 
 #: scripts/world/game_world.gd
-msgid "Dark Monoliths fall in the western forests, from the Forest Edge past Borin's hut to Snatcher Woods in the north-west. Close by, you will see their green light."
-msgstr "Karanlık Metin Taşları batı ormanlarına düşer: Borin'in kulübesinin ötesindeki Orman Kıyısı'ndan kuzeybatıdaki Kapkaççı Korusu'na kadar. Yaklaşınca yeşil ışıklarını görürsün."
+msgid "Someone - the old records say the Ash Priest - drags darkened shards out of the Void. They fall in the western forests, from the Forest Edge past Borin's hut to Bandit Woods in the north-west. Close by, you will see their green light."
+msgstr "Biri, eski kayıtlara göre Kül Rahibi, kararmış kırıkları Boşluk'tan çekiyor. Borin'in kulübesinin ötesindeki Orman Kıyısı'ndan kuzeybatıdaki Haydut Ormanı'na kadar batı ormanlarına düşüyorlar. Yakındaysan yeşil ışıklarını görürsün."
 
 #: scripts/world/game_world.gd
 msgid "From level 5 the Trial Hall is open: step into the glowing arch on the courtyard's south lawn and press F."
 msgstr "5. seviyeden itibaren Sınav Salonu açık: avlunun güney çimenliğindeki parlayan kemerin içine gir ve F'ye bas."
 
 #: scripts/world/game_world.gd
-msgid "Wands choose the wizard... but Galleons refine them!"
-msgstr "Asalar büyücüsünü seçer... ama onları Galleon'lar yükseltir!"
+msgid "A wand is only as good as its maker... and the Oril behind it!"
+msgstr "Bir asa ancak ustası kadar iyidir... bir de arkasındaki Oril kadar!"
 
 #: scripts/world/game_world.gd
-msgid "Press O anywhere to open my workshop. Bring Phoenix Ash, Heartstrings, Thestral Hair."
-msgstr "Atölyemi açmak için her yerde O'ya bas. Anka Külü, Ejderha Yürek Teli ve Thestral Kılı getir."
+msgid "Press O anywhere to open my workshop. Bring Velkar Ash, Dragon Sinew, Night Steed Hair."
+msgstr "Atölyemi açmak için her yerde O'ya bas. Velkar Külü, Ejder Siniri ve Gece Atı Kılı getir."
 
 #: scripts/world/game_world.gd
-msgid "+4 glows blue, +7 crackles gold, +9 burns with phoenix fire!"
-msgstr "+4 mavi ışıldar, +7 altın gibi çıtırdar, +9 anka ateşiyle yanar!"
+msgid "+4 glows blue, +7 crackles gold, +9 burns with starfire!"
+msgstr "+4 mavi parlar, +7 altın çatırdar, +9 yıldız ateşiyle yanar!"
 
 #: scripts/world/game_world.gd addons/hpmmo_sim/data/quests.json
-msgid "Madam Rosmerta"
-msgstr "Madam Rosmerta"
+msgid "Bessa Tull"
+msgstr "Hancı Bessa Tull"
 
 #: scripts/world/game_world.gd
-msgid "Welcome to Hogsmeade, dearie! Rest here - the village square is safe."
-msgstr "Hogsmeade'e hoş geldin, canım! Burada dinlen - köy meydanı güvenlidir."
+msgid "Welcome to Orvell, dearie! Rest here - the village square is safe."
+msgstr "Orvell'e hoş geldin, canım! Burada dinlen - köy meydanı güvenlidir."
 
 #: scripts/world/game_world.gd
-msgid "Buy Wiggenweld before heading to the Forbidden Forest. Trust me."
-msgstr "Yasak Orman'a gitmeden önce Wiggenweld al. Bana güven."
+msgid "Buy Healing Draughts before heading to the Raven Woods. Trust me."
+msgstr "Kuzgun Ormanı'na gitmeden önce Şifa İksiri al. Bana güven."
 
 #: scripts/world/game_world.gd addons/hpmmo_sim/data/quests.json data/json/quests.json
 msgid "Borin"
@@ -4508,12 +4500,12 @@ msgid "Don't go into that forest alone, friend... brave, though!"
 msgstr "O ormana tek başına girme dostum... ama cesursun, orası kesin!"
 
 #: scripts/world/game_world.gd
-msgid "Inferi fear fire - burn 'em with Incendio. Stupefy stuns 'em cold."
-msgstr "Inferiler ateşten korkar - Incendio ile yak onları. Stupefy de anında sersemletir."
+msgid "Drowned Ones fear fire - burn 'em with Flame Wave. Stun Bolt stuns 'em cold."
+msgstr "Boğulmuş Ölüler ateşten korkar - Alev Dalgası ile yak onları. Şok Oku de anında sersemletir."
 
 #: scripts/world/game_world.gd addons/hpmmo_sim/data/quests.json
-msgid "Madam Pince"
-msgstr "Madam Pince"
+msgid "Archivist Emrel Sav"
+msgstr "Arşivci Emrel Sav"
 
 #: scripts/world/game_world.gd
 msgid "The library is inside, past the great doors. Mind the books."
@@ -4524,12 +4516,12 @@ msgid "The Great Hall is through the entrance hall. Charms is across the hall."
 msgstr "Büyük Salon giriş salonundan geçince. Tılsım dersliği salonun karşısında."
 
 #: scripts/world/game_world.gd addons/hpmmo_sim/data/quests.json
-msgid "Professor Flitwick"
-msgstr "Profesör Flitwick"
+msgid "Flight Master Kaelen Rook"
+msgstr "Uçuş Ustası Kaelen Rook"
 
 #: scripts/world/game_world.gd
-msgid "Welcome! Stupefy interrupts, Incendio burns, and Expelliarmus weakens attacks."
-msgstr "Hoş geldin! Stupefy büyüyü keser, Incendio yakar, Expelliarmus saldırıları zayıflatır."
+msgid "Welcome! Stun Bolt interrupts, Flame Wave burns, and Disarm weakens attacks."
+msgstr "Hoş geldin! Şok Oku büyüyü keser, Alev Dalgası yakar, Silahsızlandırma saldırıları zayıflatır."
 
 #: scripts/world/game_world.gd
 msgid "Practise at the dummies east of the courtyard, then pull a pack together. Watch the boss's warning circle."
@@ -4552,24 +4544,24 @@ msgid "Press F inside the arch"
 msgstr "Kemerin içinde F'ye bas"
 
 #: scripts/world/map_controller.gd
-msgid "Floo Network (%s)"
-msgstr "Uçuç Ağı (%s)"
+msgid "Hearthway (%s)"
+msgstr "Ocak Yolu (%s)"
 
 #: scripts/world/map_controller.gd
 msgid "%s (to %s)"
 msgstr "%s (%s yönüne)"
 
 #: scripts/world/map_controller.gd
-msgid "%s added to your Floo Network."
-msgstr "%s Uçuç Ağına eklendi."
+msgid "%s added to your Hearthway."
+msgstr "%s Ocak Yolu Ağına eklendi."
 
 #: scripts/world/map_controller.gd
-msgid "Press %s - Let go of the Portkey (to %s)"
-msgstr "%s'ye bas - Portkey'i bırak (%s yönüne)"
+msgid "Press %s - Let go of the Waylink (to %s)"
+msgstr "%s'ye bas - Göç Nesnesi'ni bırak (%s yönüne)"
 
 #: scripts/world/map_controller.gd
-msgid "Press %s - Grab hold of the Portkey (to %s)"
-msgstr "%s'ye bas - Portkey'e tutun (%s yönüne)"
+msgid "Press %s - Grab hold of the Waylink (to %s)"
+msgstr "%s'ye bas - Göç Nesnesi'ne tutun (%s yönüne)"
 
 #: scripts/world/map_controller.gd
 msgid "Press %s - %s"
@@ -4640,8 +4632,8 @@ msgid "Travel to the %s"
 msgstr "%s yönüne git"
 
 #: scripts/world/map_controller.gd
-msgid "Entering Hogwarts Castle..."
-msgstr "Hogwarts Şatosu'na giriliyor..."
+msgid "Entering Kaf Castle..."
+msgstr "Kaf Kalesi'ne giriliyor..."
 
 #: scripts/world/map_controller.gd
 msgid "Entering %s..."
@@ -4664,8 +4656,8 @@ msgid "Dungeon Level"
 msgstr "Zindan Katı"
 
 #: scripts/world/map_controller.gd
-msgid "Hogwarts Castle - %s"
-msgstr "Hogwarts Şatosu - %s"
+msgid "Kaf Castle - %s"
+msgstr "Kaf Kalesi - %s"
 
 #: scripts/world/map_controller.gd
 msgid "   |   Broom landing pad"
@@ -4716,28 +4708,28 @@ msgid "You have entered this place enough times today - come back tomorrow."
 msgstr "Bugün buraya yeterince girdin - yarın tekrar gel."
 
 #: scripts/world/map_controller.gd
-msgid "You have no Portkey boot."
-msgstr "Portkey çizmen yok."
+msgid "You have no Waylink boot."
+msgstr "Göç Nesnesi çizmen yok."
 
 #: scripts/world/map_controller.gd
-msgid "Your Portkey is already waiting - grab hold of it."
-msgstr "Portkey'in zaten bekliyor - ona tutun."
+msgid "Your Waylink is already waiting - grab hold of it."
+msgstr "Göç Nesnesi'nin zaten bekliyor - ona tutun."
 
 #: scripts/world/map_controller.gd
-msgid "That Portkey has already gone."
-msgstr "O Portkey çoktan gitti."
+msgid "That Waylink has already gone."
+msgstr "O Göç Nesnesi çoktan gitti."
 
 #: scripts/world/map_controller.gd
-msgid "That Portkey is not yours - only its owner's party may hold on."
-msgstr "O Portkey senin değil - yalnızca sahibinin grubu tutunabilir."
+msgid "That Waylink is not yours - only its owner's party may hold on."
+msgstr "O Göç Nesnesi senin değil - yalnızca sahibinin grubu tutunabilir."
 
 #: scripts/world/map_controller.gd
-msgid "A Portkey will not work in here."
-msgstr "Burada Portkey çalışmaz."
+msgid "A Waylink will not work in here."
+msgstr "Burada Göç Nesnesi çalışmaz."
 
 #: scripts/world/map_controller.gd
-msgid "You have no Floo Powder - buy a pinch at the fireplace."
-msgstr "Uçuç Tozun yok - şömineden bir tutam satın al."
+msgid "You have no Hearth Dust - buy a pinch at the fireplace."
+msgstr "Ocak Yolu Tozun yok - şömineden bir tutam satın al."
 
 #: scripts/world/map_controller.gd
 msgid "You have never visited that fireplace."
@@ -4764,16 +4756,16 @@ msgid "%s\n< click to talk >"
 msgstr "%s\n< konuşmak için tıkla >"
 
 #: scripts/world/portkey_views.gd
-msgid "%s set down a Portkey to %s - hold on to it! (F)"
-msgstr "%s, %s yönüne bir Portkey koydu - ona tutun! (F)"
+msgid "%s set down a Waylink to %s - hold on to it! (F)"
+msgstr "%s, %s yönüne bir Göç Nesnesi koydu - ona tutun! (F)"
 
 #: scripts/world/portkey_views.gd
-msgid "The Portkey fizzled - nobody was holding on. The boot is back in your bag."
-msgstr "Portkey söndü - kimse tutunmuyordu. Çizme çantana geri döndü."
+msgid "The Waylink fizzled - nobody was holding on. The boot is back in your bag."
+msgstr "Göç Nesnesi söndü - kimse tutunmuyordu. Çizme çantana geri döndü."
 
 #: scripts/world/portkey_views.gd
-msgid "Portkey to %s\n%d"
-msgstr "%s yönüne Portkey\n%d"
+msgid "Waylink to %s\n%d"
+msgstr "%s yönüne Göç Nesnesi\n%d"
 
 #: scripts/world/training_dummy.gd
 msgid "Training Dummy\n%d / %d"
@@ -4844,8 +4836,8 @@ msgid "Harry"
 msgstr "Harry"
 
 #: scenes/main/character_select.tscn
-msgid "[ Gryffindor ]"
-msgstr "[ Gryffindor ]"
+msgid "[ Velkar ]"
+msgstr "[ Velkar ]"
 
 #: scenes/main/character_select.tscn
 msgid "Wizard Name:"
@@ -4855,21 +4847,21 @@ msgstr "Büyücü Adı:"
 msgid "Type your name..."
 msgstr "Adınızı yazın..."
 
-#: scenes/main/character_select.tscn assets/castle/castle_layout.json
-msgid "Gryffindor"
-msgstr "Gryffindor"
+#: scenes/main/character_select.tscn
+msgid "Velkar"
+msgstr "Velkar"
 
-#: scenes/main/character_select.tscn assets/castle/castle_layout.json
-msgid "Slytherin"
-msgstr "Slytherin"
+#: scenes/main/character_select.tscn
+msgid "Nisera"
+msgstr "Nisera"
 
-#: scenes/main/character_select.tscn assets/castle/castle_layout.json
-msgid "Ravenclaw"
-msgstr "Ravenclaw"
+#: scenes/main/character_select.tscn
+msgid "Ilvane"
+msgstr "Ilvane"
 
-#: scenes/main/character_select.tscn assets/castle/castle_layout.json
-msgid "Hufflepuff"
-msgstr "Hufflepuff"
+#: scenes/main/character_select.tscn
+msgid "Torvan"
+msgstr "Torvan"
 
 #: scenes/main/character_select.tscn
 msgid "Create Wizard"
@@ -4896,12 +4888,12 @@ msgid "10-inch Hawthorn wood with unicorn hair core. Highly suited for healing a
 msgstr "25 santim alıç ağacı, tek boynuz kılı özlü. İyileştirme ve lanetler için çok uygun."
 
 #: addons/hpmmo_sim/data/items.json
-msgid "Elder Wand Replica"
-msgstr "Mürver Asa Kopyası"
+msgid "Ithrel Wand Replica"
+msgstr "Ithrel Asası Replikası"
 
 #: addons/hpmmo_sim/data/items.json
-msgid "15-inch Elder wood with thestral tail hair core. Unlocks immense raw destructive power."
-msgstr "38 santim mürver ağacı, thestral kuyruk kılı özlü. Muazzam ham yıkım gücünü açığa çıkarır."
+msgid "15-inch starwood with night steed hair core. Unlocks immense raw destructive power."
+msgstr "38 santim yıldızağacı, gece atı kılı özlü. Muazzam ham yıkım gücünü açığa çıkarır."
 
 #: addons/hpmmo_sim/data/items.json
 msgid "Ashwood Twig"
@@ -4952,8 +4944,8 @@ msgid "Sturdy woolen school robes tailored with silk house linings. +50 Max HP."
 msgstr "İpek bina astarlı sağlam yün okul cüppesi. +50 Maks. Can."
 
 #: addons/hpmmo_sim/data/items.json
-msgid "Auror Battle Cloak"
-msgstr "Seherbaz Savaş Pelerini"
+msgid "Warden's Battle Cloak"
+msgstr "Muhafız Savaş Cübbesi"
 
 #: addons/hpmmo_sim/data/items.json
 msgid "Enchanted heavy dragonhide battle cloak. +150 Max HP and 15% Magic Armor."
@@ -4969,7 +4961,7 @@ msgstr "Boyanmamış, ev yapımı yün; dikişli etek ve kaba bir asa yaması. S
 
 #: addons/hpmmo_sim/data/items.json
 msgid "Runed Mantle"
-msgstr "Rünlü Kaftan"
+msgstr "Runlu Kaftan"
 
 #: addons/hpmmo_sim/data/items.json
 msgid "Navy wool bordered in brass thread, its pale runes humming with a steadying ward."
@@ -4984,11 +4976,11 @@ msgid "Black velvet wound with silver thorns and emeralds; curses catch on its v
 msgstr "Gümüş dikenler ve zümrütlerle sarılı kara kadife; lanetler sarmaşıklarına takılır."
 
 #: addons/hpmmo_sim/data/items.json
-msgid "Phoenix Regalia"
-msgstr "Anka Giysisi"
+msgid "Velkar Regalia"
+msgstr "Velkar Kaftanı"
 
 #: addons/hpmmo_sim/data/items.json
-msgid "Crimson brocade alive with woven flame, a golden phoenix spread across the shoulders."
+msgid "Crimson brocade alive with woven flame, a golden velkar spread across the shoulders."
 msgstr "Dokuma alevlerle canlanan kızıl brokar; omuzlarına yayılmış altın bir anka."
 
 #: addons/hpmmo_sim/data/items.json
@@ -5000,16 +4992,16 @@ msgid "Silver-blue silk scattered with stars and crescent moons; it shimmers lik
 msgstr "Yıldızlar ve hilallerle bezeli gümüş-mavi ipek; gece göğü gibi ışıldar."
 
 #: addons/hpmmo_sim/data/items.json
-msgid "Nimbus 2000"
-msgstr "Nimbus 2000"
+msgid "Windcutter 2000"
+msgstr "Yelkıran 2000"
 
 #: addons/hpmmo_sim/data/items.json
-msgid "Sleek mahogany handle with tail twigs of select birch. Fly across Hogwarts Valley with speed."
-msgstr "Zarif maun sap, seçme huş kuyruk dalları. Hogwarts Vadisi'nin üzerinden hızla uç."
+msgid "Sleek mahogany handle with tail twigs of select birch. Fly across Kaf Valley with speed."
+msgstr "Zarif maun sap, seçme huş kuyruk dalları. Kaf Vadisi'nin üzerinden hızla uç."
 
 #: addons/hpmmo_sim/data/items.json
-msgid "Firebolt Supreme"
-msgstr "Ateşoku Üstün"
+msgid "Skysplitter"
+msgstr "Gökyaran"
 
 #: addons/hpmmo_sim/data/items.json
 msgid "Ash handle with aerodynamic ash finish and goblin-forged ironwork. Supreme 22.0 speed."
@@ -5044,7 +5036,7 @@ msgid "Emberwing"
 msgstr "Korkanat"
 
 #: addons/hpmmo_sim/data/items.json
-msgid "Crimson lacquer and gold filigree crowned by a phoenix head; its feathered tail smoulders like live embers."
+msgid "Crimson lacquer and gold filigree crowned by a velkar head; its feathered tail smoulders like live embers."
 msgstr "Bir anka başıyla taçlanmış kızıl cila ve altın telkari; tüylü kuyruğu canlı korlar gibi için için yanar."
 
 #: addons/hpmmo_sim/data/items.json
@@ -5056,8 +5048,8 @@ msgid "Pale moonwood threaded with starlight, a crystal tip and bristles spun fr
 msgstr "Yıldız ışığıyla örülmüş soluk ay ağacı; kristal uç ve ay ışığından eğrilmiş kıllar."
 
 #: addons/hpmmo_sim/data/items.json
-msgid "Wiggenweld Potion"
-msgstr "Wiggenweld İksiri"
+msgid "Healing Draught"
+msgstr "Şifa İksiri"
 
 #: addons/hpmmo_sim/data/items.json
 msgid "Restores 150 HP."
@@ -5072,32 +5064,32 @@ msgid "Refreshing cerulean elixir. Restores 120 Mana instantly."
 msgstr "Ferahlatıcı gök mavisi iksir. Anında 120 Mana yeniler."
 
 #: addons/hpmmo_sim/data/items.json
-msgid "Phoenix Ash"
-msgstr "Anka Külü"
+msgid "Velkar Ash"
+msgstr "Velkar Külü"
 
 #: addons/hpmmo_sim/data/items.json
-msgid "Smoldering fiery ash gathered from a burning day. Used to refine wands from +0 to +4 at Ollivander."
-msgstr "Yanan bir günden toplanmış için için yanan ateşli kül. Ollivander'da asaları +0'dan +4'e yükseltmek için kullanılır."
+msgid "Smoldering fiery ash gathered from a burning day. Used to refine wands from +0 to +4 at Kestrin."
+msgstr "Yanan bir günden toplanmış için için yanan ateşli kül. Kestrin'de asaları +0'dan +4'e yükseltmek için kullanılır."
 
 #: addons/hpmmo_sim/data/items.json
-msgid "Dragon Heartstring"
-msgstr "Ejderha Yürek Teli"
+msgid "Dragon Sinew"
+msgstr "Ejder Siniri"
 
 #: addons/hpmmo_sim/data/items.json
 msgid "Vibrant magical core tissue from an Antipodean Opaleye. Needed to refine wands to +5 - +7."
 msgstr "Bir Antipod Opalgözünden alınmış canlı büyülü öz dokusu. Asaları +5 - +7'ye yükseltmek için gerekir."
 
 #: addons/hpmmo_sim/data/items.json
-msgid "Thestral Tail Hair"
-msgstr "Thestral Kuyruk Kılı"
+msgid "Night Steed Hair"
+msgstr "Gece Atı Kılı"
 
 #: addons/hpmmo_sim/data/items.json
 msgid "Spectral invisible hair of rare thestrals. Required for legendary +8 and +9 wand transmutations."
 msgstr "Nadir thestrallerin hayalet gibi görünmez kılı. Efsanevi +8 ve +9 asa dönüşümleri için gerekir."
 
 #: addons/hpmmo_sim/data/items.json
-msgid "Elder Wood Core"
-msgstr "Mürver Ağacı Özü"
+msgid "Starwood Core"
+msgstr "Yıldızağacı Özü"
 
 #: addons/hpmmo_sim/data/items.json
 msgid "A catalyst for masterwork refinement."
@@ -5105,19 +5097,19 @@ msgstr "Ustalık işi yükseltme için bir katalizör."
 
 #: addons/hpmmo_sim/data/items.json
 msgid "Rune of Imbuing"
-msgstr "Efsun Rünü"
+msgstr "Efsun Runu"
 
 #: addons/hpmmo_sim/data/items.json
-msgid "A scroll that weaves one new enchantment into a wand, robe or broom at Ollivander's. The more an item already holds, the likelier the weave slips."
-msgstr "Ollivander'da bir asaya, cüppeye ya da süpürgeye yeni bir efsun basan parşömen. Eşyada ne kadar çok efsun varsa tutmama ihtimali o kadar artar."
+msgid "A scroll that weaves one new enchantment into a wand, robe or broom at Kestrin's. The more an item already holds, the likelier the weave slips."
+msgstr "Kestrin'de bir asaya, cüppeye ya da süpürgeye yeni bir efsun basan parşömen. Eşyada ne kadar çok efsun varsa tutmama ihtimali o kadar artar."
 
 #: addons/hpmmo_sim/data/items.json
 msgid "Rune of Reweaving"
 msgstr "Efsun Değiştirme Rünü"
 
 #: addons/hpmmo_sim/data/items.json
-msgid "Unravels every enchantment on a wand, robe or broom and weaves the same number anew at Ollivander's."
-msgstr "Ollivander'da bir asa, cüppe ya da süpürgedeki tüm efsunları çözer ve aynı sayıda yenisini basar."
+msgid "Unravels every enchantment on a wand, robe or broom and weaves the same number anew at Kestrin's."
+msgstr "Kestrin'de bir asa, cüppe ya da süpürgedeki tüm efsunları çözer ve aynı sayıda yenisini basar."
 
 #: addons/hpmmo_sim/data/items.json
 msgid "Apprentice Hat"
@@ -5252,7 +5244,7 @@ msgid "Emberwing Boots"
 msgstr "Korkanat Çizmeler"
 
 #: addons/hpmmo_sim/data/items.json
-msgid "Lacquered crimson boots with golden phoenix wings at the heel."
+msgid "Lacquered crimson boots with golden velkar wings at the heel."
 msgstr "Topuklarında altın anka kanatları olan cilalı kızıl çizmeler."
 
 #: addons/hpmmo_sim/data/items.json
@@ -5284,7 +5276,7 @@ msgid "Emberwing Focus"
 msgstr "Korkanat Odak"
 
 #: addons/hpmmo_sim/data/items.json
-msgid "A glowing amber heart cradled in golden phoenix feathers, warm as a hearth."
+msgid "A glowing amber heart cradled in golden velkar feathers, warm as a hearth."
 msgstr "Altın anka tüyleri arasında duran, ocak kadar sıcak parlayan kehribar bir kalp."
 
 #: addons/hpmmo_sim/data/items.json
@@ -5316,7 +5308,7 @@ msgid "Emberwing Pendant"
 msgstr "Korkanat Kolye"
 
 #: addons/hpmmo_sim/data/items.json
-msgid "A golden phoenix spreading its wings around a burning amber stone."
+msgid "A golden velkar spreading its wings around a burning amber stone."
 msgstr "Yanan bir kehribar taşın çevresinde kanatlarını açmış altın bir anka."
 
 #: addons/hpmmo_sim/data/items.json
@@ -5348,8 +5340,8 @@ msgid "Emberwing Ring"
 msgstr "Korkanat Yüzük"
 
 #: addons/hpmmo_sim/data/items.json
-msgid "A gold band shaped like a phoenix, an ember-bright amber in its beak."
-msgstr "Anka biçiminde altın bir halka, gagasında kor gibi parlayan bir kehribar."
+msgid "A gold band shaped like a velkar, an ember-bright amber in its beak."
+msgstr "Velkar biçiminde altın bir halka, gagasında kor gibi parlayan bir kehribar."
 
 #: addons/hpmmo_sim/data/items.json
 msgid "Moonveil Ring"
@@ -5360,40 +5352,40 @@ msgid "A mithril band set with a star crystal that shimmers like moonlight."
 msgstr "Ay ışığı gibi ışıldayan bir yıldız kristali kakılmış mitril halka."
 
 #: addons/hpmmo_sim/data/items.json
-msgid "Acromantula Silk"
-msgstr "Akromantula İpeği"
+msgid "Weaver Silk"
+msgstr "Ağcı İpeği"
 
 #: addons/hpmmo_sim/data/items.json
 msgid "Pearly, rope-strong silk spun in the Blackweb Caverns. Weavers and robe-makers pay well for it."
 msgstr "Karaağ Mağaraları'nda eğrilmiş, inci gibi parlak ve halat kadar sağlam ipek. Dokumacılar ve cüppe ustaları ona iyi para öder."
 
 #: addons/hpmmo_sim/data/items.json
-msgid "Acromantula Venom"
-msgstr "Akromantula Zehri"
+msgid "Weaver Venom"
+msgstr "Ağcı Zehri"
 
 #: addons/hpmmo_sim/data/items.json
 msgid "Emerald venom milked from a Venomfang's glands - worth a fortune to potioneers."
 msgstr "Bir Zehirdiş'in bezlerinden sağılmış zümrüt zehir - iksirciler için bir servet değerinde."
 
 #: addons/hpmmo_sim/data/items.json
-msgid "Queen's Seal"
-msgstr "Kraliçe Mührü"
+msgid "Web Mother's Seal"
+msgstr "Ağ Ana Mührü"
 
 #: addons/hpmmo_sim/data/items.json
 msgid "An obsidian seal wrapped in old silk. It answers the sealed web gate deep in the Egg Caverns, where the brood's queen waits."
 msgstr "Eski ipeğe sarılı obsidyen bir mühür. Kuluçkanın kraliçesinin beklediği Yumurta Mağaraları'nın derinliklerindeki mühürlü ağ kapısını açar."
 
 #: addons/hpmmo_sim/data/items.json
-msgid "Floo Powder"
-msgstr "Uçuç Tozu"
+msgid "Hearth Dust"
+msgstr "Ocak Tozu"
 
 #: addons/hpmmo_sim/data/items.json
-msgid "A pinch thrown into a Floo Network fireplace carries you to any hearth you have visited. Sold at every Floo fireplace."
-msgstr "Uçuç Ağı şöminesine atılan bir tutam seni ziyaret ettiğin herhangi bir ocağa taşır. Her Uçuç şöminesinde satılır."
+msgid "A pinch thrown into a Hearthway fireplace carries you to any hearth you have visited. Sold at every Hearthway fireplace."
+msgstr "Ocak Yolu şöminesine atılan bir tutam seni ziyaret ettiğin herhangi bir ocağa taşır. Her Ocak Yolu şöminesinde satılır."
 
 #: addons/hpmmo_sim/data/items.json
-msgid "A battered boot enchanted as a Portkey. Right-click to set it down and choose where it goes: for ten seconds your party may grab hold, then everyone holding on is carried there together."
-msgstr "Portkey olarak büyülenmiş hırpalanmış bir çizme. Yere koymak ve nereye gideceğini seçmek için sağ tıkla: on saniye boyunca grubun ona tutunabilir, sonra tutunan herkes birlikte oraya taşınır."
+msgid "A battered boot enchanted as a Waylink. Right-click to set it down and choose where it goes: for ten seconds your party may grab hold, then everyone holding on is carried there together."
+msgstr "Göç Nesnesi olarak büyülenmiş hırpalanmış bir çizme. Yere koymak ve nereye gideceğini seçmek için sağ tıkla: on saniye boyunca grubun ona tutunabilir, sonra tutunan herkes birlikte oraya taşınır."
 
 #: addons/hpmmo_sim/data/items.json
 msgid "Dungeon Seal"
@@ -5412,32 +5404,32 @@ msgid "An iron key to the Trial Hall. The party leader spends keys at the gate t
 msgstr "Sınav Salonu'nun demir anahtarı. Grup lideri Çok Zor (1 anahtar) ve Efsanevi (3 anahtar) zorlukları açmak için kapıda harcar. Zor zindanlardan düşer, Mühür karşılığı satılır."
 
 #: addons/hpmmo_sim/data/items.json
-msgid "Forbidden Corridor Key"
-msgstr "Yasak Koridor Anahtarı"
+msgid "Sealed Wing Key"
+msgstr "Mühürlü Kanat Anahtarı"
 
 #: addons/hpmmo_sim/data/items.json
-msgid "A brass key that fits the locked third-floor door. The party leader spends keys at the gate to open its Very Hard (1 key) and Legendary (3 keys) runs. Found in Hard runs, sold for seals."
-msgstr "Üçüncü kattaki kilitli kapıya uyan pirinç anahtar. Grup lideri Çok Zor (1 anahtar) ve Efsanevi (3 anahtar) zorlukları açmak için kapıda harcar. Zor zindanlardan düşer, Mühür karşılığı satılır."
+msgid "A brass key that fits the door of the sealed wing. The party leader spends keys at the gate to open its Very Hard (1 key) and Legendary (3 keys) runs. Found in Hard runs, sold for seals."
+msgstr "Mühürlü kanadın kapısına uyan pirinç anahtar. Grup lideri Çok Zor (1 anahtar) ve Efsanevi (3 anahtar) zorlukları açmak için kapıda harcar. Zor zindanlardan düşer, Mühür karşılığı satılır."
 
 #: addons/hpmmo_sim/data/mobs.json
-msgid "Drowned Inferius"
-msgstr "Boğulmuş Inferius"
+msgid "Drowned One"
+msgstr "Boğulmuş Ölü"
 
 #: addons/hpmmo_sim/data/mobs.json
-msgid "Acromantula"
-msgstr "Akromantula"
+msgid "Black Weaver"
+msgstr "Kara Ağcı"
 
 #: addons/hpmmo_sim/data/mobs.json
-msgid "Venomfang Acromantula"
-msgstr "Zehirdiş Akromantula"
+msgid "Venomfang Weaver"
+msgstr "Zehirdiş Ağcı"
 
 #: addons/hpmmo_sim/data/mobs.json
 msgid "Broodguard"
-msgstr "Kuluçka Muhafızı"
+msgstr "Yuva Bekçisi"
 
 #: addons/hpmmo_sim/data/mobs.json
-msgid "Dark Snatcher"
-msgstr "Kara Kapkaççı"
+msgid "Dark Bandit"
+msgstr "Kara Haydut"
 
 #: addons/hpmmo_sim/data/mobs.json
 msgid "Forest Troll"
@@ -5448,10 +5440,6 @@ msgid "Mountain Troll"
 msgstr "Dağ Trolü"
 
 #: addons/hpmmo_sim/data/mobs.json
-msgid "Cornish Pixie"
-msgstr "Cornwall Cini"
-
-#: addons/hpmmo_sim/data/mobs.json
 msgid "Enchanted Armour"
 msgstr "Büyülü Zırh"
 
@@ -5460,32 +5448,32 @@ msgid "Cursed Armour Commander"
 msgstr "Lanetli Zırh Komutanı"
 
 #: addons/hpmmo_sim/data/mobs.json addons/hpmmo_sim/data/spawn_tables.json addons/hpmmo_sim/data/quests.json
-msgid "Devil's Snare"
-msgstr "Şeytan Kapanı"
+msgid "Strangling Vine"
+msgstr "Boğan Sarmaşık"
 
 #: addons/hpmmo_sim/data/mobs.json
 msgid "Snare Vine"
-msgstr "Kapan Sarmaşığı"
+msgstr "Sarmaşık Filizi"
 
-#: addons/hpmmo_sim/data/mobs.json addons/hpmmo_sim/data/spawn_tables.json
-msgid "Fluffy"
-msgstr "Fluffy"
-
-#: addons/hpmmo_sim/data/mobs.json
-msgid "Fluffy's Head"
-msgstr "Fluffy'nin Başı"
+#: addons/hpmmo_sim/data/mobs.json addons/hpmmo_sim/data/spawn_tables.json addons/hpmmo_sim/data/quests.json
+msgid "Threehead"
+msgstr "Üçbaş"
 
 #: addons/hpmmo_sim/data/mobs.json
-msgid "Inferius Lake Warden"
-msgstr "Göl Muhafızı Inferius"
+msgid "Threehead's Head"
+msgstr "Üçbaş'ın Başı"
+
+#: addons/hpmmo_sim/data/mobs.json
+msgid "Drowned Warden of Lunra"
+msgstr "Lunra'nın Ölü Bekçisi"
 
 #: addons/hpmmo_sim/data/mobs.json
 msgid "Goblin Teller"
-msgstr "Goblin Veznedar"
+msgstr "Goblin Sarraf"
 
 #: addons/hpmmo_sim/data/mobs.json
 msgid "Goblin Vault Guard"
-msgstr "Goblin Kasa Muhafızı"
+msgstr "Goblin Hazine Bekçisi"
 
 #: addons/hpmmo_sim/data/mobs.json
 msgid "Goblin Hexer"
@@ -5505,19 +5493,19 @@ msgstr "Elit "
 
 #: addons/hpmmo_sim/data/spawn_tables.json addons/hpmmo_sim/data/quests.json
 msgid "Village Outskirts"
-msgstr "Köy Eteği"
+msgstr "Orvell Eteği"
 
 #: addons/hpmmo_sim/data/spawn_tables.json addons/hpmmo_sim/data/quests.json
 msgid "Forest Edge"
 msgstr "Orman Kıyısı"
 
 #: addons/hpmmo_sim/data/spawn_tables.json addons/hpmmo_sim/data/quests.json
-msgid "Snatcher Woods"
-msgstr "Kapkaççı Korusu"
+msgid "Bandit Woods"
+msgstr "Haydut Ormanı"
 
 #: addons/hpmmo_sim/data/spawn_tables.json addons/hpmmo_sim/data/quests.json
-msgid "Acromantula Thicket"
-msgstr "Akromantula Çalılığı"
+msgid "Weaver Thicket"
+msgstr "Ağcı Çalılığı"
 
 #: addons/hpmmo_sim/data/spawn_tables.json addons/hpmmo_sim/data/quests.json
 msgid "Crypt Hollow"
@@ -5525,7 +5513,7 @@ msgstr "Mahzen Çukuru"
 
 #: addons/hpmmo_sim/data/spawn_tables.json addons/hpmmo_sim/data/quests.json
 msgid "Spider Hollow"
-msgstr "Örümcek Çukuru"
+msgstr "Örümcek Oyuğu"
 
 #: addons/hpmmo_sim/data/spawn_tables.json addons/hpmmo_sim/data/quests.json
 msgid "Smugglers' Camp"
@@ -5533,7 +5521,7 @@ msgstr "Kaçakçı Kampı"
 
 #: addons/hpmmo_sim/data/spawn_tables.json addons/hpmmo_sim/data/quests.json
 msgid "Troll Hollow"
-msgstr "Trol Çukuru"
+msgstr "Trol Oyuğu"
 
 #: addons/hpmmo_sim/data/spawn_tables.json addons/hpmmo_sim/data/quests.json
 msgid "Highland Moor"
@@ -5549,19 +5537,19 @@ msgstr "Sera Çayırı"
 
 #: addons/hpmmo_sim/data/spawn_tables.json addons/hpmmo_sim/data/quests.json
 msgid "Pitch Outskirts"
-msgstr "Saha Eteği"
+msgstr "Meydan Eteği"
 
 #: addons/hpmmo_sim/data/spawn_tables.json addons/hpmmo_sim/data/quests.json
 msgid "Eastern Road"
 msgstr "Doğu Yolu"
 
 #: addons/hpmmo_sim/data/spawn_tables.json addons/hpmmo_sim/data/quests.json
-msgid "Hogsmeade Road"
-msgstr "Hogsmeade Yolu"
+msgid "Orvell Road"
+msgstr "Orvell Yolu"
 
 #: addons/hpmmo_sim/data/spawn_tables.json addons/hpmmo_sim/data/quests.json
 msgid "Pitch Woods"
-msgstr "Saha Korusu"
+msgstr "Meydan Korusu"
 
 #: addons/hpmmo_sim/data/spawn_tables.json addons/hpmmo_sim/data/quests.json
 msgid "Lakeside Glade"
@@ -5569,11 +5557,11 @@ msgstr "Göl Kıyısı Açıklığı"
 
 #: addons/hpmmo_sim/data/spawn_tables.json addons/hpmmo_sim/data/quests.json
 msgid "Dark Thicket"
-msgstr "Karanlık Çalılık"
+msgstr "Kara Çalılık"
 
 #: addons/hpmmo_sim/data/spawn_tables.json addons/hpmmo_sim/data/quests.json
 msgid "Spider Woods"
-msgstr "Örümcek Korusu"
+msgstr "Ağcı Ormanı"
 
 #: addons/hpmmo_sim/data/spawn_tables.json addons/hpmmo_sim/data/quests.json
 msgid "Southern Barrows"
@@ -5596,8 +5584,8 @@ msgid "Eastern Moor"
 msgstr "Doğu Bozkırı"
 
 #: addons/hpmmo_sim/data/spawn_tables.json addons/hpmmo_sim/data/quests.json
-msgid "Hogsmeade Heights"
-msgstr "Hogsmeade Tepeleri"
+msgid "Orvell Heights"
+msgstr "Orvell Sırtları"
 
 #: addons/hpmmo_sim/data/spawn_tables.json addons/hpmmo_sim/data/quests.json
 msgid "Station Mist"
@@ -5605,23 +5593,23 @@ msgstr "İstasyon Sisi"
 
 #: addons/hpmmo_sim/data/spawn_tables.json addons/hpmmo_sim/data/quests.json
 msgid "Fog Barrens"
-msgstr "Sis Çorakları"
+msgstr "Sisli Çorak"
 
 #: addons/hpmmo_sim/data/spawn_tables.json addons/hpmmo_sim/data/quests.json
 msgid "Grey Marsh"
-msgstr "Gri Bataklık"
+msgstr "Boz Bataklık"
 
 #: addons/hpmmo_sim/data/spawn_tables.json addons/hpmmo_sim/data/quests.json
 msgid "Stone Circle Summit"
-msgstr "Taş Çember Zirvesi"
+msgstr "Taş Halka Tepesi"
 
 #: addons/hpmmo_sim/data/spawn_tables.json addons/hpmmo_sim/data/quests.json
 msgid "Warden's Barrow"
-msgstr "Muhafız Höyüğü"
+msgstr "Bekçinin Höyüğü"
 
 #: addons/hpmmo_sim/data/spawn_tables.json addons/hpmmo_sim/data/quests.json
 msgid "Webbed Galleries"
-msgstr "Ağlı Galeriler"
+msgstr "Ağlı Dehlizler"
 
 #: addons/hpmmo_sim/data/spawn_tables.json addons/hpmmo_sim/data/quests.json
 msgid "Egg Caverns"
@@ -5629,15 +5617,15 @@ msgstr "Yumurta Mağaraları"
 
 #: addons/hpmmo_sim/data/spawn_tables.json
 msgid "Grak, Mountain Troll Chieftain"
-msgstr "Grak, Dağ Trolü Reisi"
+msgstr "Grak, Dağ Trollerinin Reisi"
 
 #: addons/hpmmo_sim/data/spawn_tables.json addons/hpmmo_sim/data/quests.json
-msgid "The Azkaban Warden"
-msgstr "Azkaban Gardiyanı"
+msgid "The Morhal Warden"
+msgstr "Morhal Bekçisi"
 
 #: addons/hpmmo_sim/data/spawn_tables.json
 msgid "The Trial Warden"
-msgstr "Sınav Muhafızı"
+msgstr "Sınav Bekçisi"
 
 #: addons/hpmmo_sim/data/spawn_tables.json
 msgid "The Cursed Armour Commander"
@@ -5648,20 +5636,20 @@ msgid "Brood Guardian"
 msgstr "Kuluçka Muhafızı"
 
 #: addons/hpmmo_sim/data/spawn_tables.json
-msgid "Blackweb Queen"
-msgstr "Kara Ağ Kraliçesi"
+msgid "Web Mother"
+msgstr "Ağ Ana"
 
 #: addons/hpmmo_sim/data/spawn_tables.json
 msgid "Webbound Seal Stone"
-msgstr "Ağbağlı Mühür Taşı"
+msgstr "Ağ Mühür Taşı"
 
 #: addons/hpmmo_sim/data/maps.json addons/hpmmo_sim/data/dungeons.json
-msgid "The Queen's Lair"
-msgstr "Kraliçe'nin Yuvası"
+msgid "The Web Mother's Lair"
+msgstr "Ağ Ana'nın Yuvası"
 
 #: addons/hpmmo_sim/data/maps.json
-msgid "Hogwarts Entrance"
-msgstr "Hogwarts Girişi"
+msgid "Castle Entrance"
+msgstr "Kale Girişi"
 
 #: addons/hpmmo_sim/data/maps.json
 msgid "Grounds"
@@ -5672,12 +5660,12 @@ msgid "the Trial Hall"
 msgstr "Sınav Salonu"
 
 #: addons/hpmmo_sim/data/maps.json
-msgid "the Forbidden Corridor"
-msgstr "Yasak Koridor"
+msgid "the Sealed Wing"
+msgstr "Mühürlü Kanat"
 
 #: addons/hpmmo_sim/data/maps.json
-msgid "the Queen's Lair"
-msgstr "Kraliçe'nin Yuvası"
+msgid "the Web Mother's Lair"
+msgstr "Ağ Ana'nın Yuvası"
 
 #: addons/hpmmo_sim/data/spells.json
 msgid "Basic Cast"
@@ -5688,32 +5676,32 @@ msgid "Quick wand flick releasing a sparkling bolt of magic."
 msgstr "Pırıltılı bir büyü oku salan hızlı bir asa hareketi."
 
 #: addons/hpmmo_sim/data/spells.json
-msgid "Stupefy"
-msgstr "Stupefy"
+msgid "Stun Bolt"
+msgstr "Şok Oku"
 
 #: addons/hpmmo_sim/data/spells.json
 msgid "Stunning spell. Hits target, deals high damage and stuns for up to 1.8 seconds."
 msgstr "Sersemletme büyüsü. Hedefe çarpar, yüksek hasar verir ve 1,8 saniyeye kadar sersemletir."
 
 #: addons/hpmmo_sim/data/spells.json
-msgid "Incendio"
-msgstr "Incendio"
+msgid "Flame Wave"
+msgstr "Alev Dalgası"
 
 #: addons/hpmmo_sim/data/spells.json
-msgid "Roaring cone of magical fire. Blast damage to everything in the cone, then burns over 3 seconds. Extra damage against Inferi."
-msgstr "Kükreyen büyülü bir ateş konisi. Konideki her şeye patlama hasarı verir, sonra 3 saniye boyunca yakar. Inferius'lara ek hasar."
+msgid "Roaring cone of magical fire. Blast damage to everything in the cone, then burns over 3 seconds. Extra damage against Drowned Ones."
+msgstr "Kükreyen büyülü bir ateş konisi. Konideki her şeye patlama hasarı verir, sonra 3 saniye boyunca yakar. Boğulmuş Ölülere ek hasar."
 
 #: addons/hpmmo_sim/data/spells.json
-msgid "Bombarda"
-msgstr "Bombarda"
+msgid "Shockwave"
+msgstr "Sarsıntı"
 
 #: addons/hpmmo_sim/data/spells.json
 msgid "Detonates a violent concussive shockwave. Heavy AOE damage; enemies in the blast are thrown through the air and lie stunned for a moment where they land."
 msgstr "Şiddetli bir sarsıntı dalgası patlatır. Ağır alan hasarı verir; patlamadaki düşmanlar havaya savrulur ve düştükleri yerde bir an sersemlemiş kalır."
 
 #: addons/hpmmo_sim/data/spells.json
-msgid "Expelliarmus"
-msgstr "Expelliarmus"
+msgid "Disarm"
+msgstr "Silahsızlandırma"
 
 #: addons/hpmmo_sim/data/spells.json
 msgid "Disarming charm. Knocks back the target, interrupts casting and reduces its attack power by 35% for 5 seconds."
@@ -5731,17 +5719,13 @@ msgstr "Stella Ruina"
 msgid "Ultimate star sorcery. Calls down a falling star that bursts into a violet ring of starlight, scorching everything in a wide blast radius; its shards leave every enemy hit bleeding for 4 seconds."
 msgstr "Nihai yıldız büyüsü. Gökten bir yıldız indirir; yıldız, mor bir yıldız ışığı halkasına dönüşerek patlar ve geniş bir alandaki her şeyi kavurur; parçaları isabet ettiği her düşmanı 4 saniye boyunca kanatır."
 
-#: addons/hpmmo_sim/data/spells.json addons/hpmmo_sim/data/quests.json
-msgid "Expecto Patronum"
-msgstr "Expecto Patronum"
+#: addons/hpmmo_sim/data/spells.json
+msgid "Calls down a star-hawk of silver light that dives through a wide cone. Pallids take triple damage and the star-hawk breaks a Pallid's attack, soul-drain included; everything it passes through is slowed by 40% for 3 seconds. Requires level 40."
+msgstr "Geniş bir koni boyunca dalan, gümüş ışıktan bir yıldız şahini çağırır. Solgunlar üç kat hasar alır ve şahin bir Solgun'un saldırısını, ruh emme dahil, bozar; içinden geçtiği her şey 3 saniye boyunca %40 yavaşlar. 40. seviye gerekir."
 
 #: addons/hpmmo_sim/data/spells.json
-msgid "Conjures a silver stag that charges through a wide cone. Dementors take triple damage and the stag breaks a dementor's attack, kiss included; everything it charges through is slowed by 40% for 3 seconds. Requires level 40."
-msgstr "Geniş bir koni boyunca saldıran gümüş bir geyik çağırır. Ruh Emiciler üç kat hasar alır ve geyik bir Ruh Emici'nin saldırısını, öpücüğü dahil, bozar; geçtiği her şey 3 saniye boyunca %40 yavaşlar. Seviye 40 gerekir."
-
-#: addons/hpmmo_sim/data/spells.json
-msgid "Glacius"
-msgstr "Glacius"
+msgid "Frost Grip"
+msgstr "Buz Kıskacı"
 
 #: addons/hpmmo_sim/data/spells.json
 msgid "Frost nova. Hurls a spinning ice crystal that bursts into shards and freezing mist, freezing every enemy in the blast solid for up to 1.6 seconds; thawed enemies stay chilled and slowed for 2.5 seconds. Requires level 20."
@@ -5772,8 +5756,8 @@ msgid "Creatures below 30% health hit 50% harder and move faster."
 msgstr "Canı %30'un altına düşen yaratıklar %50 daha sert vurur ve hızlanır."
 
 #: addons/hpmmo_sim/data/dungeons.json
-msgid "Protego Horribilis"
-msgstr "Protego Horribilis"
+msgid "Ward Shield Horribilis"
+msgstr "Koruma Kalkanı Horribilis"
 
 #: addons/hpmmo_sim/data/dungeons.json
 msgid "A creature that dies strengthens the creatures around it (+15% health and damage, up to 5 times)."
@@ -5788,8 +5772,8 @@ msgid "Slain creatures burst two seconds after death - step out of the ring."
 msgstr "Ölen yaratıklar iki saniye sonra patlar - halkadan çık."
 
 #: addons/hpmmo_sim/data/dungeons.json
-msgid "Dementor's Chill"
-msgstr "Dementör Soğuğu"
+msgid "Pallid's Chill"
+msgstr "Solgun Soğuğu"
 
 #: addons/hpmmo_sim/data/dungeons.json
 msgid "Every 45 seconds a deathly cold stops everyone's regeneration for 6 seconds."
@@ -5860,8 +5844,8 @@ msgid "The trial is complete. Claim your reward - the way out opens behind the a
 msgstr "Sınav tamamlandı. Ödülünü al - çıkış yolu arenanın arkasında açıldı."
 
 #: addons/hpmmo_sim/data/dungeons.json
-msgid "The third-floor corridor is out of bounds... something is buzzing."
-msgstr "Üçüncü kat koridoruna girmek yasak... bir şey vızıldıyor."
+msgid "The castle's sealed wing is out of bounds... something is buzzing."
+msgstr "Kalenin mühürlü kanadı yasak bölge... bir şey vızıldıyor."
 
 #: addons/hpmmo_sim/data/dungeons.json
 msgid "The gallery door creaks open."
@@ -5884,40 +5868,40 @@ msgid "The commander falls. A damp stair leads down."
 msgstr "Komutan düştü. Nemli bir merdiven aşağı iniyor."
 
 #: addons/hpmmo_sim/data/dungeons.json
-msgid "Devil's Snare! Burn its vines - Incendio!"
-msgstr "Şeytan Kapanı! Sarmaşıklarını yak - Incendio!"
+msgid "Strangling Vine! Burn its vines - Flame Wave!"
+msgstr "Boğan Sarmaşık! Sarmaşıklarını yak - Alev Dalgası!"
 
 #: addons/hpmmo_sim/data/dungeons.json
-msgid "Pixies pour out of the Snare's roots!"
-msgstr "Kapan'ın köklerinden periler fışkırıyor!"
+msgid "Fidgetlings pour out of the Snare's roots!"
+msgstr "Kapan'ın köklerinden kıpırcıklar fışkırıyor!"
 
 #: addons/hpmmo_sim/data/dungeons.json
 msgid "The Snare withers. Music drifts from below..."
 msgstr "Kapan soluyor. Aşağıdan müzik sesi geliyor..."
 
 #: addons/hpmmo_sim/data/dungeons.json
-msgid "Pixies swarm the stair!"
-msgstr "Cinler merdiveni sarıyor!"
+msgid "Fidgetlings swarm the stair!"
+msgstr "Kıpırcıklar merdiveni sarıyor!"
 
 #: addons/hpmmo_sim/data/dungeons.json
-msgid "Fluffy wakes! Play the harp to lull it to sleep."
-msgstr "Fluffy uyandı! Onu uyutmak için arp çal."
+msgid "Threehead wakes! Ring the sleep chime to lull it."
+msgstr "Üçbaş uyandı! Onu uyutmak için uyku çanını çal."
 
 #: addons/hpmmo_sim/data/dungeons.json
-msgid "Pixies stream out from under Fluffy's paws!"
-msgstr "Fluffy'nin patilerinin altından cinler fışkırıyor!"
+msgid "Fidgetlings stream out from under Threehead's paws!"
+msgstr "Üçbaş'ın patilerinin altından kıpırcıklar fışkırıyor!"
 
 #: addons/hpmmo_sim/data/dungeons.json
-msgid "Fluffy collapses. Clear every creature left in the corridor to open the trapdoor."
-msgstr "Fluffy yığılıp kaldı. Kapağı açmak için koridorda kalan tüm yaratıkları temizle."
+msgid "Threehead collapses. Clear every creature left in the corridor to open the stone hatch."
+msgstr "Üçbaş yığıldı. Taş kapağı açmak için koridorda kalan her yaratığı temizle."
 
 #: addons/hpmmo_sim/data/dungeons.json
-msgid "The corridor is silent. The trapdoor swings open - claim your reward."
-msgstr "Koridor sessizleşti. Kapak açılıyor - ödülünü al."
+msgid "The corridor is silent. The stone hatch swings open - claim your reward."
+msgstr "Koridor sessiz. Taş kapak açılıyor - ödülünü al."
 
 #: addons/hpmmo_sim/data/dungeons.json
-msgid "Fluffy's sleeping breath rolls down the stair - brace yourself!"
-msgstr "Fluffy'nin uyku nefesi merdivenden aşağı yuvarlanıyor - hazırlan!"
+msgid "Threehead's sleeping breath rolls down the stair - brace yourself!"
+msgstr "Üçbaş'ın uyku nefesi merdivenden aşağı yuvarlanıyor - hazırlan!"
 
 #: addons/hpmmo_sim/data/dungeons.json
 msgid "Silk trembles down the tunnel - something knows you are here."
@@ -5944,8 +5928,8 @@ msgid "The guardian falls. The Queen's lair lies open below."
 msgstr "Muhafız düştü. Kraliçe'nin ini aşağıda açık duruyor."
 
 #: addons/hpmmo_sim/data/dungeons.json
-msgid "The Blackweb Queen rises from her nest!"
-msgstr "Kara Ağ Kraliçesi yuvasından doğruluyor!"
+msgid "The Web Mother rises from her nest!"
+msgstr "Ağ Ana yuvasından doğruluyor!"
 
 #: addons/hpmmo_sim/data/dungeons.json
 msgid "Thick webs cover the nest floor - they will slow you!"
@@ -5972,12 +5956,8 @@ msgid "The lair falls silent. Her hoard waits in the nest."
 msgstr "Yuva sessizleşti. Hazinesi yuvada bekliyor."
 
 #: addons/hpmmo_sim/data/travel.json
-msgid "Castle Courtyard"
-msgstr "Şato Avlusu"
-
-#: addons/hpmmo_sim/data/travel.json
-msgid "Hogsmeade Square"
-msgstr "Hogsmeade Meydanı"
+msgid "Orvell Square"
+msgstr "Orvell Meydanı"
 
 #: addons/hpmmo_sim/data/travel.json
 msgid "The Great Hall"
@@ -5988,8 +5968,8 @@ msgid "Blackweb Camp"
 msgstr "Karaağ Kampı"
 
 #: addons/hpmmo_sim/data/travel.json
-msgid "the Room of Requirement"
-msgstr "İhtiyaç Odası"
+msgid "the Wishing Room"
+msgstr "Dilek Odası"
 
 #: addons/hpmmo_sim/data/travel.json
 msgid "Step into the Vanishing Cabinet"
@@ -6000,19 +5980,19 @@ msgid "the Egg Caverns"
 msgstr "Yumurta Mağaraları"
 
 #: addons/hpmmo_sim/data/travel.json
-msgid "the One-Eyed Witch"
-msgstr "Tek Gözlü Cadı"
+msgid "the Stone Raven"
+msgstr "Taş Kuzgun Heykeli"
 
 #: addons/hpmmo_sim/data/travel.json
 msgid "Tap the witch's hump - Dissendium!"
 msgstr "Cadının kamburuna dokun - Dissendium!"
 
 #: addons/hpmmo_sim/data/travel.json
-msgid "Honeydukes' cellar, Hogsmeade"
-msgstr "Honeydukes'ın mahzeni, Hogsmeade"
+msgid "the sweetshop cellar, Orvell"
+msgstr "Şekercinin Mahzeni, Orvell"
 
 #: addons/hpmmo_sim/data/travel.json
-msgid "Climb down the cellar trapdoor"
+msgid "Climb down the cellar hatch"
 msgstr "Mahzen kapağından aşağı in"
 
 #: addons/hpmmo_sim/data/quests.json
@@ -6020,92 +6000,92 @@ msgid "First Year"
 msgstr "Birinci Yıl"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Settle in at Hogwarts: your cloak, your first spells, your first broom."
-msgstr "Hogwarts'a yerleş: pelerinin, ilk büyülerin, ilk süpürgen."
+msgid "Settle in at Kaf Castle, raised over the shard of the fallen World-Star Ithrel: your cloak, your first spells, your first broom."
+msgstr "Düşen Dünya Yıldızı Ithrel'in kırığı üstüne kurulmuş Kaf Kalesi'ne yerleş: pelerinin, ilk büyülerin, ilk süpürgen."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "The Forest Edge"
 msgstr "Orman Kıyısı"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "The creatures at the forest edge grow bolder; learn the forge and the trial."
-msgstr "Orman kıyısındaki yaratıklar cüretleniyor; demirciyi ve sınavı öğren."
+msgid "Darkened shards fall into the Raven Woods and the creatures grow bolder; learn the forge and the trial."
+msgstr "Kararmış kırıklar Kuzgun Ormanı'na düşüyor ve yaratıklar azgınlaşıyor; körüğü ve sınavı öğren."
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Roads to Hogsmeade"
-msgstr "Hogsmeade Yolları"
+msgid "Roads to Orvell"
+msgstr "Orvell Yolları"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Snatchers prowl the roads; the village needs a wand it can trust."
-msgstr "Kapkaççılar yollarda kol geziyor; köyün güvenebileceği bir asaya ihtiyacı var."
+msgid "Bandits prowl the roads; the village needs a wand it can trust."
+msgstr "Haydutlar yollarda kol geziyor; köyün güvenebileceği bir asaya ihtiyacı var."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Crypts and Trolls"
 msgstr "Mahzenler ve Troller"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Something stirs in the crypts and the trolls come down from their hollow."
-msgstr "Mahzenlerde bir şey kıpırdanıyor ve troller çukurlarından aşağı iniyor."
+msgid "The dead stir in the crypts, the trolls come down from their hollow - and an old name turns up in the records: the Ash Priest."
+msgstr "Mahzenlerde ölüler kıpırdıyor, troller oyuklarından iniyor ve kayıtlarda eski bir ad çıkıyor: Kül Rahibi."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Barrows and Webs"
 msgstr "Höyükler ve Ağlar"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "The dead rise in the barrows and the Matriarch spins in her hollow."
-msgstr "Höyüklerde ölüler kalkıyor ve Ana, çukurunda ağ örüyor."
+msgid "The dead rise in the barrows; deep in the caverns the Web Mother broods on a shard the Ash Priest gave her."
+msgstr "Höyüklerde ölüler kalkıyor; mağaraların derininde Ağ Ana, Kül Rahibi'nin verdiği bir kırığın üstünde kuluçkaya yatmış."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "The Moors"
 msgstr "Bozkırlar"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Trolls and dark wizards hold the moors above Hogsmeade."
-msgstr "Troller ve kara büyücüler Hogsmeade'in üzerindeki bozkırları tutuyor."
+msgid "Trolls and the Ash Priest's dark wizards hold the moors above Orvell."
+msgstr "Orvell'in üstündeki bozkırları troller ve Kül Rahibi'nin kara büyücüleri tutuyor."
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "The third-floor corridor is out of bounds - and something guards it."
-msgstr "Üçüncü kat koridoruna girmek yasak - ve onu bir şey koruyor."
+msgid "The castle's sealed wing hides a piece of an old gate to another realm - and something guards it."
+msgstr "Kalenin mühürlü kanadı, başka bir diyara açılan eski bir kapının parçasını saklıyor ve onu bir şey koruyor."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Stone and Storm"
 msgstr "Taş ve Fırtına"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Mountain trolls gather under Grak at the Stone Circle Summit."
-msgstr "Dağ trolleri Taş Çember Zirvesi'nde Grak'ın emrinde toplanıyor."
+msgid "Mountain trolls gather under Grak around a Dark Shard on the Stone Circle Summit."
+msgstr "Dağ trolleri Taş Halka Tepesi'ndeki bir Kara Kırık'ın çevresinde Grak'ın emrinde toplanıyor."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "The Long Mist"
 msgstr "Uzun Sis"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Dementors drift in from the shore; only a Patronus will hold them back."
-msgstr "Ruh Emiciler kıyıdan süzülüyor; onları yalnızca bir Patronus durdurabilir."
+msgid "The mist of Morhal rolls in from the shore and the Pallids with it; only the Light of Ithrel will hold them back."
+msgstr "Morhal'in sisi kıyıdan iniyor, Solgunlar da onunla geliyor; onları yalnızca Ithrel Işığı durdurabilir."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "First-Year Orientation"
-msgstr "Birinci Yıl Oryantasyonu"
+msgstr "İlk Gün"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Speak with Professor Fig by the fountain"
-msgstr "Çeşmenin yanında Profesör Fig ile konuş"
+msgid "Speak with Master Teral Venn by the fountain"
+msgstr "Çeşmenin yanında Üstat Teral Venn ile konuş"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Professor Fig waits beside the courtyard fountain (the bobbing gold arrow). Walk up and click him or press F to talk."
-msgstr "Profesör Fig avludaki çeşmenin yanında bekliyor (inip kalkan altın ok). Yanına git, konuşmak için ona tıkla ya da F'ye bas."
+msgid "Master Teral Venn waits beside the courtyard fountain (the bobbing gold arrow). Walk up and click him or press F to talk."
+msgstr "Üstat Teral Venn avludaki çeşmenin yanında bekliyor (inip kalkan altın ok). Yanına git, konuşmak için ona tıkla ya da F'ye bas."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Dressed for the Grounds"
-msgstr "Araziye Uygun Kıyafet"
+msgstr "Kale Bahçesine Hazırlık"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Wear the Woolen Traveller's Cloak"
 msgstr "Yün Yolcu Pelerinini giy"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Open your bag with I and right-click the cloak Professor Fig gave you. It costs a little speed and buys a lot of armour."
-msgstr "I ile çantanı aç ve Profesör Fig'in verdiği pelerine sağ tıkla. Biraz hıza mal olur ama çok savunma kazandırır."
+msgid "Open your bag with I and right-click the cloak Master Teral Venn gave you. It costs a little speed and buys a lot of armour."
+msgstr "I ile çantanı aç ve Üstat Teral Venn'in verdiği pelerine sağ tıkla. Biraz hıza mal olur ama çok savunma kazandırır."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Wand Drills"
@@ -6121,11 +6101,11 @@ msgstr "Üç antrenman mankeni doğu yolunda, avlu duvarının hemen dışında 
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Spiders at the Gate"
-msgstr "Kapıdaki Örümcekler"
+msgstr "Kapıdaki Ağcılar"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 6 Acromantulas"
-msgstr "6 Akromantula alt et"
+msgid "Defeat 6 Black Weavers"
+msgstr "6 Kara Ağcı alt et"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Leave the courtyard for the Village Outskirts or the Pitch Outskirts. Hit one spider and its pack answers - keep moving."
@@ -6136,12 +6116,12 @@ msgid "Restless Dead"
 msgstr "Huzursuz Ölüler"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 6 Inferi"
-msgstr "6 Inferius alt et"
+msgid "Defeat 6 Drowned Ones"
+msgstr "6 Boğulmuş Ölü alt et"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Inferi stalk the Forest Edge past Borin's hut. Fire (Incendio) hurts them twice as much."
-msgstr "Inferius'lar Borin'in kulübesinin ötesinde, Orman Kıyısı'nda dolaşıyor. Ateş (Incendio) onlara iki kat zarar verir."
+msgid "Drowned Ones stalk the Forest Edge past Borin's hut. Fire (Flame Wave) hurts them twice as much."
+msgstr "Boğulmuş Ölüler Borin'in kulübesinin ötesinde, Orman Kıyısı'nda dolaşıyor. Ateş (Alev Dalgası) onlara iki kat zarar verir."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Report to Borin at his hut"
@@ -6153,11 +6133,11 @@ msgstr "Orman bekçisi Borin Ashgrove, şatonun batısındaki kulübesinden orma
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Thinning the Brood"
-msgstr "Kuluçkayı Seyreltmek"
+msgstr "Yuvayı Seyreltmek"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 10 Acromantulas"
-msgstr "10 Akromantula alt et"
+msgid "Defeat 10 Black Weavers"
+msgstr "10 Kara Ağcı alt et"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "The spiders breed faster than anyone can count. Greenhouse Meadow is crawling with them."
@@ -6165,11 +6145,11 @@ msgstr "Örümcekler kimsenin sayamayacağı hızda üreyor. Sera Çayırı onla
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Through the Great Doors"
-msgstr "Büyük Kapılardan İçeri"
+msgstr "Ulu Kapıdan İçeri"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Enter Hogwarts Castle"
-msgstr "Hogwarts Şatosu'na gir"
+msgid "Enter Kaf Castle"
+msgstr "Kaf Kalesi'ne gir"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Walk up the castle approach and press F in the doorway to go inside."
@@ -6180,20 +6160,20 @@ msgid "Your First Broom"
 msgstr "İlk Süpürgen"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Collect your broom from Professor Flitwick"
-msgstr "Süpürgeni Profesör Flitwick'ten al"
+msgid "Collect your broom from Flight Master Kaelen Rook"
+msgstr "Süpürgeni Uçuş Ustası Kaelen Rook'tan al"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "At level 5 every student gets a broom. Professor Flitwick waits at the castle approach."
-msgstr "5. seviyede her öğrenci bir süpürge alır. Profesör Flitwick şato yolunda bekliyor."
+msgid "At level 5 every student gets a broom. Flight Master Kaelen Rook waits at the castle approach."
+msgstr "5. seviyede her öğrenci bir süpürge alır. Uçuş Ustası Kaelen Rook şato yolunda bekliyor."
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Quidditch Tryouts"
-msgstr "Quidditch Seçmeleri"
+msgid "Skyring Tryouts"
+msgstr "Gökhalka Seçmeleri"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Fly to the Quidditch Pitch on your broom"
-msgstr "Süpürgenle Quidditch Sahası'na uç"
+msgid "Fly to the Skyring Pitch on your broom"
+msgstr "Süpürgenle Gökhalka Meydanı'na uç"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Equip the broom, press Shift to mount, Space to rise and Ctrl to descend. Land on level ground and press Shift to dismount."
@@ -6204,44 +6184,44 @@ msgid "Ash and Bone"
 msgstr "Kül ve Kemik"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 12 Inferi"
-msgstr "12 Inferius alt et"
+msgid "Defeat 12 Drowned Ones"
+msgstr "12 Boğulmuş Ölü alt et"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "The Inferi gather again at the Forest Edge and in Greenhouse Meadow."
-msgstr "Inferius'lar Orman Kıyısı'nda ve Sera Çayırı'nda yeniden toplanıyor."
+msgid "The Drowned Ones gather again at the Forest Edge and in Greenhouse Meadow."
+msgstr "Boğulmuş Ölüler Orman Kıyısı'nda ve Sera Çayırı'nda yeniden toplanıyor."
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Ollivander's Forge"
-msgstr "Ollivander'ın Atölyesi"
+msgid "Kestrin's Forge"
+msgstr "Kestrin'in Körüğü"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Speak with Ollivander"
-msgstr "Ollivander ile konuş"
+msgid "Speak with Kestrin"
+msgstr "Kestrin ile konuş"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Ollivander works his anvil in the courtyard. He can make a wand stronger, at a price."
-msgstr "Ollivander avluda örsünün başında çalışıyor. Bedeli karşılığında bir asayı güçlendirebilir."
+msgid "Kestrin works his anvil in the courtyard. He can make a wand stronger, at a price."
+msgstr "Kestrin avluda örsünün başında çalışıyor. Bedeli karşılığında bir asayı güçlendirebilir."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "A Stronger Wand"
 msgstr "Daha Güçlü Bir Asa"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Refine your wand once at Ollivander"
-msgstr "Ollivander'da asanı bir kez yükselt"
+msgid "Refine your wand once at Kestrin"
+msgstr "Kestrin'de asanı bir kez yükselt"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Press O to open Ollivander's workshop, drag your wand onto the anvil and refine it with Phoenix Ash and Galleons."
-msgstr "Ollivander'ın atölyesini açmak için O'ya bas, asanı örsün üzerine sürükle ve Anka Külü ile Galleon kullanarak yükselt."
+msgid "Press O to open Kestrin's workshop, drag your wand onto the anvil and refine it with Velkar Ash and Oril."
+msgstr "Kestrin'in atölyesini açmak için O'ya bas, asanı örsün üzerine sürükle ve Velkar Külü ile Oril kullanarak yükselt."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "The Eastern Road"
 msgstr "Doğu Yolu"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 12 Acromantulas"
-msgstr "12 Akromantula alt et"
+msgid "Defeat 12 Black Weavers"
+msgstr "12 Kara Ağcı alt et"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Merchants on the Eastern Road are turning back. Clear the spiders from the verges."
@@ -6252,8 +6232,8 @@ msgid "Woven Magic"
 msgstr "Dokunmuş Büyü"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Enchant an item at Ollivander"
-msgstr "Ollivander'da bir eşyaya efsun bas"
+msgid "Enchant an item at Kestrin"
+msgstr "Kestrin'de bir eşyaya efsun bas"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Put any piece of gear on the anvil and use an Imbue Scroll. A failed weave still spends the scroll."
@@ -6261,19 +6241,19 @@ msgstr "Herhangi bir ekipmanı örse koy ve bir Efsun Parşömeni kullan. Tutmay
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "The Long Road Home"
-msgstr "Eve Uzun Yol"
+msgstr "Uzun Dönüş Yolu"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 14 Inferi"
-msgstr "14 Inferius alt et"
+msgid "Defeat 14 Drowned Ones"
+msgstr "14 Boğulmuş Ölü alt et"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Inferi wander onto the Eastern Road at dusk. Keep the road open."
-msgstr "Inferius'lar alacakaranlıkta Doğu Yolu'na sapıyor. Yolu açık tut."
+msgid "Drowned Ones wander onto the Eastern Road at dusk. Keep the road open."
+msgstr "Boğulmuş Ölüler alacakaranlıkta Doğu Yolu'na sapıyor. Yolu açık tut."
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 16 Acromantulas"
-msgstr "16 Akromantula alt et"
+msgid "Defeat 16 Black Weavers"
+msgstr "16 Kara Ağcı alt et"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "West of the forest edge the spiders grow to the size of carts. Bring potions."
@@ -6281,15 +6261,15 @@ msgstr "Orman kıyısının batısında örümcekler araba büyüklüğüne ula�
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Shatter the Darkness"
-msgstr "Karanlığı Parçala"
+msgstr "Kara Kırığı Parçala"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Help destroy a Dark Monolith"
-msgstr "Bir Karanlık Metin Taşının yok edilmesine yardım et"
+msgid "Help destroy a Dark Shard"
+msgstr "Bir Kara Kırık'ın yok edilmesine yardım et"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Dark Monoliths fall in the western forests: at the Forest Edge past Borin's hut, in the Acromantula Thicket beyond it, in Snatcher Woods to the north-west and in Crypt Hollow far to the west. Close by, a green light rises over the trees. Break one with others before its waves overrun you."
-msgstr "Karanlık Metin Taşları batı ormanlarına düşer: Borin'in kulübesinin ötesindeki Orman Kıyısı'na, onun da ötesindeki Akromantula Çalılığı'na, kuzeybatıdaki Kapkaççı Korusu'na ve çok batıdaki Mahzen Çukuru'na. Yaklaşınca ağaçların üstünde yeşil bir ışık yükselir. Dalgaları seni ezmeden önce diğerleriyle birlikte birini kır."
+msgid "The Ash Priest drags darkened star shards out of the Void and they fall in the western forests: at the Forest Edge past Borin's hut, in the Weaver Thicket beyond it, in Bandit Woods to the north-west and in Crypt Hollow far to the west. Close by, a green light rises over the trees. Break one with others before its waves overrun you."
+msgstr "Kül Rahibi kararmış yıldız kırıklarını Boşluk'tan çekiyor ve bunlar batı ormanlarına düşüyor: Borin'in kulübesinin ötesindeki Orman Kıyısı'na, onun ötesindeki Ağcı Çalılığı'na, kuzeybatıdaki Haydut Ormanı'na ve çok batıdaki Mahzen Çukuru'na. Yakındaysan ağaçların üstünde yeşil bir ışık yükselir. Dalgaları seni ezmeden önce başkalarıyla birlikte birini kır."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "The Trial Hall"
@@ -6305,7 +6285,7 @@ msgstr "Sınav Salonu geçidi, avlunun çimenliğinde göl yolunun yanındaki pa
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "A Wand Worth Keeping"
-msgstr "Saklamaya Değer Bir Asa"
+msgstr "Saklanmaya Değer Bir Asa"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Equip the Runebound Walnut Wand"
@@ -6316,72 +6296,72 @@ msgid "Your new wand rolls a far higher Attack and Magic Attack Value. Equip it 
 msgstr "Yeni asanın Saldırı ve Büyü Saldırı Değeri çok daha yüksek. Onu çantandan kuşan."
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Snatchers on the Road"
-msgstr "Yoldaki Kapkaççılar"
+msgid "Bandits on the Road"
+msgstr "Yoldaki Kara Haydutlar"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 10 Snatchers"
-msgstr "10 Kapkaççı alt et"
+msgid "Defeat 10 Bandits"
+msgstr "10 Haydut alt et"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Snatchers waylay travellers on the Hogsmeade Road. They cast back - keep your distance."
-msgstr "Kapkaççılar Hogsmeade Yolu'nda yolcuların yolunu kesiyor. Karşılık büyü yaparlar - mesafeni koru."
+msgid "Bandits waylay travellers on the Orvell Road. They cast back - keep your distance."
+msgstr "Haydutlar Orvell Yolu'nda yolcuların yolunu kesiyor. Karşılık büyü yaparlar - mesafeni koru."
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "The Three Broomsticks"
-msgstr "Üç Süpürge"
+msgid "The Red Lantern"
+msgstr "Kızıl Fener Hanı"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Speak with Madam Rosmerta in Hogsmeade"
-msgstr "Hogsmeade'de Madam Rosmerta ile konuş"
+msgid "Speak with Bessa Tull in Orvell"
+msgstr "Orvell'de Hancı Bessa Tull ile konuş"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Fly east along the Hogsmeade Road. Madam Rosmerta knows every rumour in the valley."
-msgstr "Hogsmeade Yolu boyunca doğuya uç. Madam Rosmerta vadideki her söylentiyi bilir."
+msgid "Fly east along the Orvell Road. Bessa Tull knows every rumour in the valley."
+msgstr "Orvell Yolu boyunca doğuya uç. Hancı Bessa Tull vadideki her söylentiyi bilir."
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 15 Acromantulas"
-msgstr "15 Akromantula alt et"
+msgid "Defeat 15 Black Weavers"
+msgstr "15 Kara Ağcı alt et"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "The woods behind the Quidditch Pitch are thick with webs."
-msgstr "Quidditch Sahası'nın arkasındaki koru ağlarla dolu."
+msgid "The woods behind the Skyring Pitch are thick with webs."
+msgstr "Gökhalka Meydanı'nın arkasındaki koru ağlarla dolu."
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 15 Inferi"
-msgstr "15 Inferius alt et"
+msgid "Defeat 15 Drowned Ones"
+msgstr "15 Boğulmuş Ölü alt et"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Inferi crawl out of the Black Lake at the Lakeside Glade."
-msgstr "Inferius'lar Göl Kıyısı Açıklığı'nda Kara Göl'den sürünerek çıkıyor."
+msgid "Drowned Ones crawl out of Lake Lunra at the Lakeside Glade."
+msgstr "Boğulmuş Ölüler Göl Kıyısı Açıklığı'nda Lunra Gölü'nden sürünerek çıkıyor."
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 14 Snatchers"
-msgstr "14 Kapkaççı alt et"
+msgid "Defeat 14 Bandits"
+msgstr "14 Haydut alt et"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "The snatchers have a camp in the woods north-west of the castle. Drive them out."
-msgstr "Kapkaççıların kalenin kuzeybatısındaki ormanda bir kampı var. Onları oradan sür."
+msgid "The bandits have a camp in the woods north-west of the castle. Drive them out."
+msgstr "Haydutların kalenin kuzeybatısındaki ormanda bir kampı var. Onları oradan sür."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Survey the Lake"
-msgstr "Gölü Keşfet"
+msgstr "Lunra'yı Gözle"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Visit the Lakeside Glade"
 msgstr "Göl Kıyısı Açıklığı'nı ziyaret et"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Borin wants to know how far the Inferi have spread along the shore."
-msgstr "Borin, Inferius'ların kıyı boyunca ne kadar yayıldığını bilmek istiyor."
+msgid "Borin wants to know how far the Drowned Ones have spread along the shore."
+msgstr "Borin, Boğulmuş Ölülerin kıyı boyunca ne kadar yayıldığını bilmek istiyor."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Webs in the Glade"
 msgstr "Açıklıktaki Ağlar"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 18 Acromantulas"
-msgstr "18 Akromantula alt et"
+msgid "Defeat 18 Black Weavers"
+msgstr "18 Kara Ağcı alt et"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Spiders and dead share the Lakeside Glade now. Clear the spiders first."
@@ -6396,40 +6376,40 @@ msgid "Refine any item twice"
 msgstr "Herhangi bir eşyayı iki kez yükselt"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Ollivander can refine cloaks, accessories and brooms as well as wands."
-msgstr "Ollivander asaların yanı sıra pelerinleri, takıları ve süpürgeleri de yükseltebilir."
+msgid "Kestrin can refine cloaks, accessories and brooms as well as wands."
+msgstr "Kestrin asaların yanı sıra pelerinleri, takıları ve süpürgeleri de yükseltebilir."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Breaking the Ring"
-msgstr "Çeteyi Dağıtmak"
+msgstr "Halkayı Kırmak"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 18 Snatchers"
-msgstr "18 Kapkaççı alt et"
+msgid "Defeat 18 Bandits"
+msgstr "18 Haydut alt et"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Rosmerta has heard the snatchers answer to a captain. Weaken them before he moves."
-msgstr "Rosmerta, kapkaççıların bir kaptana bağlı olduğunu duymuş. O harekete geçmeden onları zayıflat."
+msgid "Bessa has heard the bandits answer to a captain. Weaken them before he moves."
+msgstr "Bessa, haydutların bir kaptana bağlı olduğunu duymuş. O harekete geçmeden onları zayıflat."
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 18 Inferi"
-msgstr "18 Inferius alt et"
+msgid "Defeat 18 Drowned Ones"
+msgstr "18 Boğulmuş Ölü alt et"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Deeper in the forest an old crypt has opened. The Inferi pour out of Crypt Hollow."
-msgstr "Ormanın derinliklerinde eski bir mahzen açıldı. Inferius'lar Mahzen Çukuru'ndan akın ediyor."
+msgid "Deeper in the forest an old crypt has opened. The Drowned Ones pour out of Crypt Hollow."
+msgstr "Ormanın derinliklerinde eski bir mahzen açıldı. Boğulmuş Ölüler Mahzen Çukuru'ndan akın ediyor."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Records of the Crypt"
-msgstr "Mahzenin Kayıtları"
+msgstr "Mahzen Kayıtları"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Speak with Madam Pince"
-msgstr "Madam Pince ile konuş"
+msgid "Speak with Archivist Emrel Sav"
+msgstr "Arşivci Emrel Sav ile konuş"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Madam Pince keeps the records of every grave on the grounds. She waits at the castle approach."
-msgstr "Madam Pince arazideki her mezarın kaydını tutar. Şato yolunda bekliyor."
+msgid "Archivist Emrel Sav keeps the records of every grave in the valley - and one old entry names the Ash Priest, who once tried to open the gate of Morhal. She waits at the castle approach."
+msgstr "Arşivci Emrel Sav vadideki her mezarın kaydını tutar ve eski bir kayıtta bir ad geçiyor: bir zamanlar Morhal'in kapısını açmaya çalışan Kül Rahibi. Kale yolunda bekliyor."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Defeat 6 Forest Trolls"
@@ -6441,27 +6421,27 @@ msgstr "Orman trolleri ağır ve yavaş vurur. Yere vuruşu gözle ve yolundan �
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Sealing the Crypt"
-msgstr "Mahzeni Mühürlemek"
+msgstr "Mahzeni Mühürle"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 20 Inferi"
-msgstr "20 Inferius alt et"
+msgid "Defeat 20 Drowned Ones"
+msgstr "20 Boğulmuş Ölü alt et"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Keep the Inferi in Crypt Hollow from reaching the forest paths."
-msgstr "Mahzen Çukuru'ndaki Inferius'ların orman yollarına ulaşmasını engelle."
+msgid "Keep the Drowned Ones in Crypt Hollow from reaching the forest paths."
+msgstr "Mahzen Çukuru'ndaki Boğulmuş Ölülerin orman yollarına ulaşmasını engelle."
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 16 Snatchers"
-msgstr "16 Kapkaççı alt et"
+msgid "Defeat 16 Bandits"
+msgstr "16 Haydut alt et"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "The snatchers fell back into the Dark Thicket, far to the west."
-msgstr "Kapkaççılar çok batıdaki Karanlık Çalılık'a çekildi."
+msgid "The bandits fell back into the Dark Thicket, far to the west."
+msgstr "Haydutlar çok batıdaki Karanlık Çalılık'a çekildi."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Hollow Drums"
-msgstr "Çukurdaki Davullar"
+msgstr "Oyuktaki Davullar"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Defeat 10 Forest Trolls"
@@ -6472,8 +6452,8 @@ msgid "The trolls beat drums every night. Silence them."
 msgstr "Troller her gece davul çalıyor. Onları sustur."
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 20 Acromantulas"
-msgstr "20 Akromantula alt et"
+msgid "Defeat 20 Black Weavers"
+msgstr "20 Kara Ağcı alt et"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Larger spiders hunt in the Spider Woods; something is feeding them."
@@ -6484,8 +6464,8 @@ msgid "The Southern Barrows"
 msgstr "Güney Höyükleri"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 22 Inferi"
-msgstr "22 Inferius alt et"
+msgid "Defeat 22 Drowned Ones"
+msgstr "22 Boğulmuş Ölü alt et"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "The barrows south of the lake have broken open."
@@ -6500,32 +6480,32 @@ msgid "Scout the Smugglers' Camp"
 msgstr "Kaçakçı Kampı'nı keşfet"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Find the snatcher captain's camp deep in the northern woods, past Snatcher Woods. Do not engage alone."
-msgstr "Kapkaççı kaptanının kampını kuzey ormanlarının derinliklerinde, Kapkaççı Korusu'nun ötesinde bul. Tek başına saldırma."
+msgid "Find the bandit captain's camp deep in the northern woods, past Bandit Woods. Do not engage alone."
+msgstr "Haydut kaptanının kampını kuzey ormanlarının derinliklerinde, Haydut Ormanı'nın ötesinde bul. Tek başına saldırma."
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "The Snatcher Captain"
-msgstr "Kapkaççı Kaptanı"
+msgid "The Bandit Chief"
+msgstr "Haydutbaşı"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Defeat the captain at the Smugglers' Camp"
 msgstr "Kaçakçı Kampı'ndaki kaptanı alt et"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Gather friends and defeat the Snatcher Captain in his camp."
-msgstr "Arkadaşlarını topla ve Kapkaççı Kaptanı'nı kendi kampında alt et."
+msgid "Gather friends and defeat the Bandit Chief in his camp."
+msgstr "Arkadaşlarını topla ve Haydutbaşı'yı kendi kampında alt et."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Last of the Hollow"
-msgstr "Çukurun Sonuncuları"
+msgstr "Oyuğun Sonuncusu"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Without the snatchers' coin the trolls of the hollow will scatter. Finish them."
-msgstr "Kapkaççıların parası olmadan çukurun trolleri dağılacak. İşlerini bitir."
+msgid "Without the bandits' coin the trolls of the hollow will scatter. Finish them."
+msgstr "Haydutların parası olmadan çukurun trolleri dağılacak. İşlerini bitir."
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 20 Snatchers"
-msgstr "20 Kapkaççı alt et"
+msgid "Defeat 20 Bandits"
+msgstr "20 Haydut alt et"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "The captain's men fled up the Ridge Path. Hunt them down."
@@ -6536,20 +6516,20 @@ msgid "Barrow Watch"
 msgstr "Höyük Nöbeti"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 24 Inferi"
-msgstr "24 Inferius alt et"
+msgid "Defeat 24 Drowned Ones"
+msgstr "24 Boğulmuş Ölü alt et"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Hold the Southern Barrows while Madam Pince searches her records."
-msgstr "Madam Pince kayıtlarını ararken Güney Höyükleri'ni tut."
+msgid "Hold the Southern Barrows while Archivist Emrel Sav searches her records."
+msgstr "Arşivci Emrel Sav kayıtlarını ararken Güney Höyükleri'ni tut."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Brood of the Woods"
-msgstr "Korunun Kuluçkası"
+msgstr "Ormanın Yavruları"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 22 Acromantulas"
-msgstr "22 Akromantula alt et"
+msgid "Defeat 22 Black Weavers"
+msgstr "22 Kara Ağcı alt et"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Every spider in the Spider Woods answers to one mother."
@@ -6561,35 +6541,35 @@ msgstr "Kaynak batıdaki Mahzen Kapısı. Çevresindeki ölüleri seyrelt."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Weaving for War"
-msgstr "Savaş İçin Efsun"
+msgstr "Savaş İçin Dokuma"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Enchant items twice"
 msgstr "Eşyalara iki kez efsun bas"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Ollivander says no one should face the Matriarch with bare robes."
-msgstr "Ollivander, kimsenin Ana'nın karşısına efsunsuz cüppeyle çıkmaması gerektiğini söylüyor."
+msgid "Kestrin says no one should face the Black Widow with bare robes."
+msgstr "Kestrin, kimsenin Ana'nın karşısına efsunsuz cüppeyle çıkmaması gerektiğini söylüyor."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Ridge Ambush"
-msgstr "Sırt Pususu"
+msgstr "Sırtta Pusu"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 22 Snatchers"
-msgstr "22 Kapkaççı alt et"
+msgid "Defeat 22 Bandits"
+msgstr "22 Haydut alt et"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "The snatchers ambush anyone who climbs the Ridge Path."
-msgstr "Kapkaççılar Sırt Yolu'na tırmanan herkese pusu kuruyor."
+msgid "The bandits ambush anyone who climbs the Ridge Path."
+msgstr "Haydutlar Sırt Yolu'na tırmanan herkese pusu kuruyor."
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "The Matriarch's Guard"
-msgstr "Ana'nın Muhafızları"
+msgid "The Black Widow's Guard"
+msgstr "Kara Dul'un Muhafızları"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 26 Acromantulas"
-msgstr "26 Akromantula alt et"
+msgid "Defeat 26 Black Weavers"
+msgstr "26 Kara Ağcı alt et"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Clear the spiders that guard the way to Spider Hollow."
@@ -6600,44 +6580,44 @@ msgid "Find Spider Hollow"
 msgstr "Örümcek Çukuru'nu bul"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "The Matriarch nests in Spider Hollow in the far south-west, beyond the Spider Woods."
+msgid "The Black Widow nests in Spider Hollow in the far south-west, beyond the Spider Woods."
 msgstr "Ana, uzak güneybatıda, Örümcek Korusu'nun ötesindeki Örümcek Çukuru'nda yuvalanıyor."
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "The Matriarch"
-msgstr "Ana"
+msgid "The Black Widow"
+msgstr "Kara Dul"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat the Acromantula Matriarch"
-msgstr "Akromantula Anası'nı alt et"
+msgid "Defeat the Black Widow"
+msgstr "Kara Dul'u alt et"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Bring a party. The Matriarch's bite poisons and her brood answers her call."
+msgid "Bring a party. The Black Widow's bite poisons and her brood answers her call."
 msgstr "Bir grup getir. Ana'nın ısırığı zehirler ve kuluçkası çağrısına karşılık verir."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Gate of Bones"
-msgstr "Kemik Kapısı"
+msgstr "Kemik Kapı"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 26 Inferi"
-msgstr "26 Inferius alt et"
+msgid "Defeat 26 Drowned Ones"
+msgstr "26 Boğulmuş Ölü alt et"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "With the Matriarch gone, Madam Pince can finally seal the Crypt Gate."
-msgstr "Ana gittiğine göre Madam Pince sonunda Mahzen Kapısı'nı mühürleyebilir."
+msgid "With the Black Widow gone, Archivist Emrel Sav can finally seal the Crypt Gate."
+msgstr "Ana gittiğine göre Arşivci Emrel Sav sonunda Mahzen Kapısı'nı mühürleyebilir."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "The Forge's Fire"
-msgstr "Atölyenin Ateşi"
+msgstr "Körüğün Ateşi"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Refine any item three times"
 msgstr "Herhangi bir eşyayı üç kez yükselt"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "The moors are harder still. Ollivander will not let you go up there half-made."
-msgstr "Bozkırlar daha da zorlu. Ollivander oraya yarım hazırlıkla gitmene izin vermeyecek."
+msgid "The moors are harder still. Kestrin will not let you go up there half-made."
+msgstr "Bozkırlar daha da zorlu. Kestrin oraya yarım hazırlıkla gitmene izin vermeyecek."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Defeat 12 Forest Trolls"
@@ -6649,15 +6629,15 @@ msgstr "Orman trolleri Batı Bozkırı'na tırmandı."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Moorland Orders"
-msgstr "Bozkır Emirleri"
+msgstr "Bozkır Buyrukları"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Speak with Professor Flitwick"
-msgstr "Profesör Flitwick ile konuş"
+msgid "Speak with Flight Master Kaelen Rook"
+msgstr "Uçuş Ustası Kaelen Rook ile konuş"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Flitwick is organising the students who go up to the moors."
-msgstr "Flitwick bozkırlara çıkan öğrencileri örgütlüyor."
+msgid "Kaelen Rook is organising the students who go up to the moors."
+msgstr "Kaelen Rook bozkırlara çıkan öğrencileri örgütlüyor."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Trolls on the Heath"
@@ -6668,16 +6648,16 @@ msgid "Push the forest trolls off the Western Moor."
 msgstr "Orman trollerini Batı Bozkırı'ndan püskürt."
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "The heights above Hogsmeade are crawling with dark wizards."
-msgstr "Hogsmeade'in üzerindeki tepeler kara büyücülerle kaynıyor."
+msgid "The heights above Orvell are crawling with dark wizards."
+msgstr "Orvell'in üzerindeki tepeler kara büyücülerle kaynıyor."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Watchers on the Heights"
-msgstr "Tepelerdeki Gözcüler"
+msgstr "Sırttaki Gözcüler"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 24 Snatchers"
-msgstr "24 Kapkaççı alt et"
+msgid "Defeat 24 Bandits"
+msgstr "24 Haydut alt et"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "They are watching the village. Make them stop."
@@ -6685,15 +6665,15 @@ msgstr "Köyü gözetliyorlar. Bunu bırakmalarını sağla."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Clearing the Heights"
-msgstr "Tepeleri Temizlemek"
+msgstr "Sırtları Temizle"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 26 Snatchers"
-msgstr "26 Kapkaççı alt et"
+msgid "Defeat 26 Bandits"
+msgstr "26 Haydut alt et"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "One last push and Hogsmeade can sleep again."
-msgstr "Son bir hamle ve Hogsmeade yeniden uyuyabilir."
+msgid "One last push and Orvell can sleep again."
+msgstr "Son bir hamle ve Orvell yeniden uyuyabilir."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "The Highland Moor"
@@ -6721,7 +6701,7 @@ msgstr "Dağ trolleri yumruk kadar kaya da fırlatır. Hareket etmeye devam et."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Boulder Throwers"
-msgstr "Kaya Fırlatanlar"
+msgstr "Kaya Atanlar"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Defeat 10 Mountain Trolls"
@@ -6736,28 +6716,28 @@ msgid "Out of Bounds"
 msgstr "Yasak Bölge"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Speak with Madam Pince about the third floor"
-msgstr "Üçüncü kat hakkında Madam Pince ile konuş"
+msgid "Speak with Archivist Emrel Sav about the sealed wing"
+msgstr "Üçüncü kat hakkında Arşivci Emrel Sav ile konuş"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Madam Pince has found a note: the third-floor corridor is out of bounds - and guarded."
-msgstr "Madam Pince bir not buldu: üçüncü kat koridoruna girmek yasak - ve korunuyor."
+msgid "Archivist Emrel Sav has found a note: the sealed wing hides a piece of an old gate to another realm - and it is guarded."
+msgstr "Arşivci Emrel Sav bir not buldu: mühürlü kanat, başka bir diyara açılan eski bir kapının parçasını saklıyor ve korunuyor."
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Pests of the Third Floor"
-msgstr "Üçüncü Katın Baş Belaları"
+msgid "Pests of the Sealed Wing"
+msgstr "Mühürlü Kanadın Belaları"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 8 Cornish Pixies"
-msgstr "8 Cornwall Cini alt et"
+msgid "Defeat 8 Fidgetlings"
+msgstr "8 Kıpırcık alt et"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Enter the Forbidden Corridor from the castle. The pixies swarm and lift you off your feet."
-msgstr "Şatodan Yasak Koridor'a gir. Cinler sürüyle saldırır ve seni yerden kaldırır."
+msgid "Enter the Sealed Wing from the castle. The fidgetlings swarm and lift you off your feet."
+msgstr "Şatodan Mühürlü Kanat'a gir. Kıpırcıklar sürüyle saldırır ve seni yerden kaldırır."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Living Armour"
-msgstr "Canlı Zırh"
+msgstr "Yaşayan Zırh"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Defeat 6 Suits of Armour"
@@ -6780,56 +6760,52 @@ msgid "The commander of the armour stands at the corridor's first gate."
 msgstr "Zırhların komutanı koridorun ilk kapısında duruyor."
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Burn the root of the Devil's Snare"
-msgstr "Şeytan Kapanı'nın kökünü yak"
+msgid "Burn the root of the Strangling Vine"
+msgstr "Boğan Sarmaşıkın kökünü yak"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Fire is the answer. Burn the vines, then the root."
 msgstr "Çözüm ateş. Önce sarmaşıkları, sonra kökü yak."
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "More Pixies"
-msgstr "Daha Fazla Cin"
+msgid "More Fidgetlings"
+msgstr "Yine Kıpırcıklar"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 10 Cornish Pixies"
-msgstr "10 Cornwall Cini alt et"
+msgid "Defeat 10 Fidgetlings"
+msgstr "10 Kıpırcık alt et"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "The pixies on the stairs beyond the snare are worse than the first lot."
-msgstr "Kapanın ötesindeki merdivendeki cinler ilk gruptan da beter."
+msgid "The fidgetlings on the stairs beyond the snare are worse than the first lot."
+msgstr "Kapanın ötesindeki merdivendeki kıpırcıklar ilk gruptan da beter."
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "The Three-Headed Dog"
-msgstr "Üç Başlı Köpek"
+msgid "Defeat Threehead"
+msgstr "Üçbaş'ı alt et"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat Fluffy"
-msgstr "Fluffy'yi alt et"
-
-#: addons/hpmmo_sim/data/quests.json
-msgid "Use the harp to lull the heads to sleep, then strike while they doze."
-msgstr "Başları uyutmak için arpı kullan, sonra onlar uyuklarken vur."
+msgid "Ring the sleep chime to lull the heads, then strike while they doze."
+msgstr "Başları uyutmak için uyku çanını çal, sonra onlar uyuklarken vur."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "The Corridor Cleared"
-msgstr "Koridor Temizlendi"
+msgstr "Kanat Temizlendi"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Complete the Forbidden Corridor"
-msgstr "Yasak Koridor'u tamamla"
+msgid "Complete the Sealed Wing"
+msgstr "Mühürlü Kanat'ı tamamla"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Run the corridor from the pixies to the trapdoor in one go."
-msgstr "Koridoru cinlerden kapağa kadar tek seferde geç."
+msgid "Run the corridor from the fidgetlings to the stone hatch in one go."
+msgstr "Koridoru kıpırcıklardan taş kapağa kadar tek seferde geç."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "A Wand for the Storm"
 msgstr "Fırtına İçin Bir Asa"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Ollivander has finished a wand worthy of what comes next."
-msgstr "Ollivander, sırada olanlara layık bir asayı bitirdi."
+msgid "Kestrin has finished a wand worthy of what comes next."
+msgstr "Kestrin, sırada olanlara layık bir asayı bitirdi."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Defeat 12 Mountain Trolls"
@@ -6849,7 +6825,7 @@ msgstr "Kara büyücüler Doğu Bozkırı'nda trollerle birlikte yürüyor."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "The Troll Muster"
-msgstr "Trol Toplanması"
+msgstr "Trollerin Toplanışı"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Defeat 14 Mountain Trolls"
@@ -6864,32 +6840,32 @@ msgid "Storm Riders"
 msgstr "Fırtına Binicileri"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 28 Snatchers"
-msgstr "28 Kapkaççı alt et"
+msgid "Defeat 28 Bandits"
+msgstr "28 Haydut alt et"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "The dark wizards ride the storm clouds over the moor."
 msgstr "Kara büyücüler bozkırın üzerindeki fırtına bulutlarına biniyor."
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Phoenix Weave"
-msgstr "Anka Efsunu"
+msgid "Velkar Weave"
+msgstr "Velkar Dokuması"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Enchant items three times"
 msgstr "Eşyalara üç kez efsun bas"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "A Phoenix Regalia deserves its weave. Make the most of it."
-msgstr "Bir Anka Giysisi efsunu hak eder. En iyisini çıkar."
+msgid "A Velkar Regalia deserves its weave. Make the most of it."
+msgstr "Bir Velkar Kaftanı efsunu hak eder. En iyisini çıkar."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Climb to the Stone Circle Summit"
 msgstr "Taş Çember Zirvesi'ne tırman"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Grak, the Mountain Troll Chieftain, waits at the summit."
-msgstr "Dağ Trolü Reisi Grak zirvede bekliyor."
+msgid "Grak, the Mountain Troll Chieftain, waits at the summit, where his clans worship a fallen Dark Shard."
+msgstr "Dağ Trollerinin Reisi Grak, obalarının düşmüş bir Kara Kırık'a taptığı tepede bekliyor."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Grak the Chieftain"
@@ -6928,44 +6904,44 @@ msgid "Stones Still Standing"
 msgstr "Hâlâ Ayakta Duran Taşlar"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Destroy a Dark Monolith or a Webbound Seal Stone"
-msgstr "Bir Karanlık Metin Taşı ya da Ağbağlı Mühür Taşı yok et"
+msgid "Destroy a Dark Shard or a Webbound Seal Stone"
+msgstr "Bir Kara Kırık ya da Ağ Mühür Taşı yok et"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Grak is gone, but the stones keep falling. Break a Dark Monolith in the western forests or a Webbound Seal Stone in the Blackweb Caverns, with others."
-msgstr "Grak gitti ama taşlar düşmeye devam ediyor. Diğerleriyle birlikte batı ormanlarında bir Karanlık Metin Taşı ya da Karaağ Mağaraları'nda bir Ağbağlı Mühür Taşı kır."
+msgid "Grak is gone, but the Ash Priest keeps pulling shards down. Break a Dark Shard in the western forests or a Webbound Seal Stone in the Blackweb Caverns, with others."
+msgstr "Grak gitti ama Kül Rahibi kırıkları düşürmeye devam ediyor. Batı ormanlarında bir Kara Kırık'ı ya da Karaağ Mağaraları'nda bir Ağ Mühür Taşı'nı başkalarıyla birlikte kır."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Masterwork"
 msgstr "Ustalık İşi"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Dementors are coming. Ollivander wants every piece you own at its best."
-msgstr "Ruh Emiciler geliyor. Ollivander sahip olduğun her parçanın en iyi halinde olmasını istiyor."
+msgid "Pallids are coming. Kestrin wants every piece you own at its best."
+msgstr "Solgunlar geliyor. Kestrin sahip olduğun her parçanın en iyi halinde olmasını istiyor."
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Speak with Professor Fig about the Patronus"
-msgstr "Patronus hakkında Profesör Fig ile konuş"
+msgid "Speak with Master Teral Venn about the Light of Ithrel"
+msgstr "Ithrel Işığı hakkında Üstat Teral Venn ile konuş"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Professor Fig says Dementors fear nothing but the Patronus Charm. Learn Expecto Patronum in your spell book (V) - it opens at level 40."
-msgstr "Profesör Fig, Ruh Emicilerin Patronus Tılsımı'ndan başka hiçbir şeyden korkmadığını söylüyor. Expecto Patronum'u büyü kitabından (V) öğren - 40. seviyede açılır."
+msgid "Master Teral Venn says Pallids fear nothing but the Light of Ithrel, a guardian spirit drawn from the World-Star's light. Learn it in your spell book (V) - it opens at level 40."
+msgstr "Üstat Teral Venn, Solgunların Dünya Yıldızı'nın ışığından doğan koruyucu ruh Ithrel Işığı'ndan başka hiçbir şeyden korkmadığını söylüyor. Onu büyü kitabından (V) öğren; 40. seviyede açılır."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "The Misty Shore"
 msgstr "Sisli Kıyı"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 10 Dementors"
-msgstr "10 Ruh Emici alt et"
+msgid "Defeat 10 Pallids"
+msgstr "10 Solgun alt et"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Dementors drift in from the Misty Shore. Their aura stops your health from recovering."
-msgstr "Ruh Emiciler Sisli Kıyı'dan süzülüyor. Auraları canının yenilenmesini durdurur."
+msgid "Pallids drift in from the Misty Shore. Their aura stops your health from recovering."
+msgstr "Solgunlar Sisli Kıyı'dan süzülüyor. Auraları canının yenilenmesini durdurur."
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 12 Dementors"
-msgstr "12 Ruh Emici alt et"
+msgid "Defeat 12 Pallids"
+msgstr "12 Solgun alt et"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "The old station is lost in the mist."
@@ -6976,8 +6952,8 @@ msgid "Cold Platform"
 msgstr "Soğuk Peron"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 12 more Dementors"
-msgstr "12 Ruh Emici daha alt et"
+msgid "Defeat 12 more Pallids"
+msgstr "12 Solgun daha alt et"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Hold the platform until the mist lifts."
@@ -6988,8 +6964,8 @@ msgid "Shoreline Vigil"
 msgstr "Kıyı Nöbeti"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 14 Dementors"
-msgstr "14 Ruh Emici alt et"
+msgid "Defeat 14 Pallids"
+msgstr "14 Solgun alt et"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Keep the Misty Shore clear for the boats."
@@ -7000,8 +6976,8 @@ msgid "Warmth Against the Cold"
 msgstr "Soğuğa Karşı Sıcaklık"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Ollivander has a theory about weaves that resist despair."
-msgstr "Ollivander'ın umutsuzluğa direnen efsunlar hakkında bir teorisi var."
+msgid "Kestrin has a theory about weaves that resist despair."
+msgstr "Kestrin'in umutsuzluğa direnen efsunlar hakkında bir teorisi var."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "South of the castle the Fog Barrens have swallowed the road."
@@ -7021,11 +6997,11 @@ msgstr "Diğerleri takip edebilsin diye sisin sınırını işaretle."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Shades of the Barrens"
-msgstr "Çorakların Gölgeleri"
+msgstr "Çoraktaki Gölgeler"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 16 Dementors"
-msgstr "16 Ruh Emici alt et"
+msgid "Defeat 16 Pallids"
+msgstr "16 Solgun alt et"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "The deeper you go, the colder it gets."
@@ -7036,44 +7012,44 @@ msgid "Lights in the Fog"
 msgstr "Sisteki Işıklar"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 16 more Dementors"
-msgstr "16 Ruh Emici daha alt et"
+msgid "Defeat 16 more Pallids"
+msgstr "16 Solgun daha alt et"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Every Patronus you cast lights the way for someone else."
-msgstr "Yaptığın her Patronus bir başkasının yolunu aydınlatır."
+msgid "Every Light of Ithrel you cast lights the way for someone else."
+msgstr "Yaptığın her Ithrel Işığı bir başkasının yolunu aydınlatır."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "The Grey Marsh is where the mist begins."
-msgstr "Sis Gri Bataklık'ta başlıyor."
+msgstr "Sis Boz Bataklık'ta başlıyor."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "The Last Polish"
-msgstr "Son Rötuş"
+msgstr "Son Cila"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Ollivander wants one more look at your gear before the end."
-msgstr "Ollivander sondan önce ekipmanına bir kez daha bakmak istiyor."
+msgid "Kestrin wants one more look at your gear before the end."
+msgstr "Kestrin sondan önce ekipmanına bir kez daha bakmak istiyor."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Marsh Wardens"
-msgstr "Bataklık Muhafızları"
+msgstr "Bataklık Bekçileri"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 18 Dementors"
-msgstr "18 Ruh Emici alt et"
+msgid "Defeat 18 Pallids"
+msgstr "18 Solgun alt et"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Dementors circle a barrow at the far end of the marsh."
-msgstr "Ruh Emiciler bataklığın uzak ucundaki bir höyüğün etrafında dönüyor."
+msgid "Pallids circle a barrow at the far end of the marsh."
+msgstr "Solgunlar bataklığın uzak ucundaki bir höyüğün etrafında dönüyor."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Breaking the Circle"
 msgstr "Çemberi Kırmak"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 18 more Dementors"
-msgstr "18 Ruh Emici daha alt et"
+msgid "Defeat 18 more Pallids"
+msgstr "18 Solgun daha alt et"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Break their circle and the barrow is exposed."
@@ -7081,11 +7057,11 @@ msgstr "Çemberlerini kır, höyük açığa çıksın."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "The Cold Heart"
-msgstr "Soğuk Kalp"
+msgstr "Soğuk Yürek"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 20 Dementors"
-msgstr "20 Ruh Emici alt et"
+msgid "Defeat 20 Pallids"
+msgstr "20 Solgun alt et"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Something at the heart of the marsh calls them."
@@ -7096,16 +7072,16 @@ msgid "Find Warden's Barrow"
 msgstr "Muhafız Höyüğü'nü bul"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "The Azkaban Warden sleeps in a barrow in the marsh."
-msgstr "Azkaban Gardiyanı bataklıktaki bir höyükte uyuyor."
+msgid "The Morhal Warden sleeps in a barrow in the marsh."
+msgstr "Morhal Bekçisi bataklıktaki bir höyükte uyuyor."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Before the Storm"
 msgstr "Fırtınadan Önce"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat 22 Dementors"
-msgstr "22 Ruh Emici alt et"
+msgid "Defeat 22 Pallids"
+msgstr "22 Solgun alt et"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Clear the way to the barrow for your party."
@@ -7116,16 +7092,16 @@ msgid "Final Preparations"
 msgstr "Son Hazırlıklar"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Speak with Professor Fig"
-msgstr "Profesör Fig ile konuş"
+msgid "Speak with Master Teral Venn"
+msgstr "Üstat Teral Venn ile konuş"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Professor Fig has one last piece of advice before you face the Warden."
-msgstr "Gardiyanla yüzleşmeden önce Profesör Fig'in son bir tavsiyesi var."
+msgid "Master Teral Venn has one last piece of advice before you face the Warden of Morhal, the jailer the Ash Priest turned to his side."
+msgstr "Morhal Bekçisi'nin, yani Kül Rahibi'nin kendi tarafına çektiği o gardiyanın karşısına çıkmadan önce Üstat Teral Venn'in sana son bir öğüdü var."
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Defeat the Azkaban Warden"
-msgstr "Azkaban Gardiyanı'nı alt et"
+msgid "Defeat the Morhal Warden"
+msgstr "Morhal Bekçisi'ni alt et"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Gather your strongest friends. The Warden drains hope itself."
@@ -7136,16 +7112,16 @@ msgid "Graduation"
 msgstr "Mezuniyet"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Report your victory to Professor Fig"
-msgstr "Zaferini Profesör Fig'e bildir"
+msgid "Report your victory to Master Teral Venn"
+msgstr "Zaferini Üstat Teral Venn'e bildir"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "The valley is safe - for now. Professor Fig is waiting to congratulate you."
-msgstr "Vadi güvende - şimdilik. Profesör Fig seni tebrik etmek için bekliyor."
+msgid "The valley is safe - for now. The Ash Priest has fled through a rift into another realm. Master Teral Venn is waiting to congratulate you."
+msgstr "Vadi şimdilik güvende. Kül Rahibi bir yarıktan başka bir diyara kaçtı. Üstat Teral Venn seni tebrik etmek için bekliyor."
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Quidditch Pitch"
-msgstr "Quidditch Sahası"
+msgid "Skyring Pitch"
+msgstr "Gökhalka Meydanı"
 
 #: addons/hpmmo_sim/data/combat.json
 msgid "Spell Power"
@@ -7260,8 +7236,8 @@ msgid "Experience Gained"
 msgstr "Kazanılan Tecrübe"
 
 #: addons/hpmmo_sim/data/combat.json
-msgid "Galleons Found"
-msgstr "Bulunan Galleon"
+msgid "Oril Found"
+msgstr "Bulunan Oril"
 
 #: addons/hpmmo_sim/data/combat.json
 msgid "Item Drop Chance"
@@ -7301,23 +7277,23 @@ msgstr "Puan başına %0,4 Saldırı Hızı ve %0,1 Kritik Vuruş Şansı"
 
 #: addons/hpmmo_sim/data/combat.json
 msgid "Initiate"
-msgstr "Acemi"
+msgstr "Çaylak"
 
 #: addons/hpmmo_sim/data/combat.json
 msgid "Novice"
-msgstr "Çömez"
+msgstr "Çırak"
 
 #: addons/hpmmo_sim/data/combat.json
 msgid "Adept"
-msgstr "Ehil"
+msgstr "Kalfa"
 
 #: addons/hpmmo_sim/data/combat.json
-msgid "Prefect"
-msgstr "Sınıf Başkanı"
+msgid "Sentinel"
+msgstr "Gözcü"
 
 #: addons/hpmmo_sim/data/combat.json
-msgid "Head Prefect"
-msgstr "Okul Başkanı"
+msgid "House Captain"
+msgstr "Hane Başı"
 
 #: addons/hpmmo_sim/data/combat.json
 msgid "Champion"
@@ -7332,20 +7308,36 @@ msgid "Bravery: +15% Fire Spell Damage & +10% Critical Strike Chance"
 msgstr "Cesaret: +%15 Ateş Büyüsü Hasarı ve +%10 Kritik Vuruş Şansı"
 
 #: data/json/houses.json
+msgid "From my ashes I rise again."
+msgstr "Küllerimden yine doğarım."
+
+#: data/json/houses.json
 msgid "Ambition: +20% Dark Magic Damage & 10% Life Leech on Hit"
 msgstr "Hırs: +%20 Kara Büyü Hasarı ve vuruşta %10 Can Emme"
+
+#: data/json/houses.json
+msgid "Knowledge runs deeper than venom."
+msgstr "Bilgi zehirden derindir."
 
 #: data/json/houses.json
 msgid "Wisdom: -20% Spell Cooldowns & +25% Max Mana Pool"
 msgstr "Bilgelik: -%20 Büyü Bekleme Süresi ve +%25 Maks. Mana"
 
 #: data/json/houses.json
+msgid "We arrive before the wind."
+msgstr "Rüzgârdan önce varırız."
+
+#: data/json/houses.json
 msgid "Loyalty: +25% Max Health & +15% Damage Reduction"
 msgstr "Sadakat: +%25 Maks. Can ve +%15 Hasar Azaltma"
 
+#: data/json/houses.json
+msgid "Together we hold."
+msgstr "Sürüyle güçlüyüz."
+
 #: assets/castle/castle_layout.json
 msgid "Entrance Hall"
-msgstr "Giriş Salonu"
+msgstr "Giriş Holü"
 
 #: assets/castle/castle_layout.json
 msgid "Great Hall"
@@ -7357,7 +7349,7 @@ msgstr "Düello Kulübü"
 
 #: assets/castle/castle_layout.json
 msgid "Grand Staircase"
-msgstr "Büyük Merdiven"
+msgstr "Ulu Merdiven"
 
 #: assets/castle/castle_layout.json
 msgid "Service Stair"
@@ -7368,32 +7360,40 @@ msgid "East Corridor"
 msgstr "Doğu Koridoru"
 
 #: assets/castle/castle_layout.json
-msgid "Transfiguration"
-msgstr "Biçim Değiştirme"
+msgid "Transformation"
+msgstr "Dönüşüm Dersliği"
 
 #: assets/castle/castle_layout.json
-msgid "Defence Against the Dark Arts"
-msgstr "Karanlık Sanatlara Karşı Savunma"
+msgid "Warding"
+msgstr "Koruma Büyüleri Dersliği"
 
 #: assets/castle/castle_layout.json
 msgid "Charms"
-msgstr "Tılsımlar"
+msgstr "Efsun Dersliği"
 
 #: assets/castle/castle_layout.json
 msgid "Seventh-floor Corridor"
 msgstr "Yedinci Kat Koridoru"
 
 #: assets/castle/castle_layout.json
-msgid "Room of Requirement"
-msgstr "İhtiyaç Odası"
+msgid "Velkar House"
+msgstr "Velkar Hanesi"
+
+#: assets/castle/castle_layout.json
+msgid "Wishing Room"
+msgstr "Dilek Odası"
 
 #: assets/castle/castle_layout.json
 msgid "Library"
 msgstr "Kütüphane"
 
 #: assets/castle/castle_layout.json
-msgid "Owlery"
-msgstr "Baykuşhane"
+msgid "Ilvane House"
+msgstr "Ilvane Hanesi"
+
+#: assets/castle/castle_layout.json
+msgid "Rookery"
+msgstr "Kuşhane"
 
 #: assets/castle/castle_layout.json
 msgid "Dungeon Stair"
@@ -7413,35 +7413,43 @@ msgstr "Doğu Zindanı"
 
 #: assets/castle/castle_layout.json
 msgid "Potions"
-msgstr "İksirler"
+msgstr "İksir Dersliği"
+
+#: assets/castle/castle_layout.json
+msgid "Nisera House"
+msgstr "Nisera Hanesi"
 
 #: assets/castle/castle_layout.json
 msgid "Kitchens"
 msgstr "Mutfaklar"
+
+#: assets/castle/castle_layout.json
+msgid "Torvan House"
+msgstr "Torvan Hanesi"
 
 #: data/json/quests.json
 msgid "Wand Awakening"
 msgstr "Asanın Uyanışı"
 
 #: data/json/quests.json
-msgid "Speak with Ollivander in the courtyard and practice casting your Basic Cast and Stupefy on the Training Dummies."
-msgstr "Avluda Ollivander ile konuş ve Eğitim Kuklaları üzerinde Temel Büyü ile Stupefy çalış."
+msgid "Speak with Kestrin in the courtyard and practice casting your Basic Cast and Stun Bolt on the Training Dummies."
+msgstr "Avluda Kestrin ile konuş ve Eğitim Kuklaları üzerinde Temel Büyü ile Şok Oku çalış."
 
 #: data/json/quests.json
 msgid "The Whispering Woods"
 msgstr "Fısıldayan Koru"
 
 #: data/json/quests.json
-msgid "The Forbidden Forest is crawling with venomous Acromantulas. Defeat 5 Acromantulas to protect the castle grounds."
-msgstr "Yasak Orman zehirli Akromantulalarla kaynıyor. Şato arazisini korumak için 5 Akromantula alt et."
+msgid "The Raven Woods is crawling with venomous Black Weavers. Defeat 5 Black Weavers to protect the castle grounds."
+msgstr "Kuzgun Ormanı zehirli Kara Ağcılarla kaynıyor. Şato arazisini korumak için 5 Kara Ağcı alt et."
 
 #: data/json/quests.json
-msgid "Shatter the Dark Monolith"
-msgstr "Karanlık Metin Taşını Parçala"
+msgid "Shatter the Dark Shard"
+msgstr "Kara Kırığı Parçala"
 
 #: data/json/quests.json
-msgid "A corrupted Dark Monolith has emerged near the Black Lake. Gather other wizards, shatter its obsidian core, and collect the ancient drops."
-msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. Diğer büyücüleri topla, obsidyen çekirdeğini parçala ve kadim ganimetleri topla."
+msgid "A corrupted Dark Shard has emerged near Lake Lunra. Gather other wizards, shatter its obsidian core, and collect the ancient drops."
+msgstr "Lunra Gölü'nün yakınında bozulmuş bir Kara Kırık belirdi. Diğer büyücüleri topla, obsidyen çekirdeğini parçala ve kadim ganimetleri topla."
 
 #~ msgid "  (failure: +%d)"
 #~ msgstr "  (başarısızlık: +%d)"
@@ -7449,11 +7457,29 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "  ·  %d %s reputation"
 #~ msgstr "  ·  %d %s itibarı"
 
+#~ msgid "%d EXP  ·  %d Galleons"
+#~ msgstr "%d EXP  ·  %d Galleon"
+
 #~ msgid "%d experience  ·  %d Galleons"
 #~ msgstr "%d tecrübe  ·  %d Galleon"
 
 #~ msgid "%d+ players, level %d+"
 #~ msgstr "en az %d kişi, en az %d. seviye"
+
+#~ msgid "%s Galleons - carries your party anywhere"
+#~ msgstr "%s Galleon - grubunu her yere taşır"
+
+#~ msgid "%s Galleons a pinch, one per journey"
+#~ msgstr "Tutamı %s Galleon, her yolculuğa bir tutam"
+
+#~ msgid "%s Galleons × %d"
+#~ msgstr "%s Galleon × %d"
+
+#~ msgid "%s added to your Floo Network."
+#~ msgstr "%s Uçuç Ağına eklendi."
+
+#~ msgid "%s begins to play the harp..."
+#~ msgstr "%s arp çalmaya başlıyor..."
 
 #~ msgid "%s has no entries left today."
 #~ msgstr "%s bugünkü giriş hakkını bitirdi."
@@ -7464,20 +7490,92 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "%s is in another dungeon run."
 #~ msgstr "%s başka bir zindan koşusunda."
 
+#~ msgid "%s set down a Portkey to %s - hold on to it! (F)"
+#~ msgstr "%s, %s yönüne bir Portkey koydu - ona tutun! (F)"
+
+#~ msgid "%s · %s\n%d Galleons"
+#~ msgstr "%s · %s\n%d Galleon"
+
+#~ msgid "+%d Galleons"
+#~ msgstr "+%d Galleon"
+
+#~ msgid "+4 glows blue, +7 crackles gold, +9 burns with phoenix fire!"
+#~ msgstr "+4 mavi ışıldar, +7 altın gibi çıtırdar, +9 anka ateşiyle yanar!"
+
+#~ msgid "1 pinch of Floo Powder"
+#~ msgstr "1 tutam Uçuç Tozu"
+
+#~ msgid "15-inch Elder wood with thestral tail hair core. Unlocks immense raw destructive power."
+#~ msgstr "38 santim mürver ağacı, thestral kuyruk kılı özlü. Muazzam ham yıkım gücünü açığa çıkarır."
+
 #~ msgid "A Dark Monolith has risen where Grak fell. Break it with others."
 #~ msgstr "Grak'ın düştüğü yerde bir Karanlık Metin Taşı yükseldi. Diğerleriyle birlikte onu kır."
+
+#~ msgid "A Phoenix Regalia deserves its weave. Make the most of it."
+#~ msgstr "Bir Anka Giysisi efsunu hak eder. En iyisini çıkar."
+
+#~ msgid "A Portkey will not work in here."
+#~ msgstr "Burada Portkey çalışmaz."
+
+#~ msgid "A battered boot enchanted as a Portkey. Right-click to set it down and choose where it goes: for ten seconds your party may grab hold, then everyone holding on is carried there together."
+#~ msgstr "Portkey olarak büyülenmiş hırpalanmış bir çizme. Yere koymak ve nereye gideceğini seçmek için sağ tıkla: on saniye boyunca grubun ona tutunabilir, sonra tutunan herkes birlikte oraya taşınır."
+
+#~ msgid "A brass key that fits the locked third-floor door. The party leader spends keys at the gate to open its Very Hard (1 key) and Legendary (3 keys) runs. Found in Hard runs, sold for seals."
+#~ msgstr "Üçüncü kattaki kilitli kapıya uyan pirinç anahtar. Grup lideri Çok Zor (1 anahtar) ve Efsanevi (3 anahtar) zorlukları açmak için kapıda harcar. Zor zindanlardan düşer, Mühür karşılığı satılır."
+
+#~ msgid "A corrupted Dark Monolith has emerged near the Black Lake. Gather other wizards, shatter its obsidian core, and collect the ancient drops."
+#~ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. Diğer büyücüleri topla, obsidyen çekirdeğini parçala ve kadim ganimetleri topla."
+
+#~ msgid "A corrupted Dark Shard has emerged near the Lake Lunra. Gather other wizards, shatter its obsidian core, and collect the ancient drops."
+#~ msgstr "Lunra Gölü'nün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. Diğer büyücüleri topla, obsidyen çekirdeğini parçala ve kadim ganimetleri topla."
 
 #~ msgid "A creature that dies strengthens the creatures around it (+15% health and damage, stacking)."
 #~ msgstr "Ölen yaratık çevresindekileri güçlendirir (+%15 can ve hasar, birikerek)."
 
+#~ msgid "A glowing amber heart cradled in golden phoenix feathers, warm as a hearth."
+#~ msgstr "Altın anka tüyleri arasında duran, ocak kadar sıcak parlayan kehribar bir kalp."
+
+#~ msgid "A gold band shaped like a phoenix, an ember-bright amber in its beak."
+#~ msgstr "Anka biçiminde altın bir halka, gagasında kor gibi parlayan bir kehribar."
+
+#~ msgid "A golden phoenix spreading its wings around a burning amber stone."
+#~ msgstr "Yanan bir kehribar taşın çevresinde kanatlarını açmış altın bir anka."
+
 #~ msgid "A new dungeon gives that one up for good. Start a new one, or go back in?"
 #~ msgstr "Yeni bir zindan başlatırsan o zindan tamamen kapanır. Yenisini mi başlatmak istersin, yoksa geri mi dönmek?"
+
+#~ msgid "A pinch thrown into a Floo Network fireplace carries you to any hearth you have visited. Sold at every Floo fireplace."
+#~ msgstr "Uçuç Ağı şöminesine atılan bir tutam seni ziyaret ettiğin herhangi bir ocağa taşır. Her Uçuç şöminesinde satılır."
 
 #~ msgid "A purple beam marks a Dark Monolith. Join others and break it before its waves overrun you."
 #~ msgstr "Mor bir ışın bir Karanlık Metin Taşını işaret eder. Diğerlerine katıl ve dalgaları seni ezmeden onu kır."
 
+#~ msgid "A scroll that weaves one new enchantment into a wand, robe or broom at Ollivander's. The more an item already holds, the likelier the weave slips."
+#~ msgstr "Ollivander'da bir asaya, cüppeye ya da süpürgeye yeni bir efsun basan parşömen. Eşyada ne kadar çok efsun varsa tutmama ihtimali o kadar artar."
+
+#~ msgid "Acromantula"
+#~ msgstr "Akromantula"
+
+#~ msgid "Acromantula Matriarch"
+#~ msgstr "Akromantula Anası"
+
+#~ msgid "Acromantula Silk"
+#~ msgstr "Akromantula İpeği"
+
+#~ msgid "Acromantula Thicket"
+#~ msgstr "Akromantula Çalılığı"
+
+#~ msgid "Acromantula Venom"
+#~ msgstr "Akromantula Zehri"
+
+#~ msgid "Acromantulas infest the Forbidden Forest to the west. Inferi haunt its edge, past Borin's hut."
+#~ msgstr "Batıdaki Yasak Orman Akromantulalarla dolu. Borin'in kulübesinin ötesinde, ormanın kıyısında Inferius'lar dolaşıyor."
+
 #~ msgid "Acromantulas infest the Forbidden Forest to the west. Inferi haunt its edge, past Hagrid's hut."
 #~ msgstr "Batıdaki Yasak Orman Akromantulalarla dolu. Hagrid'in kulübesinin ötesinde, ormanın kıyısında Inferius'lar dolaşıyor."
+
+#~ msgid "Ah, a new student! Hogwarts needs brave wizards."
+#~ msgstr "Ah, yeni bir öğrenci! Hogwarts'ın cesur büyücülere ihtiyacı var."
 
 #~ msgid "Always day"
 #~ msgstr "Hep gündüz"
@@ -7485,14 +7583,41 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "Always night"
 #~ msgstr "Hep gece"
 
+#~ msgid "Ancient Monolith"
+#~ msgstr "Kadim Metin Taşı"
+
 #~ msgid "At least 8 characters, letters and digits"
 #~ msgstr "En az 8 karakter, harf ve rakam"
+
+#~ msgid "At level 5 every student gets a broom. Professor Flitwick waits at the castle approach."
+#~ msgstr "5. seviyede her öğrenci bir süpürge alır. Profesör Flitwick şato yolunda bekliyor."
+
+#~ msgid "Auror Battle Cloak"
+#~ msgstr "Seherbaz Savaş Pelerini"
 
 #~ msgid "Avada Arcana"
 #~ msgstr "Avada Arcana"
 
+#~ msgid "Black Lake"
+#~ msgstr "Kara Göl"
+
+#~ msgid "Blackweb Queen"
+#~ msgstr "Kara Ağ Kraliçesi"
+
+#~ msgid "Bombarda"
+#~ msgstr "Bombarda"
+
+#~ msgid "Borin wants to know how far the Inferi have spread along the shore."
+#~ msgstr "Borin, Inferius'ların kıyı boyunca ne kadar yayıldığını bilmek istiyor."
+
+#~ msgid "Borin's three-headed dog, guarding the trapdoor. Music sends it to sleep."
+#~ msgstr "Borin'in kapağı koruyan üç başlı köpeği. Müzik onu uyutur."
+
 #~ msgid "Break a Dark Monolith (follow the purple beams), refine your wand (O), then fly to the Quidditch Pitch (Shift to mount)."
 #~ msgstr "Bir Karanlık Metin Taşı kır (mor ışınları izle), asanı yükselt (O), sonra Quidditch Sahası'na uç (binmek için Shift)."
+
+#~ msgid "Bring a party. The Matriarch's bite poisons and her brood answers her call."
+#~ msgstr "Bir grup getir. Ana'nın ısırığı zehirler ve kuluçkası çağrısına karşılık verir."
 
 #~ msgid "Build"
 #~ msgstr "Yapı"
@@ -7500,14 +7625,41 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "Bun"
 #~ msgstr "Topuz"
 
+#~ msgid "Burn the root of the Devil's Snare"
+#~ msgstr "Şeytan Kapanı'nın kökünü yak"
+
+#~ msgid "Buy Wiggenweld before heading to the Forbidden Forest. Trust me."
+#~ msgstr "Yasak Orman'a gitmeden önce Wiggenweld al. Bana güven."
+
 #~ msgid "Chance of upgrade %d%%%s"
 #~ msgstr "Yükseltme şansı %%%d%s"
+
+#~ msgid "Charms Professor"
+#~ msgstr "Tılsım Profesörü"
 
 #~ msgid "Click or Esc to close"
 #~ msgstr "Kapatmak için tıkla ya da Esc"
 
+#~ msgid "Climb down the cellar trapdoor"
+#~ msgstr "Mahzen kapağından aşağı in"
+
+#~ msgid "Collect your broom from Professor Flitwick"
+#~ msgstr "Süpürgeni Profesör Flitwick'ten al"
+
+#~ msgid "Collected %d Galleons."
+#~ msgstr "%d Galleon toplandı."
+
+#~ msgid "Complete the Forbidden Corridor"
+#~ msgstr "Yasak Koridor'u tamamla"
+
 #~ msgid "Conjures a silver stag that charges through a wide cone. Dementors take triple damage and the stag breaks a dementor's attack, kiss included. Requires level 40."
 #~ msgstr "Geniş bir koni boyunca saldıran gümüş bir geyik çağırır. Ruh Emiciler üç kat hasar alır ve geyik bir Ruh Emici'nin saldırısını, öpücüğü dahil, bozar. Seviye 40 gerekir."
+
+#~ msgid "Conjures a silver stag that charges through a wide cone. Dementors take triple damage and the stag breaks a dementor's attack, kiss included; everything it charges through is slowed by 40% for 3 seconds. Requires level 40."
+#~ msgstr "Geniş bir koni boyunca saldıran gümüş bir geyik çağırır. Ruh Emiciler üç kat hasar alır ve geyik bir Ruh Emici'nin saldırısını, öpücüğü dahil, bozar; geçtiği her şey 3 saniye boyunca %40 yavaşlar. Seviye 40 gerekir."
+
+#~ msgid "Cornish Pixie"
+#~ msgstr "Cornwall Cini"
 
 #~ msgid "Corpses bewitched to serve a dark wizard. Slow, relentless and terrified of fire."
 #~ msgstr "Kara bir büyücüye hizmet etmek için büyülenmiş cesetler. Yavaş, amansız ve ateşten ödleri kopar."
@@ -7515,26 +7667,212 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "Cost of the upgrade: %s Galleons"
 #~ msgstr "Yükseltme bedeli: %s Galleon"
 
+#~ msgid "Crimson brocade alive with woven flame, a golden phoenix spread across the shoulders."
+#~ msgstr "Dokuma alevlerle canlanan kızıl brokar; omuzlarına yayılmış altın bir anka."
+
+#~ msgid "Crimson lacquer and gold filigree crowned by a phoenix head; its feathered tail smoulders like live embers."
+#~ msgstr "Bir anka başıyla taçlanmış kızıl cila ve altın telkari; tüylü kuyruğu canlı korlar gibi için için yanar."
+
 #~ msgid "Cropped"
 #~ msgstr "Kısa Kesim"
+
+#~ msgid "Dark Monolith"
+#~ msgstr "Karanlık Metin Taşı"
 
 #~ msgid "Dark Monoliths fall in the western forests (Forest Edge, Acromantula Thicket, Snatcher Woods, Crypt Hollow). Follow the tall green light or find them on your map (M), then break one with others before its waves overrun you."
 #~ msgstr "Karanlık Metin Taşları batı ormanlarına düşer (Orman Kıyısı, Akromantula Çalılığı, Kapkaççı Korusu, Mahzen Çukuru). Yükselen yeşil ışığı izle ya da haritanda bul (M), sonra dalgaları seni ezmeden diğerleriyle birlikte birini kır."
 
+#~ msgid "Dark Monoliths fall in the western forests, from the Forest Edge past Borin's hut to Snatcher Woods in the north-west. Close by, you will see their green light."
+#~ msgstr "Karanlık Metin Taşları batı ormanlarına düşer: Borin'in kulübesinin ötesindeki Orman Kıyısı'ndan kuzeybatıdaki Kapkaççı Korusu'na kadar. Yaklaşınca yeşil ışıklarını görürsün."
+
+#~ msgid "Dark Monoliths fall in the western forests: at the Forest Edge past Borin's hut, in the Acromantula Thicket beyond it, in Snatcher Woods to the north-west and in Crypt Hollow far to the west. Close by, a green light rises over the trees. Break one with others before its waves overrun you."
+#~ msgstr "Karanlık Metin Taşları batı ormanlarına düşer: Borin'in kulübesinin ötesindeki Orman Kıyısı'na, onun da ötesindeki Akromantula Çalılığı'na, kuzeybatıdaki Kapkaççı Korusu'na ve çok batıdaki Mahzen Çukuru'na. Yaklaşınca ağaçların üstünde yeşil bir ışık yükselir. Dalgaları seni ezmeden önce diğerleriyle birlikte birini kır."
+
 #~ msgid "Dark Monoliths fall in the western forests: follow the tall green light, or find them on your map (M)."
 #~ msgstr "Karanlık Metin Taşları batı ormanlarına düşer: yükselen yeşil ışığı izle ya da onları haritanda bul (M)."
+
+#~ msgid "Dark Monoliths summon waves of creatures - bring friends."
+#~ msgstr "Karanlık Metin Taşları yaratık dalgaları çağırır - arkadaşlarını getir."
+
+#~ msgid "Dark Snatcher"
+#~ msgstr "Kara Kapkaççı"
+
+#~ msgid "Dark Snatcher Commander"
+#~ msgstr "Kara Kapkaççı Komutanı"
+
+#~ msgid "Deeper in the forest an old crypt has opened. The Inferi pour out of Crypt Hollow."
+#~ msgstr "Ormanın derinliklerinde eski bir mahzen açıldı. Inferius'lar Mahzen Çukuru'ndan akın ediyor."
+
+#~ msgid "Defeat 10 Acromantulas"
+#~ msgstr "10 Akromantula alt et"
+
+#~ msgid "Defeat 10 Cornish Pixies"
+#~ msgstr "10 Cornwall Cini alt et"
+
+#~ msgid "Defeat 10 Dementors"
+#~ msgstr "10 Ruh Emici alt et"
+
+#~ msgid "Defeat 10 Snatchers"
+#~ msgstr "10 Kapkaççı alt et"
+
+#~ msgid "Defeat 12 Acromantulas"
+#~ msgstr "12 Akromantula alt et"
 
 #~ msgid "Defeat 12 Cornish Pixies"
 #~ msgstr "12 Cornwall Cini alt et"
 
+#~ msgid "Defeat 12 Dementors"
+#~ msgstr "12 Ruh Emici alt et"
+
+#~ msgid "Defeat 12 Inferi"
+#~ msgstr "12 Inferius alt et"
+
+#~ msgid "Defeat 12 more Dementors"
+#~ msgstr "12 Ruh Emici daha alt et"
+
+#~ msgid "Defeat 14 Dementors"
+#~ msgstr "14 Ruh Emici alt et"
+
+#~ msgid "Defeat 14 Inferi"
+#~ msgstr "14 Inferius alt et"
+
+#~ msgid "Defeat 14 Snatchers"
+#~ msgstr "14 Kapkaççı alt et"
+
+#~ msgid "Defeat 15 Acromantulas"
+#~ msgstr "15 Akromantula alt et"
+
+#~ msgid "Defeat 15 Inferi"
+#~ msgstr "15 Inferius alt et"
+
+#~ msgid "Defeat 16 Acromantulas"
+#~ msgstr "16 Akromantula alt et"
+
 #~ msgid "Defeat 16 Cornish Pixies"
 #~ msgstr "16 Cornwall Cini alt et"
+
+#~ msgid "Defeat 16 Dementors"
+#~ msgstr "16 Ruh Emici alt et"
+
+#~ msgid "Defeat 16 Snatchers"
+#~ msgstr "16 Kapkaççı alt et"
+
+#~ msgid "Defeat 16 more Dementors"
+#~ msgstr "16 Ruh Emici daha alt et"
+
+#~ msgid "Defeat 18 Acromantulas"
+#~ msgstr "18 Akromantula alt et"
+
+#~ msgid "Defeat 18 Dementors"
+#~ msgstr "18 Ruh Emici alt et"
+
+#~ msgid "Defeat 18 Inferi"
+#~ msgstr "18 Inferius alt et"
+
+#~ msgid "Defeat 18 Snatchers"
+#~ msgstr "18 Kapkaççı alt et"
+
+#~ msgid "Defeat 18 more Dementors"
+#~ msgstr "18 Ruh Emici daha alt et"
+
+#~ msgid "Defeat 20 Acromantulas"
+#~ msgstr "20 Akromantula alt et"
+
+#~ msgid "Defeat 20 Dementors"
+#~ msgstr "20 Ruh Emici alt et"
+
+#~ msgid "Defeat 20 Inferi"
+#~ msgstr "20 Inferius alt et"
+
+#~ msgid "Defeat 20 Snatchers"
+#~ msgstr "20 Kapkaççı alt et"
+
+#~ msgid "Defeat 22 Acromantulas"
+#~ msgstr "22 Akromantula alt et"
+
+#~ msgid "Defeat 22 Dementors"
+#~ msgstr "22 Ruh Emici alt et"
+
+#~ msgid "Defeat 22 Inferi"
+#~ msgstr "22 Inferius alt et"
+
+#~ msgid "Defeat 22 Snatchers"
+#~ msgstr "22 Kapkaççı alt et"
+
+#~ msgid "Defeat 24 Inferi"
+#~ msgstr "24 Inferius alt et"
+
+#~ msgid "Defeat 24 Snatchers"
+#~ msgstr "24 Kapkaççı alt et"
+
+#~ msgid "Defeat 26 Acromantulas"
+#~ msgstr "26 Akromantula alt et"
+
+#~ msgid "Defeat 26 Inferi"
+#~ msgstr "26 Inferius alt et"
+
+#~ msgid "Defeat 26 Snatchers"
+#~ msgstr "26 Kapkaççı alt et"
+
+#~ msgid "Defeat 28 Snatchers"
+#~ msgstr "28 Kapkaççı alt et"
+
+#~ msgid "Defeat 6 Acromantulas"
+#~ msgstr "6 Akromantula alt et"
+
+#~ msgid "Defeat 6 Inferi"
+#~ msgstr "6 Inferius alt et"
+
+#~ msgid "Defeat 8 Cornish Pixies"
+#~ msgstr "8 Cornwall Cini alt et"
 
 #~ msgid "Defeat 8 Suits of Armour"
 #~ msgstr "8 Zırh alt et"
 
+#~ msgid "Defeat Fluffy"
+#~ msgstr "Fluffy'yi alt et"
+
+#~ msgid "Defeat the Acromantula Matriarch"
+#~ msgstr "Akromantula Anası'nı alt et"
+
+#~ msgid "Defeat the Azkaban Warden"
+#~ msgstr "Azkaban Gardiyanı'nı alt et"
+
+#~ msgid "Defence Against the Dark Arts"
+#~ msgstr "Karanlık Sanatlara Karşı Savunma"
+
+#~ msgid "Dementor"
+#~ msgstr "Ruh Emici"
+
+#~ msgid "Dementor's Chill"
+#~ msgstr "Dementör Soğuğu"
+
+#~ msgid "Dementors are coming. Ollivander wants every piece you own at its best."
+#~ msgstr "Ruh Emiciler geliyor. Ollivander sahip olduğun her parçanın en iyi halinde olmasını istiyor."
+
+#~ msgid "Dementors circle a barrow at the far end of the marsh."
+#~ msgstr "Ruh Emiciler bataklığın uzak ucundaki bir höyüğün etrafında dönüyor."
+
+#~ msgid "Dementors drift in from the Misty Shore. Their aura stops your health from recovering."
+#~ msgstr "Ruh Emiciler Sisli Kıyı'dan süzülüyor. Auraları canının yenilenmesini durdurur."
+
+#~ msgid "Dementors drift in from the shore; only a Patronus will hold them back."
+#~ msgstr "Ruh Emiciler kıyıdan süzülüyor; onları yalnızca bir Patronus durdurabilir."
+
+#~ msgid "Destroy a Dark Monolith or a Webbound Seal Stone"
+#~ msgstr "Bir Karanlık Metin Taşı ya da Ağbağlı Mühür Taşı yok et"
+
 #~ msgid "Detonates a violent concussive shockwave. Heavy AOE damage with knockback."
 #~ msgstr "Şiddetli, sarsıcı bir şok dalgası patlatır. Geri itmeli ağır alan hasarı."
+
+#~ msgid "Devil's Snare"
+#~ msgstr "Şeytan Kapanı"
+
+#~ msgid "Devil's Snare! Burn its vines - Incendio!"
+#~ msgstr "Şeytan Kapanı! Sarmaşıklarını yak - Incendio!"
+
+#~ msgid "Dismount at the entrance and press F in the doorway to enter Hogwarts."
+#~ msgstr "Girişte süpürgeden in ve Hogwarts'a girmek için kapıda F'ye bas."
 
 #~ msgid "Drag a spell onto the bar  ·  + spends a point"
 #~ msgstr "Bir büyüyü çubuğa sürükle  ·  + bir puan harcar"
@@ -7545,17 +7883,59 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "Drag an item here, or right-click it in your bag."
 #~ msgstr "Bir eşyayı buraya sürükle ya da çantanda sağ tıkla."
 
+#~ msgid "Dragon Heartstring"
+#~ msgstr "Ejderha Yürek Teli"
+
+#~ msgid "Drowned Inferius"
+#~ msgstr "Boğulmuş Inferius"
+
+#~ msgid "Drowned Ones crawl out of the Lake Lunra at the Lakeside Glade."
+#~ msgstr "Boğulmuş Ölüler Göl Kıyısı Açıklığı'nda Lunra Gölü'nden sürünerek çıkıyor."
+
 #~ msgid "Dungeon Seals  ·  every finished run pays seals; a medal pays more"
 #~ msgstr "Zindan Mührü  ·  biten her zindan mühür verir, madalya daha fazla"
 
 #~ msgid "Dungeon Seals: %d"
 #~ msgstr "Zindan Mührü: %d"
 
+#~ msgid "Elder Wand Replica"
+#~ msgstr "Mürver Asa Kopyası"
+
+#~ msgid "Elder Wood Core"
+#~ msgstr "Mürver Ağacı Özü"
+
+#~ msgid "Enchant an item at Ollivander"
+#~ msgstr "Ollivander'da bir eşyaya efsun bas"
+
+#~ msgid "Enter Hogwarts Castle"
+#~ msgstr "Hogwarts Şatosu'na gir"
+
+#~ msgid "Enter the Forbidden Corridor from the castle. The pixies swarm and lift you off your feet."
+#~ msgstr "Şatodan Yasak Koridor'a gir. Cinler sürüyle saldırır ve seni yerden kaldırır."
+
 #~ msgid "Enter the Trial Hall from the courtyard portal, clear the corridor and defeat the Trial Warden."
 #~ msgstr "Avludaki geçitten Sınav Salonu'na gir, koridoru temizle ve Sınav Muhafızı'nı alt et."
 
+#~ msgid "Entering Hogwarts Castle..."
+#~ msgstr "Hogwarts Şatosu'na giriliyor..."
+
+#~ msgid "Every Patronus you cast lights the way for someone else."
+#~ msgstr "Yaptığın her Patronus bir başkasının yolunu aydınlatır."
+
 #~ msgid "Every finished run pays seals; a medal pays more."
 #~ msgstr "Biten her koşu Mühür verir; madalya daha fazlasını."
+
+#~ msgid "Every task open to you is done. Level up to unlock more, hunt the Dark Monoliths and refine your gear."
+#~ msgstr "Sana açık tüm görevler tamamlandı. Yenilerini açmak için seviye atla, Karanlık Metin Taşlarını avla ve ekipmanını yükselt."
+
+#~ msgid "Expecto Patronum"
+#~ msgstr "Expecto Patronum"
+
+#~ msgid "Expelliarmus"
+#~ msgstr "Expelliarmus"
+
+#~ msgid "Find the snatcher captain's camp deep in the northern woods, past Snatcher Woods. Do not engage alone."
+#~ msgstr "Kapkaççı kaptanının kampını kuzey ormanlarının derinliklerinde, Kapkaççı Korusu'nun ötesinde bul. Tek başına saldırma."
 
 #~ msgid "Find the snatcher captain's camp deep in the southern woods. Do not engage alone."
 #~ msgstr "Güney korusunun derinliklerinde kapkaççı kaptanının kampını bul. Yalnız saldırma."
@@ -7563,11 +7943,83 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "Fine Brows"
 #~ msgstr "İnce Kaş"
 
+#~ msgid "Fire (Incendio)"
+#~ msgstr "Ateş (Incendio)"
+
+#~ msgid "Firebolt Supreme"
+#~ msgstr "Ateşoku Üstün"
+
+#~ msgid "Flitwick is organising the students who go up to the moors."
+#~ msgstr "Kaelen Rook bozkırlara çıkan öğrencileri örgütlüyor."
+
+#~ msgid "Floo Network"
+#~ msgstr "Uçuç Ağı"
+
+#~ msgid "Floo Network (%s)"
+#~ msgstr "Uçuç Ağı (%s)"
+
+#~ msgid "Floo Powder"
+#~ msgstr "Uçuç Tozu"
+
+#~ msgid "Floo Powder: %d pinch"
+#~ msgstr "Uçuç Tozu: %d tutam"
+
+#~ msgid "Floo Powder: %d pinches"
+#~ msgstr "Uçuç Tozu: %d tutam"
+
+#~ msgid "Fluffy"
+#~ msgstr "Fluffy"
+
+#~ msgid "Fluffy collapses. Clear every creature left in the corridor to open the trapdoor."
+#~ msgstr "Fluffy yığılıp kaldı. Kapağı açmak için koridorda kalan tüm yaratıkları temizle."
+
 #~ msgid "Fluffy collapses. The trapdoor swings open - claim your reward."
 #~ msgstr "Fluffy yığıldı. Kapak açılıyor - ödülünü al."
 
+#~ msgid "Fluffy howls in fury!"
+#~ msgstr "Fluffy öfkeyle uluyor!"
+
+#~ msgid "Fluffy is enraged!"
+#~ msgstr "Fluffy öfkeden çıldırdı!"
+
+#~ msgid "Fluffy is frenzied - the harp holds it only briefly!"
+#~ msgstr "Fluffy kudurdu - arp onu ancak kısa süre tutabiliyor!"
+
+#~ msgid "Fluffy wakes! Play the harp to lull it to sleep."
+#~ msgstr "Fluffy uyandı! Onu uyutmak için arp çal."
+
+#~ msgid "Fluffy's %s Head"
+#~ msgstr "Fluffy'nin %s Başı"
+
+#~ msgid "Fluffy's %s head slumps!"
+#~ msgstr "Fluffy'nin %s başı yığılıp kaldı!"
+
+#~ msgid "Fluffy's Head"
+#~ msgstr "Fluffy'nin Başı"
+
+#~ msgid "Fluffy's sleeping breath rolls down the stair - brace yourself!"
+#~ msgstr "Fluffy'nin uyku nefesi merdivenden aşağı yuvarlanıyor - hazırlan!"
+
+#~ msgid "Fly east along the Hogsmeade Road. Madam Rosmerta knows every rumour in the valley."
+#~ msgstr "Hogsmeade Yolu boyunca doğuya uç. Madam Rosmerta vadideki her söylentiyi bilir."
+
+#~ msgid "Fly to the Quidditch Pitch on your broom"
+#~ msgstr "Süpürgenle Quidditch Sahası'na uç"
+
 #~ msgid "For your party"
 #~ msgstr "Grubun için"
+
+#~ msgid "Forbidden Corridor Explorer"
+#~ msgstr "Yasak Koridor Kâşifi"
+
+#~ msgid "Forbidden Corridor Key"
+#~ msgstr "Yasak Koridor Anahtarı"
+
+#~ msgid "Forbidden Forest"
+#~ msgstr "Yasak Orman"
+
+#~ msgid "Force (Depulso)"
+#~ msgstr "Kuvvet (Depulso)"
 
 #~ msgid "From Level: %d"
 #~ msgstr "Seviye: %d"
@@ -7575,8 +8027,41 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "Frost nova. Hurls a spinning ice crystal that bursts into shards and freezing mist, freezing every enemy in the blast for up to 1.6 seconds. Requires level 20."
 #~ msgstr "Buz patlaması. Dönen bir buz kristali fırlatır; kristal parçalara ve dondurucu bir sise dönüşerek patlar, patlamadaki her düşmanı 1,6 saniyeye kadar dondurur. 20. seviye gerekir."
 
+#~ msgid "Galleons"
+#~ msgstr "Galleon"
+
+#~ msgid "Galleons  %d"
+#~ msgstr "Galleon  %d"
+
+#~ msgid "Galleons Found"
+#~ msgstr "Bulunan Galleon"
+
+#~ msgid "Galleons found"
+#~ msgstr "Bulunan Galleon"
+
+#~ msgid "Gather friends and defeat the Snatcher Captain in his camp."
+#~ msgstr "Arkadaşlarını topla ve Kapkaççı Kaptanı'nı kendi kampında alt et."
+
+#~ msgid "Giant spiders of the Forbidden Forest, bred from Aragog's line. They hunt in packs."
+#~ msgstr "Yasak Orman'ın dev örümcekleri, Aragog'un soyundan. Sürüler halinde avlanırlar."
+
+#~ msgid "Glacius"
+#~ msgstr "Glacius"
+
 #~ msgid "Goatee"
 #~ msgstr "Keçi Sakal"
+
+#~ msgid "Goblin clerks of the wizarding bank, out collecting debts. They count every Knut and carry a heavy purse."
+#~ msgstr "Büyücü bankasının goblin memurları, borç tahsilatına çıkmış. Her Knut'u sayarlar ve keseleri ağırdır."
+
+#~ msgid "Grak is gone, but the stones keep falling. Break a Dark Monolith in the western forests or a Webbound Seal Stone in the Blackweb Caverns, with others."
+#~ msgstr "Grak gitti ama taşlar düşmeye devam ediyor. Diğerleriyle birlikte batı ormanlarında bir Karanlık Metin Taşı ya da Karaağ Mağaraları'nda bir Ağbağlı Mühür Taşı kır."
+
+#~ msgid "Grak, the Mountain Troll Chieftain, waits at the summit."
+#~ msgstr "Dağ Trolü Reisi Grak zirvede bekliyor."
+
+#~ msgid "Gryffindor"
+#~ msgstr "Gryffindor"
 
 #~ msgid "HPMMO is built on the work of the people and tools below. Thank you."
 #~ msgstr "HPMMO, aşağıdaki kişilerin ve araçların emeği üzerine kuruldu. Teşekkürler."
@@ -7599,20 +8084,122 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "Hagrid's three-headed dog, guarding the trapdoor. Music sends it to sleep."
 #~ msgstr "Hagrid'in kapağı koruyan üç başlı köpeği. Müzik onu uyutur."
 
+#~ msgid "Head Prefect"
+#~ msgstr "Okul Başkanı"
+
+#~ msgid "Help destroy a Dark Monolith"
+#~ msgstr "Bir Karanlık Metin Taşının yok edilmesine yardım et"
+
+#~ msgid "Hit an Acromantula or Inferi outside the safe zone and survive the pack's answer."
+#~ msgstr "Güvenli bölgenin dışında bir Akromantula ya da Inferius'a vur ve sürünün karşılığından sağ çık."
+
+#~ msgid "Hogsmeade"
+#~ msgstr "Hogsmeade"
+
+#~ msgid "Hogsmeade Heights"
+#~ msgstr "Hogsmeade Tepeleri"
+
+#~ msgid "Hogsmeade Road"
+#~ msgstr "Hogsmeade Yolu"
+
+#~ msgid "Hogsmeade Square"
+#~ msgstr "Hogsmeade Meydanı"
+
+#~ msgid "Hogsmeade Village"
+#~ msgstr "Hogsmeade Köyü"
+
+#~ msgid "Hogwarts Castle"
+#~ msgstr "Hogwarts Şatosu"
+
+#~ msgid "Hogwarts Castle - %s"
+#~ msgstr "Hogwarts Şatosu - %s"
+
+#~ msgid "Hogwarts Castle, third-floor east corridor"
+#~ msgstr "Hogwarts Şatosu, üçüncü kat doğu koridoru"
+
+#~ msgid "Hogwarts Courtyard"
+#~ msgstr "Hogwarts Avlusu"
+
+#~ msgid "Hogwarts Entrance"
+#~ msgstr "Hogwarts Girişi"
+
+#~ msgid "Hogwarts Grounds"
+#~ msgstr "Hogwarts Arazisi"
+
+#~ msgid "Hogwarts Professor"
+#~ msgstr "Hogwarts Profesörü"
+
+#~ msgid "Hogwarts Valley"
+#~ msgstr "Hogwarts Vadisi"
+
+#~ msgid "Hold the Southern Barrows while Madam Pince searches her records."
+#~ msgstr "Madam Pince kayıtlarını ararken Güney Höyükleri'ni tut."
+
+#~ msgid "Honeydukes' cellar, Hogsmeade"
+#~ msgstr "Honeydukes'ın mahzeni, Hogsmeade"
+
+#~ msgid "Hufflepuff"
+#~ msgstr "Hufflepuff"
+
 #~ msgid "Ignited"
 #~ msgstr "Tutuştu"
 
 #~ msgid "Imbue %d%%  ·  %d"
 #~ msgstr "Efsun Bas %%%d  ·  %d"
 
+#~ msgid "Incendio"
+#~ msgstr "Incendio"
+
 #~ msgid "Inferi Ghoul"
 #~ msgstr "Inferius Hortlak"
+
+#~ msgid "Inferi crawl out of the Black Lake at the Lakeside Glade."
+#~ msgstr "Inferius'lar Göl Kıyısı Açıklığı'nda Kara Göl'den sürünerek çıkıyor."
+
+#~ msgid "Inferi fear fire - burn 'em with Incendio. Stupefy stuns 'em cold."
+#~ msgstr "Inferiler ateşten korkar - Incendio ile yak onları. Stupefy de anında sersemletir."
 
 #~ msgid "Inferi fear fire - hit 'em with Incendio (2). Stupefy (1) stuns 'em cold."
 #~ msgstr "Inferius'lar ateşten korkar - onlara Incendio (2) ile vur. Stupefy (1) onları anında sersemletir."
 
+#~ msgid "Inferi fear fire: Incendio burns them for double damage."
+#~ msgstr "Inferius'lar ateşten korkar: Incendio onları iki kat hasarla yakar."
+
+#~ msgid "Inferi raised from a cursed lake to guard what lies beneath. Their cold grip drags you down; fire still breaks them."
+#~ msgstr "Lanetli bir gölden, derinde yatanı korumak için kaldırılmış Inferius'lar. Soğuk pençeleri seni aşağı çeker; ateş yine de onları kırar."
+
+#~ msgid "Inferi stalk the Forest Edge past Borin's hut. Fire (Incendio) hurts them twice as much."
+#~ msgstr "Inferius'lar Borin'in kulübesinin ötesinde, Orman Kıyısı'nda dolaşıyor. Ateş (Incendio) onlara iki kat zarar verir."
+
 #~ msgid "Inferi stalk the Forest Edge past Hagrid's hut. Fire (Incendio) hurts them twice as much."
 #~ msgstr "Inferius'lar Hagrid'in kulübesinin ötesinde, Orman Kıyısı'nda dolaşıyor. Ateş (Incendio) onlara iki kat zarar verir."
+
+#~ msgid "Inferi wander onto the Eastern Road at dusk. Keep the road open."
+#~ msgstr "Inferius'lar alacakaranlıkta Doğu Yolu'na sapıyor. Yolu açık tut."
+
+#~ msgid "Inferius Lake Warden"
+#~ msgstr "Göl Muhafızı Inferius"
+
+#~ msgid "Keep the Inferi in Crypt Hollow from reaching the forest paths."
+#~ msgstr "Mahzen Çukuru'ndaki Inferius'ların orman yollarına ulaşmasını engelle."
+
+#~ msgid "Lacquered crimson boots with golden phoenix wings at the heel."
+#~ msgstr "Topuklarında altın anka kanatları olan cilalı kızıl çizmeler."
+
+#~ msgid "Landlady of the Three Broomsticks"
+#~ msgstr "Üç Süpürge'nin Sahibi"
+
+#~ msgid "Madam Pince"
+#~ msgstr "Madam Pince"
+
+#~ msgid "Madam Pince has found a note: the third-floor corridor is out of bounds - and guarded."
+#~ msgstr "Madam Pince bir not buldu: üçüncü kat koridoruna girmek yasak - ve korunuyor."
+
+#~ msgid "Madam Pince keeps the records of every grave on the grounds. She waits at the castle approach."
+#~ msgstr "Madam Pince arazideki her mezarın kaydını tutar. Şato yolunda bekliyor."
+
+#~ msgid "Madam Rosmerta"
+#~ msgstr "Madam Rosmerta"
 
 #~ msgid "Mana %d  ·  Cooldown %.1fs"
 #~ msgstr "Mana %d  ·  Bekleme %.1f sn"
@@ -7620,41 +8207,191 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "Monolith on the Moor"
 #~ msgstr "Bozkırdaki Metin Taşı"
 
+#~ msgid "More Pixies"
+#~ msgstr "Daha Fazla Cin"
+
+#~ msgid "Mountain trolls gather under Grak at the Stone Circle Summit."
+#~ msgstr "Dağ trolleri Taş Çember Zirvesi'nde Grak'ın emrinde toplanıyor."
+
 #~ msgid "Next level"
 #~ msgstr "Sonraki seviye"
 
 #~ msgid "Nimbus"
 #~ msgstr "Nimbus"
 
+#~ msgid "Nimbus 2000"
+#~ msgstr "Nimbus 2000"
+
 #~ msgid "No enchantments (0/%d)"
 #~ msgstr "Efsun yok (0/%d)"
+
+#~ msgid "Not enough Galleons."
+#~ msgstr "Yeterli Galleon yok."
 
 #~ msgid "OK"
 #~ msgstr "Tamam"
 
+#~ msgid "Old Boot (Portkey)"
+#~ msgstr "Eski Çizme (Portkey)"
+
+#~ msgid "Ollivander"
+#~ msgstr "Ollivander"
+
+#~ msgid "Ollivander can refine cloaks, accessories and brooms as well as wands."
+#~ msgstr "Ollivander asaların yanı sıra pelerinleri, takıları ve süpürgeleri de yükseltebilir."
+
+#~ msgid "Ollivander can refine your wand. Higher tiers glow brighter."
+#~ msgstr "Ollivander asanı yükseltebilir. Yüksek seviyeler daha parlak ışıldar."
+
+#~ msgid "Ollivander has a theory about weaves that resist despair."
+#~ msgstr "Ollivander'ın umutsuzluğa direnen efsunlar hakkında bir teorisi var."
+
+#~ msgid "Ollivander has finished a wand worthy of what comes next."
+#~ msgstr "Ollivander, sırada olanlara layık bir asayı bitirdi."
+
+#~ msgid "Ollivander says no one should face the Matriarch with bare robes."
+#~ msgstr "Ollivander, kimsenin Ana'nın karşısına efsunsuz cüppeyle çıkmaması gerektiğini söylüyor."
+
+#~ msgid "Ollivander wants one more look at your gear before the end."
+#~ msgstr "Ollivander sondan önce ekipmanına bir kez daha bakmak istiyor."
+
+#~ msgid "Ollivander works his anvil in the courtyard. He can make a wand stronger, at a price."
+#~ msgstr "Ollivander avluda örsünün başında çalışıyor. Bedeli karşılığında bir asayı güçlendirebilir."
+
+#~ msgid "Ollivander's Forge"
+#~ msgstr "Ollivander'ın Atölyesi"
+
+#~ msgid "Ollivander's forge"
+#~ msgstr "Ollivander'ın atölyesi"
+
+#~ msgid "One last push and Hogsmeade can sleep again."
+#~ msgstr "Son bir hamle ve Hogsmeade yeniden uyuyabilir."
+
+#~ msgid "Open your bag with I and right-click the cloak Professor Fig gave you. It costs a little speed and buys a lot of armour."
+#~ msgstr "I ile çantanı aç ve Profesör Fig'in verdiği pelerine sağ tıkla. Biraz hıza mal olur ama çok savunma kazandırır."
+
 #~ msgid "Other spells"
 #~ msgstr "Diğer büyüler"
+
+#~ msgid "Owlery"
+#~ msgstr "Baykuşhane"
+
+#~ msgid "Patronus"
+#~ msgstr "Patronus"
+
+#~ msgid "Pests of the Third Floor"
+#~ msgstr "Üçüncü Katın Baş Belaları"
+
+#~ msgid "Phoenix Ash"
+#~ msgstr "Anka Külü"
+
+#~ msgid "Phoenix Regalia"
+#~ msgstr "Anka Giysisi"
+
+#~ msgid "Phoenix Weave"
+#~ msgstr "Anka Efsunu"
+
+#~ msgid "Pixie"
+#~ msgstr "Cin"
+
+#~ msgid "Pixies pour out of the Snare's roots!"
+#~ msgstr "Kapan'ın köklerinden periler fışkırıyor!"
+
+#~ msgid "Pixies stream out from under Fluffy's paws!"
+#~ msgstr "Fluffy'nin patilerinin altından cinler fışkırıyor!"
+
+#~ msgid "Pixies swarm the stair!"
+#~ msgstr "Cinler merdiveni sarıyor!"
 
 #~ msgid "Points  %d"
 #~ msgstr "Puan  %d"
 
+#~ msgid "Portkey"
+#~ msgstr "Portkey"
+
+#~ msgid "Portkey to %s\n%d"
+#~ msgstr "%s yönüne Portkey\n%d"
+
 #~ msgid "Power"
 #~ msgstr "Güç"
+
+#~ msgid "Prefect"
+#~ msgstr "Sınıf Başkanı"
+
+#~ msgid "Press %s - Grab hold of the Portkey (to %s)"
+#~ msgstr "%s'ye bas - Portkey'e tutun (%s yönüne)"
+
+#~ msgid "Press %s - Let go of the Portkey (to %s)"
+#~ msgstr "%s'ye bas - Portkey'i bırak (%s yönüne)"
+
+#~ msgid "Press O anywhere to open my workshop. Bring Phoenix Ash, Heartstrings, Thestral Hair."
+#~ msgstr "Atölyemi açmak için her yerde O'ya bas. Anka Külü, Ejderha Yürek Teli ve Thestral Kılı getir."
 
 #~ msgid "Press O near Ollivander, drag your wand onto the anvil and refine it with Phoenix Ash and Galleons."
 #~ msgstr "Ollivander'ın yanında O'ya bas, asanı örse sürükle ve Anka Külü ile Galleon kullanarak yükselt."
 
+#~ msgid "Press O to open Ollivander's workshop, drag your wand onto the anvil and refine it with Phoenix Ash and Galleons."
+#~ msgstr "Ollivander'ın atölyesini açmak için O'ya bas, asanı örsün üzerine sürükle ve Anka Külü ile Galleon kullanarak yükselt."
+
+#~ msgid "Professor Fig"
+#~ msgstr "Profesör Fig"
+
 #~ msgid "Professor Fig can teach you the Patronus Charm (level 40). Dementors fear nothing else."
 #~ msgstr "Profesör Fig sana Patronus Tılsımı'nı öğretebilir (seviye 40). Ruh Emiciler başka hiçbir şeyden korkmaz."
+
+#~ msgid "Professor Fig has one last piece of advice before you face the Warden."
+#~ msgstr "Gardiyanla yüzleşmeden önce Profesör Fig'in son bir tavsiyesi var."
+
+#~ msgid "Professor Fig says Dementors fear nothing but the Patronus Charm. Learn Expecto Patronum in your spell book (V) - it opens at level 40."
+#~ msgstr "Profesör Fig, Ruh Emicilerin Patronus Tılsımı'ndan başka hiçbir şeyden korkmadığını söylüyor. Expecto Patronum'u büyü kitabından (V) öğren - 40. seviyede açılır."
 
 #~ msgid "Professor Fig waits beside the courtyard fountain (gold ! marker). Walk up and click to talk."
 #~ msgstr "Profesör Fig avludaki çeşmenin yanında bekliyor (altın ! işareti). Yanına git ve konuşmak için tıkla."
 
+#~ msgid "Professor Fig waits beside the courtyard fountain (the bobbing gold arrow). Walk up and click him or press F to talk."
+#~ msgstr "Profesör Fig avludaki çeşmenin yanında bekliyor (inip kalkan altın ok). Yanına git, konuşmak için ona tıkla ya da F'ye bas."
+
+#~ msgid "Professor Flitwick"
+#~ msgstr "Profesör Flitwick"
+
+#~ msgid "Protego"
+#~ msgstr "Protego"
+
+#~ msgid "Protego Horribilis"
+#~ msgstr "Protego Horribilis"
+
+#~ msgid "Protego reflects projectiles back at their caster."
+#~ msgstr "Protego mermileri atana geri yansıtır."
+
+#~ msgid "Protego!"
+#~ msgstr "Protego!"
+
+#~ msgid "Queen's Seal"
+#~ msgstr "Kraliçe Mührü"
+
+#~ msgid "Quidditch Pitch"
+#~ msgstr "Quidditch Sahası"
+
+#~ msgid "Quidditch Tryouts"
+#~ msgstr "Quidditch Seçmeleri"
+
+#~ msgid "REALM OF WIZARDRY"
+#~ msgstr "BÜYÜCÜLÜK DİYARI"
+
 #~ msgid "Ranger (Hood)"
 #~ msgstr "Korucu (Kapüşon)"
 
+#~ msgid "Ravenclaw"
+#~ msgstr "Ravenclaw"
+
+#~ msgid "Refine your wand once at Ollivander"
+#~ msgstr "Ollivander'da asanı bir kez yükselt"
+
 #~ msgid "Report to Hagrid at his hut"
 #~ msgstr "Kulübesinde Hagrid'e rapor ver"
+
+#~ msgid "Report your victory to Professor Fig"
+#~ msgstr "Zaferini Profesör Fig'e bildir"
 
 #~ msgid "Return to your run"
 #~ msgstr "Koşuna geri dön"
@@ -7662,14 +8399,95 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "Reweave  ·  %d"
 #~ msgstr "Efsun Değiştir  ·  %d"
 
+#~ msgid "Roads to Hogsmeade"
+#~ msgstr "Hogsmeade Yolları"
+
+#~ msgid "Roaring cone of magical fire. Blast damage to everything in the cone, then burns over 3 seconds. Extra damage against Inferi."
+#~ msgstr "Kükreyen büyülü bir ateş konisi. Konideki her şeye patlama hasarı verir, sonra 3 saniye boyunca yakar. Inferius'lara ek hasar."
+
+#~ msgid "Room of Requirement"
+#~ msgstr "İhtiyaç Odası"
+
+#~ msgid "Rosmerta has heard the snatchers answer to a captain. Weaken them before he moves."
+#~ msgstr "Rosmerta, kapkaççıların bir kaptana bağlı olduğunu duymuş. O harekete geçmeden onları zayıflat."
+
+#~ msgid "Run the corridor from the pixies to the trapdoor in one go."
+#~ msgstr "Koridoru cinlerden kapağa kadar tek seferde geç."
+
 #~ msgid "Sell this item?"
 #~ msgstr "Bu eşya satılsın mı?"
+
+#~ msgid "Sells for %s Galleons"
+#~ msgstr "%s Galleon'a satılır"
+
+#~ msgid "Settle in at Hogwarts: your cloak, your first spells, your first broom."
+#~ msgstr "Hogwarts'a yerleş: pelerinin, ilk büyülerin, ilk süpürgen."
+
+#~ msgid "Shatter the Dark Monolith"
+#~ msgstr "Karanlık Metin Taşını Parçala"
 
 #~ msgid "Side Fringe"
 #~ msgstr "Yan Perçem"
 
+#~ msgid "Sleek mahogany handle with tail twigs of select birch. Fly across Hogwarts Valley with speed."
+#~ msgstr "Zarif maun sap, seçme huş kuyruk dalları. Hogwarts Vadisi'nin üzerinden hızla uç."
+
 #~ msgid "Slicked Back"
 #~ msgstr "Geriye Taranmış"
+
+#~ msgid "Slytherin"
+#~ msgstr "Slytherin"
+
+#~ msgid "Smoldering fiery ash gathered from a burning day. Used to refine wands from +0 to +4 at Ollivander."
+#~ msgstr "Yanan bir günden toplanmış için için yanan ateşli kül. Ollivander'da asaları +0'dan +4'e yükseltmek için kullanılır."
+
+#~ msgid "Snatcher Woods"
+#~ msgstr "Kapkaççı Korusu"
+
+#~ msgid "Snatchers on the Road"
+#~ msgstr "Yoldaki Kapkaççılar"
+
+#~ msgid "Snatchers prowl the roads; the village needs a wand it can trust."
+#~ msgstr "Kapkaççılar yollarda kol geziyor; köyün güvenebileceği bir asaya ihtiyacı var."
+
+#~ msgid "Snatchers waylay travellers on the Hogsmeade Road. They cast back - keep your distance."
+#~ msgstr "Kapkaççılar Hogsmeade Yolu'nda yolcuların yolunu kesiyor. Karşılık büyü yaparlar - mesafeni koru."
+
+#~ msgid "Sold for %s Galleons."
+#~ msgstr "%s Galleon'a satıldı."
+
+#~ msgid "Something stirs in the crypts and the trolls come down from their hollow."
+#~ msgstr "Mahzenlerde bir şey kıpırdanıyor ve troller çukurlarından aşağı iniyor."
+
+#~ msgid "Soul-sucking guards of Azkaban. Their cold drains your will; only a Patronus truly drives them off."
+#~ msgstr "Azkaban'ın ruh emen gardiyanları. Soğukları iradeni tüketir; onları gerçekten ancak bir Patronus kovar."
+
+#~ msgid "Speak with Madam Pince"
+#~ msgstr "Madam Pince ile konuş"
+
+#~ msgid "Speak with Madam Pince about the third floor"
+#~ msgstr "Üçüncü kat hakkında Madam Pince ile konuş"
+
+#~ msgid "Speak with Madam Rosmerta in Hogsmeade"
+#~ msgstr "Hogsmeade'de Madam Rosmerta ile konuş"
+
+#~ msgid "Speak with Ollivander"
+#~ msgstr "Ollivander ile konuş"
+
+#~ msgid "Speak with Ollivander in the courtyard and practice casting your Basic Cast and Stupefy on the Training Dummies."
+#~ msgstr "Avluda Ollivander ile konuş ve Eğitim Kuklaları üzerinde Temel Büyü ile Stupefy çalış."
+
+#~ msgid "Speak with Professor Fig"
+#~ msgstr "Profesör Fig ile konuş"
+
+#~ msgid "Speak with Professor Fig about the Patronus"
+#~ msgstr "Patronus hakkında Profesör Fig ile konuş"
+
+#~ msgid "Speak with Professor Fig by the fountain"
+#~ msgstr "Çeşmenin yanında Profesör Fig ile konuş"
+
+#~ msgid "Speak with Professor Flitwick"
+#~ msgstr "Profesör Flitwick ile konuş"
 
 #~ msgid "Status points: %d  ·  %d per level"
 #~ msgstr "Statü puanı: %d  ·  seviye başına %d"
@@ -7680,29 +8498,137 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "Straight Brows"
 #~ msgstr "Düz Kaş"
 
+#~ msgid "Stupefy"
+#~ msgstr "Stupefy"
+
+#~ msgid "Suits of armour enchanted to defend the forbidden third floor."
+#~ msgstr "Yasak üçüncü katı korumak için büyülenmiş zırhlar."
+
+#~ msgid "That Portkey has already gone."
+#~ msgstr "O Portkey çoktan gitti."
+
+#~ msgid "That Portkey is not yours - only its owner's party may hold on."
+#~ msgstr "O Portkey senin değil - yalnızca sahibinin grubu tutunabilir."
+
+#~ msgid "The Azkaban Warden"
+#~ msgstr "Azkaban Gardiyanı"
+
+#~ msgid "The Azkaban Warden sleeps in a barrow in the marsh."
+#~ msgstr "Azkaban Gardiyanı bataklıktaki bir höyükte uyuyor."
+
+#~ msgid "The Blackweb Queen rises from her nest!"
+#~ msgstr "Kara Ağ Kraliçesi yuvasından doğruluyor!"
+
+#~ msgid "The Forbidden Corridor"
+#~ msgstr "Yasak Koridor"
+
+#~ msgid "The Forbidden Forest is crawling with venomous Acromantulas. Defeat 5 Acromantulas to protect the castle grounds."
+#~ msgstr "Yasak Orman zehirli Akromantulalarla kaynıyor. Şato arazisini korumak için 5 Akromantula alt et."
+
+#~ msgid "The Inferi gather again at the Forest Edge and in Greenhouse Meadow."
+#~ msgstr "Inferius'lar Orman Kıyısı'nda ve Sera Çayırı'nda yeniden toplanıyor."
+
+#~ msgid "The Matriarch"
+#~ msgstr "Ana"
+
 #~ msgid "The Matriarch nests in Spider Hollow in the far north-west."
 #~ msgstr "Ana, çok kuzeybatıdaki Örümcek Çukuru'nda yuvalanıyor."
+
+#~ msgid "The Matriarch nests in Spider Hollow in the far south-west, beyond the Spider Woods."
+#~ msgstr "Ana, uzak güneybatıda, Örümcek Korusu'nun ötesindeki Örümcek Çukuru'nda yuvalanıyor."
+
+#~ msgid "The Matriarch's Guard"
+#~ msgstr "Ana'nın Muhafızları"
+
+#~ msgid "The Portkey fizzled - nobody was holding on. The boot is back in your bag."
+#~ msgstr "Portkey söndü - kimse tutunmuyordu. Çizme çantana geri döndü."
 
 #~ msgid "The Queen curls up and is still. Her hoard waits in the nest."
 #~ msgstr "Kraliçe kıvrılıp hareketsiz kaldı. Hazinesi yuvada bekliyor."
 
+#~ msgid "The Queen's Lair"
+#~ msgstr "Kraliçe'nin Yuvası"
+
+#~ msgid "The Snatcher Captain"
+#~ msgstr "Kapkaççı Kaptanı"
+
+#~ msgid "The Three Broomsticks"
+#~ msgstr "Üç Süpürge"
+
+#~ msgid "The Three-Headed Dog"
+#~ msgstr "Üç Başlı Köpek"
+
+#~ msgid "The corridor is silent. The trapdoor swings open - claim your reward."
+#~ msgstr "Koridor sessizleşti. Kapak açılıyor - ödülünü al."
+
+#~ msgid "The creatures at the forest edge grow bolder; learn the forge and the trial."
+#~ msgstr "Orman kıyısındaki yaratıklar cüretleniyor; demirciyi ve sınavı öğren."
+
+#~ msgid "The dead rise in the barrows and the Matriarch spins in her hollow."
+#~ msgstr "Höyüklerde ölüler kalkıyor ve Ana, çukurunda ağ örüyor."
+
 #~ msgid "The dummies in the courtyard never hit back. Left-click to cast; your spells hurt nothing inside the safe ground."
 #~ msgstr "Avludaki kuklalar asla karşılık vermez. Büyü yapmak için sol tıkla; güvenli bölgede büyülerin hiçbir şeye zarar vermez."
+
+#~ msgid "The heights above Hogsmeade are crawling with dark wizards."
+#~ msgstr "Hogsmeade'in üzerindeki tepeler kara büyücülerle kaynıyor."
 
 #~ msgid "The iron gate grinds open."
 #~ msgstr "Demir kapı gıcırdayarak açılıyor."
 
+#~ msgid "The moors are harder still. Ollivander will not let you go up there half-made."
+#~ msgstr "Bozkırlar daha da zorlu. Ollivander oraya yarım hazırlıkla gitmene izin vermeyecek."
+
+#~ msgid "The music lulls Fluffy to sleep! Its heads take more damage."
+#~ msgstr "Müzik Fluffy'yi uyuttu! Başları artık daha fazla hasar alıyor."
+
+#~ msgid "The pixies on the stairs beyond the snare are worse than the first lot."
+#~ msgstr "Kapanın ötesindeki merdivendeki cinler ilk gruptan da beter."
+
+#~ msgid "The snatchers ambush anyone who climbs the Ridge Path."
+#~ msgstr "Kapkaççılar Sırt Yolu'na tırmanan herkese pusu kuruyor."
+
+#~ msgid "The snatchers fell back into the Dark Thicket, far to the west."
+#~ msgstr "Kapkaççılar çok batıdaki Karanlık Çalılık'a çekildi."
+
+#~ msgid "The snatchers have a camp in the woods north-west of the castle. Drive them out."
+#~ msgstr "Kapkaççıların kalenin kuzeybatısındaki ormanda bir kampı var. Onları oradan sür."
+
 #~ msgid "The snatchers have a camp in the woods south of the castle. Drive them out."
 #~ msgstr "Kapkaççıların şatonun güneyindeki koruda bir kampı var. Onları oradan sür."
 
+#~ msgid "The third-floor corridor is out of bounds - and something guards it."
+#~ msgstr "Üçüncü kat koridoruna girmek yasak - ve onu bir şey koruyor."
+
+#~ msgid "The third-floor corridor is out of bounds... something is buzzing."
+#~ msgstr "Üçüncü kat koridoruna girmek yasak... bir şey vızıldıyor."
+
 #~ msgid "The trial is complete. Claim your reward."
 #~ msgstr "Sınav tamamlandı. Ödülünü al."
+
+#~ msgid "The valley is safe - for now. Professor Fig is waiting to congratulate you."
+#~ msgstr "Vadi güvende - şimdilik. Profesör Fig seni tebrik etmek için bekliyor."
+
+#~ msgid "The woods behind the Quidditch Pitch are thick with webs."
+#~ msgstr "Quidditch Sahası'nın arkasındaki koru ağlarla dolu."
+
+#~ msgid "Thestral Tail Hair"
+#~ msgstr "Thestral Kuyruk Kılı"
 
 #~ msgid "Thick Brows"
 #~ msgstr "Kalın Kaş"
 
 #~ msgid "Tied Back"
 #~ msgstr "Arkada Toplu"
+
+#~ msgid "Transfiguration"
+#~ msgstr "Biçim Değiştirme"
+
+#~ msgid "Trolls and dark wizards hold the moors above Hogsmeade."
+#~ msgstr "Troller ve kara büyücüler Hogsmeade'in üzerindeki bozkırları tutuyor."
+
+#~ msgid "Turns your items into Galleons"
+#~ msgstr "Eşyalarını Galleon'a çevirir"
 
 #~ msgid "Ultimate forbidden sorcery. Calls forth blinding emerald lightning that disintegrates targets in a wide blast radius."
 #~ msgstr "Nihai yasak büyücülük. Geniş bir patlama alanındaki hedefleri parçalayan kör edici zümrüt şimşekler çağırır."
@@ -7713,6 +8639,39 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "Unknown command. Party: /invite Name, /accept, /decline, /leave, /kick Name, /promote Name, /p text"
 #~ msgstr "Bilinmeyen komut. Parti: /invite İsim, /accept, /decline, /leave, /kick İsim, /promote İsim, /p metin"
 
+#~ msgid "Unravels every enchantment on a wand, robe or broom and weaves the same number anew at Ollivander's."
+#~ msgstr "Ollivander'da bir asa, cüppe ya da süpürgedeki tüm efsunları çözer ve aynı sayıda yenisini basar."
+
+#~ msgid "Use the harp to lull the heads to sleep, then strike while they doze."
+#~ msgstr "Başları uyutmak için arpı kullan, sonra onlar uyuklarken vur."
+
+#~ msgid "Venomfang Acromantula"
+#~ msgstr "Zehirdiş Akromantula"
+
+#~ msgid "WASD move · right-drag camera · wheel zoom\nLMB attack · 1–4 / Q / E skills · Tab target\nShift mount · Space rise · Ctrl descend · F talk\nZ loot · I bag · O Ollivander · J guide · F1 settings"
+#~ msgstr "WASD hareket · sağ sürükle kamera · tekerlek yakınlaştır\nSol tık saldır · 1–4 / Q / E beceriler · Tab hedef\nShift bin · Boşluk yüksel · Ctrl alçal · F konuş\nZ ganimet · I çanta · O Ollivander · J rehber · F1 ayarlar"
+
+#~ msgid "Wands choose the wizard... but Galleons refine them!"
+#~ msgstr "Asalar büyücüsünü seçer... ama onları Galleon'lar yükseltir!"
+
+#~ msgid "Welcome to Hogsmeade, dearie! Rest here - the village square is safe."
+#~ msgstr "Hogsmeade'e hoş geldin, canım! Burada dinlen - köy meydanı güvenlidir."
+
+#~ msgid "Welcome to Hogwarts! Spells on 1-4, Q, E · potions on F1-F4 · Shift mounts the broom."
+#~ msgstr "Hogwarts'a hoş geldin! Büyüler 1-4, Q, E tuşlarında · iksirler F1-F4'te · Shift ile süpürgeye binersin."
+
+#~ msgid "Welcome! Stupefy interrupts, Incendio burns, and Expelliarmus weakens attacks."
+#~ msgstr "Hoş geldin! Stupefy büyüyü keser, Incendio yakar, Expelliarmus saldırıları zayıflatır."
+
+#~ msgid "Wiggenweld Potion"
+#~ msgstr "Wiggenweld İksiri"
+
+#~ msgid "With the Matriarch gone, Madam Pince can finally seal the Crypt Gate."
+#~ msgstr "Ana gittiğine göre Madam Pince sonunda Mahzen Kapısı'nı mühürleyebilir."
+
+#~ msgid "Without the snatchers' coin the trolls of the hollow will scatter. Finish them."
+#~ msgstr "Kapkaççıların parası olmadan çukurun trolleri dağılacak. İşlerini bitir."
+
 #~ msgid "Yeh shouldn' go into the forest alone... brave though!"
 #~ msgstr "Ormana yalnız girmemelisin... gerçi cesursun ha!"
 
@@ -7722,8 +8681,23 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 #~ msgid "You have %d"
 #~ msgstr "Sende %d tane var"
 
+#~ msgid "You have no Floo Powder - buy a pinch at the fireplace."
+#~ msgstr "Uçuç Tozun yok - şömineden bir tutam satın al."
+
+#~ msgid "You have no Portkey boot."
+#~ msgstr "Portkey çizmen yok."
+
+#~ msgid "Your Portkey is already waiting - grab hold of it."
+#~ msgstr "Portkey'in zaten bekliyor - ona tutun."
+
 #~ msgid "Your bag is full: the rest of the quest reward waits in a chest at your feet."
 #~ msgstr "Çantan dolu: görev ödülünün kalanı ayağının dibindeki sandıkta seni bekliyor."
+
+#~ msgid "[ Gryffindor ]"
+#~ msgstr "[ Gryffindor ]"
+
+#~ msgid "[O] Ollivander - forge the wand higher"
+#~ msgstr "[O] Ollivander - asanı yükselt"
 
 #~ msgid "[Shift] Dismount broom"
 #~ msgstr "[Shift] Süpürgeden in"
@@ -7748,6 +8722,18 @@ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. 
 
 #~ msgid "reference level %d - creatures level %d-%d"
 #~ msgstr "referans seviye %d - yaratıklar %d-%d. seviye"
+
+#~ msgid "the Forbidden Corridor"
+#~ msgstr "Yasak Koridor"
+
+#~ msgid "the One-Eyed Witch"
+#~ msgstr "Tek Gözlü Cadı"
+
+#~ msgid "the Queen's Lair"
+#~ msgstr "Kraliçe'nin Yuvası"
+
+#~ msgid "the Room of Requirement"
+#~ msgstr "İhtiyaç Odası"
 
 #~ msgid "the leader spends %d"
 #~ msgstr "lider %d anahtar harcar"

@@ -356,7 +356,7 @@ func refresh() -> void:
 	if q.is_empty():
 		_chapter_row.visible = false
 		_title.text = tr("No Open Quests")
-		_set_story(tr("Every task open to you is done. Level up to unlock more, hunt the Dark Monoliths and refine your gear."))
+		_set_story(tr("Every task open to you is done. Level up to unlock more, hunt the Dark Shards and refine your gear."))
 		_sign.text = ""
 		_objective_block.visible = false
 		_reward_block.visible = false
@@ -383,10 +383,10 @@ func refresh() -> void:
 	if int(q.get("reward_exp", 0)) > 0:
 		_rewards.add_child(_reward("stat_exp", galleon_text.call(int(q.reward_exp)), tr("experience"), false))
 	if int(q.get("reward_gold", 0)) > 0:
-		_rewards.add_child(_reward("galleons", galleon_text.call(int(q.reward_gold)), tr("Galleons"), false))
+		_rewards.add_child(_reward("galleons", galleon_text.call(int(q.reward_gold)), tr("Oril"), false))
 	if int(q.get("reward_house_rep", 0)) > 0:
 		var house := String(QuestManager.player_ref.house) if is_instance_valid(QuestManager.player_ref) else ""
-		_rewards.add_child(_reward("house_" + house.to_lower(), str(int(q.reward_house_rep)), tr("%s reputation") % house, false))
+		_rewards.add_child(_reward("house_" + house.to_lower(), str(int(q.reward_house_rep)), tr("%s reputation") % GameData.house_name(house), false))
 	for item in q.get("reward_items", []):
 		var id := String(item.get("id", ""))
 		var amount := int(item.get("amount", 1))

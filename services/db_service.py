@@ -369,9 +369,9 @@ class DBRequestHandler(BaseHTTPRequestHandler):
 
             # Verify sufficiency
             if p1_galleons < p1_offer.get("galleons", 0):
-                raise Exception("Player 1 has insufficient Galleons.")
+                raise Exception("Player 1 has insufficient Oril.")
             if p2_galleons < p2_offer.get("galleons", 0):
-                raise Exception("Player 2 has insufficient Galleons.")
+                raise Exception("Player 2 has insufficient Oril.")
 
             # Swap Galleons
             p1_galleons = p1_galleons - p1_offer.get("galleons", 0) + p2_offer.get("galleons", 0)

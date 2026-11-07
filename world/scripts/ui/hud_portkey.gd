@@ -8,7 +8,7 @@ var player: Node = null
 var _list: VBoxContainer
 
 func _init() -> void:
-	super._init("Portkey", Vector2(380, 360))
+	super._init("Waylink", Vector2(380, 360))
 	name = "PortkeyPicker"
 
 func _ready() -> void:

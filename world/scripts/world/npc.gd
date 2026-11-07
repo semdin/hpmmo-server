@@ -17,8 +17,8 @@ const LOOPING_CLIPS := ["Idle", "Talk", "Walk_A"]
 ## How long a custom body keeps gesturing after the player talks to it.
 const TALK_SECONDS := 4.0
 
-var npc_name: String = "Professor Fig"
-var dialogue: Array = ["Welcome to Hogwarts, young wizard."]
+var npc_name: String = "Master Teral Venn"
+var dialogue: Array = ["Welcome to Kaf Castle, young wizard."]
 var shop_items: Array = []
 var _marker: Node3D = null
 var _t: float = 0.0

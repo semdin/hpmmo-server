@@ -1333,7 +1333,7 @@ void handle_trade(const httplib::Request& req, httplib::Response& res, const Con
                                     {std::to_string(to_id), std::to_string(request_gold), std::to_string(offer_gold)});
         if (!g1.ok || !g2.ok) {
             lease.rollback();
-            return send_error(res, 500, "Galleon swap failed.");
+            return send_error(res, 500, "Oril swap failed.");
         }
     }
     const json result = {{"from_id", from_id}, {"to_id", to_id}, {"offer_galleons", offer_gold},

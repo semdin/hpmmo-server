@@ -20,7 +20,7 @@
   "stupefy": {
     "id": "stupefy",
     "element": "stun",
-    "name": "Stupefy",
+    "name": "Stun Bolt",
     "desc": "Stunning spell. Hits target, deals high damage and stuns for up to 1.8 seconds.",
     "delivery": "projectile",
     "damage": 74,
@@ -38,8 +38,8 @@
   "incendio": {
     "id": "incendio",
     "element": "fire",
-    "name": "Incendio",
-    "desc": "Roaring cone of magical fire. Blast damage to everything in the cone, then burns over 3 seconds. Extra damage against Inferi.",
+    "name": "Flame Wave",
+    "desc": "Roaring cone of magical fire. Blast damage to everything in the cone, then burns over 3 seconds. Extra damage against Drowned Ones.",
     "delivery": "cone",
     "damage": 101,
     "magic_attack_coef": 0.78,
@@ -55,7 +55,7 @@
   "bombarda": {
     "id": "bombarda",
     "element": "force",
-    "name": "Bombarda",
+    "name": "Shockwave",
     "desc": "Detonates a violent concussive shockwave. Heavy AOE damage; enemies in the blast are thrown through the air and lie stunned for a moment where they land.",
     "delivery": "projectile_aoe",
     "damage": 144,
@@ -74,7 +74,7 @@
   "expelliarmus": {
     "id": "expelliarmus",
     "element": "force",
-    "name": "Expelliarmus",
+    "name": "Disarm",
     "desc": "Disarming charm. Knocks back the target, interrupts casting and reduces its attack power by 35% for 5 seconds.",
     "delivery": "projectile",
     "damage": 66,
@@ -94,7 +94,7 @@
   "protego": {
     "id": "protego",
     "element": "none",
-    "name": "Protego",
+    "name": "Ward Shield",
     "desc": "Shimmering forcefield. Projectiles that strike it are reflected at their caster; all other damage is reduced by 60%.",
     "delivery": "self",
     "damage": 0,
@@ -130,8 +130,8 @@
   "patronum": {
     "id": "patronum",
     "element": "patronus",
-    "name": "Expecto Patronum",
-    "desc": "Conjures a silver stag that charges through a wide cone. Dementors take triple damage and the stag breaks a dementor's attack, kiss included; everything it charges through is slowed by 40% for 3 seconds. Requires level 40.",
+    "name": "Light of Ithrel",
+    "desc": "Calls down a star-hawk of silver light that dives through a wide cone. Pallids take triple damage and the star-hawk breaks a Pallid's attack, soul-drain included; everything it passes through is slowed by 40% for 3 seconds. Requires level 40.",
     "delivery": "cone",
     "damage": 86,
     "magic_attack_coef": 0.7,
@@ -149,7 +149,7 @@
   "glacius": {
     "id": "glacius",
     "element": "frost",
-    "name": "Glacius",
+    "name": "Frost Grip",
     "desc": "Frost nova. Hurls a spinning ice crystal that bursts into shards and freezing mist, freezing every enemy in the blast solid for up to 1.6 seconds; thawed enemies stay chilled and slowed for 2.5 seconds. Requires level 20.",
     "delivery": "projectile_aoe",
     "damage": 110,

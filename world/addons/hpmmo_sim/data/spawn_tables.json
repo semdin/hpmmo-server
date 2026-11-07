@@ -400,7 +400,7 @@
     },
     {
       "id": "forest_e",
-      "display": "Snatcher Woods",
+      "display": "Bandit Woods",
       "level_min": 10,
       "level_max": 16,
       "center": [
@@ -419,7 +419,7 @@
     },
     {
       "id": "forest_w",
-      "display": "Acromantula Thicket",
+      "display": "Weaver Thicket",
       "level_min": 6,
       "level_max": 12,
       "center": [
@@ -609,7 +609,7 @@
     },
     {
       "id": "hogsmeade_road",
-      "display": "Hogsmeade Road",
+      "display": "Orvell Road",
       "level_min": 8,
       "level_max": 12,
       "center": [
@@ -799,7 +799,7 @@
     },
     {
       "id": "hogsmeade_heights",
-      "display": "Hogsmeade Heights",
+      "display": "Orvell Heights",
       "level_min": 28,
       "level_max": 34,
       "center": [
@@ -22947,7 +22947,7 @@
       "attack_range": 4.5,
       "exp_reward": 600,
       "scale": 1.0,
-      "name": "Acromantula Matriarch",
+      "name": "Black Widow",
       "move_speed": 3.0,
       "walk_speed": 0.82
     },
@@ -22957,7 +22957,7 @@
       "attack_range": 4.5,
       "exp_reward": 600,
       "scale": 1.0,
-      "name": "Dark Snatcher Commander",
+      "name": "Bandit Chief",
       "move_speed": 3.6,
       "walk_speed": 1.5
     },
@@ -22978,7 +22978,7 @@
       "attack_range": 4.5,
       "exp_reward": 4000,
       "scale": 1.0,
-      "name": "The Azkaban Warden",
+      "name": "The Morhal Warden",
       "move_speed": 4.5,
       "walk_speed": 0.0,
       "label_y": 4.0
@@ -23031,7 +23031,7 @@
       "attack_range": 9.0,
       "exp_reward": 3500,
       "scale": 1.0,
-      "name": "Devil's Snare",
+      "name": "Strangling Vine",
       "move_speed": 0.0,
       "walk_speed": 0.0,
       "label_y": 5.2,
@@ -23044,7 +23044,7 @@
       "attack_range": 7.5,
       "exp_reward": 9000,
       "scale": 1.0,
-      "name": "Fluffy",
+      "name": "Threehead",
       "move_speed": 2.6,
       "walk_speed": 0.0,
       "label_y": 8.4,
@@ -23070,7 +23070,7 @@
       "attack_range": 5.0,
       "exp_reward": 6000,
       "scale": 1.6,
-      "name": "Blackweb Queen",
+      "name": "Web Mother",
       "move_speed": 3.2,
       "walk_speed": 0.82,
       "label_y": 5.2
@@ -23327,7 +23327,7 @@
       ],
       "spawn_distance_min": 4.0,
       "spawn_distance_max": 9.0,
-      "name": "Dark Monolith",
+      "name": "Dark Shard",
       "level": 15,
       "loot_table": "monolith",
       "scene": "res://scenes/entities/monolith/dark_monolith.tscn"

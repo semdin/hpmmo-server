@@ -200,7 +200,7 @@ func _update_slot_display(_animated: bool = true) -> void:
 		var c_max_mana: int = c.get("max_mana", 300)
 
 		char_name_label.text = c_name
-		char_house_label.text = c_house
+		char_house_label.text = GameData.house_name(c_house)
 		if GameData.HOUSES.has(c_house):
 			var house_data = GameData.HOUSES[c_house]
 			char_house_label.modulate = (house_data.primary_color as Color).lightened(0.3)
@@ -211,8 +211,8 @@ func _update_slot_display(_animated: bool = true) -> void:
 
 		char_stats_label.text = tr("Level %d\nHealth  %d / %d\nMana  %d / %d") % [c_level, c_hp, c_max_hp, c_mana, c_max_mana]
 		char_wand_label.text = tr("Wand  +%d") % c_wand
-		char_galleons_label.text = tr("Galleons  %d") % c_galleons
-		char_location_label.text = tr("Hogwarts Valley")
+		char_galleons_label.text = tr("Oril  %d") % c_galleons
+		char_location_label.text = tr("Kaf Valley")
 
 		enter_world_btn.visible = true
 		enter_world_btn.disabled = false
@@ -354,7 +354,7 @@ func _select_modal_house(h_name: String) -> void:
 	selected_house = h_name
 	if GameData.HOUSES.has(h_name):
 		var data = GameData.HOUSES[h_name]
-		modal_house_desc.text = "%s - \"%s\"\n%s" % [data.name, data.motto, tr(String(data.trait))]
+		modal_house_desc.text = "%s - \"%s\"\n%s" % [I18n.t(String(data.name)), tr(String(data.motto)), tr(String(data.trait))]
 		modal_house_desc.modulate = (data.primary_color as Color).lightened(0.45)
 
 	# the outfit's main cloth wears the house colour
@@ -767,7 +767,7 @@ func _refresh_roster() -> void:
 			var c: Dictionary = characters[i]
 			var house := String(c.get("house", "Gryffindor"))
 			card.icon = UITheme.chrome_at("house_" + house.to_lower(), 46.0)
-			card.text = tr("%s\nLevel %d  ·  %s") % [String(c.get("name", "Wizard")), int(c.get("level", 1)), house]
+			card.text = tr("%s\nLevel %d  ·  %s") % [String(c.get("name", "Wizard")), int(c.get("level", 1)), GameData.house_name(house)]
 			var index := i
 			card.pressed.connect(func(): _switch_slot(index))
 		else:

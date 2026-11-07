@@ -119,7 +119,7 @@ func _card(q: Dictionary) -> Control:
 	var title := _ink(I18n.t(String(q.get("title", ""))), 16, Color(0.36, 0.12, 0.05), HudKit.bold())
 	col.add_child(title)
 	col.add_child(_ink(QuestManager.objective_text(q), 13, ink, HudKit.body()))
-	var reward := tr("%d EXP  ·  %d Galleons") % [int(q.get("reward_exp", 0)), int(q.get("reward_gold", 0))]
+	var reward := tr("%d EXP  ·  %d Oril") % [int(q.get("reward_exp", 0)), int(q.get("reward_gold", 0))]
 	var items := QuestManager.reward_items_text(q)
 	if items != "":
 		reward += "\n" + items

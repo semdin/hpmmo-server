@@ -6,34 +6,39 @@ extends Node
 # House Factions
 var HOUSES: Dictionary = {
 	"Gryffindor": {
-		"name": "Gryffindor",
-		"primary_color": Color(0.78, 0.08, 0.12),
-		"secondary_color": Color(0.95, 0.77, 0.12),
+		"name": "Velkar",
+		"primary_color": Color(0.85, 0.40, 0.11),
+		"secondary_color": Color(0.13, 0.11, 0.10),
 		"trait": "Bravery: +15% Fire Spell Damage & +10% Critical Strike Chance",
-		"motto": "Forti Animo Estote"
+		"motto": "From my ashes I rise again."
 	},
 	"Slytherin": {
-		"name": "Slytherin",
-		"primary_color": Color(0.08, 0.45, 0.18),
-		"secondary_color": Color(0.75, 0.75, 0.78),
+		"name": "Nisera",
+		"primary_color": Color(0.48, 0.24, 0.69),
+		"secondary_color": Color(0.86, 0.69, 0.30),
 		"trait": "Ambition: +20% Dark Magic Damage & Life Leech",
-		"motto": "Soli Fortes Praevalent"
+		"motto": "Knowledge runs deeper than venom."
 	},
 	"Ravenclaw": {
-		"name": "Ravenclaw",
-		"primary_color": Color(0.08, 0.28, 0.58),
-		"secondary_color": Color(0.82, 0.55, 0.22),
+		"name": "Ilvane",
+		"primary_color": Color(0.24, 0.56, 0.82),
+		"secondary_color": Color(0.93, 0.95, 0.97),
 		"trait": "Wisdom: -20% Spell Cooldowns & +25% Max Mana",
-		"motto": "Sapientia Super Omnia"
+		"motto": "We arrive before the wind."
 	},
 	"Hufflepuff": {
-		"name": "Hufflepuff",
-		"primary_color": Color(0.92, 0.72, 0.15),
-		"secondary_color": Color(0.18, 0.18, 0.18),
+		"name": "Torvan",
+		"primary_color": Color(0.55, 0.56, 0.59),
+		"secondary_color": Color(0.70, 0.18, 0.14),
 		"trait": "Loyalty: +25% Max Health & +15% Physical/Magic Armor",
-		"motto": "In Fidelitate Robur"
+		"motto": "Together we hold."
 	}
 }
+
+## A house as players read it (the key stays the saved id: "Gryffindor" shows
+## as "Velkar"). Every label that names a house goes through this.
+func house_name(key: String) -> String:
+	return I18n.t(String((HOUSES.get(key, {}) as Dictionary).get("name", key)))
 
 # Spells Database
 var SPELLS: Dictionary = {
@@ -51,7 +56,7 @@ var SPELLS: Dictionary = {
 	},
 	"stupefy": {
 		"id": "stupefy",
-		"name": "Stupefy",
+		"name": "Stun Bolt",
 		"desc": "Stunning spell. Hits target, deals damage and stuns for 1.8 seconds.",
 		"damage": 85,
 		"cooldown": 3.0,
@@ -64,8 +69,8 @@ var SPELLS: Dictionary = {
 	},
 	"incendio": {
 		"id": "incendio",
-		"name": "Incendio",
-		"desc": "Cone blast of roaring magical fire. Burns enemies over 4 seconds. Extra damage to Inferi.",
+		"name": "Flame Wave",
+		"desc": "Cone blast of roaring magical fire. Burns enemies over 4 seconds. Extra damage to Drowned Ones.",
 		"damage": 120,
 		"burn_damage": 30,
 		"burn_ticks": 4,
@@ -78,7 +83,7 @@ var SPELLS: Dictionary = {
 	},
 	"bombarda": {
 		"id": "bombarda",
-		"name": "Bombarda",
+		"name": "Shockwave",
 		"desc": "Detonates a violent concussive shockwave. Deals heavy AOE damage with knockback.",
 		"damage": 160,
 		"radius": 8.0,
@@ -92,7 +97,7 @@ var SPELLS: Dictionary = {
 	},
 	"expelliarmus": {
 		"id": "expelliarmus",
-		"name": "Expelliarmus",
+		"name": "Disarm",
 		"desc": "Disarming charm. Knocks back enemy, interrupts casts and reduces target power by 30%.",
 		"damage": 75,
 		"cooldown": 4.5,
@@ -104,7 +109,7 @@ var SPELLS: Dictionary = {
 	},
 	"protego": {
 		"id": "protego",
-		"name": "Protego",
+		"name": "Ward Shield",
 		"desc": "Summons a shimmering magical dome shield that reflects incoming bolts and halves damage.",
 		"damage": 0,
 		"duration": 3.5,

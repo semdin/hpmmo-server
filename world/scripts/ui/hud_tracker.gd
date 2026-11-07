@@ -4,7 +4,7 @@ class_name HudTracker
 ## The objective tracker on the left edge of the screen: one card per quest at
 ## the top of the log (QuestManager.log_entries - finished first, then new,
 ## then the rest), at most MAX_ROWS, each with its title and live count
-## ("Defeat 6 Acromantulas 3/6"). A new (unread) quest pulses gold, a finished
+## ("Defeat 6 Black Weavers 3/6"). A new (unread) quest pulses gold, a finished
 ## one pulses green until it is claimed: clicking a finished card claims the
 ## reward, clicking any other opens it on its parchment scroll. "More quests"
 ## opens the quest log (J) when the log holds more than fits here.

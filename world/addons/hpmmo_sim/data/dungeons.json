@@ -295,7 +295,7 @@
         "speed": 1.15
       },
       "bolster": {
-        "display": "Protego Horribilis",
+        "display": "Ward Shield Horribilis",
         "desc": "A creature that dies strengthens the creatures around it (+15% health and damage, up to 5 times).",
         "radius": 15.0,
         "hp": 0.15,
@@ -310,7 +310,7 @@
         "hp_share": 0.12
       },
       "chill": {
-        "display": "Dementor's Chill",
+        "display": "Pallid's Chill",
         "desc": "Every 45 seconds a deathly cold stops everyone's regeneration for 6 seconds.",
         "every_s": 45.0,
         "despair_s": 6.0
@@ -734,7 +734,7 @@
     },
     "forbidden_corridor": {
       "map": "dng_forbidden_corridor",
-      "display": "The Forbidden Corridor",
+      "display": "The Sealed Wing",
       "level_min": 30,
       "level_max": 100,
       "par_s": 1500,
@@ -742,7 +742,7 @@
         {
           "id": "corridor",
           "on": "enter",
-          "message": "The third-floor corridor is out of bounds... something is buzzing.",
+          "message": "The castle's sealed wing is out of bounds... something is buzzing.",
           "spawn": [
             {
               "mob": "cornish_pixie",
@@ -1029,7 +1029,7 @@
           "close": [
             "gate_b"
           ],
-          "message": "Devil's Snare! Burn its vines - Incendio!",
+          "message": "Strangling Vine! Burn its vines - Flame Wave!",
           "spawn": [
             {
               "mob": "devils_snare",
@@ -1049,7 +1049,7 @@
           "id": "snare_swarm",
           "on": "hp_below:snare:0.5",
           "min_difficulty": "hard",
-          "message": "Pixies pour out of the Snare's roots!",
+          "message": "Fidgetlings pour out of the Snare's roots!",
           "spawn": [
             {
               "mob": "cornish_pixie",
@@ -1087,7 +1087,7 @@
         {
           "id": "stairs",
           "on": "area:-144",
-          "message": "Pixies swarm the stair!",
+          "message": "Fidgetlings swarm the stair!",
           "spawn": [
             {
               "mob": "cornish_pixie",
@@ -1109,7 +1109,7 @@
           "close": [
             "gate_c"
           ],
-          "message": "Fluffy wakes! Play the harp to lull it to sleep.",
+          "message": "Threehead wakes! Ring the sleep chime to lull it.",
           "spawn": [
             {
               "mob": "fluffy",
@@ -1137,7 +1137,7 @@
         {
           "id": "fluffy_pixies",
           "on": "hp_below:fluffy:0.6",
-          "message": "Pixies stream out from under Fluffy's paws!",
+          "message": "Fidgetlings stream out from under Threehead's paws!",
           "spawn": [
             {
               "mob": "cornish_pixie",
@@ -1171,7 +1171,7 @@
             "gate_b",
             "gate_c"
           ],
-          "message": "Fluffy collapses. Clear every creature left in the corridor to open the trapdoor."
+          "message": "Threehead collapses. Clear every creature left in the corridor to open the stone hatch."
         },
         {
           "id": "done",
@@ -1180,7 +1180,7 @@
             "gate_d"
           ],
           "complete": true,
-          "message": "The corridor is silent. The trapdoor swings open - claim your reward.",
+          "message": "The corridor is silent. The stone hatch swings open - claim your reward.",
           "chest": {
             "table": "dungeon_corridor",
             "at": [
@@ -1193,7 +1193,7 @@
       ],
       "first_clear_title": {
         "id": "fc_explorer",
-        "name": "Forbidden Corridor Explorer"
+        "name": "Sealed Wing Explorer"
       },
       "hazards": [
         {
@@ -1216,14 +1216,14 @@
           "warn_s": 1.5,
           "from_step": "cellar_done",
           "until_step": "fluffy",
-          "message": "Fluffy's sleeping breath rolls down the stair - brace yourself!"
+          "message": "Threehead's sleeping breath rolls down the stair - brace yourself!"
         }
       ],
       "key": "key_forbidden_corridor"
     },
     "spider_lair": {
       "map": "dng_spider_lair",
-      "display": "The Queen's Lair",
+      "display": "The Web Mother's Lair",
       "level_min": 24,
       "level_max": 70,
       "par_s": 1320,
@@ -1639,7 +1639,7 @@
           "close": [
             "gate_b"
           ],
-          "message": "The Blackweb Queen rises from her nest!",
+          "message": "The Web Mother rises from her nest!",
           "spawn": [
             {
               "mob": "acromantula",

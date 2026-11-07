@@ -175,7 +175,7 @@ anchor_right = 1.0
 offset_top = 4.0
 offset_bottom = 24.0
 grow_horizontal = 2
-text = "[Lv.12] Inferi Ghoul"
+text = "[Lv.12] Drowned Ones Ghoul"
 horizontal_alignment = 1
 
 [node name="TargetHpBar" type="ProgressBar" parent="TargetPanel"]

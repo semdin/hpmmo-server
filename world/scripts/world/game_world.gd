@@ -249,7 +249,7 @@ func _spawn_local_player() -> void:
 		local_player.global_position = SimAuthority.start_position(HPMaps.map_for_point(saved_at), saved_at)
 		local_player.visuals.rotation.y = float(c.get("rot_y", PI))
 		local_player.restore_character(c)
-		print("[GameWorld] Restored character '%s' at %s, Level %d, Wand +%d, Galleons %d" % [
+		print("[GameWorld] Restored character '%s' at %s, Level %d, Wand +%d, Oril %d" % [
 			local_player.player_name, local_player.global_position, local_player.level, local_player.wand_tier, local_player.galleons
 		])
 	else:
@@ -428,29 +428,29 @@ func _setup_npcs() -> void:
 	npcs.name = "NPCs"
 	add_child(npcs)
 	# i18n-begin
-	_spawn_npc(npcs, "Professor Fig", _on_ground(-12, 72),
-		["Ah, a new student! Hogwarts needs brave wizards.",
-		"Acromantulas infest the Forbidden Forest to the west. Inferi haunt its edge, past Borin's hut.",
-		"Dark Monoliths fall in the western forests, from the Forest Edge past Borin's hut to Snatcher Woods in the north-west. Close by, you will see their green light.",
+	_spawn_npc(npcs, "Master Teral Venn", _on_ground(-12, 72),
+		["Ah, a new student! Beneath the lake lies Kaf's shard of the World-Star Ithrel - this castle was raised to guard it.",
+		"Black Weavers infest the Raven Woods to the west. Drowned Ones haunt its edge, past Borin's hut.",
+		"Someone - the old records say the Ash Priest - drags darkened shards out of the Void. They fall in the western forests, from the Forest Edge past Borin's hut to Bandit Woods in the north-west. Close by, you will see their green light.",
 		"From level 5 the Trial Hall is open: step into the glowing arch on the courtyard's south lawn and press F."],
 		Color(0.2, 0.25, 0.5))
-	_spawn_npc(npcs, "Ollivander", _on_ground(16, 68.6),
-		["Wands choose the wizard... but Galleons refine them!",
-		"Press O anywhere to open my workshop. Bring Phoenix Ash, Heartstrings, Thestral Hair.",
-		"+4 glows blue, +7 crackles gold, +9 burns with phoenix fire!"],
+	_spawn_npc(npcs, "Kestrin", _on_ground(16, 68.6),
+		["A wand is only as good as its maker... and the Oril behind it!",
+		"Press O anywhere to open my workshop. Bring Velkar Ash, Dragon Sinew, Night Steed Hair.",
+		"+4 glows blue, +7 crackles gold, +9 burns with starfire!"],
 		Color(0.45, 0.3, 0.15))
-	_spawn_npc(npcs, "Madam Rosmerta", _on_ground(684, -174),
-		["Welcome to Hogsmeade, dearie! Rest here - the village square is safe.",
-		"Buy Wiggenweld before heading to the Forbidden Forest. Trust me."],
+	_spawn_npc(npcs, "Bessa Tull", _on_ground(684, -174),
+		["Welcome to Orvell, dearie! Rest here - the village square is safe.",
+		"Buy Healing Draughts before heading to the Raven Woods. Trust me."],
 		Color(0.5, 0.15, 0.2))
 	_spawn_npc(npcs, "Borin", _on_ground(-278, -11),
 		["Don't go into that forest alone, friend... brave, though!",
-		"Inferi fear fire - burn 'em with Incendio. Stupefy stuns 'em cold."],
+		"Drowned Ones fear fire - burn 'em with Flame Wave. Stun Bolt stuns 'em cold."],
 		Color(0.25, 0.3, 0.15))
-	_spawn_npc(npcs, "Madam Pince", _on_ground(-22, 20),
+	_spawn_npc(npcs, "Archivist Emrel Sav", _on_ground(-22, 20),
 		["The library is inside, past the great doors. Mind the books.", "The Great Hall is through the entrance hall. Charms is across the hall."], Color(0.2, 0.15, 0.3))
-	_spawn_npc(npcs, "Professor Flitwick", _on_ground(22, 20),
-		["Welcome! Stupefy interrupts, Incendio burns, and Expelliarmus weakens attacks.", "Practise at the dummies east of the courtyard, then pull a pack together. Watch the boss's warning circle."], Color(0.1, 0.24, 0.4))
+	_spawn_npc(npcs, "Flight Master Kaelen Rook", _on_ground(22, 20),
+		["Welcome! Stun Bolt interrupts, Flame Wave burns, and Disarm weakens attacks.", "Practise at the dummies east of the courtyard, then pull a pack together. Watch the boss's warning circle."], Color(0.1, 0.24, 0.4))
 	# i18n-end
 
 ## A point on a non-grounds map's resident collider (a ray down from `at`).

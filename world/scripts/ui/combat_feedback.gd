@@ -440,7 +440,7 @@ func _request_respawn(mode: int) -> void:
 
 func _on_loot_taken(item_id: String, amount: int) -> void:
 	if item_id == "galleons":
-		_toast(tr("+%d Galleons") % amount, Color(1.0, 0.85, 0.35), "galleons")
+		_toast(tr("+%d Oril") % amount, Color(1.0, 0.85, 0.35), "galleons")
 	elif GameData.ITEMS.has(item_id):
 		_toast("+%s x%d" % [I18n.t(String(GameData.ITEMS[item_id].name)), amount], Color(0.75, 0.95, 0.75), item_id)
 	else:
@@ -451,7 +451,7 @@ func _on_reward_granted(exp: int, galleons: int, items: Array) -> void:
 	if exp > 0:
 		_toast(tr("+%d EXP") % exp, Color(0.5, 1.0, 0.6), "stat_exp")
 	if galleons > 0:
-		_toast(tr("+%d Galleons") % galleons, Color(1.0, 0.85, 0.35), "galleons")
+		_toast(tr("+%d Oril") % galleons, Color(1.0, 0.85, 0.35), "galleons")
 		_play_ui("ui_coin")
 	for entry in items:
 		if entry is Dictionary:

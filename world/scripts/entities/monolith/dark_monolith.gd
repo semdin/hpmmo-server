@@ -355,7 +355,7 @@ func _land() -> void:
 			SKILL_FX.shake_camera(player, 0.6)
 
 func display_name() -> String:
-	return String(_cfg.get("name", "Dark Monolith"))  # i18n
+	return String(_cfg.get("name", "Dark Shard"))  # i18n
 
 func stone_level() -> int:
 	return int(_cfg.get("level", 15))

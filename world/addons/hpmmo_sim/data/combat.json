@@ -504,7 +504,7 @@
         "theme": "fortune"
       },
       "galleon_bonus": {
-        "label": "Galleons Found",
+        "label": "Oril Found",
         "unit": "%",
         "values": [
           3,
@@ -918,8 +918,8 @@
       "Initiate",
       "Novice",
       "Adept",
-      "Prefect",
-      "Head Prefect",
+      "Sentinel",
+      "House Captain",
       "Champion",
       "Legend"
     ]

@@ -137,7 +137,7 @@ func _header(who: String, level: int, house: String) -> Control:
 	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	margin.add_child(box)
 	box.add_child(HudKit.label(who, 17, HudKit.GOLD_HI, HudKit.title(), 4))
-	var sub := tr("Lv. %d  ·  %s") % [level, house] if house != "" else tr("Lv. %d") % level
+	var sub := tr("Lv. %d  ·  %s") % [level, GameData.house_name(house)] if house != "" else tr("Lv. %d") % level
 	box.add_child(HudKit.label(sub, 13, HudKit.TEXT_DIM, HudKit.body(), 3))
 	var rule := ColorRect.new()
 	rule.color = Color(HudKit.GOLD.r, HudKit.GOLD.g, HudKit.GOLD.b, 0.45)

@@ -28,7 +28,7 @@ const Decor = preload("res://scripts/world/castle/castle_decor.gd")
 var collision_only := false
 
 const MAP_ID := "castle_interior"
-const DISPLAY_NAME := "Hogwarts Castle"  # i18n
+const DISPLAY_NAME := "Kaf Castle"  # i18n
 ## Layout L0 in world space.
 const MAP_Y := 200.0
 

@@ -28,10 +28,10 @@ static var _caverns_tex: Texture2D = null
 static var _caverns_rooms: Array = []
 # i18n-begin
 const PLACES := [
-	["Hogwarts Castle", Vector2(30, -70), 1.25],
-	["Black Lake", Vector2(0, 360), 1.15],
-	["Forbidden Forest", Vector2(-650, 160), 1.2],
-	["Hogsmeade", Vector2(680, -140), 1.0],
+	["Kaf Castle", Vector2(30, -70), 1.25],
+	["Lake Lunra", Vector2(0, 360), 1.15],
+	["Raven Woods", Vector2(-650, 160), 1.2],
+	["Orvell", Vector2(680, -140), 1.0],
 	["Northern Moors", Vector2(420, -720), 1.0],
 	["Borin's Hut", Vector2(-330, -10), 0.8],
 	["Greenhouses", Vector2(-190, -185), 0.8],
@@ -121,7 +121,7 @@ func _detect_mode() -> String:
 func _apply_mode() -> void:
 	mode = _detect_mode()
 	if _title != null:
-		set_title({"castle": "Hogwarts Castle", "caverns": "Blackweb Caverns"}.get(mode, "World Map"))  # i18n
+		set_title({"castle": "Kaf Castle", "caverns": "Blackweb Caverns"}.get(mode, "World Map"))  # i18n
 	if _floors != null:
 		_floors.visible = mode == "castle"
 	_update_hint()

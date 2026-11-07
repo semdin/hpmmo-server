@@ -109,7 +109,7 @@
   },
   {
    "id": "transfiguration",
-   "label": "Transfiguration",
+   "label": "Transformation",
    "y": 10.0,
    "rect": [
     28.0,
@@ -133,7 +133,7 @@
   },
   {
    "id": "defence",
-   "label": "Defence Against the Dark Arts",
+   "label": "Warding",
    "y": 20.0,
    "rect": [
     28.0,
@@ -217,7 +217,7 @@
   },
   {
    "id": "gryffindor",
-   "label": "Gryffindor",
+   "label": "Velkar House",
    "y": 70.0,
    "rect": [
     28.0,
@@ -229,7 +229,7 @@
   },
   {
    "id": "room_of_requirement",
-   "label": "Room of Requirement",
+   "label": "Wishing Room",
    "y": 70.0,
    "rect": [
     57.0,
@@ -253,7 +253,7 @@
   },
   {
    "id": "ravenclaw",
-   "label": "Ravenclaw",
+   "label": "Ilvane House",
    "y": 50.0,
    "rect": [
     -56,
@@ -265,7 +265,7 @@
   },
   {
    "id": "owlery",
-   "label": "Owlery",
+   "label": "Rookery",
    "y": 60.0,
    "rect": [
     -10,
@@ -346,7 +346,7 @@
   },
   {
    "id": "slytherin",
-   "label": "Slytherin",
+   "label": "Nisera House",
    "y": -10.0,
    "rect": [
     -84,
@@ -370,7 +370,7 @@
   },
   {
    "id": "hufflepuff",
-   "label": "Hufflepuff",
+   "label": "Torvan House",
    "y": -10.0,
    "rect": [
     43,

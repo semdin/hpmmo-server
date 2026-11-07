@@ -118,7 +118,7 @@ func current_quest() -> Dictionary:
 	var entries := log_entries()
 	return entries[0] if not entries.is_empty() else {}
 
-## "Defeat 6 Acromantulas  3/6" - the objective with its live count.
+## "Defeat 6 Black Weavers  3/6" - the objective with its live count.
 func objective_text(q: Dictionary) -> String:
 	var id := String(q.get("id", ""))
 	if is_ready(id):

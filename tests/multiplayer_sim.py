@@ -427,7 +427,7 @@ def test_quests(out_dir, profile="local"):
                                         "hpmmo_sim", "data", "quests.json"), encoding="utf-8"))["chain"][0]
     rep, gold = int(first.get("reward_house_rep", 0)), int(first.get("reward_gold", 0))
     port = free_port()
-    # Beside Professor Fig in the courtyard (the first quest's NPC).
+    # Beside Master Teral Venn in the courtyard (the first quest's NPC).
     server = start_server(port, 515151, profile, out_dir, {"HPMMO_DEV_SPAWN": "-10,0,73.5"})
     try:
         if not server.wait_for("listening on :%d" % port, timeout=90):
@@ -449,7 +449,7 @@ def test_quests(out_dir, profile="local"):
           "[%s] a fresh character starts at the first quest (active %s, rep %s)"
           % (profile, start.get("quest_active"), start.get("house_rep")))
     check(0 <= float(final.get("distance_to_fig", -1)) <= 6.0,
-          "[%s] the client stands beside Professor Fig (%.1f m)" % (profile, float(final.get("distance_to_fig", -1))))
+          "[%s] the client stands beside Master Teral Venn (%.1f m)" % (profile, float(final.get("distance_to_fig", -1))))
     check(far.get("quest_active") == 0 and any("out_of_range" in n for n in final.get("notices", [])),
           "[%s] asking Borin from across the map is refused and counts nothing" % profile)
     check(first["id"] in near.get("quest_ready", []) and int(near.get("house_rep", 0)) == 0,

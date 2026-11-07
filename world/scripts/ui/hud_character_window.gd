@@ -22,7 +22,7 @@ const GROUPS := [
 	["Attack", [["attack_speed", "Attack speed"], ["cast_speed", "Casting speed"], ["pierce", "Piercing hit"], ["life_steal", "Life drain"]]],
 	["Defence", [["melee_res", "Melee resist"], ["projectile_res", "Projectile resist"], ["spell_res", "Spell resist"], ["block", "Block"], ["reflect", "Reflect"]]],
 	["Regeneration", [["hp_regen", "Health regen"], ["mana_regen", "Mana regen"]]],
-	["Movement and loot", [["move_speed", "Movement speed"], ["broom", "Broom speed"], ["exp_bonus", "Experience"], ["gold_bonus", "Galleons found"]]],
+	["Movement and loot", [["move_speed", "Movement speed"], ["broom", "Broom speed"], ["exp_bonus", "Experience"], ["gold_bonus", "Oril found"]]],
 ]
 # i18n-end
 const PAGE_H := 300.0
@@ -191,7 +191,7 @@ func _build_status(page: VBoxContainer) -> void:
 	coin.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	coin.add_theme_stylebox_override("panel", HudSkillWindow._box(Color(0.85, 0.62, 0.22), HudKit.GOLD_HI, 7, 0))
 	purse.add_child(coin)
-	purse.add_child(HudKit.label(tr("Galleons"), 14, HudKit.TEXT_DIM, HudKit.body(), 0))
+	purse.add_child(HudKit.label(tr("Oril"), 14, HudKit.TEXT_DIM, HudKit.body(), 0))
 	var galleons := HudKit.label("", 14, HudKit.GOLD_HI, HudKit.body(), 0)
 	purse.add_child(galleons)
 	_values["galleons"] = galleons
@@ -513,7 +513,7 @@ func _refresh() -> void:
 
 	_name.text = String(player.player_name)
 	var rank := HPRules.house_rank_for(int(player.get("house_rep") if player.get("house_rep") != null else 0))
-	_house.text = "%s  ·  " % String(player.house)
+	_house.text = "%s  ·  " % GameData.house_name(String(player.house))
 	_rank.text = I18n.t(HPRules.house_rank_title(rank))
 	_crest.texture = UITheme.icon_for("house_" + String(player.house).to_lower())
 

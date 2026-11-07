@@ -51,7 +51,7 @@ const PORTALS := {
 	"grounds": [{
 		"id": "castle_door", "to_map": "castle_interior", "to_spawn": "vestibule",
 		"center": Vector3(0.0, 58.93, 6.5), "radius": 2.5, "y_min": 55.83, "y_max": 63.83,
-		"label": "Hogwarts Entrance",
+		"label": "Castle Entrance",
 	}],
 	"castle_interior": [{
 		"id": "vestibule_exit", "to_map": "grounds", "to_spawn": "castle_approach",
@@ -176,7 +176,7 @@ func _travel_mouth(node_id: String) -> Vector3:
 func _travel_prompt(node_id: String) -> String:
 	var node := HPMaps.travel_node(node_id)
 	if TravelNodes.kind_of(node_id) == "floo":
-		return tr("Floo Network (%s)") % I18n.t(String(node.get("label", "")))
+		return tr("Hearthway (%s)") % I18n.t(String(node.get("label", "")))
 	var pair := HPMaps.travel_node(String(node.get("pair", "")))
 	return tr("%s (to %s)") % [I18n.t(String(node.get("prompt", "Use"))), I18n.t(String(pair.get("label", "")))]
 
@@ -204,7 +204,7 @@ func _learn_hearth(node_id: String) -> void:
 	SimNet.request_travel(local_player, node_id, "")
 	var hud = world.get("hud") if world != null else null
 	if hud != null and hud.has_method("show_notice"):
-		hud.show_notice(tr("%s added to your Floo Network.") % I18n.t(String(HPMaps.travel_node(node_id).get("label", ""))), "good")
+		hud.show_notice(tr("%s added to your Hearthway.") % I18n.t(String(HPMaps.travel_node(node_id).get("label", ""))), "good")
 
 ## Interact at a fireplace: the authority learns it (an empty destination) and
 ## the Floo window opens.
@@ -378,8 +378,8 @@ func _process(delta: float) -> void:
 		_active_travel = _travel.node_at(local_player.global_position, current_map)
 		_learn_hearth(_active_travel)
 	if found.is_empty() and not _active_portkey.is_empty():
-		_active_label = (tr("Press %s - Let go of the Portkey (to %s)") if bool(_active_portkey.get("holding", false)) \
-			else tr("Press %s - Grab hold of the Portkey (to %s)")) % [PROMPT_KEY, I18n.t(String(_active_portkey.get("label", "")))]
+		_active_label = (tr("Press %s - Let go of the Waylink (to %s)") if bool(_active_portkey.get("holding", false)) \
+			else tr("Press %s - Grab hold of the Waylink (to %s)")) % [PROMPT_KEY, I18n.t(String(_active_portkey.get("label", "")))]
 	elif found.is_empty():
 		_active_label = "" if _active_travel == "" else tr("Press %s - %s") % [PROMPT_KEY, _travel_prompt(_active_travel)]
 	elif _mounted():
@@ -946,17 +946,17 @@ func _portal_prompt(portal: Dictionary) -> String:
 
 func _loading_text(map_id: String) -> String:
 	if map_id == MAP_INTERIOR:
-		return tr("Entering Hogwarts Castle...")
+		return tr("Entering Kaf Castle...")
 	if _scene_map(map_id):
 		return tr("Entering %s...") % I18n.t(HPMaps.display_name(map_id))
 	return tr("Returning to the Grounds...")
 
 func _loading_title(map_id: String) -> String:
 	if map_id == MAP_INTERIOR:
-		return I18n.upper(tr("Hogwarts Castle"))
+		return I18n.upper(tr("Kaf Castle"))
 	if _scene_map(map_id):
 		return I18n.upper(I18n.t(HPMaps.display_name(map_id)))
-	return I18n.upper(tr("Hogwarts Grounds"))
+	return I18n.upper(tr("Kaf Valley"))
 
 func _place_name(map_id: String) -> String:
 	if map_id == MAP_INTERIOR:
@@ -986,7 +986,7 @@ func floor_display(map_id: String, y: float) -> String:
 			return I18n.t(String(_instance_node.call("floor_display", y)))
 		return I18n.t(HPMaps.display_name(map_id))
 	if map_id != MAP_INTERIOR:
-		return tr("Hogwarts Grounds")
+		return tr("Kaf Valley")
 	if _interior != null and is_instance_valid(_interior) and _interior.has_method("floor_display"):
 		return I18n.t(String(_interior.call("floor_display", y)))
 	var name := "Ground Floor"
@@ -994,7 +994,7 @@ func floor_display(map_id: String, y: float) -> String:
 		if y >= float(level[0]) - 0.6:
 			name = String(level[1])
 			break
-	return tr("Hogwarts Castle - %s") % tr(name)
+	return tr("Kaf Castle - %s") % tr(name)
 
 ## The shared map catalog, when the map transfer sync has landed. Loaded by path so
 ## a build without maps.gd still runs.
@@ -1118,17 +1118,17 @@ func _reason_text(reason: String) -> String:
 		"use_gate":
 			return tr("Start the dungeon at its gate.")
 		"no_portkey":
-			return tr("You have no Portkey boot.")
+			return tr("You have no Waylink boot.")
 		"portkey_active":
-			return tr("Your Portkey is already waiting - grab hold of it.")
+			return tr("Your Waylink is already waiting - grab hold of it.")
 		"portkey_gone":
-			return tr("That Portkey has already gone.")
+			return tr("That Waylink has already gone.")
 		"not_in_party":
-			return tr("That Portkey is not yours - only its owner's party may hold on.")
+			return tr("That Waylink is not yours - only its owner's party may hold on.")
 		"in_dungeon":
-			return tr("A Portkey will not work in here.")
+			return tr("A Waylink will not work in here.")
 		"no_floo_powder":
-			return tr("You have no Floo Powder - buy a pinch at the fireplace.")
+			return tr("You have no Hearth Dust - buy a pinch at the fireplace.")
 		"floo_unknown":
 			return tr("You have never visited that fireplace.")
 		"in_combat":

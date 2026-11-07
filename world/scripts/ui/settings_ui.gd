@@ -30,7 +30,7 @@ const ACTION_NAMES := {
 	"jump": "Jump / rise", "flight_descend": "Descend (broom)",
 	"mount_broom": "Mount / dismount broom", "target_cycle": "Next target",
 	"pickup_loot": "Pick up loot", "interact": "Talk / interact",
-	"toggle_inventory": "Bag", "toggle_ollivander": "Ollivander's forge",
+	"toggle_inventory": "Bag", "toggle_ollivander": "Kestrin's forge",
 	"toggle_chat": "Chat", "toggle_map": "World map", "toggle_character": "Character", "toggle_onboarding": "Guide",
 	"spell_1": "Spell slot 1", "spell_2": "Spell slot 2", "spell_3": "Spell slot 3",
 	"spell_4": "Spell slot 4", "spell_q": "Spell slot Q", "spell_e": "Spell slot E",

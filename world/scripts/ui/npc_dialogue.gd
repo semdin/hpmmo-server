@@ -25,15 +25,15 @@ const MAX_QUESTS := 4
 
 # i18n-begin
 const ROLES := {
-	"Professor Fig": "Hogwarts Professor",
-	"Ollivander": "Wandmaker",
-	"Madam Rosmerta": "Landlady of the Three Broomsticks",
+	"Master Teral Venn": "Master of Kaf Castle",
+	"Kestrin": "Wandmaker",
+	"Bessa Tull": "Landlady of the Red Lantern",
 	"Borin": "Forest Keeper",
-	"Madam Pince": "Librarian",
-	"Professor Flitwick": "Charms Professor",
+	"Archivist Emrel Sav": "Librarian",
+	"Flight Master Kaelen Rook": "Flight & Duelling Master",
 }
 const SERVICES := {
-	"Ollivander": ["ollivander", "Open the workshop", "O", "ui_ollivander"],
+	"Kestrin": ["ollivander", "Open the workshop", "O", "ui_ollivander"],
 }
 # i18n-end
 

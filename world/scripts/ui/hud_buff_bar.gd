@@ -52,7 +52,7 @@ func current_effects() -> Dictionary:
 		var ward := int(record.get("ward_until_tick", 0))
 		if ward > tick and not out.has("protego"):
 			var spell: Dictionary = GameData.SPELLS.get("protego", {})
-			out["protego"] = {"icon": "protego", "title": "Protego", "desc": "Reflects projectiles; other damage reduced by 60%.",
+			out["protego"] = {"icon": "protego", "title": "Ward Shield", "desc": "Reflects projectiles; other damage reduced by 60%.",
 				"remaining": float(ward - tick) * dt, "duration": float(spell.get("duration_ms", 3500)) / 1000.0, "debuff": false}
 		var stun := int(record.get("stun_until_tick", 0))
 		if stun > tick:

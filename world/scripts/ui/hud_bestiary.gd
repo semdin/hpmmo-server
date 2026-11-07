@@ -12,32 +12,32 @@ const PORTRAITS := "res://assets/ui/bestiary/%s.png"
 # i18n-begin
 const LORE := {
 	"inferi": "Drowned corpses bewitched to serve a dark wizard. Slow, relentless and terrified of fire.",
-	"inferi_warden": "Inferi raised from a cursed lake to guard what lies beneath. Their cold grip drags you down; fire still breaks them.",
-	"goblin_teller": "Goblin clerks of the wizarding bank, out collecting debts. They count every Knut and carry a heavy purse.",
+	"inferi_warden": "Drowned Ones raised from a cursed lake to guard what lies beneath. Their cold grip drags you down; fire still breaks them.",
+	"goblin_teller": "Goblin moneylenders from Orvell's vaults, out collecting debts. They count every coin and carry a heavy purse.",
 	"goblin_guard": "Vault guards in goblin-wrought silver. Shoving, stubborn and well paid; what they carry is rarely ordinary.",
 	"goblin_hexer": "Goblin magic needs no wand. Hexers walk with the tellers and the guards and blast debtors off their feet with bare hands.",
-	"acromantula": "Giant spiders of the Forbidden Forest, bred from Aragog's line. They hunt in packs.",
+	"acromantula": "Giant spiders of the Raven Woods, bred from an ancient brood-mother. They hunt in packs.",
 	"darksnatcher": "Wizards turned bounty hunters, roaming the roads in gangs. Some cast from range.",
 	"troll_forest": "Hulking forest trolls with crude clubs. Slow to anger, slower to fall.",
 	"troll_mountain": "The largest trolls, grey-skinned and thick-hided, guarding the high moors.",
-	"dementor": "Soul-sucking guards of Azkaban. Their cold drains your will; only a Patronus truly drives them off.",
+	"dementor": "Soul-sucking wardens of Morhal. Their cold drains your will; only the Light of Ithrel truly drives them off.",
 	"cornish_pixie": "Electric-blue pests that lift wizards off their feet and hurl them about.",
-	"armour_guard": "Suits of armour enchanted to defend the forbidden third floor.",
+	"armour_guard": "Suits of armour enchanted to defend the castle's sealed wing.",
 	"armour_commander": "A cursed suit that commands the others. Its shield turns aside blows from the front.",
 	"devils_snare": "A creeping plant that strangles whatever struggles. Burn its vines to reach the heart.",
-	"fluffy": "Borin's three-headed dog, guarding the trapdoor. Music sends it to sleep.",
+	"fluffy": "A three-headed hound bound to guard the sealed wing's stone hatch. The sleep chime lulls it.",
 	"acromantula_venomfang": "Lean, long-legged hunters of the Blackweb Caverns. Their emerald venom burns for seconds after the bite.",
 	"acromantula_broodguard": "Bone-plated giants that guard the egg caverns. Their armour turns blows from the front; their webs pin you down.",
 }
-const RESIST_NAMES := {"fire": "Fire (Incendio)", "stun": "Stuns", "force": "Force (Depulso)",
-	"patronus": "Patronus", "arcane": "Arcane"}
+const RESIST_NAMES := {"fire": "Fire (Flame Wave)", "stun": "Stuns", "force": "Force (Repel)",
+	"patronus": "Light of Ithrel", "arcane": "Arcane"}
 ## Dungeon entrances on the world map (grounds x, z) and how to reach them.
 const DUNGEON_WHERE := {
 	"trial": ["Trial Hall", "beside the courtyard", Vector2(18, 93)],
-	"forbidden_corridor": ["The Forbidden Corridor", "Hogwarts Castle, third-floor east corridor", Vector2(65, -11)],
+	"forbidden_corridor": ["The Sealed Wing", "Kaf Castle, the sealed east wing", Vector2(65, -11)],
 }
-const FAMILY_NAMES := {"troll": "Troll", "undead": "Undead", "dark_wizard": "Dark wizard", "dementor": "Dementor",
-	"beast": "Beast", "pixie": "Pixie", "snare": "Plant", "armour": "Enchanted armour", "hound": "Hound", "spider": "Spider", "goblin": "Goblin"}
+const FAMILY_NAMES := {"troll": "Troll", "undead": "Undead", "dark_wizard": "Dark wizard", "dementor": "Pallid",
+	"beast": "Beast", "pixie": "Fidgetling", "snare": "Plant", "armour": "Enchanted armour", "hound": "Hound", "spider": "Spider", "goblin": "Goblin"}
 # i18n-end
 
 var world_map: HudWorldMap = null
@@ -93,7 +93,7 @@ static func build_entries() -> Array:
 				var key := String(pack.get("boss_key", ""))
 				var name := String((tables.get("boss_overrides", {}) as Dictionary).get(key, {}).get("name", ""))
 				if name == "":
-					name = "Acromantula Matriarch" if species == "acromantula" else "Dark Snatcher Commander"  # i18n
+					name = "Black Widow" if species == "acromantula" else "Bandit Chief"  # i18n
 				var region := HPRules.region_by_id(String(pack.get("zone", "")))
 				var area: Array = pack.get("area", [0, 0, 0, 0])
 				e["bosses"].append({"name": I18n.t(name), "level": level, "world": bool(pack.get("world_boss", false)),

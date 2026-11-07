@@ -60,7 +60,7 @@ func _ready() -> void:
 	_layer = CanvasLayer.new()
 	_layer.layer = 10
 	add_child(_layer)
-	_window = ArcaneSkin.window(I18n.upper(tr("Ollivander")), Vector2(WIDTH, HEIGHT), "ui_ollivander")
+	_window = ArcaneSkin.window(I18n.upper(tr("Kestrin")), Vector2(WIDTH, HEIGHT), "ui_ollivander")
 	_window.closed.connect(hide)
 	_layer.add_child(_window)
 	_build()

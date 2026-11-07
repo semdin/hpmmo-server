@@ -16,12 +16,12 @@ const MIN_SHOW := 1.2
 const TIPS := [
 	"Start a chat line with ! to shout to every wizard in the realm.",
 	"Drag a potion from your bag onto F1-F4 to drink it with one key.",
-	"Protego reflects projectiles back at their caster.",
-	"Inferi fear fire: Incendio burns them for double damage.",
+	"Ward Shield reflects projectiles back at their caster.",
+	"Drowned Ones fear fire: Flame Wave burns them for double damage.",
 	"Hold the right mouse button to turn the camera; the wheel zooms.",
 	"Land on level ground before you dismount your broom.",
-	"Dark Monoliths summon waves of creatures - bring friends.",
-	"Ollivander can refine your wand. Higher tiers glow brighter.",
+	"Dark Shards summon waves of creatures - bring friends.",
+	"Kestrin can refine your wand. Higher tiers glow brighter.",
 	"Press M for the map of the valley, Esc for the menu.",
 ]
 # i18n-end

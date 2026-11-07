@@ -132,7 +132,7 @@ func _ready() -> void:
 
 	_setup_panels()
 	_build_mmo_layout()
-	_add_system_chat(tr("Welcome to Hogwarts! Spells on 1-4, Q, E · potions on F1-F4 · Shift mounts the broom."))
+	_add_system_chat(tr("Welcome to Kaf Castle! Spells on 1-4, Q, E · potions on F1-F4 · Shift mounts the broom."))
 	_add_system_chat(tr("Enter to chat, start a line with ! to shout to everyone. M opens the map, Esc the menu."))
 	_add_system_chat(tr("Party: /invite Name, /leave, /p text for party chat."))
 	_add_system_chat(tr("Duel: right-click a player, or /duel Name (/gduel Name for parties, /yield to give up)."))
@@ -567,7 +567,7 @@ func _apply_house_standing(stats: Dictionary) -> void:
 	if unit_frame != null:
 		unit_frame.set_house_standing(rank, rep)
 	if _house_rank > 0 and rank > _house_rank:
-		show_notice(tr("%s Rank %d · %s") % [String(player.house), rank, I18n.t(HPRules.house_rank_title(rank))], "good")
+		show_notice(tr("%s Rank %d · %s") % [GameData.house_name(String(player.house)), rank, I18n.t(HPRules.house_rank_title(rank))], "good")
 		_play_ui("ui_levelup")
 	_house_rank = rank
 
@@ -576,7 +576,7 @@ func _update_currency() -> void:
 		return
 	if unit_frame != null:
 		unit_frame.set_galleons(_last_galleons)
-	_currency.text = tr("%s · %s\n%d Galleons") % [player.player_name, player.house, _last_galleons]
+	_currency.text = tr("%s · %s\n%d Oril") % [player.player_name, GameData.house_name(player.house), _last_galleons]
 	_house_crest.texture = UITheme.chrome("house_" + player.house.to_lower())
 
 func _on_target_health(_uid: int, hp: int, max_hp: int) -> void:
@@ -711,7 +711,7 @@ func _update_target_frame() -> void:
 		# Another wizard (yourself is never a target).
 		title = String(current_target.get("player_name"))
 		lvl = int(current_target.get("level"))
-		var their_house := String(current_target.get("house"))
+		var their_house := GameData.house_name(String(current_target.get("house")))
 		rank = their_house
 		if _in_my_party(current_target):
 			rank = tr("%s · Party") % their_house
@@ -723,8 +723,8 @@ func _update_target_frame() -> void:
 			tint = Color(1.0, 0.56, 0.48)
 			bar_colour = Color(0.80, 0.12, 0.10)
 	elif current_target.is_in_group("monoliths"):
-		title = I18n.t(String(current_target.call("display_name"))) if current_target.has_method("display_name") else tr("Dark Monolith")
-		rank = tr("Ancient Monolith")
+		title = I18n.t(String(current_target.call("display_name"))) if current_target.has_method("display_name") else tr("Dark Shard")
+		rank = tr("Fallen Star Shard")
 		lvl = int(current_target.call("stone_level")) if current_target.has_method("stone_level") else 15
 		tint = Color(0.62, 1.0, 0.68)   # the stone's emerald runes
 		bar_colour = Color(0.20, 0.74, 0.36)
@@ -795,7 +795,7 @@ func _target_is_weakened() -> bool:
 
 func _on_loot_collected(item_id: String, amount: int) -> void:
 	if item_id == "galleons":
-		_add_system_chat(tr("Collected %d Galleons.") % amount)
+		_add_system_chat(tr("Collected %d Oril.") % amount)
 	elif GameData.ITEMS.has(item_id):
 		_add_system_chat(tr("Obtained %s (x%d).") % [I18n.t(String(GameData.ITEMS[item_id].name)), amount])
 
@@ -1059,7 +1059,7 @@ func _apply_theme() -> void:
 		(pair[0] as Button).set_meta("icon_id", pair[1])
 		UITheme.set_button_icon(pair[0], pair[1])
 	inventory_button.tooltip_text = tr("[I] Bag - the potions you carry")
-	ollivander_button.tooltip_text = tr("[O] Ollivander - forge the wand higher")
+	ollivander_button.tooltip_text = tr("[O] Kestrin - forge the wand higher")
 	_target_icon = UITheme.icon_rect("ui_target", 15.0)
 	_target_icon.name = "Icon"
 	_target_icon.set_anchors_preset(Control.PRESET_TOP_LEFT)

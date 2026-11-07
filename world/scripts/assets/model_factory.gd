@@ -158,11 +158,11 @@ static func play_cast_pose(p: Node3D, hold_ms: int = 450) -> void:
 static func upgrade_mob(mob: Node3D) -> void:
 	var mname: String = mob.get("mob_name")
 	match mname:
-		"Acromantula":
+		"Black Weaver":
 			_build_spider(mob)
-		"Inferi":
+		"Drowned Ones":
 			_build_inferi(mob)
-		"Dark Snatcher":
+		"Dark Bandit":
 			_build_snatcher(mob)
 		_:
 			_build_snatcher(mob)

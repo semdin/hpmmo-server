@@ -35,11 +35,11 @@ const STEPS := [
 	{"id": "safe_zone", "title": "Find protected ground",
 	 "hint": "Step into the courtyard fountain area - the glow marks protected ground."},
 	{"id": "pack", "title": "Provoke a pack",
-	 "hint": "Hit an Acromantula or Inferi outside the safe zone and survive the pack's answer."},
+	 "hint": "Hit an Black Weaver or Drowned Ones outside the safe zone and survive the pack's answer."},
 	{"id": "broom", "title": "Broom controls",
 	 "hint": "Shift to mount, Space to rise, then land on level ground and Shift to dismount."},
 	{"id": "castle", "title": "Enter the castle",
-	 "hint": "Dismount at the entrance and press F in the doorway to enter Hogwarts."},
+	 "hint": "Dismount at the entrance and press F in the doorway to enter Kaf Castle."},
 ]
 # i18n-end
 

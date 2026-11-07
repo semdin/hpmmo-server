@@ -221,7 +221,7 @@ func _build_crest() -> Control:
 
 	var subtitle := Label.new()
 	subtitle.name = "SubtitleLabel"
-	subtitle.text = tr("REALM OF WIZARDRY")
+	subtitle.text = tr("REALM OF KAF")
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	subtitle.add_theme_font_override("font", UITheme.font_title())
 	subtitle.add_theme_font_size_override("font_size", 15)

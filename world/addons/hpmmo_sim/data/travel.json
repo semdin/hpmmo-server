@@ -26,7 +26,7 @@
     "floo_hogsmeade": {
       "kind": "floo",
       "map": "grounds",
-      "label": "Hogsmeade Square",
+      "label": "Orvell Square",
       "pos": [
         694.0,
         0.0,
@@ -71,7 +71,7 @@
     "cabinet_requirement": {
       "kind": "cabinet",
       "map": "castle_interior",
-      "label": "the Room of Requirement",
+      "label": "the Wishing Room",
       "pos": [
         78.0,
         270.0,
@@ -98,7 +98,7 @@
     "witch_statue": {
       "kind": "passage",
       "map": "castle_interior",
-      "label": "the One-Eyed Witch",
+      "label": "the Stone Raven",
       "pos": [
         41.0,
         230.0,
@@ -112,7 +112,7 @@
     "passage_hogsmeade": {
       "kind": "passage",
       "map": "grounds",
-      "label": "Honeydukes' cellar, Hogsmeade",
+      "label": "the sweetshop cellar, Orvell",
       "pos": [
         668.0,
         0.0,
@@ -121,7 +121,7 @@
       "yaw": 135.0,
       "pair": "witch_statue",
       "model": "hatch",
-      "prompt": "Climb down the cellar trapdoor"
+      "prompt": "Climb down the cellar hatch"
     }
   },
   "portkey": {

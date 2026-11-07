@@ -114,7 +114,7 @@ var attribute_points: int = 0
 ## Titles earned (dungeons.json first_clear_title ids, `quests.titles`); the
 ## newest is shown above the name.
 var titles: Array = []
-const TITLE_NAMES := {"fc_explorer": "Forbidden Corridor Explorer", "lair_explorer": "Queen's Bane", "dungeon_record": "Record Breaker"}  # i18n
+const TITLE_NAMES := {"fc_explorer": "Sealed Wing Explorer", "lair_explorer": "Queen's Bane", "dungeon_record": "Record Breaker"}  # i18n
 ## An authority shove (knockback, a pixie's lift, Fluffy's breath): a velocity
 ## of its own that rides on top of the input-driven one and fades out.
 var _shove := Vector3.ZERO
@@ -599,7 +599,7 @@ func _apply_house_customization() -> void:
 		current_mana = 375
 
 ## MMO nameplate: the name on its own line in a clean bold face, and under it
-## a smaller "Lv. 10 · Gryffindor" line in the house colour. Both are
+## a smaller "Lv. 10 · Velkar" line in the house colour. Both are
 ## billboarded, outlined and drawn over the world so hair and hats never cut
 ## them; the local player's name is a soft gold, everyone else's is white.
 var _nameplate_sub: Label3D = null
@@ -677,7 +677,7 @@ func _update_nameplate() -> void:
 		# A child of the name, so hiding the nameplate hides both lines.
 		nameplate.add_child(_nameplate_sub)
 	_nameplate_sub.position = Vector3(0, -0.13, 0)
-	_nameplate_sub.text = tr("Lv. %d  ·  %s") % [level, house]
+	_nameplate_sub.text = tr("Lv. %d  ·  %s") % [level, GameData.house_name(house)]
 	_nameplate_sub.font_size = 30
 	_nameplate_sub.outline_size = 9
 	_nameplate_sub.pixel_size = 0.0034
@@ -2471,8 +2471,8 @@ func _activate_protego_preview() -> void:
 	p_shield.tree_exited.connect(_on_protego_shield_gone)
 	var spell: Dictionary = GameData.SPELLS.get("protego", {})
 	var seconds := float(spell.get("duration_ms", 3500)) / 1000.0
-	add_buff("protego", seconds, "protego", "Protego", "Reflects projectiles; other damage reduced by 60%.")  # i18n
-	_spawn_floating_text(I18n.upper(tr("Protego!")), Color(0.2, 0.8, 1.0), 1.2)
+	add_buff("protego", seconds, "protego", "Ward Shield", "Reflects projectiles; other damage reduced by 60%.")  # i18n
+	_spawn_floating_text(I18n.upper(tr("Ward Shield!")), Color(0.2, 0.8, 1.0), 1.2)
 
 func _on_protego_shield_gone() -> void:
 	if not is_inside_tree():
@@ -2930,7 +2930,7 @@ func apply_authoritative_stats(stats: Dictionary) -> void:
 		_skills_seen = true
 	skill_points = int(stats.get("skill_points", HPRules.skill_points_available(level, skill_levels, skill_bonus)))
 	if _shown_house_rep >= 0 and house_rep > _shown_house_rep and is_local_player:
-		_spawn_floating_text(tr("+%d %s Reputation") % [house_rep - _shown_house_rep, house], Color(1.0, 0.78, 0.35), 1.1)
+		_spawn_floating_text(tr("+%d %s Reputation") % [house_rep - _shown_house_rep, GameData.house_name(house)], Color(1.0, 0.78, 0.35), 1.1)
 	_shown_house_rep = house_rep
 	var was_mounted := is_mounted
 	var now_mounted := bool(stats.get("mounted", is_mounted))
