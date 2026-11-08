@@ -1,7 +1,7 @@
 {
  "generated": "2026-11-08",
  "source_repository": "hpmmo-client",
- "source_revision": "66517bbb350b08dffdaff9979716b308b968a889",
+ "source_revision": "2e98e16e13df90a5f5642d1b0542744ae2a2eafb",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/audio/sound_library.json": "c1d191056275c9a8d4657bf650376060444d8a0a1af7eaeca72cc30b632c60cc",
@@ -785,7 +785,7 @@
   "scripts/world/encounter_director.gd": "30b2d761f8c5875a123887e6e948fb6b6b7ee0a40587adaf3ee3fb55db5a535c",
   "scripts/world/game_world.gd": "09cc46c9492093b19dcfc661c5d00d092adbe2c98c224e29e7e8f1da8b426655",
   "scripts/world/grounds/arch_kit.gd": "cbb065a158886816e0bc73fbd832b147504b50282a73c80719f0174887ca45ca",
-  "scripts/world/grounds/castle_exterior.gd": "5a73a1c9eb1405b30f04d87ef617b4ab147a0d3bbde0dc3a992d85d4d1143a82",
+  "scripts/world/grounds/castle_exterior.gd": "a4dac123833b8b2a19c4f2fb0d57513dbfedf8ed3295850c692d759511102dae",
   "scripts/world/grounds/fountain_water.gd": "5cf232210eb64b7edce18cb041bc36330e0274ea1e2b58ffdee14c3b901bc936",
   "scripts/world/grounds/grounds_builder.gd": "8b3f3ee7f055ba04d693c12f5a117f6cf8418e1cdaebd60251559c9656e171d2",
   "scripts/world/grounds/grounds_courtyard.gd": "f294944a997d72f019cdebcdc1ea8b632dd7b38810deb2dbc1891a92f643ad5b",
