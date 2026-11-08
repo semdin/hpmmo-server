@@ -227,7 +227,7 @@ func _build_crest() -> Control:
 	subtitle.add_theme_font_size_override("font_size", 15)
 	subtitle.add_theme_color_override("font_color", UITheme.c("gold_lt"))
 	subtitle.add_theme_color_override("font_outline_color", Color(0, 0, 0))
-	subtitle.add_theme_constant_override("outline_size", 4)
+	subtitle.add_theme_constant_override("outline_size", UITheme.outline_for(15, 4))
 	box.add_child(subtitle)
 
 	box.add_child(_ornament())
@@ -448,7 +448,7 @@ func _primary_button(text: String) -> Button:
 	b.add_theme_color_override("font_pressed_color", UITheme.c("gold_lt"))
 	b.add_theme_color_override("font_disabled_color", UITheme.alpha("text_dim", 0.7))
 	b.add_theme_color_override("font_outline_color", Color(0.1, 0.02, 0.02))
-	b.add_theme_constant_override("outline_size", 4)
+	b.add_theme_constant_override("outline_size", UITheme.outline_for(19, 4))
 	var normal := StyleBoxFlat.new()
 	normal.bg_color = UITheme.c("blood")
 	normal.border_color = UITheme.c("gold")

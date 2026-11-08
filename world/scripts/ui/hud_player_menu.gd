@@ -182,7 +182,7 @@ func _entry(text: String, accent: Color, command: String, blocked: String) -> Co
 	b.add_theme_color_override("font_pressed_color", accent)
 	b.add_theme_color_override("font_disabled_color", Color(HudKit.TEXT_DIM.r, HudKit.TEXT_DIM.g, HudKit.TEXT_DIM.b, 0.7))
 	b.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
-	b.add_theme_constant_override("outline_size", 3)
+	b.add_theme_constant_override("outline_size", UITheme.outline_for(15, 3))
 	var pip := Pip.new()
 	pip.colour = accent if blocked == "" else Color(0.4, 0.4, 0.42)
 	pip.position = Vector2(9, 10 if blocked == "" else 9)

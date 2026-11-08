@@ -35,23 +35,8 @@ const SECTIONS := [
 		"title": "Fonts",  # i18n
 		"entries": [
 			{
-				"name": "Cinzel, Cinzel Decorative", "by": "The Cinzel Project Authors, Natanael Gama",
-				"licence": "SIL OFL 1.1", "url": "https://github.com/NDISCOVER/Cinzel",
-				"what": "Titles",  # i18n
-			},
-			{
-				"name": "Alegreya Sans", "by": "The Alegreya Sans Project Authors (Huerta Tipográfica)",
-				"licence": "SIL OFL 1.1", "url": "https://github.com/huertatipografica/Alegreya-Sans",
-				"what": "Body text",  # i18n
-			},
-			{
-				"name": "Marcellus", "by": "Brian J. Bonislawsky, Astigmatic",
-				"licence": "SIL OFL 1.1", "url": "https://fonts.google.com/specimen/Marcellus",
-				"what": "Interface lettering",  # i18n
-			},
-			{
-				"name": "Philosopher", "by": "The Philosopher Project Authors",
-				"licence": "SIL OFL 1.1", "url": "https://github.com/alexeiva/philosopher",
+				"name": "Literata", "by": "The Literata Project Authors (TypeTogether)",
+				"licence": "SIL OFL 1.1", "url": "https://github.com/googlefonts/literata",
 				"what": "Interface lettering",  # i18n
 			},
 		],

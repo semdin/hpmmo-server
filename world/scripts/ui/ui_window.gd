@@ -114,7 +114,7 @@ func _build_ribbon() -> void:
 	_title_label.add_theme_font_size_override("font_size", UITheme.FS_HEADER)
 	_title_label.add_theme_color_override("font_color", UITheme.c("gold_hi"))
 	_title_label.add_theme_color_override("font_outline_color", Color(0.12, 0.02, 0.02))
-	_title_label.add_theme_constant_override("outline_size", 5)
+	_title_label.add_theme_constant_override("outline_size", UITheme.outline_for(UITheme.FS_HEADER, 5))
 	_title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_ribbon.add_child(_title_label)
 

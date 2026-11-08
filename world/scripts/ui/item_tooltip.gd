@@ -131,7 +131,7 @@ func _add_line(text: String, colour: Color, size: int = UITheme.FS_SMALL, bold: 
 	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_color", colour)
 	l.add_theme_color_override("font_outline_color", UITheme.c("shadow"))
-	l.add_theme_constant_override("outline_size", 3)
+	l.add_theme_constant_override("outline_size", UITheme.outline_for(UITheme.FS_BODY, 3))
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_column.add_child(l)
 
@@ -221,7 +221,7 @@ func _add_name_row(text: String, colour: Color, right: String, icon_id: String =
 	name_label.add_theme_font_size_override("font_size", UITheme.FS_LABEL)
 	name_label.add_theme_color_override("font_color", colour)
 	name_label.add_theme_color_override("font_outline_color", UITheme.c("shadow"))
-	name_label.add_theme_constant_override("outline_size", 3)
+	name_label.add_theme_constant_override("outline_size", UITheme.outline_for(UITheme.FS_BODY, 3))
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	h.add_child(name_label)

@@ -107,7 +107,7 @@ func _ready() -> void:
 	_count_label.add_theme_font_size_override("font_size", UITheme.FS_SMALL)
 	_count_label.add_theme_color_override("font_color", UITheme.c("parchment"))
 	_count_label.add_theme_color_override("font_outline_color", UITheme.c("shadow"))
-	_count_label.add_theme_constant_override("outline_size", 4)
+	_count_label.add_theme_constant_override("outline_size", UITheme.outline_for(UITheme.FS_BODY, 4))
 	_count_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_count_label)
 
@@ -123,7 +123,7 @@ func _ready() -> void:
 	_key_label.add_theme_font_size_override("font_size", UITheme.FS_SMALL)
 	_key_label.add_theme_color_override("font_color", UITheme.c("parchment"))
 	_key_label.add_theme_color_override("font_outline_color", UITheme.c("shadow"))
-	_key_label.add_theme_constant_override("outline_size", 4)
+	_key_label.add_theme_constant_override("outline_size", UITheme.outline_for(UITheme.FS_BODY, 4))
 	_key_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_key_label.visible = key_hint != ""
 	_key_label.text = key_hint
@@ -136,7 +136,7 @@ func _ready() -> void:
 	_cooldown_label.add_theme_font_size_override("font_size", UITheme.FS_LABEL)
 	_cooldown_label.add_theme_color_override("font_color", UITheme.c("parchment"))
 	_cooldown_label.add_theme_color_override("font_outline_color", UITheme.c("shadow"))
-	_cooldown_label.add_theme_constant_override("outline_size", 4)
+	_cooldown_label.add_theme_constant_override("outline_size", UITheme.outline_for(UITheme.FS_BODY, 4))
 	_cooldown_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_cooldown_label.visible = false
 	add_child(_cooldown_label)
@@ -149,7 +149,7 @@ func _ready() -> void:
 	_caption_label.add_theme_font_size_override("font_size", UITheme.FS_TINY)
 	_caption_label.add_theme_color_override("font_color", UITheme.c("text_dim"))
 	_caption_label.add_theme_color_override("font_outline_color", UITheme.c("shadow"))
-	_caption_label.add_theme_constant_override("outline_size", 4)
+	_caption_label.add_theme_constant_override("outline_size", UITheme.outline_for(UITheme.FS_BODY, 4))
 	_caption_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_caption_label.text = caption
 	_caption_label.visible = caption != ""

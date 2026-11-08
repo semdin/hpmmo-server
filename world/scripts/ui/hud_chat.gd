@@ -42,7 +42,7 @@ func setup(p_container: PanelContainer, p_history: RichTextLabel, p_input: LineE
 	history.add_theme_font_size_override("bold_font_size", FONT_SIZE)
 	history.add_theme_color_override("default_color", HudKit.TEXT)
 	history.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.92))
-	history.add_theme_constant_override("outline_size", 4)
+	history.add_theme_constant_override("outline_size", UITheme.outline_for(UITheme.FS_BODY, 4))
 	history.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.5))
 	history.add_theme_constant_override("shadow_offset_y", 1)
 	history.add_theme_constant_override("line_separation", 2)

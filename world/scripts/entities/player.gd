@@ -648,8 +648,7 @@ func _update_nameplate() -> void:
 	# other player stood still for it.
 	if nameplate == null or NetworkManager.is_dedicated_server:
 		return
-	var bold_path := "res://assets/fonts/Marcellus-Regular.ttf"
-	var font: Font = load(bold_path) if ResourceLoader.exists(bold_path) else null
+	var font: Font = UITheme.font_body_bold()
 	nameplate.text = player_name
 	nameplate.position.y = NAMEPLATE_HEIGHT + 0.13
 	nameplate.font_size = 46

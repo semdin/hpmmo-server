@@ -99,14 +99,14 @@ func _build_head() -> void:
 	names.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	names.add_theme_constant_override("separation", 2)
 	head.add_child(names)
-	_name = HudKit.label("", 21, HudKit.GOLD_HI, HudKit.title(), 3)
+	_name = HudKit.label("", 21, HudKit.GOLD_HI, HudKit.title(), 0)
 	names.add_child(_name)
 	var sub := HBoxContainer.new()
 	sub.add_theme_constant_override("separation", 0)
 	names.add_child(sub)
-	_house = HudKit.label("", 15, HudKit.PARCHMENT, HudKit.body(), 2)
+	_house = HudKit.label("", 15, HudKit.PARCHMENT, HudKit.body(), 0)
 	sub.add_child(_house)
-	_rank = HudKit.label("", 15, HudKit.GOLD_LT, HudKit.body(), 2)
+	_rank = HudKit.label("", 15, HudKit.GOLD_LT, HudKit.body(), 0)
 	sub.add_child(_rank)
 	_medal = LevelMedal.new()
 	_medal.caption = I18n.upper(tr("Level"))
@@ -275,7 +275,7 @@ func _attribute(page: VBoxContainer, key: String, caption: String) -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 	card.add_child(row)
-	var value := HudKit.label("0", 22, HudKit.GOLD_HI, HudKit.title(), 2)
+	var value := HudKit.label("0", 24, HudKit.GOLD_HI, HudKit.title(), 0)
 	value.custom_minimum_size.x = 44
 	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	value.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -287,7 +287,7 @@ func _attribute(page: VBoxContainer, key: String, caption: String) -> void:
 	row.add_child(mid)
 	var top := HBoxContainer.new()
 	mid.add_child(top)
-	var name_label := HudKit.label(caption, 16, HudKit.GOLD_LT, HudKit.body(), 2)
+	var name_label := HudKit.label(caption, 16, HudKit.GOLD_LT, HudKit.bold(), 0)
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(name_label)
 	var total := HudKit.label("", 12, HudKit.GREEN, HudKit.body(), 0)
@@ -364,7 +364,7 @@ func _build_properties(page: VBoxContainer) -> void:
 		box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		box.add_theme_constant_override("separation", 3)
 		grid.add_child(box)
-		box.add_child(HudKit.label(I18n.upper(tr(String(group[0]))), 12, HudKit.GOLD_LT, HudKit.title(), 2))
+		box.add_child(HudKit.label(I18n.upper(tr(String(group[0]))), 12, HudKit.GOLD_LT, HudKit.title(), 0))
 		var rule := ColorRect.new()
 		rule.color = Color(HudKit.GOLD, 0.3)
 		rule.custom_minimum_size = Vector2(0, 1)
@@ -505,7 +505,7 @@ func _refresh() -> void:
 		var card: Dictionary = _attr_cards[id]
 		var points := int(player.attributes.get(id, 0))
 		(card.value as Label).text = str(points)
-		(card.value as Label).add_theme_color_override("font_color", HudKit.GOLD_HI if points > 0 else FAINT)
+		(card.value as Label).add_theme_color_override("font_color", HudKit.GOLD_HI if points > 0 else HudKit.TEXT_DIM)
 		(card.total as Label).text = _attribute_total(id, points)
 		(card.total as Label).add_theme_color_override("font_color", HudKit.GREEN if points > 0 else FAINT)
 		(card.bar as FillBar).fraction = float(points) / float(maxi(1, cap))

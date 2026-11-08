@@ -201,7 +201,7 @@ class InviteCard extends PanelContainer:
 		body.add_theme_font_size_override("bold_font_size", 16)
 		body.add_theme_color_override("default_color", HudKit.PARCHMENT)
 		body.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
-		body.add_theme_constant_override("outline_size", 3)
+		body.add_theme_constant_override("outline_size", UITheme.outline_for(16, 3))
 		body.text = _sentence(from_name, party_size)
 		words.add_child(body)
 		_detail = HudKit.label("", 14, accent.lerp(HudKit.GOLD_HI, 0.5), HudKit.bold(), 3)
@@ -279,7 +279,7 @@ class InviteCard extends PanelContainer:
 		b.add_theme_color_override("font_hover_color", Color.WHITE)
 		b.add_theme_color_override("font_pressed_color", HudKit.GOLD_LT)
 		b.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
-		b.add_theme_constant_override("outline_size", 3)
+		b.add_theme_constant_override("outline_size", UITheme.outline_for(15, 3))
 		return b
 
 	func _ready() -> void:

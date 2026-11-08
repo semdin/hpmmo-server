@@ -332,7 +332,7 @@ func _build() -> void:
 	_plaque_sides.add_theme_font_override("normal_font", HudKit.bold())
 	_plaque_sides.add_theme_font_size_override("normal_font_size", 15)
 	_plaque_sides.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
-	_plaque_sides.add_theme_constant_override("outline_size", 3)
+	_plaque_sides.add_theme_constant_override("outline_size", UITheme.outline_for(15, 3))
 	column.add_child(_plaque_sides)
 
 	_warn = HudKit.label(tr("Stay inside the duel circle - leaving it loses the duel!"), 18, Color(1.0, 0.42, 0.34), HudKit.bold(), 5)

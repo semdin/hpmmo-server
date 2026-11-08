@@ -284,7 +284,7 @@ func _build_player_plate() -> void:
 	_currency.add_theme_font_override("font", UITheme.font_body_bold())
 	_currency.add_theme_color_override("font_color", UITheme.c("gold_lt"))
 	_currency.add_theme_color_override("font_outline_color", UITheme.c("shadow"))
-	_currency.add_theme_constant_override("outline_size", 4)
+	_currency.add_theme_constant_override("outline_size", UITheme.outline_for(UITheme.FS_BODY, 4))
 	_currency.add_theme_font_size_override("font_size", UITheme.FS_BODY)
 	_currency.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_currency.text = "—"
@@ -1034,7 +1034,7 @@ func _apply_theme() -> void:
 		label.add_theme_font_override("font", UITheme.font_body_bold())
 		label.add_theme_font_size_override("font_size", UITheme.FS_SMALL)
 		label.add_theme_color_override("font_color", UITheme.c("parchment"))
-		label.add_theme_constant_override("outline_size", 3)
+		label.add_theme_constant_override("outline_size", UITheme.outline_for(UITheme.FS_SMALL, 3))
 
 	# ---- target frame: the window frame, shrunk to a nameplate
 	UITheme.role(target_panel, UITheme.V_WINDOW)

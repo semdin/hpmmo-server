@@ -8,9 +8,8 @@ class_name UITheme
 ## matching button-state geometry for the HUD and inventory.
 ## Layout and gameplay feedback remain control-driven; artwork is chrome only.
 ##
-## Text uses Cinzel (headings), Cinzel Decorative (place names) and Marcellus
-## (body/UI - a classic inscriptional face in the Friz Quadrata tradition), all SIL OFL 1.1 with
-## the licence vendored beside each face in `assets/fonts/`.
+## Text uses one variable typeface for every role (see `font()`), SIL OFL 1.1
+## with the licence vendored beside it in `assets/fonts/`.
 
 ## The game's name and horizontal logo wherever a player sees them: the logo
 ## crowns the login screen and character select, the name titles the window
@@ -38,17 +37,6 @@ const DIR := "res://assets/ui/"
 const ICON_DIR := "res://assets/ui/icons/"
 const FONT_DIR := "res://assets/fonts/"
 const THEME_PATH := DIR + "hpmmo.tres"
-
-## The heading face ships as one variable file, so a weight is an axis value.
-const TITLE_FONT_FILE := "Cinzel-Variable.ttf"
-## The body face is not variable, so a requested weight resolves to the nearest
-## shipped cut. Each entry is `[highest weight this cut covers, file stem]`.
-## Synthetic weight added to the single Marcellus cut for the bold role.
-const BOLD_EMBOLDEN := 0.55
-const BODY_FONT_CUTS := [
-	[600, "Marcellus-Regular"],
-	[1000, "Marcellus-Regular@bold"],
-]
 
 ## Type-variation names. A widget asks for a role by setting
 ## `theme_type_variation` to one of these; the styles themselves are in the .tres.
@@ -364,30 +352,41 @@ static func set_button_icon(button: Button, id: String, px: float = 15.0) -> voi
 
 # ------------------------------------------------------------------- fonts
 
-## The font for a weight, in the heading face (`title`) or the body face.
-##
-## Cinzel is variable, so its weight is an axis value on one file. Marcellus
-## ships a single cut, so a weight picks the nearest entry in BODY_FONT_CUTS; a
-## stem ending in "@bold" is that cut synthetically emboldened (500 ->
-## `font_body`, 700 -> `font_body_bold`).
-static func font(weight: int, title: bool = false) -> Font:
-	var key := ("title" if title else "body") + str(weight)
+## The game's one typeface. Every piece of text - body, buttons, window
+## titles, place names, world labels - is a weight of this single variable
+## family, so the interface reads as one voice; a role differs only in weight
+## and size. Numbers use lining figures (`lnum`) so counts and stats sit on
+## the baseline instead of dipping like old-style digits.
+## Literata: a text face drawn for reading on screens, with an optical-size
+## axis, so small interface text keeps open counters and sturdy strokes.
+const FONT_FILE := "Literata-Variable.ttf"
+
+## Role weights on the family's `wght` axis.
+const W_BODY := 500
+const W_BOLD := 700
+const W_TITLE := 700
+const W_DECO := 800
+
+
+## The outline for text of `size` that sits over the 3D world: 1 px on body
+## sizes, 2 px on headings. A thicker outline fills the counters of small
+## strokes and turns the text into a smear; text on a panel takes none.
+static func outline_for(size: int, outline: int) -> int:
+	return mini(outline, 1 if size <= FS_LABEL else 2)
+
+
+## The game face at `weight`; every role (body, bold, title, place name) is
+## one of the W_* weights.
+static func font(weight: int) -> Font:
+	var key := str(weight)
 	if _fonts.has(key):
 		return _fonts[key]
-	var out := _load_variable(TITLE_FONT_FILE, weight) if title else _load_cut(_body_cut_for(weight))
+	var out := _load_variable(FONT_FILE, weight)
 	_fonts[key] = out
 	return out
 
 
-## The shipped body-face file that covers `weight`.
-static func _body_cut_for(weight: int) -> String:
-	for cut in BODY_FONT_CUTS:
-		if weight < int(cut[0]):
-			return String(cut[1])
-	return String(BODY_FONT_CUTS[BODY_FONT_CUTS.size() - 1][1])
-
-
-## A variable-font instance at `weight` on the `wght` axis.
+## A variable-font instance at `weight` on the `wght` axis, lining figures on.
 ##
 ## The dedicated server exports no fonts (it has no display), so a null font
 ## would be handed straight to Label/RichTextLabel overrides and Godot would
@@ -400,39 +399,31 @@ static func _load_variable(file: String, weight: int) -> Font:
 	var base := load(path) as FontFile
 	if base == null:
 		return ThemeDB.fallback_font
+	var ts := TextServerManager.get_primary_interface()
 	var v := FontVariation.new()
 	v.base_font = base
-	v.variation_opentype = {"wght": weight}
+	# the axis key is the tag's integer: a "wght" string key is silently ignored
+	# and the face draws at its default weight
+	v.variation_opentype = {ts.name_to_tag("wght"): weight}
+	v.opentype_features = {ts.name_to_tag("lnum"): 1}
 	return v
 
 
-## One static cut of the body face.
-static func _load_cut(stem: String) -> Font:
-	var bold := stem.ends_with("@bold")
-	var path := FONT_DIR + stem.trim_suffix("@bold") + ".ttf"
-	if not ResourceLoader.exists(path):
-		return ThemeDB.fallback_font
-	var f := load(path) as Font
-	if f == null:
-		return ThemeDB.fallback_font
-	if bold:
-		var v := FontVariation.new()
-		v.base_font = f
-		v.variation_embolden = BOLD_EMBOLDEN
-		return v
-	return f
-
-
 static func font_title() -> Font:
-	return font(700, true)
+	return font(W_TITLE)
 
 
 static func font_body() -> Font:
-	return font(500, false)
+	return font(W_BODY)
 
 
 static func font_body_bold() -> Font:
-	return font(700, false)
+	return font(W_BOLD)
+
+
+## Place names, the zone announcement, signs and big counters.
+static func font_deco() -> Font:
+	return font(W_DECO)
 
 
 # ------------------------------------------------------------------- theme
@@ -451,8 +442,31 @@ static func get_theme() -> Theme:
 	for variation in VARIATION_BASES:
 		loaded.set_type_variation(variation, VARIATION_BASES[variation])
 	_theme = loaded
+	_install_fonts(_theme)
 	ArcaneSkin.install(_theme)
 	return _theme
+
+
+## Every font slot in the theme, and the engine default that Label3D and any
+## unthemed control fall back to, set to the one family (the .tres carries no
+## fonts of its own, so the face is chosen in exactly one place: `font()`).
+static func _install_fonts(t: Theme) -> void:
+	var body := font_body()
+	var bold := font_body_bold()
+	t.default_font = body
+	for type in ["Label", "LineEdit", "TextEdit", "TooltipLabel", "PopupMenu", "TabContainer", "TabBar", "CheckBox", "CheckButton", "OptionButton", "ProgressBar", "ItemList", "Tree"]:
+		t.set_font("font", type, body)
+	for type in ["Button", "PrimaryButton", "MenuButton"]:
+		t.set_font("font", type, bold)
+	t.set_font("font", "TitleLabel", font_title())
+	t.set_font("normal_font", "RichTextLabel", body)
+	t.set_font("bold_font", "RichTextLabel", bold)
+	t.set_font("italics_font", "RichTextLabel", body)
+	t.set_font("bold_italics_font", "RichTextLabel", bold)
+	ThemeDB.fallback_font = body
+	var engine := ThemeDB.get_default_theme()
+	if engine != null:
+		engine.default_font = body
 
 
 ## The last-resort theme, used only when `hpmmo.tres` cannot be loaded.

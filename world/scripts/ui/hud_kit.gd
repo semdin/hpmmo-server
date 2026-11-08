@@ -12,8 +12,6 @@ class_name HudKit
 ## loaded through `ResourceLoader.exists` so the dedicated server - which ships
 ## no fonts or UI art - never fails to parse a script that uses the kit.
 
-const FONT_DIR := "res://assets/fonts/"
-
 # ------------------------------------------------------------------ colours
 const INK := Color(0.035, 0.043, 0.063)
 const NAVY := Color(0.055, 0.075, 0.118)
@@ -32,29 +30,9 @@ const GREEN := Color(0.392, 0.820, 0.341)
 const SHOUT := Color(1.0, 0.647, 0.278)
 const WHISPER := Color(0.851, 0.569, 1.0)
 
-static var _fonts: Dictionary = {}
 static var _boxes: Dictionary = {}
 
 # -------------------------------------------------------------------- fonts
-
-static func _font(file: String, weight: int = 0) -> Font:
-	var key := "%s@%d" % [file, weight]
-	if _fonts.has(key):
-		return _fonts[key]
-	var path := FONT_DIR + file
-	var out: Font = ThemeDB.fallback_font
-	if ResourceLoader.exists(path):
-		var base := load(path) as FontFile
-		if base != null:
-			if weight > 0:
-				var v := FontVariation.new()
-				v.base_font = base
-				v.variation_opentype = {"wght": weight}
-				out = v
-			else:
-				out = base
-	_fonts[key] = out
-	return out
 
 ## Body copy: chat, tooltips, numbers.
 static func body() -> Font:
@@ -63,14 +41,13 @@ static func body() -> Font:
 static func bold() -> Font:
 	return UITheme.font_body_bold()
 
-## Captions and window titles (Cinzel, heavy).
+## Captions and window titles: the game face, heavy.
 static func title() -> Font:
-	return _font("Cinzel-Variable.ttf", 700)
+	return UITheme.font_title()
 
-## Place names and the big zone announcement.
+## Place names and the big zone announcement: the game face, heaviest.
 static func deco() -> Font:
-	var f := _font("CinzelDecorative-Bold.ttf")
-	return f if f != ThemeDB.fallback_font else title()
+	return UITheme.font_deco()
 
 # ------------------------------------------------------------------- labels
 
@@ -83,10 +60,13 @@ static func label(text: String, size: int, colour: Color = TEXT, font: Font = nu
 	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_color", colour)
 	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
-	l.add_theme_constant_override("outline_size", outline)
-	l.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.55))
-	l.add_theme_constant_override("shadow_offset_x", 1)
-	l.add_theme_constant_override("shadow_offset_y", 2)
+	l.add_theme_constant_override("outline_size", UITheme.outline_for(size, outline))
+	# a drop shadow only under text that sits over the world; on a panel it
+	# doubled every stroke a pixel or two down and right (the ghosted digits)
+	if outline > 0:
+		l.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.45))
+		l.add_theme_constant_override("shadow_offset_x", 0)
+		l.add_theme_constant_override("shadow_offset_y", 1)
 	return l
 
 static func style_label(l: Control, size: int, colour: Color, font: Font = null, outline: int = 4) -> void:
@@ -94,7 +74,7 @@ static func style_label(l: Control, size: int, colour: Color, font: Font = null,
 	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_color", colour)
 	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
-	l.add_theme_constant_override("outline_size", outline)
+	l.add_theme_constant_override("outline_size", UITheme.outline_for(size, outline))
 
 # --------------------------------------------------------------- styleboxes
 
