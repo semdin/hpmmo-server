@@ -1236,7 +1236,7 @@ func _move_to(point: Vector3, speed: float, delta: float) -> void:
 	velocity.z = direction.z * speed
 	_face_direction(direction, delta)
 	_play_locomotion("run" if state in [State.CHASE, State.RETURN] else "walk")
-	_check_stuck(delta, wanted)
+	_check_stuck(delta, wanted, speed)
 
 ## Obstacle steering: probe the desired direction and fan out to either side,
 ## so a mob walks around architecture instead of into it. The world has no
@@ -1304,9 +1304,12 @@ func _collision_radius() -> float:
 ## A body that has barely moved while trying to is wedged on scenery the probes
 ## missed: it commits to a sidestep (square to where it wants to go) for a
 ## moment, the side that is open first; wedged again, it tries the other side.
-func _check_stuck(delta: float, wanted: Vector3) -> void:
+## "Barely" is measured against the pace it was asked for: a fixed 0.02 m per
+## frame (1.2 m/s) took every slow stroll (inferi, goblins, snatchers wander at
+## 0.5-1.1 m/s) for a wedge, and the alternating sidesteps zig-zagged them.
+func _check_stuck(delta: float, wanted: Vector3, speed: float) -> void:
 	var moved := global_position.distance_to(_last_pos)
-	if moved < 0.02 * maxf(0.2, delta * 60.0):
+	if moved < speed * delta * 0.3:
 		_stuck_timer += delta
 	else:
 		_stuck_timer = 0.0

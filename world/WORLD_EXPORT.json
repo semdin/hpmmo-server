@@ -1,7 +1,7 @@
 {
  "generated": "2026-11-09",
  "source_repository": "hpmmo-client",
- "source_revision": "5059d2bb9e47648cf34e5b3b9a08a2486c1a2765",
+ "source_revision": "ac8b95f7cb2128577d62796af8b72af15dc5c243",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/audio/sound_library.json": "c1d191056275c9a8d4657bf650376060444d8a0a1af7eaeca72cc30b632c60cc",
@@ -669,7 +669,7 @@
   "scripts/entities/loot/loot_drop.gd": "b17afa53c9e58a3d145a50431eda4c74093a422dd6be49533da9976f19ba940c",
   "scripts/entities/mobs/boss_part.gd": "26111236bbe9dfdcaca2646a07b579531596337458688a8a777c40968479eaf6",
   "scripts/entities/mobs/fluffy_boss.gd": "bce2b70e525dc989361277363277fc3e379270c92c509233ffc0854753212b16",
-  "scripts/entities/mobs/mob_base.gd": "444c62d7843cff7cceee7e633ef92c3be02a1255fe80012d8fe241ff4de9370f",
+  "scripts/entities/mobs/mob_base.gd": "c90f820309095f6a6e41970f350d86d7d0f77b6b017954c6b176349e37a20dcb",
   "scripts/entities/mobs/multipart_boss.gd": "21e58e24fc705a43bbab7ac9d5662785cef6de7e37a9049ce566bf7d96332f35",
   "scripts/entities/mobs/part_droop.gd": "17f6a86a00f75a8e945ac4777de86460a383726dd9e58386e333139e83f02410",
   "scripts/entities/mobs/snare_boss.gd": "5949b22f59e6f4a0b8944c3898de8c1e8081971ab6341d61acb6d4127cb9e81d",
