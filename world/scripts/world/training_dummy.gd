@@ -195,8 +195,8 @@ func _build_body() -> void:
 			disc.rotation.x = PI * 0.5
 			disc.position = Vector3(0, 1.36, z * (0.355 + (0.17 - float(ring[0])) * 0.03))
 			_pole.add_child(disc)
-	# face the courtyard the dummies stand in
-	var yard := GroundsLayout.landmark("courtyard")
+	# face the middle of the training yard the dummies line
+	var yard := GroundsLayout.landmark("training")
 	if yard != Vector3.INF:
 		var to := Vector2(yard.x - global_position.x, yard.z - global_position.z)
 		if to.length() > 1.0:

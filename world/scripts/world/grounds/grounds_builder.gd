@@ -22,7 +22,7 @@ const TERRAIN_SCENE := preload("res://scenes/world/grounds_terrain.tscn")
 
 const TERRAIN_NODE := "GroundsTerrain"
 ## Scenery freed by teardown(); the terrain is not in this list on purpose.
-const BUILT_NODES := ["HogwartsCastle", "Courtyard", "BroomLanding", "Sites", "Lake",
+const BUILT_NODES := ["HogwartsCastle", "Courtyard", "Precinct", "BroomLanding", "Sites", "Lake",
 	"VegetationColliders", "WorldBoundaries", "Horizon", "RoadLamps", "SafeZoneWards"]
 
 ## The broom landing pad (maps.json `castle_door.landing` / `castle_landing_pad`).
@@ -46,6 +46,7 @@ static func build(world: Node3D) -> void:
 	_apply_sky_and_sun(world)
 	CastleExterior.build(world, visuals)
 	_courtyard(world, visuals)
+	GroundsPrecinct.build(world, visuals)
 	_broom_landing(world, visuals)
 	GroundsSites.build_all(world, visuals)
 	if visuals:
@@ -183,8 +184,8 @@ static func _apply_sky_and_sun(world: Node3D) -> void:
 
 # ------------------------------------------------------------- courtyard
 
-## The courtyard before the castle doors: a fountain, Ollivander's stall, benches
-## and the four house pillars with banners.
+## The courtyard before the castle doors: a fountain, benches and the four
+## house pillars with banners.
 static func _courtyard(world: Node3D, visuals: bool) -> void:
 	GroundsCourtyard.build(world, visuals)
 

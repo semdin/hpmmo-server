@@ -31,11 +31,11 @@ const SAFE_ZONE_POLL := 0.3
 # i18n-begin
 const STEPS := [
 	{"id": "dummy", "title": "Practice on a dummy",
-	 "hint": "Cast any spell at a training dummy in the courtyard (Tab to target one)."},
+	 "hint": "Cast any spell at a training dummy in the training yard by the landing pad (Tab to target one)."},
 	{"id": "safe_zone", "title": "Find protected ground",
 	 "hint": "Step into the courtyard fountain area - the glow marks protected ground."},
 	{"id": "pack", "title": "Provoke a pack",
-	 "hint": "Hit an Black Weaver or Drowned Ones outside the safe zone and survive the pack's answer."},
+	 "hint": "Hit a Black Weaver or a Drowned One outside the safe zone and survive the pack's answer."},
 	{"id": "broom", "title": "Broom controls",
 	 "hint": "Shift to mount, Space to rise, then land on level ground and Shift to dismount."},
 	{"id": "castle", "title": "Enter the castle",

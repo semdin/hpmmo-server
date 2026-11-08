@@ -40,14 +40,14 @@
           15.0
         ],
         "trial_return": [
-          5.6,
-          58.4,
-          87.3
+          70.0,
+          58.3,
+          62.0
         ],
         "crypt_return": [
-          -640.0,
-          45.0,
-          -167.5
+          -797.0,
+          10.1,
+          410.0
         ]
       }
     },
@@ -269,12 +269,13 @@
       "to_map": "dng_trial",
       "to_spawn": "entry",
       "label": "the Trial Hall",
-      "dressing": "portal_arch",
+      "dressing": "trial_hall",
+      "facing": 180.0,
       "trigger": {
         "center": [
-          6.4,
-          58.4,
-          90.8
+          70.0,
+          58.0,
+          69.0
         ],
         "radius": 2.5,
         "y_min": 50.0,
@@ -373,15 +374,17 @@
       "to_map": "spider_caverns",
       "to_spawn": "entry",
       "label": "Blackweb Caverns",
+      "dressing": "cave_mouth",
+      "facing": 90.0,
       "trigger": {
         "center": [
-          -640.0,
-          44.6,
-          -172.6
+          -803.0,
+          12.3,
+          410.0
         ],
         "radius": 2.6,
-        "y_min": 38.0,
-        "y_max": 56.0
+        "y_min": 6.0,
+        "y_max": 24.0
       }
     },
     {

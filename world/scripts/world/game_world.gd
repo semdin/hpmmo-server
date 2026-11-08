@@ -432,11 +432,11 @@ func _setup_npcs() -> void:
 		["Ah, a new student! Beneath the lake lies Kaf's shard of the World-Star Ithrel - this castle was raised to guard it.",
 		"Black Weavers infest the Raven Woods to the west. Drowned Ones haunt its edge, past Borin's hut.",
 		"Someone - the old records say the Ash Priest - drags darkened shards out of the Void. They fall in the western forests, from the Forest Edge past Borin's hut to Bandit Woods in the north-west. Close by, you will see their green light.",
-		"From level 5 the Trial Hall is open: step into the glowing arch on the courtyard's south lawn and press F."],
+		"From level 5 the Trial Hall is open: it stands on the east terrace, south of the castle road. Press F at its glowing door."],
 		Color(0.2, 0.25, 0.5))
-	_spawn_npc(npcs, "Kestrin", _on_ground(16, 68.6),
+	_spawn_npc(npcs, "Kestrin", GroundsPrecinct.kestrin_spot() + Vector3.UP * 0.05,
 		["A wand is only as good as its maker... and the Oril behind it!",
-		"Press O anywhere to open my workshop. Bring Velkar Ash, Dragon Sinew, Night Steed Hair.",
+		"My forge is here on Orvell square, but press O anywhere to open my workshop. Bring Velkar Ash, Dragon Sinew, Night Steed Hair.",
 		"+4 glows blue, +7 crackles gold, +9 burns with starfire!"],
 		Color(0.45, 0.3, 0.15))
 	_spawn_npc(npcs, "Bessa Tull", _on_ground(684, -174),
@@ -447,10 +447,10 @@ func _setup_npcs() -> void:
 		["Don't go into that forest alone, friend... brave, though!",
 		"Drowned Ones fear fire - burn 'em with Flame Wave. Stun Bolt stuns 'em cold."],
 		Color(0.25, 0.3, 0.15))
-	_spawn_npc(npcs, "Archivist Emrel Sav", _on_ground(-22, 20),
+	_spawn_npc(npcs, "Archivist Emrel Sav", _on_ground(-13, 22),
 		["The library is inside, past the great doors. Mind the books.", "The Great Hall is through the entrance hall. Charms is across the hall."], Color(0.2, 0.15, 0.3))
 	_spawn_npc(npcs, "Flight Master Kaelen Rook", _on_ground(22, 20),
-		["Welcome! Stun Bolt interrupts, Flame Wave burns, and Disarm weakens attacks.", "Practise at the dummies east of the courtyard, then pull a pack together. Watch the boss's warning circle."], Color(0.1, 0.24, 0.4))
+		["Welcome! Stun Bolt interrupts, Flame Wave burns, and Disarm weakens attacks.", "Practise in the training yard beside the landing pad, then pull a pack together. Watch the boss's warning circle."], Color(0.1, 0.24, 0.4))
 	# i18n-end
 
 ## A point on a non-grounds map's resident collider (a ray down from `at`).
@@ -472,7 +472,7 @@ func _spawn_npc(parent: Node3D, npc_name: String, pos: Vector3, dialogue: Array,
 	npc.setup(npc_name, dialogue, robe)
 
 func _setup_training_grounds() -> void:
-	# Safe courtyard dummies: practice rotations, they never fight back.
+	# The training yard's dummies (beside the landing pad): practice rotations, they never fight back.
 	var grounds := Node3D.new()
 	grounds.name = "TrainingGrounds"
 	add_child(grounds)
@@ -492,7 +492,7 @@ func _setup_training_grounds() -> void:
 	# A local hint only: this used to be SENT as chat, so every player saw it as
 	# a line spoken by whoever loaded the world.
 	if hud != null and hud.has_method("add_system_chat"):
-		hud.add_system_chat(tr("Training dummies stand in the courtyard - practise your spells there safely."))
+		hud.add_system_chat(tr("Training dummies stand in the yard east of the castle doors - practise your spells there safely."))
 
 func _check_external_models() -> void:
 	# Drop-in CC0 model support: put .glb/.gltf in assets/models/ (see README).

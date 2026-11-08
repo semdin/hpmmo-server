@@ -741,6 +741,11 @@ func zone_at(pos: Vector3) -> String:
 	var layout := _grounds_layout()
 	if xz.distance_to(Vector2(0, 65)) < 34.0:
 		return "Castle Courtyard"  # i18n
+	# landmarks by the water and the rail line, before the lake and the valley
+	for spot in [["boathouse", 24.0, "Boathouse"], ["station", 45.0, "Orvell Station"]]:  # i18n
+		var lm := GroundsLayout.landmark(String(spot[0]))
+		if lm != Vector3.INF and xz.distance_to(Vector2(lm.x, lm.z)) < float(spot[1]):
+			return String(spot[2])
 	if GroundsLake.at_lake(xz.x, xz.y):
 		return "Lake Lunra"  # i18n
 	var feature_names := {"castle_promontory": "Kaf Castle", "greenhouse_terrace": "Greenhouses", "hagrid_glade": "Borin's Hut"}  # i18n

@@ -3,7 +3,7 @@ class_name GroundsSites
 
 ## Buildings and set dressing at the grounds' landmarks: Hogsmeade, Hagrid's hut,
 ## the greenhouses, the boathouse and its stair, the station, the Quidditch pitch,
-## the highland stone circle, the smugglers' camp, the crypt and the spider hollow.
+## the highland stone circle, the smugglers' camp, the ruined crypt and the spider hollow.
 ##
 ## Positions come from GroundsLayout (the same layout.json the terrain was built
 ## from). Each site is one ArchKit batch: a few draw calls and one collision body.
@@ -569,6 +569,10 @@ static func _smugglers_camp(parent: Node3D, visuals: bool) -> void:
 		_lamp_light(root, c + Vector3(0, 1.0, 0), 2.0, 12.0)
 
 
+## The old crypt of Crypt Hollow, now a roofless ruin: the walls stand broken
+## to different heights, the roof lies in slabs on the floor and the doorway is
+## walled up. The Drowned Ones climbed out through its split floor; the way
+## down to the caverns is the cave mouth in Spider Hollow (GroundsPrecinct).
 static func _crypt(parent: Node3D, visuals: bool) -> void:
 	var c := GroundsLayout.landmark("crypt")
 	if c == Vector3.INF:
@@ -576,13 +580,43 @@ static func _crypt(parent: Node3D, visuals: bool) -> void:
 	var kit := ArchKit.new()
 	var span := GroundsLayout.ground_span(Vector2(c.x, c.z), Vector2(10, 14))
 	var fy := span.y + 0.1
-	kit.box(Vector3(c.x, (span.x - 1.0 + fy + 5.0) * 0.5, c.z), Vector3(9.0, fy + 5.0 - span.x + 1.0, 13.0), 0.0, "mossy")
-	kit.gable(Vector3(c.x, fy + 5.0, c.z), Vector2(13.6, 9.6), 2.6, PI * 0.5, "mossy", "mossy", 0.3)
-	for sx in [-1, 1]:
-		kit.cylinder(Vector3(c.x + sx * 3.0, fy, c.z + 7.2), 0.45, 4.6, "trim", 10)
-	kit.box(Vector3(c.x, fy + 1.6, c.z + 6.55), Vector3(2.4, 3.2, 0.12), 0.0, "dark", false)
+	var base := span.x - 1.0
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 640
+	# the floor: a platform founded down the knoll's slope
+	kit.box(Vector3(c.x, (base + fy) * 0.5, c.z), Vector3(9.0, fy - base, 13.0), 0.0, "mossy")
+	# walls: [from, to] in local x/z, broken into stretches of uneven height
+	var walls := [[Vector2(-4.5, -6.5), Vector2(4.5, -6.5)], [Vector2(4.5, -6.5), Vector2(4.5, 6.5)],
+		[Vector2(4.5, 6.5), Vector2(-4.5, 6.5)], [Vector2(-4.5, 6.5), Vector2(-4.5, -6.5)]]
+	for w in walls:
+		var a: Vector2 = w[0]
+		var b: Vector2 = w[1]
+		var n := int(ceil(a.distance_to(b) / 1.6))
+		for k in n:
+			var p0 := a.lerp(b, float(k) / n)
+			var p1 := a.lerp(b, float(k + 1) / n)
+			var mid := (p0 + p1) * 0.5
+			var hgt := rng.randf_range(0.6, 4.2) if rng.randf() > 0.15 else 0.0
+			if hgt <= 0.0:
+				continue
+			var rot := atan2(p1.x - p0.x, p1.y - p0.y)
+			kit.box(Vector3(c.x + mid.x, (base + fy + hgt) * 0.5, c.z + mid.y), Vector3(0.9, fy + hgt - base, p0.distance_to(p1) + 0.05), rot, "mossy")
+	# the walled-up doorway in the south wall, between two pillars (one broken)
+	kit.box(Vector3(c.x, (base + fy + 3.4) * 0.5, c.z + 6.6), Vector3(2.6, fy + 3.4 - base, 0.7), 0.0, "rubble")
+	kit.cylinder(Vector3(c.x - 3.0, fy, c.z + 7.2), 0.45, 4.6, "trim", 10)
+	kit.cylinder(Vector3(c.x + 3.0, fy, c.z + 7.2), 0.45, 1.7, "trim", 10)
+	kit.cylinder(GroundsLayout.ground(c.x + 4.6, c.z + 9.4), 0.45, 0.9, "trim", 10, false)
+	# fallen roof slabs inside
+	for i in 4:
+		var p := Vector3(c.x + rng.randf_range(-2.6, 2.6), fy, c.z + rng.randf_range(-4.5, 4.5))
+		var tilt := Basis(Vector3.UP, rng.randf() * TAU) * Basis(Vector3.RIGHT, rng.randf_range(0.15, 0.4))
+		kit.obox(p + Vector3(0, 0.35, 0), Vector3(2.6, 0.4, 1.8), tilt, "mossy")
+		var corners := PackedVector3Array()
+		for sx in [-1.0, 1.0]:
+			for sy in [-1.0, 1.0]:
+				for sz in [-1.0, 1.0]:
+					corners.append(p + Vector3(0, 0.35, 0) + tilt * Vector3(1.3 * sx, 0.2 * sy, 0.9 * sz))
+		kit._hull(corners)
 	for i in 16:
 		var p := Vector2(c.x + rng.randf_range(-16, 16), c.z + rng.randf_range(9, 22))
 		var g := GroundsLayout.ground(p.x, p.y)

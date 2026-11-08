@@ -33,7 +33,7 @@ const RESIST_NAMES := {"fire": "Fire (Flame Wave)", "stun": "Stuns", "force": "F
 	"patronus": "Light of Ithrel", "arcane": "Arcane"}
 ## Dungeon entrances on the world map (grounds x, z) and how to reach them.
 const DUNGEON_WHERE := {
-	"trial": ["Trial Hall", "beside the courtyard", Vector2(18, 93)],
+	"trial": ["Trial Hall", "the castle's east terrace, south of the road", Vector2(70, 80)],
 	"forbidden_corridor": ["The Sealed Wing", "Kaf Castle, the sealed east wing", Vector2(65, -11)],
 }
 const FAMILY_NAMES := {"troll": "Troll", "undead": "Undead", "dark_wizard": "Dark wizard", "dementor": "Pallid",

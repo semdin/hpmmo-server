@@ -1231,13 +1231,13 @@ msgstr "Ithrel Işığı"
 msgid "Arcane"
 msgstr "Gizem"
 
-#: scripts/ui/hud_bestiary.gd scripts/world/grounds/grounds_courtyard.gd addons/hpmmo_sim/data/maps.json addons/hpmmo_sim/data/dungeons.json
+#: scripts/ui/hud_bestiary.gd scripts/world/grounds/grounds_precinct.gd addons/hpmmo_sim/data/maps.json addons/hpmmo_sim/data/dungeons.json
 msgid "Trial Hall"
 msgstr "Sınav Salonu"
 
 #: scripts/ui/hud_bestiary.gd
-msgid "beside the courtyard"
-msgstr "avlunun yanında"
+msgid "the castle's east terrace, south of the road"
+msgstr "kalenin doğu terası, yolun güneyi"
 
 #: scripts/ui/hud_bestiary.gd addons/hpmmo_sim/data/maps.json addons/hpmmo_sim/data/dungeons.json addons/hpmmo_sim/data/quests.json
 msgid "The Sealed Wing"
@@ -2655,6 +2655,10 @@ msgstr "Seralar"
 msgid "Courtyard"
 msgstr "Avlu"
 
+#: scripts/ui/hud_world_map.gd addons/hpmmo_sim/data/maps.json
+msgid "Blackweb Caverns"
+msgstr "Karaağ Mağaraları"
+
 #: scripts/ui/hud_world_map.gd
 msgid "Ground"
 msgstr "Zemin"
@@ -2674,10 +2678,6 @@ msgstr "  ·  B: yaratıklar"
 #: scripts/ui/hud_world_map.gd
 msgid "Showing %s (red marks)  ·  "
 msgstr "%s gösteriliyor (kırmızı işaretler)  ·  "
-
-#: scripts/ui/hud_world_map.gd addons/hpmmo_sim/data/maps.json
-msgid "Blackweb Caverns"
-msgstr "Karaağ Mağaraları"
 
 #: scripts/ui/hud_world_map.gd
 msgid "Cursor"
@@ -3735,9 +3735,17 @@ msgstr "Beni ortala"
 msgid "Zoom in"
 msgstr "Yakınlaştır"
 
-#: scripts/ui/mmorpg_overlay.gd addons/hpmmo_sim/data/travel.json
+#: scripts/ui/mmorpg_overlay.gd
 msgid "Castle Courtyard"
 msgstr "Kale Avlusu"
+
+#: scripts/ui/mmorpg_overlay.gd
+msgid "Boathouse"
+msgstr "Kayıkhane"
+
+#: scripts/ui/mmorpg_overlay.gd
+msgid "Orvell Station"
+msgstr "Orvell İstasyonu"
 
 #: scripts/ui/mmorpg_overlay.gd
 msgid "Mountain Pass"
@@ -3928,8 +3936,8 @@ msgid "Practice on a dummy"
 msgstr "Bir kuklada çalış"
 
 #: scripts/ui/onboarding_ui.gd
-msgid "Cast any spell at a training dummy in the courtyard (Tab to target one)."
-msgstr "Avludaki bir eğitim kuklasına herhangi bir büyü yap (hedeflemek için Tab)."
+msgid "Cast any spell at a training dummy in the training yard by the landing pad (Tab to target one)."
+msgstr "İniş pistinin yanındaki talim alanında bir eğitim kuklasına herhangi bir büyü yap (hedef seçmek için Tab)."
 
 #: scripts/ui/onboarding_ui.gd
 msgid "Find protected ground"
@@ -3944,8 +3952,8 @@ msgid "Provoke a pack"
 msgstr "Bir sürüyü kışkırt"
 
 #: scripts/ui/onboarding_ui.gd
-msgid "Hit an Black Weaver or Drowned Ones outside the safe zone and survive the pack's answer."
-msgstr "Güvenli bölgenin dışında bir Kara Ağcı ya da Boğulmuş Ölüye vur ve sürünün karşılığından sağ çık."
+msgid "Hit a Black Weaver or a Drowned One outside the safe zone and survive the pack's answer."
+msgstr "Güvenli bölgenin dışında bir Kara Ağcı'ya ya da bir Boğulmuş Ölü'ye vur ve sürünün karşılığından sağ çık."
 
 #: scripts/ui/onboarding_ui.gd
 msgid "Broom controls"
@@ -4464,16 +4472,16 @@ msgid "Someone - the old records say the Ash Priest - drags darkened shards out 
 msgstr "Biri, eski kayıtlara göre Kül Rahibi, kararmış kırıkları Boşluk'tan çekiyor. Borin'in kulübesinin ötesindeki Orman Kıyısı'ndan kuzeybatıdaki Haydut Ormanı'na kadar batı ormanlarına düşüyorlar. Yakındaysan yeşil ışıklarını görürsün."
 
 #: scripts/world/game_world.gd
-msgid "From level 5 the Trial Hall is open: step into the glowing arch on the courtyard's south lawn and press F."
-msgstr "5. seviyeden itibaren Sınav Salonu açık: avlunun güney çimenliğindeki parlayan kemerin içine gir ve F'ye bas."
+msgid "From level 5 the Trial Hall is open: it stands on the east terrace, south of the castle road. Press F at its glowing door."
+msgstr "Sınav Salonu 5. seviyeden itibaren açık: doğu terasında, kale yolunun güneyinde duruyor. Parlayan kapısında F'ye bas."
 
 #: scripts/world/game_world.gd
 msgid "A wand is only as good as its maker... and the Oril behind it!"
 msgstr "Bir asa ancak ustası kadar iyidir... bir de arkasındaki Oril kadar!"
 
 #: scripts/world/game_world.gd
-msgid "Press O anywhere to open my workshop. Bring Velkar Ash, Dragon Sinew, Night Steed Hair."
-msgstr "Atölyemi açmak için her yerde O'ya bas. Velkar Külü, Ejder Siniri ve Gece Atı Kılı getir."
+msgid "My forge is here on Orvell square, but press O anywhere to open my workshop. Bring Velkar Ash, Dragon Sinew, Night Steed Hair."
+msgstr "Ocağım burada, Orvell meydanında; ama atölyemi açmak için her yerde O'ya basabilirsin. Velkar Külü, Ejder Siniri, Gece Atı Kılı getir."
 
 #: scripts/world/game_world.gd
 msgid "+4 glows blue, +7 crackles gold, +9 burns with starfire!"
@@ -4524,12 +4532,12 @@ msgid "Welcome! Stun Bolt interrupts, Flame Wave burns, and Disarm weakens attac
 msgstr "Hoş geldin! Şok Oku büyüyü keser, Alev Dalgası yakar, Silahsızlandırma saldırıları zayıflatır."
 
 #: scripts/world/game_world.gd
-msgid "Practise at the dummies east of the courtyard, then pull a pack together. Watch the boss's warning circle."
-msgstr "Avlunun doğusundaki kuklalarda çalış, sonra bir sürüyü topla. Patronun uyarı çemberine dikkat et."
+msgid "Practise in the training yard beside the landing pad, then pull a pack together. Watch the boss's warning circle."
+msgstr "İniş pistinin yanındaki talim alanında çalış, sonra bir sürüyü topla. Patronun uyarı çemberine dikkat et."
 
 #: scripts/world/game_world.gd
-msgid "Training dummies stand in the courtyard - practise your spells there safely."
-msgstr "Eğitim kuklaları avluda duruyor - büyülerini orada güvenle çalış."
+msgid "Training dummies stand in the yard east of the castle doors - practise your spells there safely."
+msgstr "Eğitim kuklaları kale kapısının doğusundaki talim alanında duruyor - büyülerini orada güvenle çalış."
 
 #: scripts/world/game_world.gd
 msgid "Reflected!"
@@ -4539,9 +4547,17 @@ msgstr "Yansıtıldı!"
 msgid "Broom landing"
 msgstr "Süpürge iniş alanı"
 
-#: scripts/world/grounds/grounds_courtyard.gd
-msgid "Press F inside the arch"
-msgstr "Kemerin içinde F'ye bas"
+#: scripts/world/grounds/grounds_precinct.gd
+msgid "Press F at the door"
+msgstr "Kapıda F'ye bas"
+
+#: scripts/world/grounds/grounds_precinct.gd addons/hpmmo_sim/data/travel.json
+msgid "Hearth Pavilion"
+msgstr "Ocak Köşkü"
+
+#: scripts/world/grounds/grounds_precinct.gd addons/hpmmo_sim/data/quests.json
+msgid "Kestrin's Forge"
+msgstr "Kestrin'in Körüğü"
 
 #: scripts/world/map_controller.gd
 msgid "Hearthway (%s)"
@@ -6096,8 +6112,8 @@ msgid "Hit a training dummy 5 times"
 msgstr "Bir eğitim kuklasına 5 kez vur"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Three training dummies stand by the east road, just outside the courtyard wall - they never hit back. Left-click to cast; spells hurt nothing inside the safe courtyard."
-msgstr "Üç antrenman mankeni doğu yolunda, avlu duvarının hemen dışında durur - asla karşılık vermezler. Büyü yapmak için sol tıkla; güvenli avlunun içinde büyüler hiçbir şeye zarar vermez."
+msgid "Three training dummies stand in the fenced training yard east of the castle doors, beside the broom landing pad - they never hit back. Left-click to cast; spells hurt nothing on protected ground."
+msgstr "Kale kapısının doğusunda, süpürge iniş pistinin yanındaki çitli talim alanında üç eğitim kuklası duruyor - asla karşılık vermezler. Büyü için sol tıkla; korunan bölgede büyüler kimseye zarar vermez."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Spiders at the Gate"
@@ -6192,16 +6208,12 @@ msgid "The Drowned Ones gather again at the Forest Edge and in Greenhouse Meadow
 msgstr "Boğulmuş Ölüler Orman Kıyısı'nda ve Sera Çayırı'nda yeniden toplanıyor."
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Kestrin's Forge"
-msgstr "Kestrin'in Körüğü"
+msgid "Fly to Orvell and speak with Kestrin"
+msgstr "Orvell'e uç ve Kestrin'le konuş"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Speak with Kestrin"
-msgstr "Kestrin ile konuş"
-
-#: addons/hpmmo_sim/data/quests.json
-msgid "Kestrin works his anvil in the courtyard. He can make a wand stronger, at a price."
-msgstr "Kestrin avluda örsünün başında çalışıyor. Bedeli karşılığında bir asayı güçlendirebilir."
+msgid "Kestrin keeps his forge on the west side of Orvell square, east of the castle along the road. Mount your broom and fly there - he can make a wand stronger, at a price."
+msgstr "Kestrin'in ocağı Orvell meydanının batı yüzünde, kaleden yol boyunca doğuda. Süpürgene bin ve oraya uç - bedeli karşılığında bir asayı güçlendirebilir."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "A Stronger Wand"
@@ -6280,8 +6292,8 @@ msgid "Complete the Trial Hall"
 msgstr "Sınav Salonu'nu tamamla"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "The Trial Hall portal is the glowing arch on the courtyard lawn, beside the lake walk. Step into it and press F, clear the corridor, then defeat the Trial Warden. Up to five can go in together."
-msgstr "Sınav Salonu geçidi, avlunun çimenliğinde göl yolunun yanındaki parlayan kemerdir. İçine gir ve F'ye bas, koridoru temizle, sonra Sınav Muhafızı'nı alt et. En fazla beş kişi birlikte girebilir."
+msgid "The Trial Hall stands on the castle's east terrace, south of the road. Press F at its glowing door, clear the corridor, then defeat the Trial Warden. Up to five can go in together."
+msgstr "Sınav Salonu kalenin doğu terasında, yolun güneyinde duruyor. Parlayan kapısında F'ye bas, koridoru temizle, sonra Sınav Bekçisi'ni yen. En fazla beş kişi birlikte girebilir."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "A Wand Worth Keeping"
@@ -6316,8 +6328,8 @@ msgid "Speak with Bessa Tull in Orvell"
 msgstr "Orvell'de Hancı Bessa Tull ile konuş"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Fly east along the Orvell Road. Bessa Tull knows every rumour in the valley."
-msgstr "Orvell Yolu boyunca doğuya uç. Hancı Bessa Tull vadideki her söylentiyi bilir."
+msgid "Bessa Tull keeps the Red Lantern on the north side of Orvell square, a few steps from Kestrin's forge. She knows every rumour in the valley."
+msgstr "Bessa Tull, Kestrin'in ocağına birkaç adım mesafede, Orvell meydanının kuzeyindeki Kızıl Fener Hanı'nı işletiyor. Vadideki her söylentiyi bilir."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Defeat 15 Black Weavers"
@@ -6396,8 +6408,8 @@ msgid "Defeat 18 Drowned Ones"
 msgstr "18 Boğulmuş Ölü alt et"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "Deeper in the forest an old crypt has opened. The Drowned Ones pour out of Crypt Hollow."
-msgstr "Ormanın derinliklerinde eski bir mahzen açıldı. Boğulmuş Ölüler Mahzen Çukuru'ndan akın ediyor."
+msgid "Deeper in the forest the old crypt has split open. The Drowned Ones climb out of its ruin and pour across Crypt Hollow."
+msgstr "Ormanın derinlerinde eski mahzen yarılıp açıldı. Boğulmuş Ölüler harabesinden tırmanıp Mahzen Çukuru'na yayılıyor."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Records of the Crypt"
@@ -6580,8 +6592,8 @@ msgid "Find Spider Hollow"
 msgstr "Örümcek Çukuru'nu bul"
 
 #: addons/hpmmo_sim/data/quests.json
-msgid "The Black Widow nests in Spider Hollow in the far south-west, beyond the Spider Woods."
-msgstr "Ana, uzak güneybatıda, Örümcek Korusu'nun ötesindeki Örümcek Çukuru'nda yuvalanıyor."
+msgid "The Black Widow nests in Spider Hollow in the far south-west, beyond the Spider Woods. In the slope west of the hollow a cave mouth leads down to the Blackweb Caverns."
+msgstr "Kara Dul, uzak güneybatıda, Ağcı Ormanı'nın ötesindeki Örümcek Oyuğu'nda yuvalanıyor. Oyuğun batısındaki yamaçta bir mağara ağzı Karaağ Mağaraları'na iner."
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "The Black Widow"
@@ -6802,6 +6814,10 @@ msgstr "Koridoru kıpırcıklardan taş kapağa kadar tek seferde geç."
 #: addons/hpmmo_sim/data/quests.json
 msgid "A Wand for the Storm"
 msgstr "Fırtına İçin Bir Asa"
+
+#: addons/hpmmo_sim/data/quests.json
+msgid "Speak with Kestrin"
+msgstr "Kestrin ile konuş"
 
 #: addons/hpmmo_sim/data/quests.json
 msgid "Kestrin has finished a wand worthy of what comes next."
@@ -7631,6 +7647,9 @@ msgstr "Lunra Gölü'nün yakınında bozulmuş bir Kara Kırık belirdi. Diğer
 #~ msgid "Buy Wiggenweld before heading to the Forbidden Forest. Trust me."
 #~ msgstr "Yasak Orman'a gitmeden önce Wiggenweld al. Bana güven."
 
+#~ msgid "Cast any spell at a training dummy in the courtyard (Tab to target one)."
+#~ msgstr "Avludaki bir eğitim kuklasına herhangi bir büyü yap (hedeflemek için Tab)."
+
 #~ msgid "Chance of upgrade %d%%%s"
 #~ msgstr "Yükseltme şansı %%%d%s"
 
@@ -7699,6 +7718,9 @@ msgstr "Lunra Gölü'nün yakınında bozulmuş bir Kara Kırık belirdi. Diğer
 
 #~ msgid "Dark Snatcher Commander"
 #~ msgstr "Kara Kapkaççı Komutanı"
+
+#~ msgid "Deeper in the forest an old crypt has opened. The Drowned Ones pour out of Crypt Hollow."
+#~ msgstr "Ormanın derinliklerinde eski bir mahzen açıldı. Boğulmuş Ölüler Mahzen Çukuru'ndan akın ediyor."
 
 #~ msgid "Deeper in the forest an old crypt has opened. The Inferi pour out of Crypt Hollow."
 #~ msgstr "Ormanın derinliklerinde eski bir mahzen açıldı. Inferius'lar Mahzen Çukuru'ndan akın ediyor."
@@ -8003,6 +8025,9 @@ msgstr "Lunra Gölü'nün yakınında bozulmuş bir Kara Kırık belirdi. Diğer
 #~ msgid "Fly east along the Hogsmeade Road. Madam Rosmerta knows every rumour in the valley."
 #~ msgstr "Hogsmeade Yolu boyunca doğuya uç. Madam Rosmerta vadideki her söylentiyi bilir."
 
+#~ msgid "Fly east along the Orvell Road. Bessa Tull knows every rumour in the valley."
+#~ msgstr "Orvell Yolu boyunca doğuya uç. Hancı Bessa Tull vadideki her söylentiyi bilir."
+
 #~ msgid "Fly to the Quidditch Pitch on your broom"
 #~ msgstr "Süpürgenle Quidditch Sahası'na uç"
 
@@ -8023,6 +8048,9 @@ msgstr "Lunra Gölü'nün yakınında bozulmuş bir Kara Kırık belirdi. Diğer
 
 #~ msgid "From Level: %d"
 #~ msgstr "Seviye: %d"
+
+#~ msgid "From level 5 the Trial Hall is open: step into the glowing arch on the courtyard's south lawn and press F."
+#~ msgstr "5. seviyeden itibaren Sınav Salonu açık: avlunun güney çimenliğindeki parlayan kemerin içine gir ve F'ye bas."
 
 #~ msgid "Frost nova. Hurls a spinning ice crystal that bursts into shards and freezing mist, freezing every enemy in the blast for up to 1.6 seconds. Requires level 20."
 #~ msgstr "Buz patlaması. Dönen bir buz kristali fırlatır; kristal parçalara ve dondurucu bir sise dönüşerek patlar, patlamadaki her düşmanı 1,6 saniyeye kadar dondurur. 20. seviye gerekir."
@@ -8092,6 +8120,9 @@ msgstr "Lunra Gölü'nün yakınında bozulmuş bir Kara Kırık belirdi. Diğer
 
 #~ msgid "Hit an Acromantula or Inferi outside the safe zone and survive the pack's answer."
 #~ msgstr "Güvenli bölgenin dışında bir Akromantula ya da Inferius'a vur ve sürünün karşılığından sağ çık."
+
+#~ msgid "Hit an Black Weaver or Drowned Ones outside the safe zone and survive the pack's answer."
+#~ msgstr "Güvenli bölgenin dışında bir Kara Ağcı ya da Boğulmuş Ölüye vur ve sürünün karşılığından sağ çık."
 
 #~ msgid "Hogsmeade"
 #~ msgstr "Hogsmeade"
@@ -8182,6 +8213,9 @@ msgstr "Lunra Gölü'nün yakınında bozulmuş bir Kara Kırık belirdi. Diğer
 
 #~ msgid "Keep the Inferi in Crypt Hollow from reaching the forest paths."
 #~ msgstr "Mahzen Çukuru'ndaki Inferius'ların orman yollarına ulaşmasını engelle."
+
+#~ msgid "Kestrin works his anvil in the courtyard. He can make a wand stronger, at a price."
+#~ msgstr "Kestrin avluda örsünün başında çalışıyor. Bedeli karşılığında bir asayı güçlendirebilir."
 
 #~ msgid "Lacquered crimson boots with golden phoenix wings at the heel."
 #~ msgstr "Topuklarında altın anka kanatları olan cilalı kızıl çizmeler."
@@ -8315,6 +8349,9 @@ msgstr "Lunra Gölü'nün yakınında bozulmuş bir Kara Kırık belirdi. Diğer
 #~ msgid "Power"
 #~ msgstr "Güç"
 
+#~ msgid "Practise at the dummies east of the courtyard, then pull a pack together. Watch the boss's warning circle."
+#~ msgstr "Avlunun doğusundaki kuklalarda çalış, sonra bir sürüyü topla. Patronun uyarı çemberine dikkat et."
+
 #~ msgid "Prefect"
 #~ msgstr "Sınıf Başkanı"
 
@@ -8324,8 +8361,14 @@ msgstr "Lunra Gölü'nün yakınında bozulmuş bir Kara Kırık belirdi. Diğer
 #~ msgid "Press %s - Let go of the Portkey (to %s)"
 #~ msgstr "%s'ye bas - Portkey'i bırak (%s yönüne)"
 
+#~ msgid "Press F inside the arch"
+#~ msgstr "Kemerin içinde F'ye bas"
+
 #~ msgid "Press O anywhere to open my workshop. Bring Phoenix Ash, Heartstrings, Thestral Hair."
 #~ msgstr "Atölyemi açmak için her yerde O'ya bas. Anka Külü, Ejderha Yürek Teli ve Thestral Kılı getir."
+
+#~ msgid "Press O anywhere to open my workshop. Bring Velkar Ash, Dragon Sinew, Night Steed Hair."
+#~ msgstr "Atölyemi açmak için her yerde O'ya bas. Velkar Külü, Ejder Siniri ve Gece Atı Kılı getir."
 
 #~ msgid "Press O near Ollivander, drag your wand onto the anvil and refine it with Phoenix Ash and Galleons."
 #~ msgstr "Ollivander'ın yanında O'ya bas, asanı örse sürükle ve Anka Külü ile Galleon kullanarak yükselt."
@@ -8516,6 +8559,9 @@ msgstr "Lunra Gölü'nün yakınında bozulmuş bir Kara Kırık belirdi. Diğer
 #~ msgid "The Azkaban Warden sleeps in a barrow in the marsh."
 #~ msgstr "Azkaban Gardiyanı bataklıktaki bir höyükte uyuyor."
 
+#~ msgid "The Black Widow nests in Spider Hollow in the far south-west, beyond the Spider Woods."
+#~ msgstr "Ana, uzak güneybatıda, Örümcek Korusu'nun ötesindeki Örümcek Çukuru'nda yuvalanıyor."
+
 #~ msgid "The Blackweb Queen rises from her nest!"
 #~ msgstr "Kara Ağ Kraliçesi yuvasından doğruluyor!"
 
@@ -8557,6 +8603,9 @@ msgstr "Lunra Gölü'nün yakınında bozulmuş bir Kara Kırık belirdi. Diğer
 
 #~ msgid "The Three-Headed Dog"
 #~ msgstr "Üç Başlı Köpek"
+
+#~ msgid "The Trial Hall portal is the glowing arch on the courtyard lawn, beside the lake walk. Step into it and press F, clear the corridor, then defeat the Trial Warden. Up to five can go in together."
+#~ msgstr "Sınav Salonu geçidi, avlunun çimenliğinde göl yolunun yanındaki parlayan kemerdir. İçine gir ve F'ye bas, koridoru temizle, sonra Sınav Muhafızı'nı alt et. En fazla beş kişi birlikte girebilir."
 
 #~ msgid "The corridor is silent. The trapdoor swings open - claim your reward."
 #~ msgstr "Koridor sessizleşti. Kapak açılıyor - ödülünü al."
@@ -8618,8 +8667,14 @@ msgstr "Lunra Gölü'nün yakınında bozulmuş bir Kara Kırık belirdi. Diğer
 #~ msgid "Thick Brows"
 #~ msgstr "Kalın Kaş"
 
+#~ msgid "Three training dummies stand by the east road, just outside the courtyard wall - they never hit back. Left-click to cast; spells hurt nothing inside the safe courtyard."
+#~ msgstr "Üç antrenman mankeni doğu yolunda, avlu duvarının hemen dışında durur - asla karşılık vermezler. Büyü yapmak için sol tıkla; güvenli avlunun içinde büyüler hiçbir şeye zarar vermez."
+
 #~ msgid "Tied Back"
 #~ msgstr "Arkada Toplu"
+
+#~ msgid "Training dummies stand in the courtyard - practise your spells there safely."
+#~ msgstr "Eğitim kuklaları avluda duruyor - büyülerini orada güvenle çalış."
 
 #~ msgid "Transfiguration"
 #~ msgstr "Biçim Değiştirme"
@@ -8707,6 +8762,9 @@ msgstr "Lunra Gölü'nün yakınında bozulmuş bir Kara Kırık belirdi. Diğer
 
 #~ msgid "[Shift] Mount or dismount the broom"
 #~ msgstr "[Shift] Süpürgeye bin ya da in"
+
+#~ msgid "beside the courtyard"
+#~ msgstr "avlunun yanında"
 
 #~ msgid "health x%.2f, damage x%.2f"
 #~ msgstr "can x%.2f, hasar x%.2f"

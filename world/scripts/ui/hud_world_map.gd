@@ -36,6 +36,7 @@ const PLACES := [
 	["Borin's Hut", Vector2(-330, -10), 0.8],
 	["Greenhouses", Vector2(-190, -185), 0.8],
 	["Courtyard", Vector2(0, 92), 0.75],
+	["Blackweb Caverns", Vector2(-805, 392), 0.7],
 ]
 const FLOOR_NAMES := {-1: "Dungeons", 0: "Ground", 1: "1st", 2: "2nd", 3: "3rd", 4: "4th", 5: "5th", 6: "6th", 7: "7th"}
 # i18n-end
