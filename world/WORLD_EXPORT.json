@@ -1,7 +1,7 @@
 {
  "generated": "2026-11-08",
  "source_repository": "hpmmo-client",
- "source_revision": "2e98e16e13df90a5f5642d1b0542744ae2a2eafb",
+ "source_revision": "e2698c0b06b34ad4a0f433b1a15054d427e4391c",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/audio/sound_library.json": "c1d191056275c9a8d4657bf650376060444d8a0a1af7eaeca72cc30b632c60cc",
@@ -794,7 +794,7 @@
   "scripts/world/grounds/grounds_layout.gd": "24b2763b338660961cc34543cc07722989327c55e2865ad2d9c25795f5b0b08b",
   "scripts/world/grounds/grounds_precinct.gd": "c51036dc84476b4007b13739719288c8a776f851c1d0bd50dee0c05274ff1700",
   "scripts/world/grounds/grounds_scatter.gd": "9464c17f34b3b9e4f09a6c9cb66682ea918c6fd81113cd661ca8599a2e3f6130",
-  "scripts/world/grounds/grounds_sites.gd": "891a92d0eba948f3dae537070c1785ef18512cf4793196d86eb1a82fbc47cbf7",
+  "scripts/world/grounds/grounds_sites.gd": "7ea205f200e92a840c2c9b5388629f07bc1247547e8032076c3eb9410db27731",
   "scripts/world/grounds/pumpkin_mesh.gd": "30c628b44239fbf5aa124554bf00e6f5abdb6ed93c097317dcec5f1acf8ee272",
   "scripts/world/grounds/village_kit.gd": "462cb880e81496e33270a5e3e73cd2f7ba2197c99712c72130df7919aca07a03",
   "scripts/world/grounds_terrain.gd": "fa873a320f470ff503a2d7595fb79e23eae9240889c166b3f8f0c0f13f7ab61c",

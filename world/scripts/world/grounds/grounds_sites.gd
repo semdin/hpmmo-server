@@ -642,37 +642,146 @@ static func _station(parent: Node3D, visuals: bool) -> void:
 			_lamp_light(root, Vector3(s.x + 1.0, fy + 3.0, s.z - 20.0 + k * 20.0), 0.9, 9.0)
 
 
-# --------------------------------------------------------- Quidditch pitch
+# ------------------------------------------------------- broom-sport pitch
+
+## The broom-sport pitch as a stone arena (world overhaul step 7, the user's
+## pick): an oval field (PITCH_SHORT x PITCH_LONG half-axes) ringed by ten
+## stepped stone terraces with an arcaded back wall hung with banners in the
+## four colours, three ring hoops at each end on carved stone pillars, and
+## chalk lines: the oval, the centre circle and line, the scoring arcs.
+const PITCH_LONG := 70.0
+const PITCH_SHORT := 30.0
+## Terraces: their depth, rows and the gap between the field and the first row.
+const TERRACE_DEPTH := 12.0
+const TERRACE_ROWS := 10
+const TERRACE_GAP := 6.0
+const PITCH_CLOTHS := ["cloth_red", "cloth_yellow", "cloth_blue", "cloth_green"]
+
 
 static func _quidditch(parent: Node3D, visuals: bool) -> void:
 	var q := GroundsLayout.landmark("quidditch")
 	if q == Vector3.INF:
 		return
 	var kit := ArchKit.new()
-	var long := 70.0
-	var short := 30.0
-	# hoops: three per end
+	_pitch_hoops(kit, q)
+	_pitch_terraces(kit, q)
+	var root := kit.finish(parent, materials() if visuals else {}, "QuidditchPitch", 1, visuals)
+	if visuals:
+		_pitch_lines(root, q)
+
+
+## The point on the field's oval at angle a, pushed `out` metres beyond it.
+static func _pitch_oval(q: Vector3, a: float, out: float) -> Vector2:
+	return Vector2(q.x + cos(a) * (PITCH_SHORT + out), q.z + sin(a) * (PITCH_LONG + out))
+
+
+## Three gilded ring hoops per end (14 / 17 / 14 m) on carved stone pillars.
+static func _pitch_hoops(kit: ArchKit, q: Vector3) -> void:
 	for end in [-1, 1]:
 		for k in 3:
 			var x: float = q.x + (k - 1) * 9.0
-			var z: float = q.z + end * long
+			var z: float = q.z + end * PITCH_LONG
 			var g := GroundsLayout.ground(x, z)
 			var hgt: float = [14.0, 17.0, 14.0][k]
-			kit.cylinder(g + Vector3(0, -0.5, 0), 0.25, hgt + 0.5, "gold", 8)
-			for s in 16:
-				var a := TAU * s / 16.0
-				kit.box(g + Vector3(cos(a) * 2.0, hgt + 2.0 + sin(a) * 2.0, 0), Vector3(0.25, 0.25, 0.25), 0.0, "gold", false)
-	# spectator towers around the oval, in house colours
-	var cloths := ["cloth_red", "cloth_yellow", "cloth_blue", "cloth_green"]
-	for i in 16:
-		var a := TAU * i / 16.0
-		var p := Vector2(q.x + cos(a) * (short + 14.0), q.z + sin(a) * (long + 12.0))
-		var span := GroundsLayout.ground_span(p, Vector2(6, 6))
-		var top := span.y + 16.0
-		kit.box(Vector3(p.x, (span.x - 1.0 + top) * 0.5, p.y), Vector3(5.5, top - span.x + 1.0, 5.5), -a, "wood")
-		kit.box(Vector3(p.x, top - 3.0, p.y), Vector3(5.8, 4.0, 5.8), -a, cloths[i % 4], false)
-		kit.pyramid(Vector3(p.x, top, p.y), Vector2(5.5, 5.5), 4.0, -a, cloths[i % 4], 0.4)
-	kit.finish(parent, materials() if visuals else {}, "QuidditchPitch", 1, visuals)
+			kit.box(g + Vector3(0, 0.4, 0), Vector3(2.4, 1.4, 2.4), 0.0, "trim")
+			kit.cylinder(g + Vector3(0, 1.1, 0), 0.75, hgt - 2.0, "stone", 12, true, 0.5)
+			kit.cylinder(g + Vector3(0, hgt - 1.0, 0), 0.7, 0.6, "trim", 12, false)
+			_pitch_ring(kit, g + Vector3(0, hgt + 2.4, 0), Vector3(0, 0, 1), 2.4, 0.2, "gold")
+
+
+## A torus: ring of radius R and tube radius r round `c`, its plane normal `axis`
+## (drawn only: players fly through the hoops).
+static func _pitch_ring(kit: ArchKit, c: Vector3, axis: Vector3, R: float, r: float, key: String, seg: int = 28, tseg: int = 8) -> void:
+	var u := axis.cross(Vector3.UP).normalized()
+	if u.length() < 0.5:
+		u = Vector3.RIGHT
+	var v := axis.cross(u).normalized()
+	var pt := func(i: int, j: int) -> Vector3:
+		var dir := u * cos(TAU * i / seg) + v * sin(TAU * i / seg)
+		return c + dir * (R + r * cos(TAU * j / tseg)) + axis * (r * sin(TAU * j / tseg))
+	for i in seg:
+		var core := c + (u * cos(TAU * (i + 0.5) / seg) + v * sin(TAU * (i + 0.5) / seg)) * R
+		for j in tseg:
+			kit.quad(key, pt.call(i, j), pt.call(i + 1, j), pt.call(i + 1, j + 1), pt.call(i, j + 1), core)
+
+
+## Stone terraces all round the oval in straight segments tangent to it, each
+## founded on the lowest ground under it, an arcaded back wall behind, a banner
+## in every fifth bay.
+static func _pitch_terraces(kit: ArchKit, q: Vector3) -> void:
+	var n := 40
+	for i in n:
+		var p0 := _pitch_oval(q, TAU * i / n, TERRACE_GAP)
+		var p1 := _pitch_oval(q, TAU * (i + 1) / n, TERRACE_GAP)
+		var mid := (p0 + p1) * 0.5
+		var along := p1 - p0
+		var length := along.length() + 0.4
+		var outward := Vector2(along.y, -along.x).normalized()
+		if outward.dot(mid - Vector2(q.x, q.z)) < 0:
+			outward = -outward
+		var rot := atan2(-along.y, along.x)
+		var span := GroundsLayout.ground_span(mid + outward * TERRACE_DEPTH * 0.5, Vector2(length, TERRACE_DEPTH), rot)
+		var floor_y := span.y + 0.1
+		var depth := TERRACE_DEPTH / TERRACE_ROWS
+		for k in TERRACE_ROWS:
+			var c2 := mid + outward * (depth * (k + 0.5))
+			var hgt := 0.5 + k * 0.55
+			kit.box(Vector3(c2.x, (span.x - 0.5 + floor_y + hgt) * 0.5, c2.y), Vector3(length, floor_y + hgt - span.x + 0.5, depth), rot, "stone")
+		var back := mid + outward * (TERRACE_DEPTH + 0.3)
+		var wall_top := floor_y + 0.5 + TERRACE_ROWS * 0.55 + 2.0
+		kit.box(Vector3(back.x, (span.x - 0.5 + wall_top) * 0.5, back.y), Vector3(length, wall_top - span.x + 0.5, 0.6), rot, "stone")
+		var n3 := Vector3(outward.x, 0, outward.y)
+		kit.window(Vector3(back.x, wall_top - 2.6, back.y) - n3 * 0.32, -n3, 1.6, 2.4, "trim", "dark")
+		kit.box(Vector3(back.x, wall_top + 0.5, back.y), Vector3(length, 1.0, 1.0), rot, "trim")
+		if i % 5 == 0:
+			var size := Vector3(1.4, 3.4, 0.05) if absf(n3.z) > absf(n3.x) else Vector3(0.05, 3.4, 1.4)
+			kit.box(Vector3(back.x, wall_top - 2.0, back.y) - n3 * 0.36, size, 0.0, PITCH_CLOTHS[(i / 5) % 4], false)
+
+
+## Chalk lines (the oval, the centre circle and line, the scoring arcs) drawn
+## into one texture and projected onto the field by a Decal: a strip draped on
+## the terrain dipped under the far terrain's coarser LOD and showed dashed.
+const PITCH_LINE_PX := 14.0   # texels per metre
+
+
+static func _pitch_lines(root: Node3D, q: Vector3) -> void:
+	var size := Vector2(PITCH_SHORT * 2.0 + 2.0, PITCH_LONG * 2.0 + 2.0)
+	var img := Image.create(int(size.x * PITCH_LINE_PX), int(size.y * PITCH_LINE_PX), false, Image.FORMAT_RGBA8)
+	img.fill(Color(1, 1, 1, 0))
+	var lines: Array = []
+	var oval: Array = []
+	for i in 193:
+		oval.append(_pitch_oval(Vector3.ZERO, TAU * i / 192.0, 0.0))
+	lines.append([oval, 0.35])
+	var circle: Array = []
+	for i in 49:
+		circle.append(Vector2(cos(TAU * i / 48.0), sin(TAU * i / 48.0)) * 6.0)
+	lines.append([circle, 0.3])
+	lines.append([[Vector2(-PITCH_SHORT, 0), Vector2(PITCH_SHORT, 0)], 0.3])
+	for end in [-1.0, 1.0]:
+		var arc: Array = []
+		for i in 25:
+			var a := PI * i / 24.0
+			arc.append(Vector2(cos(a) * 16.0, end * (PITCH_LONG - sin(a) * 16.0)))
+		lines.append([arc, 0.3])
+	for line in lines:
+		var pts: Array = line[0]
+		var w := maxi(2, int(float(line[1]) * PITCH_LINE_PX))
+		for k in pts.size() - 1:
+			var a: Vector2 = pts[k]
+			var b: Vector2 = pts[k + 1]
+			var steps := maxi(1, int(a.distance_to(b) * PITCH_LINE_PX))
+			for s in steps + 1:
+				var p: Vector2 = (a.lerp(b, float(s) / steps) + size * 0.5) * PITCH_LINE_PX
+				img.fill_rect(Rect2i(int(p.x) - w / 2, int(p.y) - w / 2, w, w), Color(0.95, 0.95, 0.9, 1))
+	img.generate_mipmaps()
+	var decal := Decal.new()
+	decal.name = "PitchLines"
+	decal.texture_albedo = ImageTexture.create_from_image(img)
+	decal.size = Vector3(size.x, 30.0, size.y)
+	decal.position = GroundsLayout.ground(q.x, q.z)
+	decal.normal_fade = 0.5    # the floor only, not the hoop pillars' sides
+	root.add_child(decal)
 
 
 # -------------------------------------------------------- stone circle etc.
