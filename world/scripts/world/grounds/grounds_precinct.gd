@@ -4,7 +4,8 @@ class_name GroundsPrecinct
 ## The purpose-built places of the valley (world overhaul step 2,
 ## plans/layout-plan.html): the Trial Hall on the castle's east terrace, the
 ## Hearth Pavilion beside the castle approach, the fenced training yard by the
-## broom landing pad, Kestrin's forge on the west side of Orvell square and the
+## broom landing pad, Kestrin's forge's glow and sign (his smithy is a VillageKit
+## building on the west side of Orvell square) and the
 ## cave mouth down to the Blackweb Caverns in Spider Hollow's west slope.
 ##
 ## Every place reads its spot from the server's data, so the building and the
@@ -22,8 +23,6 @@ const PBR = preload("res://scripts/assets/pbr_kit.gd")
 ## the west side, facing the landing pad.
 const YARD_HALF := Vector2(11.0, 7.0)
 const YARD_GATE := 4.0
-## Kestrin's forge: on Orvell square, its counter facing the well.
-const FORGE_OFFSET := Vector2(-23.5, -6.0)
 
 
 static func build(world: Node3D, visuals: bool) -> Node3D:
@@ -365,66 +364,35 @@ static func _training_yard(root: Node3D, mats: Dictionary, visuals: bool) -> voi
 
 # -------------------------------------------------------------- Kestrin's forge
 
-## A wandmaker's open forge on the west side of Orvell square: back wall with a
-## chimney, the forge hearth, an anvil, a counter and a slate roof.
-static func _kestrin_forge(root: Node3D, mats: Dictionary, visuals: bool) -> void:
-	var sq := GroundsLayout.landmark("hogsmeade_square")
-	if sq == Vector3.INF:
+## Kestrin's smithy is a kit building on the west side of Orvell square
+## (GroundsSites.smithy_site, VillageKit "smithy"); here its hearth's glow
+## and its name over the door.
+static func _kestrin_forge(root: Node3D, _mats: Dictionary, visuals: bool) -> void:
+	if not visuals or GroundsLayout.landmark("hogsmeade_square") == Vector3.INF:
 		return
-	var at := Vector2(sq.x, sq.z) + FORGE_OFFSET
-	var to_sq := (Vector2(sq.x, sq.z) - at).normalized()
-	var rot := atan2(to_sq.x, to_sq.y)
-	var basis := Basis(Vector3.UP, rot)
-	var fwd := basis * Vector3.BACK
-	var side := basis * Vector3.RIGHT
-	var span := GroundsLayout.ground_span(at, Vector2(7.0, 5.0), rot)
-	var c := Vector3(at.x, span.y, at.y)
-	var kit := ArchKit.new()
-	kit.box(c + Vector3(0, 0.0, 0), Vector3(7.4, 0.16, 5.4), rot, "cobble")
-	# back wall and side walls (half height at the front)
-	var back := c - fwd * 2.3
-	kit.box(Vector3(back.x, (span.x - 0.5 + c.y + 4.2) * 0.5, back.z), Vector3(7.0, c.y + 4.2 - span.x + 0.5, 0.6), rot, "stone")
-	for s in [-1.0, 1.0]:
-		var w: Vector3 = c + side * s * 3.3 - fwd * 0.6
-		kit.box(Vector3(w.x, (span.x - 0.5 + c.y + 4.2) * 0.5, w.z), Vector3(0.5, c.y + 4.2 - span.x + 0.5, 3.4), rot, "stone")
-	# front posts and the roof
-	for s in [-1.0, 1.0]:
-		var p: Vector3 = c + side * s * 3.3 + fwd * 2.2
-		kit.box(p + Vector3(0, 2.1, 0), Vector3(0.3, 4.2, 0.3), rot, "timber")
-	kit.gable(c + Vector3(0, 4.2, 0), Vector2(7.0, 5.0), 1.6, rot, "roof", "plaster", 0.6)
-	# forge hearth with a chimney through the roof
-	var forge := c - fwd * 1.4 + side * 1.9
-	kit.box(forge + Vector3(0, 0.6, 0), Vector3(2.2, 1.2, 1.4), rot, "rubble")
-	kit.box(forge + Vector3(0, 1.22, 0.0) + fwd * 0.05, Vector3(1.4, 0.06, 0.9), rot, "ember", false)
-	kit.box(forge + Vector3(0, 3.8, 0) - fwd * 0.3, Vector3(1.2, 5.2, 1.0), rot, "rubble")
-	# anvil on its block, the counter facing the square
-	var anvil := c + side * -0.8 - fwd * 0.2
-	kit.box(anvil + Vector3(0, 0.35, 0), Vector3(0.6, 0.7, 0.6), rot, "timber")
-	kit.box(anvil + Vector3(0, 0.82, 0), Vector3(0.36, 0.24, 1.0), rot, "metal")
-	var counter := c + fwd * 1.5 - side * 1.2
-	kit.box(counter + Vector3(0, 0.55, 0), Vector3(3.2, 1.1, 0.8), rot, "wood")
-	var shop := kit.finish(root, mats, "KestrinForge", 1, visuals)
-	if visuals:
-		var l := OmniLight3D.new()
-		l.light_color = Color(1.0, 0.55, 0.25)
-		l.light_energy = 1.4
-		l.omni_range = 7.0
-		l.position = forge + Vector3(0, 1.8, 0) + fwd * 0.8
-		l.add_to_group("torch_lights")
-		shop.add_child(l)
-		_label(shop, I18n.t("Kestrin's Forge"), "", c + Vector3(0, 7.2, 0))
+	var site := GroundsSites.smithy_site()
+	var c: Vector2 = site[0]
+	var basis := Basis(Vector3.UP, float(site[1]))
+	var g := GroundsLayout.ground(c.x, c.y)
+	var hearth: Vector3 = g + basis * Vector3(1.8, 1.9, -1.6)
+	var l := OmniLight3D.new()
+	l.light_color = Color(1.0, 0.55, 0.25)
+	l.light_energy = 1.6
+	l.omni_range = 7.0
+	l.position = hearth
+	l.add_to_group("torch_lights")
+	root.add_child(l)
+	_label(root, I18n.t("Kestrin's Forge"), "", g + basis * Vector3(0, 6.8, 3.0))
 
 
-## Where Kestrin stands: behind his counter, facing the square.
+## Where Kestrin stands: before the smithy's left doorway, facing the square.
 static func kestrin_spot() -> Vector3:
-	var sq := GroundsLayout.landmark("hogsmeade_square")
-	if sq == Vector3.INF:
+	if GroundsLayout.landmark("hogsmeade_square") == Vector3.INF:
 		return GroundsLayout.ground(658, -147)
-	var at := Vector2(sq.x, sq.z) + FORGE_OFFSET
-	var fwd := (Vector2(sq.x, sq.z) - at).normalized()
-	var side := Vector2(fwd.y, -fwd.x)   # Basis(UP, atan2(fwd.x, fwd.y)) * RIGHT
-	var p := at + fwd * 0.4 - side * 1.2
-	return GroundsLayout.ground(p.x, p.y)
+	var site := GroundsSites.smithy_site()
+	var c: Vector2 = site[0]
+	var p: Vector3 = Basis(Vector3.UP, float(site[1])) * Vector3(-1.0, 0, VillageKit.size("smithy").y * 0.5 + 1.3)
+	return GroundsLayout.ground(c.x + p.x, c.y + p.z)
 
 
 # ------------------------------------------------------------------ cave mouth

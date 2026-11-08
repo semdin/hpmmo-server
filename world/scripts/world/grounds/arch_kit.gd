@@ -173,6 +173,20 @@ func tower_battlements(center_top: Vector3, radius: float, key: String, count: i
 		box(center_top + Vector3(cos(a) * radius, 0.7, sin(a) * radius), Vector3(1.0, 1.4, 1.2), -a, key)
 
 
+## A collision-only box (nothing drawn): models placed with the kit's batch.
+func solid(center: Vector3, size: Vector3, rot_y: float) -> void:
+	if not _with_collision:
+		return
+	var s := BoxShape3D.new()
+	s.size = size
+	_shapes.append([s, Transform3D(Basis(Vector3.UP, rot_y), center)])
+
+
+## A collision-only convex hull through world points (a model's roof).
+func solid_hull(points: PackedVector3Array) -> void:
+	_hull(points)
+
+
 ## A convex collider through world points (roofs, spires): sloped surfaces
 ## a body can stand on or bump into, matching what is drawn.
 func _hull(points: PackedVector3Array) -> void:

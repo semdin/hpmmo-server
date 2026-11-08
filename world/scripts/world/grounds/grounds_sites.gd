@@ -1,7 +1,8 @@
 extends RefCounted
 class_name GroundsSites
 
-## Buildings and set dressing at the grounds' landmarks: Hogsmeade, Hagrid's hut,
+## Buildings and set dressing at the grounds' landmarks: Hogsmeade (its square
+## built from VillageKit's kit buildings), Hagrid's hut,
 ## the greenhouses, the boathouse and its stair, the station, the Quidditch pitch,
 ## the highland stone circle, the smugglers' camp, the ruined crypt and the spider hollow.
 ##
@@ -47,6 +48,11 @@ static func materials() -> Dictionary:
 		"rubble": PBR.surface("stone_wall", Color(0.85, 0.84, 0.82), {"metres": 4.0}),
 		"mossy": PBR.surface("mossy_stone_wall", Color(0.9, 0.92, 0.88), {"metres": 3.0}),
 		"plaster": PBR.surface("white_rough_plaster", Color(0.93, 0.90, 0.84), {"metres": 3.0}),
+		# village limewash colours (VillageKit picks one per building)
+		"plaster_cream": PBR.surface("white_rough_plaster", Color(0.97, 0.89, 0.72), {"metres": 3.0}),
+		"plaster_ochre": PBR.surface("white_rough_plaster", Color(0.93, 0.78, 0.55), {"metres": 3.0}),
+		"plaster_rose": PBR.surface("white_rough_plaster", Color(0.94, 0.80, 0.74), {"metres": 3.0}),
+		"plaster_sage": PBR.surface("white_rough_plaster", Color(0.80, 0.86, 0.76), {"metres": 3.0}),
 		"timber": PBR.surface("medieval_wood", Color(0.46, 0.38, 0.31), {"metres": 2.0}),
 		"wood": PBR.surface("wooden_planks", Color(0.80, 0.70, 0.60), {"metres": 2.5}),
 		"roof": PBR.surface("roof_slates_02", Color(0.46, 0.50, 0.60), {"metres": 3.0}),
@@ -59,6 +65,7 @@ static func materials() -> Dictionary:
 		"metal": metal,
 		"gold": gold,
 		"dark": dark,
+		"ember": _ember(),
 		"cloth_red": _cloth(Color(0.55, 0.08, 0.08)),
 		"cloth_blue": _cloth(Color(0.10, 0.20, 0.48)),
 		"cloth_green": _cloth(Color(0.10, 0.36, 0.18)),
@@ -66,6 +73,16 @@ static func materials() -> Dictionary:
 		"canvas": _cloth(Color(0.55, 0.50, 0.40)),
 	}
 	return _mats
+
+
+## The coals of a forge hearth.
+static func _ember() -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(1.0, 0.45, 0.12)
+	m.emission_enabled = true
+	m.emission = Color(1.0, 0.45, 0.12)
+	m.emission_energy_multiplier = 3.0
+	return m
 
 
 static func _cloth(c: Color) -> StandardMaterial3D:
@@ -163,39 +180,48 @@ static func _hogsmeade(parent: Node3D, visuals: bool) -> void:
 	var kit := ArchKit.new()
 	var centre := Vector2(sq.x, sq.z)
 	var placed: Array[Rect2] = []
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 6870
-	# The Three Broomsticks: big inn on the north side of the square, facing it.
-	var inn := centre + Vector2(0, -44)
-	cottage(kit, inn, 0.0, 16.0, 11.0, 3, "roof_warm", true)
-	placed.append(Rect2(inn - Vector2(10, 8), Vector2(20, 16)))
-	# Houses facing the square on a ring, then along the roads leaving it.
-	for i in 9:
-		var a := -PI * 0.5 + TAU * (i + 0.5) / 10.0 + 0.25
-		if absf(wrapf(a + PI * 0.5, -PI, PI)) < 0.45:
+	# Kit buildings (VillageKit) shoulder to shoulder round the square, every
+	# door to it: the inn on the north side and Kestrin's smithy on the west
+	# fixed, shops and houses clockwise between, narrow alleys, gaps where the
+	# roads come in. Then houses with fenced front gardens along the roads out.
+	var buildings: Array = []
+	var arcs: Array = []   # [from, to] angles the fixed buildings hold
+	for fixed in [["inn", -PI * 0.5], ["smithy", SMITHY_ANGLE]]:
+		var sz := VillageKit.size(fixed[0])
+		var dir := Vector2(cos(fixed[1]), sin(fixed[1]))
+		var p: Vector2 = centre + dir * (SQUARE_FRONT + sz.y * 0.5)
+		buildings.append(VillageKit.found(kit, fixed[0], p, atan2(-dir.x, -dir.y)))
+		var reach := maxf(sz.x, sz.y) * 0.5 + 1.0
+		placed.append(Rect2(p - Vector2(reach, reach), Vector2(reach, reach) * 2.0))
+		var half := (sz.x * 0.5 + ALLEY) / SQUARE_FRONT
+		arcs.append([fixed[1] - half, fixed[1] + half])
+	var inn_half: float = arcs[0][1] - (-PI * 0.5)
+	var theta := -PI * 0.5 + inn_half
+	var stop := -PI * 0.5 + TAU - inn_half
+	var smithy_arc: Array = arcs[1]
+	if smithy_arc[0] < theta:
+		smithy_arc = [smithy_arc[0] + TAU, smithy_arc[1] + TAU]
+	var built := 0
+	while built < 64:
+		var id: String = RING[built % RING.size()]
+		var sz := VillageKit.size(id)
+		var at := theta + (sz.x * 0.5) / SQUARE_FRONT
+		var end := at + (sz.x * 0.5) / SQUARE_FRONT
+		if end > stop:
+			break
+		if end > smithy_arc[0] and theta < smithy_arc[1]:
+			theta = smithy_arc[1]   # the smithy's stretch of the ring
 			continue
-		var p := centre + Vector2(cos(a), sin(a)) * 46.0
-		_try_house(kit, p, centre - p, placed, rng)
-	for road_id in ["castle_east", "hogsmeade_station", "highlands_path"]:
-		var r := GroundsLayout.road(road_id)
-		if r.is_empty():
-			continue
-		var pts: Array = r["points"]
-		for k in pts.size() - 1:
-			var a := Vector2(pts[k][0], pts[k][1])
-			var b := Vector2(pts[k + 1][0], pts[k + 1][1])
-			var length := a.distance_to(b)
-			var dir := (b - a) / length
-			var nrm := Vector2(-dir.y, dir.x)
-			var s := 6.0
-			while s < length:
-				var on := a + dir * s
-				var dist := on.distance_to(centre)
-				if dist > 50.0 and dist < 150.0:
-					for side in [-1.0, 1.0]:
-						var p: Vector2 = on + nrm * side * (float(r["width"]) * 0.5 + 8.5)
-						_try_house(kit, p, -nrm * side, placed, rng)
-				s += 17.0
+		var dir := Vector2(cos(at), sin(at))
+		var p := centre + dir * (SQUARE_FRONT + sz.y * 0.5)
+		if _try_building(kit, id, p, -dir, placed, buildings):
+			theta = at + (sz.x * 0.5 + ALLEY) / SQUARE_FRONT
+			built += 1
+		else:
+			theta += 3.0 / SQUARE_FRONT   # a road: step past it with the same building
+	var fences: Array = []
+	var gardens: Array = []
+	_road_houses(kit, centre, placed, buildings, fences, gardens)
 	# square: a well and four lamp posts
 	kit.cylinder(sq + Vector3(0, -0.5, 0), 1.6, 1.4, "stone", 14)
 	kit.cylinder(sq + Vector3(0, 0.9, 0), 1.35, 0.1, "dark", 14, false)
@@ -204,29 +230,152 @@ static func _hogsmeade(parent: Node3D, visuals: bool) -> void:
 	kit.gable(sq + Vector3(0, 2.9, 0), Vector2(3.0, 2.4), 0.9, 0.0, "roof", "timber", 0.2)
 	var root := kit.finish(parent, materials() if visuals else {}, "HogsmeadeVillage", 1, visuals)
 	if visuals:
+		VillageKit.place(root, buildings, materials())
+		VillageKit.place_fences(root, fences, materials())
+		_gardens(root, gardens)
 		for i in 4:
 			var a := TAU * (i + 0.5) / 4.0
 			_lamp_post(root, GroundsLayout.ground(sq.x + cos(a) * 26.0, sq.z + sin(a) * 26.0))
-		_lamp_light(root, Vector3(inn.x, sq.y + 3.0, inn.y + 7.0), 1.6, 12.0)
+		var inn: Vector2 = centre + Vector2(0, -SQUARE_FRONT)
+		_lamp_light(root, Vector3(inn.x, sq.y + 3.0, inn.y + 3.0), 1.6, 12.0)
 
 
-## A house at p whose door faces `toward` (a direction on the ground plane),
-## unless it would overlap a placed house, sit on a road or straddle a slope.
-static func _try_house(kit: ArchKit, p: Vector2, toward: Vector2, placed: Array[Rect2], rng: RandomNumberGenerator) -> void:
-	var w := rng.randf_range(7.5, 10.5)
-	var d := rng.randf_range(6.5, 8.0)
-	var rect := Rect2(p - Vector2(7, 7), Vector2(14, 14))
-	for r in placed:
-		if r.intersects(rect):
-			return
-	if GroundsLayout.road_distance(p) < d * 0.5 + 1.5:
-		return
+## The square's ring of kit buildings, clockwise from the inn's east.
+const RING := ["shop_bakery", "house_tall", "shop_tailor", "house_gable", "house_tower", "shop_wide", "cottage",
+	"house_sample", "storybook", "shop_tailor", "house_tall", "shop_bakery", "house_gable", "house_sample",
+	"house_tower", "shop_wide", "storybook", "cottage"]
+## Radius of the square's building fronts (its paving ends at 32 m) and the
+## alley left between two buildings.
+const SQUARE_FRONT := 35.0
+const ALLEY := 1.5
+## Kestrin's smithy: the west side of the square, a little north of west
+## (where his old open forge stood).
+const SMITHY_ANGLE := -2.891
+## Houses along the roads out of the square: mostly homes, now and then a shop.
+const ROAD_TYPES := ["house_sample", "cottage", "house_wood", "house_gable", "cottage_long", "storybook",
+	"house_tall", "cottage", "house_tower", "house_sample", "shop_bakery", "cottage_long", "house_wood",
+	"house_gable", "cottage", "storybook", "shop_tailor", "house_sample"]
+const ROADS := ["castle_east", "hogsmeade_station", "highlands_path"]
+## Front garden: grass verge from the road edge to the fence, then the yard.
+const VERGE := 1.0
+const YARD := 3.5
+
+
+## Kestrin's smithy: its centre (x, z) and turn, door to the square.
+static func smithy_site() -> Array:
+	var sq := GroundsLayout.landmark("hogsmeade_square")
+	var dir := Vector2(cos(SMITHY_ANGLE), sin(SMITHY_ANGLE))
+	var c := Vector2(sq.x, sq.z) + dir * (SQUARE_FRONT + VillageKit.size("smithy").y * 0.5)
+	return [c, atan2(-dir.x, -dir.y)]
+
+
+## Houses with fenced front gardens along both sides of the roads leaving the
+## square, between the square's ring and 160 m out; a garden gap of 3-7 m
+## between neighbours. Fills `fences` with the fence pieces' transforms (their
+## colliders go into kit) and `gardens` with bush and flower spots.
+static func _road_houses(kit: ArchKit, centre: Vector2, placed: Array[Rect2], out: Array, fences: Array, gardens: Array) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 6870
+	var lamps := GroundsScatter.instances("lamp")
+	var pick := 0
+	for road_id in ROADS:
+		var r := GroundsLayout.road(road_id)
+		if r.is_empty():
+			continue
+		var half := float(r["width"]) * 0.5
+		var pts: Array = r["points"]
+		for k in pts.size() - 1:
+			var a := Vector2(pts[k][0], pts[k][1])
+			var b := Vector2(pts[k + 1][0], pts[k + 1][1])
+			var length := a.distance_to(b)
+			var dir := (b - a) / length
+			var nrm := Vector2(-dir.y, dir.x)
+			for side in [-1.0, 1.0]:
+				var s := 2.0
+				while s < length - 4.0:
+					var id: String = ROAD_TYPES[pick % ROAD_TYPES.size()]
+					var sz := VillageKit.size(id)
+					var mid := a + dir * (s + sz.x * 0.5)
+					var dist := mid.distance_to(centre)
+					if dist < SQUARE_FRONT + 14.0 or dist > 160.0 or s + sz.x > length:
+						s += 4.0
+						continue
+					var p: Vector2 = mid + nrm * side * (half + VERGE + YARD + sz.y * 0.5)
+					if not _try_building(kit, id, p, -nrm * side, placed, out, true):
+						s += 3.0
+						continue
+					pick += 1
+					var gap := rng.randf_range(3.0, 7.0)
+					# the fence along the garden front, a gate gap before the door
+					var fence_line := half + VERGE
+					var from := s - gap * 0.5
+					var to := s + sz.x + gap * 0.5
+					var x := from
+					while x + 2.06 <= to:
+						var c := x + 1.03
+						if absf(c - (s + sz.x * 0.5)) > 1.6:
+							var at: Vector2 = a + dir * c + nrm * side * fence_line
+							if _clear_of(lamps, at, 1.2) and GroundsLayout.road_distance(at) > 0.6:
+								fences.append(VillageKit.found_fence(kit, at, atan2(-dir.y, dir.x)))
+						x += 2.06
+					# a bush or two and a flower bed in the yard
+					for j in rng.randi_range(1, 2):
+						var along := s + rng.randf_range(0.6, sz.x - 0.6)
+						if absf(along - (s + sz.x * 0.5)) < 1.4:
+							continue
+						gardens.append(["bush", a + dir * along + nrm * side * (fence_line + rng.randf_range(1.2, YARD - 0.8)), rng.randf() * TAU, rng.randf_range(2.2, 3.0)])
+					for j in 6:
+						var along := s + rng.randf_range(0.4, sz.x - 0.4)
+						if absf(along - (s + sz.x * 0.5)) < 1.2:
+							continue
+						gardens.append(["flower", a + dir * along + nrm * side * (fence_line + 0.5), rng.randf() * TAU, rng.randf_range(0.9, 1.3)])
+					s += sz.x + gap
+
+
+static func _clear_of(lamps: PackedFloat32Array, at: Vector2, r: float) -> bool:
+	for i in lamps.size() / 5:
+		if Vector2(lamps[i * 5], lamps[i * 5 + 2]).distance_to(at) < r:
+			return false
+	return true
+
+
+## The gardens' bushes (rooibos) and flowers (gazania, ursinia), the courtyard's plants.
+static func _gardens(root: Node3D, spots: Array) -> void:
+	var bushes: Array = []
+	var flowers: Array = []
+	for g in spots:
+		var p := GroundsLayout.ground(g[1].x, g[1].y)
+		(bushes if g[0] == "bush" else flowers).append([p, g[2], g[3]])
+	GroundsCourtyard._plant(root, "GardenBush", GroundsCourtyard._plant_meshes("wild_rooibos_bush"), bushes, 180.0)
+	var blooms: Array = GroundsCourtyard._plant_meshes("flower_gazania") + GroundsCourtyard._plant_meshes("flower_ursinia")
+	GroundsCourtyard._plant(root, "GardenFlowers", blooms, flowers, 70.0)
+
+
+## Kit building `id` at p, door toward `toward`, unless it would sit on a
+## road, straddle a slope or (check_overlap) overlap a placed building
+## (VillageKit). Returns whether it was built.
+static func _try_building(kit: ArchKit, id: String, p: Vector2, toward: Vector2, placed: Array[Rect2], out: Array,
+		check_overlap: bool = false) -> bool:
+	var sz := VillageKit.size(id)
 	var rot := atan2(toward.x, toward.y)
-	var span := GroundsLayout.ground_span(p, Vector2(w, d), rot)
+	var reach := maxf(sz.x, sz.y) * 0.5 + 1.0
+	var rect := Rect2(p - Vector2(reach, reach), Vector2(reach, reach) * 2.0)
+	if check_overlap:
+		for r in placed:
+			if r.intersects(rect):
+				return false
+	# the road may pass any corner of the footprint, not just its middle
+	var basis := Basis(Vector3.UP, rot)
+	for corner in [Vector3(0, 0, 0), Vector3(-1, 0, -1), Vector3(1, 0, -1), Vector3(-1, 0, 1), Vector3(1, 0, 1)]:
+		var c: Vector3 = basis * (corner * Vector3(sz.x * 0.5, 0, sz.y * 0.5))
+		if GroundsLayout.road_distance(p + Vector2(c.x, c.z)) < 1.5:
+			return false
+	var span := GroundsLayout.ground_span(p, sz, rot)
 	if span.y - span.x > 3.0:
-		return
+		return false
 	placed.append(rect)
-	cottage(kit, p, rot, w, d, rng.randi_range(1, 3), "roof" if rng.randf() < 0.75 else "roof_warm")
+	out.append(VillageKit.found(kit, id, p, rot))
+	return true
 
 
 static func _lamp_post(parent: Node3D, at: Vector3) -> void:
