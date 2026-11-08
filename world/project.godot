@@ -10,7 +10,7 @@ config_version=5
 
 [application]
 
-config/name="HPMMO"
+config/name="Thousand Realms"
 config/description="Thousand Realms - 3D Wizarding MMORPG with Wand Combat, Dark Monoliths, Ollivander Upgrades, and Broom Mounts"
 run/main_scene="res://server/world_server.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
@@ -21,6 +21,7 @@ config/icon="res://assets/branding/hpmmo_icon.png"
 
 [autoload]
 
+UserDataMigration="*res://scripts/autoload/user_data_migration.gd"
 RenderCompat="*res://scripts/autoload/render_compat.gd"
 I18n="*res://scripts/autoload/i18n.gd"
 GameData="*res://scripts/autoload/game_data.gd"

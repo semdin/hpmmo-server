@@ -1,7 +1,7 @@
 {
  "generated": "2026-11-08",
  "source_repository": "hpmmo-client",
- "source_revision": "48f027d7818ea842d99c6183a1aa48d9fe78ec2d",
+ "source_revision": "5059d2bb9e47648cf34e5b3b9a08a2486c1a2765",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/audio/sound_library.json": "c1d191056275c9a8d4657bf650376060444d8a0a1af7eaeca72cc30b632c60cc",
@@ -597,7 +597,7 @@
   "data/json/houses.json": "b9d8c092f539e1c29017992fea65bac882aba166b7cc4507b720d8ea763cbf6a",
   "data/json/quests.json": "ea0ca8e9ee2fba324fc21c3e20156a811892a065db9772d2764754c54988f1cd",
   "locale/tr.po": "b12ae97e2aa1fa8925e6164ff0ab21e6992287bc97e98ab36311c12c89cc42e1",
-  "project.godot": "65e242b3b00d8db6be807d91adc8a2b62c1af0f78c136b523821694f6e200c9b",
+  "project.godot": "8a6962fa62766b3fa44ce25aa540b6f28ffd0954b4951efd4f8e3291388d321c",
   "scenes/entities/loot/loot_drop.tscn": "9d5e9c3b0e5ee3c2a58b27ad86e42b54423619aa1039d75b47a93937c7594f45",
   "scenes/entities/mobs/mob_acromantula.tscn": "0939633938ba49b4d58054f691ac09208dee73d4de473f556ae030eddd98585c",
   "scenes/entities/mobs/mob_acromantula_broodguard.tscn": "eb8484bf195ba7476e349ff66581f710c0bb6706b922e3f79ffaeb9fa10fccf3",
@@ -658,6 +658,7 @@
   "scripts/autoload/i18n.gd": "e16d9b3f97f73b2b9286198e229d90360db4ff43ce4ccb4eea93186710ecc9fc",
   "scripts/autoload/network_manager.gd": "ac0c2835c011b89ed01b7c334a25d3533cb400656893f5ecf05c354b1c80d298",
   "scripts/autoload/render_compat.gd": "01f26e63870e56ed5b2e48c814e7d19e7c8e1e23f7c6f333cf67da59eb0736d4",
+  "scripts/autoload/user_data_migration.gd": "6234efa6f4627c9fbd7f5d348f85e2972868264c72e24c43de7fff223499eeda",
   "scripts/entities/broom_flight.gd": "3a4ddf3f59b550d465322b4988f1ffdf95594e2c22dceeda20f87fefc58c797a",
   "scripts/entities/broom_grip_modifier.gd": "e800b8667d23d9e77c9a80c3b3b351b45ac1b67e00c5f0c9a929be54d87670db",
   "scripts/entities/cast_layer_modifier.gd": "83f8e7b8b3cd6b6598316adce94dedd64ea3dc0db44413de9a571cb8da1063ea",
