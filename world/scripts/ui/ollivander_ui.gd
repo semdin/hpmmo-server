@@ -194,7 +194,7 @@ func _build_intro(page: VBoxContainer) -> void:
 	top.custom_minimum_size = Vector2(0, 4)
 	page.add_child(top)
 	page.add_child(_howto("mat_phoenix_ash", tr("Upgrade"),
-			tr("Takes wands, cloaks, brooms and accessories from +0 to +9. Every step needs materials and galleons; the chance falls with each level, and from +%d a failure drops the item one level.")
+			tr("Takes wands, cloaks, brooms and accessories from +0 to +9. Every step needs materials and Oril; the chance falls with each level, and from +%d a failure drops the item one level.")
 			% int(HPRules.combat().get("upgrade_curves", {}).get("fail_downgrade_from", 4))))
 	page.add_child(_howto("scroll_imbue", tr("Enchant"),
 			tr("An item holds up to %d enchantments. An Imbue rune adds a new one (the more it has, the lower the chance); a Reweave rune rerolls them all.")

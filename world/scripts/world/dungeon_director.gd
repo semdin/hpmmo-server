@@ -390,7 +390,7 @@ func _curse_pulse(map_id: String, run: Dictionary, id: String) -> bool:
 	if id == "chill":
 		for record in players:
 			SimAuthority.apply_despair(int(record.get("uid", 0)), float(spec.get("despair_s", 6.0)))
-		run["message"] = "A dementor's chill sweeps the halls - nobody recovers for a while."  # i18n
+		run["message"] = "A Pallid's chill sweeps the halls - nobody recovers for a while."  # i18n
 		_publish(map_id, run)
 		return true
 	var fighting := _alive_mobs(run).any(func(m): return is_instance_valid(m.target_player))

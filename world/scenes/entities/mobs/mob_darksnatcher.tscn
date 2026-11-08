@@ -53,7 +53,7 @@ visible = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.3, 0)
 billboard = 1
 double_sided = false
-text = "[Lv.20] Dark Snatcher
+text = "[Lv.20] Dark Bandit
 420 / 420"
 font_size = 32
 outline_size = 8

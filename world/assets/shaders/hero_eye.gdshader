@@ -49,7 +49,16 @@ void fragment() {
 		ALBEDO = mix(baked, tinted, iris * smoothstep(0.012, 0.04, lum));
 	}
 	vec3 catch_dir = normalize(vec3(-0.35, 0.45, 1.0));
-	float catch_light = pow(max(dot(reflect(-VIEW, NORMAL), catch_dir), 0.0), 150.0);
+	// NaN-safe. With MSAA (the character screen, the high preset) a sample on
+	// these tiny eye triangles can get an extrapolated normal of ~zero length:
+	// NORMAL came out NaN, max() let it through and the one NaN pixel was spread
+	// by glow into a white disc over the eye while the wizard turned
+	// (2026-11-08; 14 of 160 frames of a turn). `!(c > 0.0)` is true for NaN.
+	float catch_cos = dot(reflect(-VIEW, NORMAL), catch_dir);
+	if (!(catch_cos > 0.0)) {
+		catch_cos = 0.0;
+	}
+	float catch_light = pow(min(catch_cos, 1.0), 150.0);
 	EMISSION = vec3(catch_light * 0.9);
 	ROUGHNESS = 0.08;
 	SPECULAR = 0.6;

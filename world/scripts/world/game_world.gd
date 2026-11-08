@@ -448,7 +448,7 @@ func _setup_npcs() -> void:
 		"Drowned Ones fear fire - burn 'em with Flame Wave. Stun Bolt stuns 'em cold."],
 		Color(0.25, 0.3, 0.15))
 	_spawn_npc(npcs, "Archivist Emrel Sav", _on_ground(-13, 22),
-		["The library is inside, past the great doors. Mind the books.", "The Great Hall is through the entrance hall. Charms is across the hall."], Color(0.2, 0.15, 0.3))
+		["The library is inside, past the great doors. Mind the books.", "The Great Hall is through the entrance hall. The classrooms are across the hall."], Color(0.2, 0.15, 0.3))
 	_spawn_npc(npcs, "Flight Master Kaelen Rook", _on_ground(22, 20),
 		["Welcome! Stun Bolt interrupts, Flame Wave burns, and Disarm weakens attacks.", "Practise in the training yard beside the landing pad, then pull a pack together. Watch the boss's warning circle."], Color(0.1, 0.24, 0.4))
 	# i18n-end

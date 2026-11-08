@@ -788,14 +788,6 @@ msgid "Fonts"
 msgstr "Yazı tipleri"
 
 #: scripts/ui/game_credits.gd
-msgid "Titles"
-msgstr "Başlıklar"
-
-#: scripts/ui/game_credits.gd
-msgid "Body text"
-msgstr "Metinler"
-
-#: scripts/ui/game_credits.gd
 msgid "Interface lettering"
 msgstr "Arayüz yazıları"
 
@@ -1384,8 +1376,8 @@ msgid "Despair"
 msgstr "Umutsuzluk"
 
 #: scripts/ui/hud_buff_bar.gd
-msgid "A dementor's cold: no natural health recovery."
-msgstr "Bir Solgunun soğuğu: doğal can yenilenmesi yok."
+msgid "A Pallid's cold: no natural health recovery."
+msgstr "Bir Solgun'un soğuğu: doğal can yenilenmesi yok."
 
 #: scripts/ui/hud_buff_bar.gd
 msgid "Spider venom: damage over time."
@@ -3840,8 +3832,8 @@ msgid "Take it off the anvil"
 msgstr "Örsten kaldır"
 
 #: scripts/ui/ollivander_ui.gd
-msgid "Takes wands, cloaks, brooms and accessories from +0 to +9. Every step needs materials and galleons; the chance falls with each level, and from +%d a failure drops the item one level."
-msgstr "Asa, cüppe, süpürge ve takıları +0'dan +9'a çıkarır. Her adım malzeme ve galleon ister; şans her seviyede düşer, +%d'ten sonra başarısızlık eşyayı bir seviye indirir."
+msgid "Takes wands, cloaks, brooms and accessories from +0 to +9. Every step needs materials and Oril; the chance falls with each level, and from +%d a failure drops the item one level."
+msgstr "Asa, cüppe, süpürge ve takıları +0'dan +9'a çıkarır. Her adım malzeme ve Oril ister; şans her seviyede düşer, +%d'ten sonra başarısızlık eşyayı bir seviye indirir."
 
 #: scripts/ui/ollivander_ui.gd
 msgid "An item holds up to %d enchantments. An Imbue rune adds a new one (the more it has, the lower the chance); a Reweave rune rerolls them all."
@@ -4436,8 +4428,8 @@ msgid "Time is up - the run is over."
 msgstr "Süre doldu - zindan sona erdi."
 
 #: scripts/world/dungeon_director.gd
-msgid "A dementor's chill sweeps the halls - nobody recovers for a while."
-msgstr "Bir dementörün soğuğu salonları sarıyor - bir süre kimse iyileşemez."
+msgid "A Pallid's chill sweeps the halls - nobody recovers for a while."
+msgstr "Bir Solgun'un soğuğu salonları sarıyor - bir süre kimse iyileşemez."
 
 #: scripts/world/dungeon_director.gd
 msgid "The guardian of this place flies into a rage - finish it now!"
@@ -4520,8 +4512,8 @@ msgid "The library is inside, past the great doors. Mind the books."
 msgstr "Kütüphane içeride, büyük kapıların ötesinde. Kitaplara dikkat et."
 
 #: scripts/world/game_world.gd
-msgid "The Great Hall is through the entrance hall. Charms is across the hall."
-msgstr "Büyük Salon giriş salonundan geçince. Tılsım dersliği salonun karşısında."
+msgid "The Great Hall is through the entrance hall. The classrooms are across the hall."
+msgstr "Büyük Salon giriş salonundan geçince. Derslikler salonun karşısında."
 
 #: scripts/world/game_world.gd addons/hpmmo_sim/data/quests.json
 msgid "Flight Master Kaelen Rook"
@@ -4848,10 +4840,6 @@ msgid "SLOT 1 / 2"
 msgstr "YUVA 1 / 2"
 
 #: scenes/main/character_select.tscn
-msgid "Harry"
-msgstr "Harry"
-
-#: scenes/main/character_select.tscn
 msgid "[ Velkar ]"
 msgstr "[ Velkar ]"
 
@@ -5092,16 +5080,16 @@ msgid "Dragon Sinew"
 msgstr "Ejder Siniri"
 
 #: addons/hpmmo_sim/data/items.json
-msgid "Vibrant magical core tissue from an Antipodean Opaleye. Needed to refine wands to +5 - +7."
-msgstr "Bir Antipod Opalgözünden alınmış canlı büyülü öz dokusu. Asaları +5 - +7'ye yükseltmek için gerekir."
+msgid "Vibrant magical core tissue from a mountain drake. Needed to refine wands to +5 - +7."
+msgstr "Bir dağ ejderinden alınmış canlı büyülü öz dokusu. Asaları +5 - +7'ye yükseltmek için gerekir."
 
 #: addons/hpmmo_sim/data/items.json
 msgid "Night Steed Hair"
 msgstr "Gece Atı Kılı"
 
 #: addons/hpmmo_sim/data/items.json
-msgid "Spectral invisible hair of rare thestrals. Required for legendary +8 and +9 wand transmutations."
-msgstr "Nadir thestrallerin hayalet gibi görünmez kılı. Efsanevi +8 ve +9 asa dönüşümleri için gerekir."
+msgid "Spectral, near-invisible hair of the rare night steeds. Required for legendary +8 and +9 wand transmutations."
+msgstr "Nadir gece atlarının hayalet gibi, neredeyse görünmez kılı. Efsanevi +8 ve +9 asa dönüşümleri için gerekir."
 
 #: addons/hpmmo_sim/data/items.json
 msgid "Starwood Core"
@@ -6000,8 +5988,8 @@ msgid "the Stone Raven"
 msgstr "Taş Kuzgun Heykeli"
 
 #: addons/hpmmo_sim/data/travel.json
-msgid "Tap the witch's hump - Dissendium!"
-msgstr "Cadının kamburuna dokun - Dissendium!"
+msgid "Press the Stone Raven's eye - the wall slides open!"
+msgstr "Taş Kuzgun'un gözüne bas - duvar kayarak açılıyor!"
 
 #: addons/hpmmo_sim/data/travel.json
 msgid "the sweetshop cellar, Orvell"
@@ -7548,6 +7536,12 @@ msgstr "Lunra Gölü'nün yakınında bozulmuş bir Kara Kırık belirdi. Diğer
 #~ msgid "A creature that dies strengthens the creatures around it (+15% health and damage, stacking)."
 #~ msgstr "Ölen yaratık çevresindekileri güçlendirir (+%15 can ve hasar, birikerek)."
 
+#~ msgid "A dementor's chill sweeps the halls - nobody recovers for a while."
+#~ msgstr "Bir dementörün soğuğu salonları sarıyor - bir süre kimse iyileşemez."
+
+#~ msgid "A dementor's cold: no natural health recovery."
+#~ msgstr "Bir Solgunun soğuğu: doğal can yenilenmesi yok."
+
 #~ msgid "A glowing amber heart cradled in golden phoenix feathers, warm as a hearth."
 #~ msgstr "Altın anka tüyleri arasında duran, ocak kadar sıcak parlayan kehribar bir kalp."
 
@@ -7619,6 +7613,9 @@ msgstr "Lunra Gölü'nün yakınında bozulmuş bir Kara Kırık belirdi. Diğer
 
 #~ msgid "Blackweb Queen"
 #~ msgstr "Kara Ağ Kraliçesi"
+
+#~ msgid "Body text"
+#~ msgstr "Metinler"
 
 #~ msgid "Bombarda"
 #~ msgstr "Bombarda"
@@ -8112,6 +8109,9 @@ msgstr "Lunra Gölü'nün yakınında bozulmuş bir Kara Kırık belirdi. Diğer
 #~ msgid "Hagrid's three-headed dog, guarding the trapdoor. Music sends it to sleep."
 #~ msgstr "Hagrid'in kapağı koruyan üç başlı köpeği. Müzik onu uyutur."
 
+#~ msgid "Harry"
+#~ msgstr "Harry"
+
 #~ msgid "Head Prefect"
 #~ msgstr "Okul Başkanı"
 
@@ -8532,6 +8532,9 @@ msgstr "Lunra Gölü'nün yakınında bozulmuş bir Kara Kırık belirdi. Diğer
 #~ msgid "Speak with Professor Flitwick"
 #~ msgstr "Profesör Flitwick ile konuş"
 
+#~ msgid "Spectral invisible hair of rare thestrals. Required for legendary +8 and +9 wand transmutations."
+#~ msgstr "Nadir thestrallerin hayalet gibi görünmez kılı. Efsanevi +8 ve +9 asa dönüşümleri için gerekir."
+
 #~ msgid "Status points: %d  ·  %d per level"
 #~ msgstr "Statü puanı: %d  ·  seviye başına %d"
 
@@ -8546,6 +8549,12 @@ msgstr "Lunra Gölü'nün yakınında bozulmuş bir Kara Kırık belirdi. Diğer
 
 #~ msgid "Suits of armour enchanted to defend the forbidden third floor."
 #~ msgstr "Yasak üçüncü katı korumak için büyülenmiş zırhlar."
+
+#~ msgid "Takes wands, cloaks, brooms and accessories from +0 to +9. Every step needs materials and galleons; the chance falls with each level, and from +%d a failure drops the item one level."
+#~ msgstr "Asa, cüppe, süpürge ve takıları +0'dan +9'a çıkarır. Her adım malzeme ve galleon ister; şans her seviyede düşer, +%d'ten sonra başarısızlık eşyayı bir seviye indirir."
+
+#~ msgid "Tap the witch's hump - Dissendium!"
+#~ msgstr "Cadının kamburuna dokun - Dissendium!"
 
 #~ msgid "That Portkey has already gone."
 #~ msgstr "O Portkey çoktan gitti."
@@ -8570,6 +8579,9 @@ msgstr "Lunra Gölü'nün yakınında bozulmuş bir Kara Kırık belirdi. Diğer
 
 #~ msgid "The Forbidden Forest is crawling with venomous Acromantulas. Defeat 5 Acromantulas to protect the castle grounds."
 #~ msgstr "Yasak Orman zehirli Akromantulalarla kaynıyor. Şato arazisini korumak için 5 Akromantula alt et."
+
+#~ msgid "The Great Hall is through the entrance hall. Charms is across the hall."
+#~ msgstr "Büyük Salon giriş salonundan geçince. Tılsım dersliği salonun karşısında."
 
 #~ msgid "The Inferi gather again at the Forest Edge and in Greenhouse Meadow."
 #~ msgstr "Inferius'lar Orman Kıyısı'nda ve Sera Çayırı'nda yeniden toplanıyor."
@@ -8673,6 +8685,9 @@ msgstr "Lunra Gölü'nün yakınında bozulmuş bir Kara Kırık belirdi. Diğer
 #~ msgid "Tied Back"
 #~ msgstr "Arkada Toplu"
 
+#~ msgid "Titles"
+#~ msgstr "Başlıklar"
+
 #~ msgid "Training dummies stand in the courtyard - practise your spells there safely."
 #~ msgstr "Eğitim kuklaları avluda duruyor - büyülerini orada güvenle çalış."
 
@@ -8702,6 +8717,9 @@ msgstr "Lunra Gölü'nün yakınında bozulmuş bir Kara Kırık belirdi. Diğer
 
 #~ msgid "Venomfang Acromantula"
 #~ msgstr "Zehirdiş Akromantula"
+
+#~ msgid "Vibrant magical core tissue from an Antipodean Opaleye. Needed to refine wands to +5 - +7."
+#~ msgstr "Bir Antipod Opalgözünden alınmış canlı büyülü öz dokusu. Asaları +5 - +7'ye yükseltmek için gerekir."
 
 #~ msgid "WASD move · right-drag camera · wheel zoom\nLMB attack · 1–4 / Q / E skills · Tab target\nShift mount · Space rise · Ctrl descend · F talk\nZ loot · I bag · O Ollivander · J guide · F1 settings"
 #~ msgstr "WASD hareket · sağ sürükle kamera · tekerlek yakınlaştır\nSol tık saldır · 1–4 / Q / E beceriler · Tab hedef\nShift bin · Boşluk yüksel · Ctrl alçal · F konuş\nZ ganimet · I çanta · O Ollivander · J rehber · F1 ayarlar"

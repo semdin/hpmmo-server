@@ -403,7 +403,7 @@
     "id": "mat_dragon_heartstring",
     "name": "Dragon Sinew",
     "type": "material",
-    "desc": "Vibrant magical core tissue from an Antipodean Opaleye. Needed to refine wands to +5 - +7.",
+    "desc": "Vibrant magical core tissue from a mountain drake. Needed to refine wands to +5 - +7.",
     "rarity": "rare",
     "icon": "heartstring",
     "slots": []
@@ -412,7 +412,7 @@
     "id": "mat_thestral_hair",
     "name": "Night Steed Hair",
     "type": "material",
-    "desc": "Spectral invisible hair of rare thestrals. Required for legendary +8 and +9 wand transmutations.",
+    "desc": "Spectral, near-invisible hair of the rare night steeds. Required for legendary +8 and +9 wand transmutations.",
     "rarity": "epic",
     "icon": "hair",
     "slots": []

@@ -68,7 +68,7 @@ var _rider_roll := 0.0
 var animation_events: Array[String] = []
 
 # Player Info
-@export var player_name: String = "Harry"
+@export var player_name: String = "Wanderer"
 @export var house: String = "Gryffindor"
 @export var wand_tier: int = 0
 @export var is_local_player: bool = true

@@ -72,7 +72,7 @@ func current_effects() -> Dictionary:
 				"remaining": float(bleed - tick) * dt, "duration": maxf(1.0, float(bleed - tick) * dt), "debuff": true}
 		var despair := int(record.get("despair_until_tick", 0))
 		if despair > tick:
-			out["despair"] = {"icon": "status_despair", "title": "Despair", "desc": "A dementor's cold: no natural health recovery.",
+			out["despair"] = {"icon": "status_despair", "title": "Despair", "desc": "A Pallid's cold: no natural health recovery.",
 				"remaining": float(despair - tick) * dt, "duration": maxf(1.0, float(despair - tick) * dt), "debuff": true}
 		var burn := int(record.get("burn_until_tick", 0))
 		if burn > tick:

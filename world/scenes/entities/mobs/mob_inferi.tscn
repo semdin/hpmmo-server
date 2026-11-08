@@ -53,7 +53,7 @@ visible = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.3, 0)
 billboard = 1
 double_sided = false
-text = "[Lv.8] Drowned Inferius
+text = "[Lv.8] Drowned One
 220 / 220"
 font_size = 32
 outline_size = 8

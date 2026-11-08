@@ -14,9 +14,10 @@ class_name UITheme
 ## The game's name and horizontal logo wherever a player sees them: the logo
 ## crowns the login screen and character select, the name titles the window
 ## and the credits; the round emblem is the app icon (assets/branding/
-## hpmmo_icon.png). Files, folders and executables keep the HPMMO name
-## (application/config/name too): installs, user data and the launcher's
-## self-update depend on it.
+## hpmmo_icon.png). application/config/name is the game's name too (user://,
+## the macOS app and Dock); files and folders on disk are ThousandRealms*.
+## Data from before the rename is carried over by UserDataMigration and the
+## launcher (launcher_cpp/src/legacy_names.cpp).
 const GAME_TITLE := "Thousand Realms"
 const LOGO := "res://assets/branding/thousand_realms_logo.png"
 

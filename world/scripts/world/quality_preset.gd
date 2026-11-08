@@ -53,7 +53,9 @@ const PRESETS := {
 		"foliage_density": 0.5,
 		"vegetation_lod_scale": 0.6,
 		"vegetation_far_scale": 0.4,
-		"vegetation_shadow_lod": 0,
+		# every preset casts tree shadows from LOD1 only (GroundsTerrain
+		# shadow impostor): LOD0-only shadows appeared and vanished at 22 m
+		"vegetation_shadow_lod": 1,
 		"small_plant_shadows": false,
 		"terrain_mesh_size": 32,
 		"particle_scale": 0.5,
@@ -63,10 +65,14 @@ const PRESETS := {
 	},
 	"medium": {
 		"render_scale": 0.87,
-		"fsr_sharpness": 0.2,
+		# No TAA on any preset: it smeared the ground and the trees whenever the
+		# camera moved (medium looked blurred next to low, 2026-11-08), and its
+		# first use compiled pipelines for a 3.6 s frame. FXAA as on low, and no
+		# FSR sharpening without TAA (see low).
+		"fsr_sharpness": 2.0,
 		"msaa": 0,
-		"taa": true,
-		"fxaa": false,
+		"taa": false,
+		"fxaa": true,
 		"sun_shadows": true,
 		"shadow_max_distance": 90.0,
 		"shadow_splits": DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS,
@@ -90,9 +96,11 @@ const PRESETS := {
 	},
 	"high": {
 		"render_scale": 1.0,
-		"fsr_sharpness": 0.2,
+		"fsr_sharpness": 2.0,
+		# MSAA (with alpha to coverage on the foliage) smooths the edges; no TAA
+		# (see medium)
 		"msaa": 2,
-		"taa": true,
+		"taa": false,
 		"fxaa": false,
 		"sun_shadows": true,
 		"shadow_max_distance": 120.0,

@@ -48,7 +48,7 @@ visible = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.4, 0)
 billboard = 1
 double_sided = false
-text = "[Lv.27] Venomfang Acromantula
+text = "[Lv.27] Venomfang Weaver
 750 / 750"
 font_size = 32
 outline_size = 8

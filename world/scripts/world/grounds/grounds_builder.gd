@@ -41,14 +41,27 @@ static func build(world: Node3D) -> void:
 		_unpark(world)
 		return
 	var visuals := not is_headless()
+	# One line per build with what each part cost, so a slow world entry in a
+	# player's log says which part of the grounds it was.
+	var stages: Array = []
+	var last := [Time.get_ticks_usec()]   # an Array: a lambda captures a local by value
+	var lap := func(name: String) -> void:
+		var now := Time.get_ticks_usec()
+		stages.append("%s %.0f" % [name, (now - int(last[0])) / 1000.0])
+		last[0] = now
 	var terrain := ensure_terrain(world)
 	terrain.visible = true
+	lap.call("terrain")
 	_apply_sky_and_sun(world)
 	CastleExterior.build(world, visuals)
+	lap.call("castle")
 	_courtyard(world, visuals)
+	lap.call("courtyard")
 	GroundsPrecinct.build(world, visuals)
 	_broom_landing(world, visuals)
+	lap.call("precinct")
 	GroundsSites.build_all(world, visuals)
+	lap.call("sites")
 	if visuals:
 		var lake := Node3D.new()
 		lake.name = "Lake"
@@ -56,13 +69,17 @@ static func build(world: Node3D) -> void:
 		GroundsLake.build(lake)
 		GroundsHorizon.build(world)
 		_road_lamps(world)
+		lap.call("lake+horizon+lamps")
 	var colliders := Node3D.new()
 	colliders.name = "VegetationColliders"
 	world.add_child(colliders)
 	GroundsScatter.build_colliders(colliders)
 	_boundaries(world)
 	_ward_lines(world)
+	lap.call("colliders")
 	QualityPreset.apply(world)
+	lap.call("quality")
+	print("[GroundsBuilder] built (ms): %s" % ", ".join(stages))
 
 
 ## The persistent ground. Created once per world.

@@ -106,11 +106,12 @@ func _draw() -> void:
 		var hcol := HudKit.TEXT
 		if GameData.HOUSES.has(house):
 			hcol = (GameData.HOUSES[house].primary_color as Color).lightened(0.35)
+		var shown := GameData.house_name(house)
 		var hf := HudKit.bold()
-		var hw := hf.get_string_size(house, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
+		var hw := hf.get_string_size(shown, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
 		var hp := Vector2(size.x - hw - 14, 33)
-		draw_string_outline(hf, hp, house, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, 3, Color(0, 0, 0, 0.9))
-		draw_string(hf, hp, house, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, hcol)
+		draw_string_outline(hf, hp, shown, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, 3, Color(0, 0, 0, 0.9))
+		draw_string(hf, hp, shown, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, hcol)
 		if house_rank > 0:
 			_draw_house_standing(hcol)
 	# Purse, under the gauges.

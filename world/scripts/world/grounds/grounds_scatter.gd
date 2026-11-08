@@ -14,8 +14,11 @@ class_name GroundsScatter
 ## chasing through the forest wedged itself on trunk after trunk (2026-10-21
 ## playtest), so creatures - and their steering rays, and bolts - pass through.
 ##
-## One StaticBody3D per 256 m cell keeps the physics broadphase tidy (each body's
-## AABB stays local) without paying a node per tree.
+## One static body per 256 m cell keeps the physics broadphase tidy (each
+## body's AABB stays local). The bodies and their shapes live in the physics
+## server only: a CollisionShape3D node per tree was ~20k nodes and 2.7 s of
+## every world entry (2026-11-08); `parent` holds the RIDs and they are freed
+## with it.
 
 const DIR := "res://assets/terrain/grounds/"
 const CELL := 256.0
@@ -43,13 +46,14 @@ static func transform_of(data: PackedFloat32Array, i: int) -> Transform3D:
 	return Transform3D(basis, Vector3(data[o], data[o + 1], data[o + 2]))
 
 
-## Build the collider bodies under `parent`. Returns the number of shapes.
+## Build the collider bodies for `parent`'s world. Returns the number of shapes.
 static func build_colliders(parent: Node3D) -> int:
 	var cat := catalog()
 	var variants: Dictionary = cat.get("variants", {})
+	var space := parent.get_world_3d().space
 	var bodies := {}
-	var count := 0
 	var shapes := {}
+	var count := 0
 	for variant in variants:
 		var spec: Dictionary = variants[variant].get("collider", {})
 		if spec.is_empty():
@@ -60,35 +64,50 @@ static func build_colliders(parent: Node3D) -> int:
 			var pos := Vector3(data[o], data[o + 1], data[o + 2])
 			var s := data[o + 4]
 			var key := Vector2i(floori(pos.x / CELL), floori(pos.z / CELL))
-			var body: StaticBody3D = bodies.get(key)
-			if body == null:
-				body = StaticBody3D.new()
-				body.name = "VegetationColliders_%d_%d" % [key.x, key.y]
-				body.collision_layer = VEGETATION_LAYER
-				body.collision_mask = 0
-				parent.add_child(body)
+			var body: RID = bodies.get(key, RID())
+			if not body.is_valid():
+				body = PhysicsServer3D.body_create()
+				PhysicsServer3D.body_set_mode(body, PhysicsServer3D.BODY_MODE_STATIC)
+				PhysicsServer3D.body_set_collision_layer(body, VEGETATION_LAYER)
+				PhysicsServer3D.body_set_collision_mask(body, 0)
 				bodies[key] = body
-			var col := CollisionShape3D.new()
+			var shape: RID
+			var at: Vector3
 			if spec.has("sphere"):
 				var r := float(spec["sphere"]) * s
 				var shape_key := "s%.2f" % r
 				if not shapes.has(shape_key):
-					var sph := SphereShape3D.new()
-					sph.radius = r
-					shapes[shape_key] = sph
-				col.shape = shapes[shape_key]
-				col.position = pos + Vector3(0, r * 0.55, 0)
+					shapes[shape_key] = PhysicsServer3D.sphere_shape_create()
+					PhysicsServer3D.shape_set_data(shapes[shape_key], r)
+				shape = shapes[shape_key]
+				at = pos + Vector3(0, r * 0.55, 0)
 			else:
 				var r := float(spec.get("radius", 0.3)) * clampf(s, 0.7, 1.6)
 				var h := float(spec.get("height", 4.0))
 				var shape_key := "c%.2f_%.1f" % [r, h]
 				if not shapes.has(shape_key):
-					var cyl := CylinderShape3D.new()
-					cyl.radius = r
-					cyl.height = h
-					shapes[shape_key] = cyl
-				col.shape = shapes[shape_key]
-				col.position = pos + Vector3(0, h * 0.5 - 0.2, 0)
-			body.add_child(col)
+					shapes[shape_key] = PhysicsServer3D.cylinder_shape_create()
+					PhysicsServer3D.shape_set_data(shapes[shape_key], {"radius": r, "height": h})
+				shape = shapes[shape_key]
+				at = pos + Vector3(0, h * 0.5 - 0.2, 0)
+			PhysicsServer3D.body_add_shape(body, shape, Transform3D(Basis(), at))
 			count += 1
+	# Into the world only once every shape is on: a body already in the space
+	# rebuilds its compound shape on each add.
+	for body in bodies.values():
+		PhysicsServer3D.body_set_space(body, space)
+	var owner := _PhysicsRids.new()
+	owner.rids = bodies.values() + shapes.values()
+	parent.set_meta("physics_rids", owner)
 	return count
+
+
+## Frees its physics-server RIDs when the last reference goes (the owning
+## node's metadata, when that node is freed). Bodies first, then their shapes.
+class _PhysicsRids extends RefCounted:
+	var rids: Array = []
+
+	func _notification(what: int) -> void:
+		if what == NOTIFICATION_PREDELETE:
+			for rid in rids:
+				PhysicsServer3D.free_rid(rid)

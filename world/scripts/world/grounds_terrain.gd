@@ -44,13 +44,8 @@ func _init() -> void:
 	# path, and an in-memory one makes it load an empty path (an error).
 	material = load(MATERIAL)
 	assets = load(ASSETS if DisplayServer.get_name() != "headless" else SERVER_ASSETS)
-	# Ground and vegetation draw on their own layer (before any instance is
-	# added: Terrain3D must not see a mesh asset change under live instances).
+	# The ground draws on its own layer; the vegetation joins it in _ready.
 	render_layers = (render_layers & ~1) | RENDER_BIT
-	for i in assets.get_mesh_count():
-		var asset := assets.get_mesh_asset(i)
-		if asset != null:
-			asset.visibility_layers = RENDER_BIT
 
 
 func _enter_tree() -> void:
@@ -79,6 +74,11 @@ func _ready() -> void:
 	else:
 		collision.mode = Terrain3DCollision.DYNAMIC_GAME
 		collision.radius = CLIENT_COLLISION_RADIUS
+		# The mesh assets are set up here, not in _init: entering the tree,
+		# Terrain3D (free_editor_textures) reloads the asset list from disk, which
+		# dropped every setting made before. Before any instance is added: it must
+		# not see a mesh asset change under live instances.
+		_set_assets(assets, _asset_plan(assets, preset_settings()))
 		_add_vegetation.call_deferred()
 
 
@@ -86,16 +86,19 @@ func _ready() -> void:
 ## instance files (assets/terrain/grounds/scatter/<variant>.bin), one mesh slot
 ## per variant (the slot's name is the variant). They are added here, at load,
 ## rather than stored in the regions, so a headless server never holds them.
-## `density` (the quality preset's foliage scale) thins the small stuff only.
-func _add_vegetation(density: float = -1.0) -> void:
+## `density` (the quality preset's foliage scale) thins the small stuff only;
+## `only` limits the planting to those mesh ids (a preset switch).
+func _add_vegetation(density: float = -1.0, only: Array = []) -> void:
 	if density < 0.0:
 		density = preload("res://scripts/world/quality_preset.gd").foliage_density()
 	for i in assets.get_mesh_count():
 		var asset := assets.get_mesh_asset(i)
 		if asset == null or asset.name == "":
 			continue
+		if not only.is_empty() and not only.has(i):
+			continue
 		var data := GroundsScatter.instances(asset.name)
-		var thin := density < 1.0 and (_is_small_plant(asset.name) or asset.name.begins_with("rock_moss"))
+		var thin := density < 1.0 and _is_thinned(asset.name)
 		var xforms: Array[Transform3D] = []
 		for k in data.size() / 5:
 			if thin and float(k % 100) / 100.0 >= density:
@@ -116,20 +119,46 @@ func apply_quality(preset: Dictionary) -> void:
 	var size := int(preset.get("terrain_mesh_size", mesh_size))
 	if size != mesh_size:
 		mesh_size = size
+	var density := float(preset.get("foliage_density", 1.0))
+	var plan := _asset_plan(assets, preset)
+	if _vegetation_density < 0.0:
+		# nothing planted yet: the instances are added with the new settings
+		_set_assets(assets, plan)
+		return
+	# A preset switch. Only the thinned small stuff is cleared and added back
+	# (its instance count follows the density); every other mesh keeps its
+	# multimeshes and the instancer just restyles them (LOD ranges, shadows).
+	# Clearing and re-adding all ~100k instances was a ~200 ms call and a
+	# ~650 ms frame on every switch (Intel iGPU, 2026-11-08).
+	var thinned: Array = []
+	if not is_equal_approx(density, _vegetation_density):
+		for i in assets.get_mesh_count():
+			var asset := assets.get_mesh_asset(i)
+			if asset != null and _is_thinned(asset.name):
+				thinned.append(i)
+				instancer.clear_by_mesh(i)
+	for i in _set_assets(assets, plan):
+		if not thinned.has(i):
+			instancer.update_mmis(i)
+	if not thinned.is_empty():
+		_add_vegetation(density, thinned)
+
+
+static func preset_settings() -> Dictionary:
+	return preload("res://scripts/world/quality_preset.gd").settings()
+
+
+## What every mesh asset of `list` should be under `preset`: one entry per
+## asset ({} for an empty slot). The catalogue's LOD distances are kept in
+## metadata, so presets never compound.
+static func _asset_plan(list: Terrain3DAssets, preset: Dictionary) -> Array:
 	var lod_scale := float(preset.get("vegetation_lod_scale", 1.0))
 	var far_scale := float(preset.get("vegetation_far_scale", lod_scale))
 	var shadow_lod := int(preset.get("vegetation_shadow_lod", 1))
 	var small_shadows := bool(preset.get("small_plant_shadows", true))
-	var density := float(preset.get("foliage_density", 1.0))
-	# What each mesh asset should become. Terrain3D crashes the process (a stack
-	# overflow) when a mesh asset's LOD ranges / shadow settings change while
-	# that mesh has live instances, which is what switching the preset in
-	# Settings did. So: work out the change first, clear the instances, change
-	# the assets, then add the vegetation back.
 	var wanted: Array = []
-	var assets_change := false
-	for i in assets.get_mesh_count():
-		var asset := assets.get_mesh_asset(i)
+	for i in list.get_mesh_count():
+		var asset := list.get_mesh_asset(i)
 		if asset == null:
 			wanted.append({})
 			continue
@@ -142,39 +171,62 @@ func apply_quality(preset: Dictionary) -> void:
 		var ranges: Array = []
 		for l in base_ranges.size():
 			ranges.append(float(base_ranges[l]) * (far_scale if l == asset.last_lod else lod_scale))
-		var entry := {"ranges": ranges, "shadow_lod": mini(shadow_lod, asset.last_lod), "cast": -1}
+		# One shadow mesh at every distance: LOD0 cast its own detailed shadow and
+		# LOD1 a different one, so a tree's shadow changed shape (or appeared and
+		# vanished on low) as the camera came near. The shadow impostor draws the
+		# shadow LOD's mesh under the nearer LODs too; the sun's shadow distance
+		# fades it out before that LOD's range ends.
+		var shadow_mesh := mini(shadow_lod, asset.last_lod)
+		var entry := {"ranges": ranges, "shadow_lod": shadow_mesh, "impostor": shadow_mesh, "cast": -1}
 		if _is_small_plant(asset.name):
 			entry["cast"] = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if small_shadows else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		for l in ranges.size():
-			if not is_equal_approx(asset.get_lod_range(l), float(ranges[l])):
-				assets_change = true
-		if asset.last_shadow_lod != int(entry["shadow_lod"]) \
-				or (int(entry["cast"]) >= 0 and asset.cast_shadows != int(entry["cast"])):
-			assets_change = true
 		wanted.append(entry)
-	var planted := _vegetation_density >= 0.0
-	var replant := planted and (assets_change or not is_equal_approx(density, _vegetation_density))
-	if replant:
-		for i in assets.get_mesh_count():
-			instancer.clear_by_mesh(i)
-	if assets_change:
-		for i in wanted.size():
-			var entry: Dictionary = wanted[i]
-			if entry.is_empty():
-				continue
-			var asset := assets.get_mesh_asset(i)
-			var ranges: Array = entry["ranges"]
-			for l in ranges.size():
-				asset.set_lod_range(l, float(ranges[l]))
-			asset.last_shadow_lod = int(entry["shadow_lod"])
-			if int(entry["cast"]) >= 0:
-				asset.cast_shadows = int(entry["cast"])
-	if replant:
-		_add_vegetation(density)
+	return wanted
+
+
+## Applies an _asset_plan and returns the ids of the meshes it changed. Each
+## asset's signals are blocked while it changes: Terrain3D answers every LOD /
+## shadow setter by rendering a 512 px thumbnail of the mesh and updating its
+## multimeshes, ~1.4 s for one preset's worth of setters at every world entry
+## (2026-11-08). The caller updates the multimeshes once (apply_quality), or
+## adds the instances afterwards.
+static func _set_assets(list: Terrain3DAssets, wanted: Array) -> Array:
+	var changed: Array = []
+	for i in wanted.size():
+		var entry: Dictionary = wanted[i]
+		if entry.is_empty():
+			continue
+		var asset := list.get_mesh_asset(i)
+		var before := _asset_state(asset)
+		asset.set_block_signals(true)
+		asset.visibility_layers = RENDER_BIT
+		var ranges: Array = entry["ranges"]
+		for l in ranges.size():
+			asset.set_lod_range(l, float(ranges[l]))
+		asset.last_shadow_lod = int(entry["shadow_lod"])
+		asset.shadow_impostor = int(entry["impostor"])
+		if int(entry["cast"]) >= 0:
+			asset.cast_shadows = int(entry["cast"])
+		asset.set_block_signals(false)
+		if _asset_state(asset) != before:
+			changed.append(i)
+	return changed
+
+
+static func _asset_state(asset: Terrain3DMeshAsset) -> Array:
+	var state: Array = [asset.visibility_layers, asset.last_shadow_lod, asset.shadow_impostor, asset.cast_shadows]
+	for l in asset.get_lod_count():
+		state.append(asset.get_lod_range(l))
+	return state
 
 
 static func _is_small_plant(variant: String) -> bool:
 	return variant.begins_with("fern") or variant == "shrub"
+
+
+## The small stuff the preset's foliage density thins out.
+static func _is_thinned(variant: String) -> bool:
+	return _is_small_plant(variant) or variant.begins_with("rock_moss")
 
 
 ## The loaded grounds terrain, or null when the current map has none.

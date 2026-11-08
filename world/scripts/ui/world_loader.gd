@@ -72,7 +72,7 @@ func _ready() -> void:
 	var shade := ShadeRect.new()
 	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_root.add_child(shade)
-	var title := HudKit.label("HOGWARTS", 64, HudKit.GOLD_HI, HudKit.deco(), 10)
+	var title := HudKit.label(UITheme.GAME_TITLE.to_upper(), 64, HudKit.GOLD_HI, HudKit.deco(), 10)
 	title.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	title.offset_left = -500
 	title.offset_right = 500
