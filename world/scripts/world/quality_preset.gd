@@ -245,17 +245,20 @@ static func apply(world: Node3D) -> void:
 	for node in world.get_tree().get_nodes_in_group("site_geometry"):
 		if node is GeometryInstance3D:
 			var geo := node as GeometryInstance3D
-			# a village building's near model hands over to its far one at
-			# lod_near_end (VillageKit); both share the margin so they swap cleanly
-			var near_end: float = geo.get_meta("lod_near_end", 0.0)
-			if near_end > 0.0 and near_end < site_range:
-				geo.visibility_range_end = near_end
-				geo.visibility_range_end_margin = 4.0
+			var far_begin: float = geo.get_meta("lod_far_begin", 0.0)
+			if far_begin > 0.0:
+				# A village building's far model (VillageKit): its near model is a
+				# visibility child of it, drawn exactly while this one is hidden for
+				# being nearer than far_begin. A hard swap with 2 m of hysteresis,
+				# never a dithered fade: the two models would overlap while it ran.
+				geo.visibility_range_begin = far_begin
+				geo.visibility_range_begin_margin = 2.0
+				geo.visibility_range_end = site_range
+				geo.visibility_range_end_margin = site_range * 0.1
 				geo.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
 				continue
-			var far_begin: float = geo.get_meta("lod_far_begin", 0.0)
-			geo.visibility_range_begin = far_begin if far_begin < site_range else 0.0
-			geo.visibility_range_begin_margin = 4.0 if far_begin > 0.0 else 0.0
+			geo.visibility_range_begin = 0.0
+			geo.visibility_range_begin_margin = 0.0
 			geo.visibility_range_end = site_range
 			geo.visibility_range_end_margin = site_range * 0.1
 			geo.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF

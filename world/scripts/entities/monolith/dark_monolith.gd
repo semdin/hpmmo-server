@@ -14,6 +14,23 @@ signal monolith_destroyed
 @export var glow := Color(0.35, 1.0, 0.45)
 @export var max_hp: int = 3000
 var _cfg: Dictionary = {}
+## Solo play only (GameWorld._sweep_far_entities): true while the stone is
+## outside the local player's interest set, the 70 m an online client is sent,
+## so its 160 m sky beam does not stand over the whole valley. Shown = its own
+## state (_shown: shattered / not yet landed = false) and not far.
+var far_hidden := false:
+	set(value):
+		if value != far_hidden:
+			far_hidden = value
+			_refresh_shown()
+var _shown := true
+
+func _set_shown(value: bool) -> void:
+	_shown = value
+	_refresh_shown()
+
+func _refresh_shown() -> void:
+	visible = _shown and not far_hidden
 var current_hp: int = 3000
 var _respawn_timer: Timer = null
 var _base_albedo := Color(0.15, 0.05, 0.2)
@@ -189,7 +206,7 @@ func _destroy_monolith(shatterer: Node3D) -> void:
 
 	# Disappear & schedule respawn through a child timer: it is freed with this
 	# node, so a scene change can never resume a coroutine on a freed instance.
-	hide()
+	_set_shown(false)
 	$CollisionShape3D.set_deferred("disabled", true)
 	if _respawn_timer:
 		_respawn_timer.queue_free()
@@ -217,7 +234,7 @@ func present_death() -> void:
 		return
 	is_destroyed = true
 	_shatter_fx()
-	hide()
+	_set_shown(false)
 
 func present_respawn() -> void:
 	if not is_destroyed:
@@ -289,15 +306,15 @@ const FALL_TIME := 0.85
 
 func fall_in(delay := 0.0) -> void:
 	if NetworkManager.is_dedicated_server or not is_inside_tree():
-		show()
+		_set_shown(true)
 		return
-	hide()
+	_set_shown(false)
 	if delay > 0.0:
 		await get_tree().create_timer(delay).timeout
 		if not is_instance_valid(self) or is_destroyed:
 			return
 	var model := get_node_or_null("Model") as Node3D
-	show()
+	_set_shown(true)
 	if model == null:
 		return
 	hp_label.visible = false

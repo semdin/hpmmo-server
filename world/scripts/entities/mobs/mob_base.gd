@@ -144,6 +144,26 @@ var wander_timer := 0.0
 var wander_target := Vector3.ZERO
 var knockback_velocity := Vector3.ZERO
 var anim_player: AnimationPlayer
+## Solo play only (GameWorld._sweep_far_entities): true while this creature is
+## outside the local player's interest set, the 70 m an online client is sent.
+## It is still simulated - this process is the authority - just not drawn or
+## posed. Shown = its own state (_shown: dead and sunk = false) and not far.
+var far_hidden := false:
+	set(value):
+		if value == far_hidden:
+			return
+		far_hidden = value
+		_refresh_shown()
+		if anim_player != null and not is_boss:
+			anim_player.active = not value
+var _shown := true
+
+func _set_shown(value: bool) -> void:
+	_shown = value
+	_refresh_shown()
+
+func _refresh_shown() -> void:
+	visible = _shown and not far_hidden
 var _base_attack := 25
 var _base_speed := 6.0
 var _base_cooldown := 1.4
@@ -937,7 +957,7 @@ func _tick_corpse(delta: float) -> void:
 	if visuals:
 		visuals.position.y = -minf(2.5, fade * 1.6)
 	if fade > 1.4:
-		hide()
+		_set_shown(false)
 		if summoned and not sim_puppet:
 			queue_free()
 	if not sim_puppet and not managed_respawn and not summoned and _corpse_time > _respawn_delay:
@@ -1816,7 +1836,7 @@ func _respawn() -> void:
 	var spider := visuals.get_node_or_null("SpiderRig")
 	if spider and spider.has_method("reset_pose"):
 		spider.reset_pose()
-	show()
+	_set_shown(true)
 	add_to_group("targetable")
 	_set_collision_enabled(true)
 	_play_slot("idle")

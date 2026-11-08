@@ -153,6 +153,10 @@ func _process(delta: float) -> void:
 		# Dedicated server / tests: nothing below is gameplay - it is candle and
 		# torch dressing.
 		return
+	_far_sweep -= delta
+	if _far_sweep <= 0.0:
+		_far_sweep = FAR_SWEEP_S
+		_sweep_far_entities()
 	_candle_t += delta
 	# The player camera appears after the world is built (and on respawn).
 	_camera_sweep -= delta
@@ -188,6 +192,35 @@ func _process(delta: float) -> void:
 	for b in _banners:
 		if is_instance_valid(b):
 			b.rotation.y = sin(_candle_t * 1.6) * 0.12
+
+## Solo / offline play: this process is the authority and simulates the whole
+## realm - every pack and stone, 200+ bodies up to 1.5 km away - and drew all
+## of it: their models, animation and the stones' 160 m sky beams over the
+## whole valley (2026-11-09). It now draws exactly what an online client is
+## sent: the server's own interest set (HPSnapshots, 70 m on the player's map,
+## packs whole). The rest keeps running, unseen and unposed. An online client
+## has nothing to do here: the server never sends it anything farther.
+const FAR_SWEEP_S := 0.25
+var _far_sweep := 0.0
+
+func _sweep_far_entities() -> void:
+	if not SimAuthority.is_authority():
+		return
+	var player := SimAuthority.local_player_node()
+	if player == null:
+		return
+	var peer_id: int = SimNet.local_peer_id if SimNet != null else 1
+	var near: Dictionary = {}
+	for uid in HPSnapshots.interest_set(SimAuthority, peer_id, player.global_position):
+		near[int(uid)] = true
+	for uid in SimAuthority.entities:
+		var record: Dictionary = SimAuthority.entities[uid]
+		var kind := int(record.get("kind", 0))
+		if kind != HPProtocol.Kind.MOB and kind != HPProtocol.Kind.MONOLITH:
+			continue
+		var node = record.get("node")
+		if node is Node3D and is_instance_valid(node) and "far_hidden" in node:
+			node.far_hidden = not near.has(int(uid))
 
 var _dressing_sweep := 0.0
 var _hall_candles: Array[Node3D] = []

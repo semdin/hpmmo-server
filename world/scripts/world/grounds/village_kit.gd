@@ -93,7 +93,15 @@ static func place(root: Node3D, placements: Array, mats: Dictionary) -> void:
 		var far_path := DIR + id + "_far.glb"
 		if not _scenes.has(far_path):
 			_scenes[far_path] = load(far_path) if ResourceLoader.exists(far_path) else null
-		for model in [scene, _scenes[far_path]]:
+		# The far model first: the near one hangs off it. Its single mesh is the
+		# near model's visibility parent, so the near model (every part of it)
+		# is drawn exactly while the far mesh is hidden for being nearer than
+		# LOD_NEAR, measured once, from the far mesh. The two used to swap on
+		# their own ranges - the near one cut at 60 +- 4 m, the far one dithering
+		# in from 56 m - so between 56 and 64 m a house drew twice (z-fighting,
+		# half see-through) or not at all while walking about (2026-11-09).
+		var far_mesh: MeshInstance3D = null
+		for model in [_scenes[far_path], scene]:
 			if model == null:
 				continue
 			var near: bool = model == scene
@@ -104,9 +112,13 @@ static func place(root: Node3D, placements: Array, mats: Dictionary) -> void:
 			house.rotation.y = entry[2]
 			for mi in house.find_children("*", "MeshInstance3D", true, false):
 				_dress(mi as MeshInstance3D, mats, plaster, roof)
-				# QualityPreset hands the near model over to the far one here
-				if _scenes[far_path] != null:
-					mi.set_meta("lod_near_end" if near else "lod_far_begin", LOD_NEAR)
+				if not near:
+					# QualityPreset sets its range (begins at LOD_NEAR)
+					mi.set_meta("lod_far_begin", LOD_NEAR)
+					if far_mesh == null:
+						far_mesh = mi
+			if near and far_mesh != null:
+				house.visibility_parent = house.get_path_to(far_mesh)
 
 
 ## A garden fence piece at `at` (x, z) turned `yaw`, standing on the ground:
