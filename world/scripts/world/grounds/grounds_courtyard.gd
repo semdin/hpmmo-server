@@ -141,7 +141,8 @@ static func _ground_cover(root: Node3D, c: Vector3) -> void:
 	var segs := 96
 	# rings no wider than 1.5 m, so the cover follows the ground's bumps
 	var bands := []
-	for spec in [[0.0, ROSETTE.x, "flag", 0.09], [ROSETTE.x, ROSETTE.y, "rosette", 0.1],
+	# from 3.3 m out: under the fountain (3.4 m to its octagon's sides) is never seen
+	for spec in [[3.3, ROSETTE.x, "flag", 0.09], [ROSETTE.x, ROSETTE.y, "rosette", 0.1],
 			[ROSETTE.y, PLAZA_R, "flag", 0.09], [PLAZA_R, PLAZA_R + KERB_W, "kerb", 0.16],
 			[PLAZA_R + KERB_W, LAWN_OUT, "lawn", 0.06]]:
 		var r: float = spec[0]
@@ -361,7 +362,7 @@ static func _place(root: Node3D, model: String, at: Vector3, yaw: float) -> void
 
 static func _hero_props(root: Node3D, c: Vector3) -> void:
 	_place(root, "fountain", c + Vector3(0, 0.05, 0), 0.0)
-	# The model's water is painted on; this one moves (pools, streams, splashes).
+	# the stone only: the water (pools, streams, splashes) is live
 	FountainWater.build(root, c + Vector3(0, 0.05, 0))
 	for at in _bench_spots(c):
 		_place(root, "bench", at[0] + Vector3(0, 0.08, 0), at[1])
