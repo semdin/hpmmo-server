@@ -132,6 +132,22 @@ const PBR_SETS := {
 		"maps": {"albedo": "diff", "normal": "nor_gl", "rough": "rough", "ao": "ao"},
 		"metres": 4.0, "source": "polyhaven-cc0",
 	},
+	# Courtyard paving and lawn (world overhaul step 3, Poly Haven).
+	"stone_floor": {
+		"dir": "res://assets/textures/pbr/stone_floor", "res": "2k", "ext": "jpg",
+		"maps": {"albedo": "diff", "normal": "nor_gl", "rough": "rough", "ao": "ao"},
+		"metres": 3.0, "source": "polyhaven-cc0",
+	},
+	"cobblestone_large_01": {
+		"dir": "res://assets/textures/pbr/cobblestone_large_01", "res": "2k", "ext": "jpg",
+		"maps": {"albedo": "diff", "normal": "nor_gl", "rough": "rough", "ao": "ao"},
+		"metres": 3.0, "source": "polyhaven-cc0",
+	},
+	"leafy_grass": {
+		"dir": "res://assets/textures/pbr/leafy_grass", "res": "2k", "ext": "jpg",
+		"maps": {"albedo": "diff", "normal": "nor_gl", "rough": "rough", "ao": "ao"},
+		"metres": 2.5, "source": "polyhaven-cc0",
+	},
 	"large_sandstone_blocks_01": {
 		"dir": "res://assets/textures/pbr/large_sandstone_blocks_01", "res": "2k", "ext": "jpg",
 		"maps": {"albedo": "diff", "normal": "nor_gl", "rough": "rough", "ao": "ao"},

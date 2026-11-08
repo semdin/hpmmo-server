@@ -284,9 +284,10 @@ static func _boundaries(world: Node3D) -> void:
 		bounds.add_child(sb)
 
 
-## The safe zones' edges: a band of slowly turning gold runes that follows
-## the ground, with a low veil of light standing on it, so a player can see
-## where enemies will not follow without a hard neon line across the grass.
+## Safe-zone borders: a thin ring of slowly turning gold runes on the ground
+## (lifted clear of the courtyard paving and sampled every 0.6 m so it never
+## dips under it), and a low soft veil standing on it that shows only within a
+## few metres of the camera (safe_ward.gdshader).
 static func _ward_lines(world: Node3D) -> void:
 	var root := Node3D.new()
 	root.name = "SafeZoneWards"
@@ -301,12 +302,15 @@ static func _ward_lines(world: Node3D) -> void:
 	var band := ShaderMaterial.new()
 	band.shader = shader
 	band.set_shader_parameter("rune", rune)
+	band.set_shader_parameter("strength", 0.7)
 	var veil := ShaderMaterial.new()
 	veil.shader = shader
 	veil.set_shader_parameter("veil", true)
-	const BAND := 1.1          # metres across the rune band
+	const BAND := 0.6          # metres across the rune band
 	const TILE := BAND * 5.14  # the rune strip is 5.14:1
-	const VEIL_H := 2.6
+	const VEIL_H := 1.1
+	const LIFT := 0.18
+	const STEP := 0.6
 	# Only the grounds' own zones: another map's zone (the caverns' camp, deep
 	# under the grounds at the same x/z) would draw a ring by the greenhouses.
 	var grounds_zones := HPMaps.safe_zone_ids(HPProtocol.DEFAULT_MAP)
@@ -317,7 +321,7 @@ static func _ward_lines(world: Node3D) -> void:
 		var c: Array = zone.get("center", [0.0, 0.0, 0.0])
 		var cx := float(c[0])
 		var cz := float(c[2]) if c.size() > 2 else 0.0
-		var segs := maxi(64, int(TAU * radius / 1.2))
+		var segs := maxi(64, int(TAU * radius / STEP))
 		# whole tiles round the ring, so the runes meet without a seam
 		var tiles := maxf(1.0, round(TAU * radius / TILE))
 		var ring := SurfaceTool.new()
@@ -329,8 +333,8 @@ static func _ward_lines(world: Node3D) -> void:
 			var a := TAU * i / segs
 			var dir := Vector3(cos(a), 0, sin(a))
 			var u := tiles * float(i) / segs
-			var pin := GroundsLayout.ground(cx + dir.x * (radius - BAND), cz + dir.z * (radius - BAND)) + Vector3.UP * 0.06
-			var pout := GroundsLayout.ground(cx + dir.x * radius, cz + dir.z * radius) + Vector3.UP * 0.06
+			var pin := GroundsLayout.ground(cx + dir.x * (radius - BAND), cz + dir.z * (radius - BAND)) + Vector3.UP * LIFT
+			var pout := GroundsLayout.ground(cx + dir.x * radius, cz + dir.z * radius) + Vector3.UP * LIFT
 			var top := pout + Vector3.UP * VEIL_H
 			if i > 0:
 				var pu: float = prev[3]
@@ -338,10 +342,7 @@ static func _ward_lines(world: Node3D) -> void:
 					ring.set_normal(Vector3.UP)
 					ring.set_uv(Vector2(v[1], v[2]))
 					ring.add_vertex(v[0])
-				# veil UV.x: tenths of the arc in metres (the shader's streak columns)
-				var wu := pu * TILE * 0.1
-				var wv := u * TILE * 0.1
-				for v in [[prev[1], wu, 0.0], [prev[2], wu, 1.0], [top, wv, 1.0], [prev[1], wu, 0.0], [top, wv, 1.0], [pout, wv, 0.0]]:
+				for v in [[prev[1], pu, 0.0], [prev[2], pu, 1.0], [top, u, 1.0], [prev[1], pu, 0.0], [top, u, 1.0], [pout, u, 0.0]]:
 					wall.set_normal(dir)
 					wall.set_uv(Vector2(v[1], v[2]))
 					wall.add_vertex(v[0])

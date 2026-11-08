@@ -3,10 +3,16 @@ class_name GroundsCourtyard
 
 ## The castle courtyard and the avenue up to the front doors (grounds spawn,
 ## safe zone "courtyard"): the valley's meeting square. The Trial Hall, the
-## Floo hearth and the training yard have their own places (GroundsPrecinct). A paved plaza with a rosette round the owl fountain,
-## a lawn ring cut by four paths (castle avenue north, the east and west roads,
-## the lake walk south), a low balustrade with winged-boar gate statues, box
-## hedges, flower beds, topiary, stone benches and Gothic lamp posts.
+## Floo hearth and the training yard have their own places (GroundsPrecinct).
+## A paved plaza with a cobbled rosette round the owl fountain, a lawn ring cut
+## by four paths (castle avenue north, the east and west roads, the lake walk
+## south), a low balustrade with winged-boar gate statues, four flower beds,
+## eight large bushes, stone benches and Gothic lamp posts. The plants are
+## walked through (the balustrade closes the lawn).
+##
+## Paving, lawn and plants are Poly Haven (CC0): stone_floor, cobblestone_large_01
+## and leafy_grass textures; gazania, ursinia and empodium flowers and wild
+## rooibos bushes, cooked light by tools/terrain/cook_plants.gd.
 ##
 ## Hero props are fal-generated meshes (art/grounds/props, MODEL_GENERATION.md):
 ## assets/models/grounds/{fountain,boar,lamp,bench}.glb. Everything that blocks
@@ -43,9 +49,7 @@ static func build(world: Node3D, visuals: bool) -> Node3D:
 	# colliders for the hero props: shapes only, never drawn
 	var shapes := ArchKit.new()
 	_balustrade(solid, c)
-	_hedges(solid, c)
 	_house_pillars(solid, c)
-	_topiary(solid, c)
 	shapes.cylinder(c + Vector3(0, -0.4, 0), 3.35, 1.4, "x", 16)
 	shapes.cylinder(c + Vector3(0, 0.6, 0), 0.7, 3.4, "x", 10)
 	# the model's middle and top bowls (lips at y 3.0 r 1.45 and y 3.9 r 0.75)
@@ -59,15 +63,13 @@ static func build(world: Node3D, visuals: bool) -> Node3D:
 		shapes.box(at[0] + Vector3(0, 1.4, 0), Vector3(1.2, 2.8, 1.2), at[1], "x")
 	var mats := {}
 	if visuals:
-		mats = GroundsSites.materials().duplicate()
-		mats["hedge"] = PBR.surface("moss_01", Color(0.42, 0.55, 0.32), {"metres": 1.0})
-		mats["soil"] = PBR.surface("dirt_ground_01", Color(0.55, 0.45, 0.38), {"metres": 2.0})
+		mats = GroundsSites.materials()
 		_ground_cover(root, c)
 	solid.finish(root, mats, "CourtyardSolid", 1, visuals)
 	shapes.finish(root, {}, "CourtyardPropShapes", 1, false)
 	if visuals:
 		_hero_props(root, c)
-		_flowers(root, c)
+		_planting(root, c)
 	return root
 
 
@@ -121,8 +123,8 @@ static func _boar_spots(c: Vector3) -> Array:
 
 # ------------------------------------------------------------------ ground
 
-## Draped meshes that follow the terrain: the plaza (flagstones), the rosette
-## and kerb, the lawn ring (grass) with its paths (flagstones), and the avenue.
+## Draped meshes that follow the terrain: the plaza (stone paving), the rosette
+## (large cobbles) and kerb, the lawn ring (grass) with its paths, and the avenue.
 static func _ground_cover(root: Node3D, c: Vector3) -> void:
 	var tools := {}
 	var add := func(key: String, a: Vector3, b: Vector3, cc: Vector3, d: Vector3) -> void:
@@ -173,11 +175,11 @@ static func _ground_cover(root: Node3D, c: Vector3) -> void:
 			add.call("path", g.call(x0, z1, 0.09), g.call(x1, z1, 0.09), g.call(x1, z, 0.09), g.call(x0, z, 0.09))
 		z = z1
 	var mats := {
-		"flag": PBR.surface("floor_flagstone_01", Color(0.74, 0.72, 0.68), {"metres": 3.0}),
-		"rosette": PBR.surface("cobblestone_floor_04", Color(0.82, 0.74, 0.64), {"metres": 2.0}),
+		"flag": PBR.surface("stone_floor", Color(0.92, 0.9, 0.86), {"metres": 3.0}),
+		"rosette": PBR.surface("cobblestone_large_01", Color(0.9, 0.88, 0.84), {"metres": 2.5}),
 		"kerb": PBR.surface("sandstone_blocks_08", Color(0.9, 0.86, 0.8), {"metres": 1.5}),
-		"lawn": PBR.surface("grass_ground_01", Color(0.5, 0.58, 0.42), {"metres": 4.0}),
-		"path": PBR.surface("floor_flagstone_01", Color(0.68, 0.66, 0.62), {"metres": 3.0}),
+		"lawn": PBR.surface("leafy_grass", Color(0.6, 0.72, 0.5), {"metres": 2.5}),
+		"path": PBR.surface("stone_floor", Color(0.86, 0.84, 0.8), {"metres": 3.0}),
 	}
 	for key in tools:
 		var mi := MeshInstance3D.new()
@@ -236,23 +238,6 @@ static func _balustrade(kit: ArchKit, c: Vector3) -> void:
 			kit.pyramid(at + Vector3(0, 1.4, 0), Vector2(0.95, 0.95), 0.45, heading, "trim", 0.05)
 
 
-## Box hedges just inside the balustrade, open at the paths.
-static func _hedges(kit: ArchKit, c: Vector3) -> void:
-	var r := BALUSTRADE_R - 1.6
-	var segs := 64
-	for i in segs:
-		var a0 := TAU * i / segs
-		var a1 := TAU * (i + 1) / segs
-		var am := (a0 + a1) * 0.5
-		if _on_path(Vector2(cos(am), sin(am)) * r, PATH_HALF + 0.6):
-			continue
-		var p0 := GroundsLayout.ground(c.x + cos(a0) * r, c.z + sin(a0) * r)
-		var p1 := GroundsLayout.ground(c.x + cos(a1) * r, c.z + sin(a1) * r)
-		var m := (p0 + p1) * 0.5
-		var length := Vector2(p1.x - p0.x, p1.z - p0.z).length()
-		kit.box(m + Vector3(0, 0.55, 0), Vector3(1.0, 1.1, length + 0.05), -am, "hedge")
-
-
 ## The four house pillars, now standing in the north lawn either side of the
 ## castle avenue, banners facing the fountain.
 static func _house_pillars(kit: ArchKit, c: Vector3) -> void:
@@ -266,14 +251,100 @@ static func _house_pillars(kit: ArchKit, c: Vector3) -> void:
 		kit.box(p + Vector3(0, 4.0, 0.74), Vector3(1.2, 3.2, 0.06), 0.0, houses[i], false)
 
 
-## Clipped yew cones in the four lawn quarters.
-static func _topiary(kit: ArchKit, c: Vector3) -> void:
+## The large rooibos bushes, two in each lawn quarter.
+static func _bush_spots(c: Vector3) -> Array:
+	var out := []
 	for i in 4:
 		var a := TAU * i / 4.0 + PI * 0.25
 		for rr in [25.0, 27.6]:
-			var p := GroundsLayout.ground(c.x + cos(a) * rr, c.z + sin(a) * rr)
-			kit.cylinder(p, 0.5, 0.5, "soil", 8)
-			kit.cone(p + Vector3(0, 0.45, 0), 0.75, 2.6, "hedge", 10, 1.0)
+			out.append(GroundsLayout.ground(c.x + cos(a) * rr, c.z + sin(a) * rr))
+	return out
+
+
+## Four flower beds of gazania, ursinia and empodium and the large rooibos bushes.
+static func _planting(root: Node3D, c: Vector3) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 6503
+	var r0 := 22.4
+	var r1 := 24.6
+	_bed_soil(root, c, r0, r1)
+	for id in ["flower_gazania", "flower_ursinia", "flower_empodium"]:
+		var spots := []
+		for q in 4:
+			var a_mid := TAU * q / 4.0 + PI * 0.25
+			for k in 90:
+				var a := a_mid + rng.randf_range(-0.42, 0.42)
+				var rr := rng.randf_range(r0 + 0.2, r1 - 0.2)
+				spots.append([GroundsLayout.ground(c.x + cos(a) * rr, c.z + sin(a) * rr) + Vector3.UP * 0.08, rng.randf() * TAU, rng.randf_range(0.8, 1.2)])
+		_plant(root, "Bed_" + id, _plant_meshes(id), spots, 70.0)
+	var bushes := []
+	for p in _bush_spots(c):
+		# the rooibos model is a 0.5 m bush: grown to a garden one
+		bushes.append([p, rng.randf() * TAU, rng.randf_range(2.6, 3.4)])
+	_plant(root, "Bushes", _plant_meshes("wild_rooibos_bush"), bushes, 140.0)
+
+
+## The cooked variant meshes of one plant (assets/models/plants/cooked/<id>_<n>.res).
+static func _plant_meshes(id: String) -> Array:
+	var out: Array = []
+	while ResourceLoader.exists("res://assets/models/plants/cooked/%s_%d.res" % [id, out.size()]):
+		out.append(load("res://assets/models/plants/cooked/%s_%d.res" % [id, out.size()]))
+	return out
+
+
+## Scatter `meshes` at `spots` ([position, yaw, scale]): one MultiMesh per mesh,
+## the spots dealt round the variants.
+static func _plant(root: Node3D, node_name: String, meshes: Array, spots: Array, range_end: float) -> void:
+	if meshes.is_empty() or spots.is_empty():
+		return
+	var buckets: Array = []
+	for m in meshes:
+		buckets.append([])
+	for i in spots.size():
+		buckets[i % meshes.size()].append(spots[i])
+	for k in meshes.size():
+		var list: Array = buckets[k]
+		if list.is_empty():
+			continue
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = meshes[k]
+		mm.instance_count = list.size()
+		for i in list.size():
+			var s: Array = list[i]
+			mm.set_instance_transform(i, Transform3D(Basis(Vector3.UP, float(s[1])).scaled(Vector3.ONE * float(s[2])), s[0]))
+		var mmi := MultiMeshInstance3D.new()
+		mmi.name = "%s_%d" % [node_name, k]
+		mmi.multimesh = mm
+		mmi.visibility_range_end = range_end
+		# small flowers cast no shadow; bushes do
+		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if range_end < 100.0 else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		root.add_child(mmi)
+
+
+## A soil strip in each lawn quarter between radii r0 and r1.
+static func _bed_soil(root: Node3D, c: Vector3, r0: float, r1: float) -> void:
+	var bed := SurfaceTool.new()
+	bed.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for q in 4:
+		var a_mid := TAU * q / 4.0 + PI * 0.25
+		var n := 14
+		for i in n:
+			var b0 := a_mid - 0.44 + 0.88 * float(i) / n
+			var b1 := a_mid - 0.44 + 0.88 * float(i + 1) / n
+			var pts := [Vector2(cos(b0), sin(b0)) * r0, Vector2(cos(b0), sin(b0)) * r1,
+				Vector2(cos(b1), sin(b1)) * r1, Vector2(cos(b1), sin(b1)) * r0]
+			var v := []
+			for p in pts:
+				v.append(GroundsLayout.ground(c.x + p.x, c.z + p.y) + Vector3.UP * 0.1)
+			for k in [0, 1, 2, 0, 2, 3]:
+				bed.set_normal(Vector3.UP)
+				bed.add_vertex(v[k])
+	var mi := MeshInstance3D.new()
+	mi.name = "FlowerBeds"
+	mi.mesh = bed.commit()
+	mi.material_override = PBR.surface("dirt_ground_01", Color(0.42, 0.33, 0.27), {"metres": 2.0})
+	root.add_child(mi)
 
 
 # ------------------------------------------------------------------ props
@@ -315,66 +386,3 @@ static func _hero_props(root: Node3D, c: Vector3) -> void:
 	fl.omni_range = 8.0
 	fl.position = c + Vector3(0, 1.4, 0)
 	root.add_child(fl)
-
-
-## Flower beds: a soil strip in each lawn quarter, sown with small blooms
-## (one MultiMesh, colour per instance).
-static func _flowers(root: Node3D, c: Vector3) -> void:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 6501
-	var bloom := SphereMesh.new()
-	bloom.radius = 0.075
-	bloom.height = 0.1
-	bloom.radial_segments = 6
-	bloom.rings = 3
-	var mat := StandardMaterial3D.new()
-	mat.vertex_color_use_as_albedo = true
-	mat.roughness = 0.8
-	bloom.material = mat
-	var colours := [Color(0.7, 0.1, 0.12), Color(0.85, 0.66, 0.12), Color(0.42, 0.2, 0.66),
-		Color(0.85, 0.84, 0.78), Color(0.8, 0.36, 0.52)]
-	var spots: Array = []
-	var bed := SurfaceTool.new()
-	bed.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for q in 4:
-		var a_mid := TAU * q / 4.0 + PI * 0.25
-		var a0 := a_mid - 0.42
-		var a1 := a_mid + 0.42
-		var r0 := 22.6
-		var r1 := 24.2
-		var n := 12
-		for i in n:
-			var b0 := lerpf(a0, a1, float(i) / n)
-			var b1 := lerpf(a0, a1, float(i + 1) / n)
-			var pts := [Vector2(cos(b0), sin(b0)) * r0, Vector2(cos(b0), sin(b0)) * r1,
-				Vector2(cos(b1), sin(b1)) * r1, Vector2(cos(b1), sin(b1)) * r0]
-			var v := []
-			for p in pts:
-				v.append(GroundsLayout.ground(c.x + p.x, c.z + p.y) + Vector3.UP * 0.1)
-			for k in [0, 1, 2, 0, 2, 3]:
-				bed.set_normal(Vector3.UP)
-				bed.add_vertex(v[k])
-		for k in 160:
-			var a := rng.randf_range(a0, a1)
-			var rr := rng.randf_range(r0 + 0.15, r1 - 0.15)
-			var colour: Color = colours[(q + int(rng.randi() % 3)) % colours.size()]
-			spots.append([GroundsLayout.ground(c.x + cos(a) * rr, c.z + sin(a) * rr) + Vector3.UP * rng.randf_range(0.18, 0.32), colour, rng.randf_range(0.6, 1.1)])
-	var bed_mi := MeshInstance3D.new()
-	bed_mi.name = "FlowerBeds"
-	bed_mi.mesh = bed.commit()
-	bed_mi.material_override = PBR.surface("dirt_ground_01", Color(0.5, 0.4, 0.34), {"metres": 2.0})
-	root.add_child(bed_mi)
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.use_colors = true
-	mm.mesh = bloom
-	mm.instance_count = spots.size()
-	for i in spots.size():
-		var s: float = spots[i][2]
-		mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3.ONE * s), spots[i][0]))
-		mm.set_instance_color(i, spots[i][1])
-	var mmi := MultiMeshInstance3D.new()
-	mmi.name = "Flowers"
-	mmi.multimesh = mm
-	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	root.add_child(mmi)
