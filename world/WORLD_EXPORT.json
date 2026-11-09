@@ -1,7 +1,7 @@
 {
  "generated": "2026-11-10",
  "source_repository": "hpmmo-client",
- "source_revision": "8931d68471259fe3c75a6d0d646522aaab8683a8",
+ "source_revision": "a605af65246a996a6e9f52032661781ec88cda90",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/audio/sound_library.json": "c1d191056275c9a8d4657bf650376060444d8a0a1af7eaeca72cc30b632c60cc",
@@ -374,7 +374,7 @@
   "assets/shaders/stair_ward.gdshader": "36245f3ae392bedda7722ad34a6ef1e5a016035a2172e0d9b14f824dfc7a67d5",
   "assets/shaders/status_skin.gdshader": "64f1f3b25decbb3e5337c63b44e8dbe74789381b1d161435cc9d5d7b8f514dc5",
   "assets/shaders/target_ring.gdshader": "437cec49415f6a9778e949e029150c37a0758818120db57a5ee43269be85053a",
-  "assets/shaders/triplanar_pbr.gdshader": "7a8c0ba4b848dd87cb5a86b2bd1b64b2f2fca4fbe41aeee05420c830f6d49917",
+  "assets/shaders/triplanar_pbr.gdshader": "07ca7af9f40bae9d440286b8d400edfd77d2948e451668ff069338c20e14e7a6",
   "assets/shaders/wand_energy.gdshader": "34d36f149157d4b35c1f19ca537ceaacd9fb1dff7058b17f3f9dcba2c0dbfdb0",
   "assets/shaders/ward_surface.gdshader": "e0127141a5e43aabf818476b8058a0ec31adfdd5933e8c1b75cf127cf73eccf4",
   "assets/shaders/water_pbr.gdshader": "70d822c5d7c603115a325a68367a99ab8a6764ce49c2760395d9ee2ebb1fcf4c",
@@ -789,8 +789,8 @@
   "scripts/world/grounds/arch_kit.gd": "6a093f070aad7e48a510bf301fb9619f091c8cae34fc98662c092e3471545375",
   "scripts/world/grounds/castle_exterior.gd": "a4dac123833b8b2a19c4f2fb0d57513dbfedf8ed3295850c692d759511102dae",
   "scripts/world/grounds/fountain_water.gd": "5cf232210eb64b7edce18cb041bc36330e0274ea1e2b58ffdee14c3b901bc936",
-  "scripts/world/grounds/grounds_builder.gd": "da4bfb23de7dcf7ecef589899991808eb2f5ad790f51b1ada7ab1ebea69b98a0",
-  "scripts/world/grounds/grounds_courtyard.gd": "f294944a997d72f019cdebcdc1ea8b632dd7b38810deb2dbc1891a92f643ad5b",
+  "scripts/world/grounds/grounds_builder.gd": "d5d62baa8e3cd519c370c81acfe1004d86f1d4245c1e84329c5c59a5a7981ab9",
+  "scripts/world/grounds/grounds_courtyard.gd": "29cd463407f5cc073fcd349e9907f8cf9eee9645331de69f8dd604d7a78a0812",
   "scripts/world/grounds/grounds_horizon.gd": "3a0c962e0a3c8b31d7bcb385e2a743cd9609443c508bc6baa5f23d3fd5329880",
   "scripts/world/grounds/grounds_lake.gd": "58114b125580331762ee364ae33aba2357b822fba904e296aea4b56a0e070228",
   "scripts/world/grounds/grounds_layout.gd": "24b2763b338660961cc34543cc07722989327c55e2865ad2d9c25795f5b0b08b",

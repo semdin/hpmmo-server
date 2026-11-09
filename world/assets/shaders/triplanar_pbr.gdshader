@@ -55,7 +55,12 @@ void vertex() {
 // Sample a map on the plane whose normal is the dominant axis, and rebuild the
 // world-space normal from the map's tangent-space value.
 vec3 sample_normal(vec2 uv, vec3 t, vec3 b, vec3 n) {
-	vec3 tn = texture(normal_tex, uv).xyz * 2.0 - 1.0;
+	// z is rebuilt from x and y: a normal map imported as RG (BC5, "normal map"
+	// compression) samples blue as 0, so reading .z gave z = -1, a normal
+	// pointing into the surface - the courtyard paving and lawn drew black.
+	vec3 tn;
+	tn.xy = texture(normal_tex, uv).xy * 2.0 - 1.0;
+	tn.z = sqrt(max(1.0 - dot(tn.xy, tn.xy), 0.0));
 	tn.xy *= normal_strength;
 	float handed = sign(dot(n, cross(t, b)));
 	return normalize(tn.x * t + tn.y * b * handed + tn.z * n);

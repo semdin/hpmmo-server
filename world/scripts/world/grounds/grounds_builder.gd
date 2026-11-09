@@ -263,6 +263,8 @@ static func _road_lamps(world: Node3D) -> void:
 	for i in data.size() / 5:
 		var o := i * 5
 		var at := Vector3(data[o], data[o + 1], data[o + 2])
+		if GroundsCourtyard.encloses(Vector2(at.x, at.z)):
+			continue
 		kit.box(at + Vector3(0, 1.6, 0), Vector3(0.16, 3.2, 0.16), 0.0, "metal", false)
 		kit.box(at + Vector3(0, 3.35, 0), Vector3(0.45, 0.5, 0.45), 0.0, "glass", false)
 		kit.pyramid(at + Vector3(0, 3.6, 0), Vector2(0.55, 0.55), 0.35, 0.0, "metal", 0.05)

@@ -75,6 +75,15 @@ static func build(world: Node3D, visuals: bool) -> Node3D:
 
 # ------------------------------------------------------------------ layout
 
+## Inside the balustrade: the plaza and its lawn ring, lit by the courtyard's
+## own eight lamps (the road lamps, scattered before it, leave it alone).
+static func encloses(at: Vector2) -> bool:
+	var c := GroundsLayout.landmark("courtyard")
+	if c == Vector3.INF:
+		c = GroundsLayout.ground(0, 65)
+	return at.distance_to(Vector2(c.x, c.z)) < BALUSTRADE_R
+
+
 static func _on_path(local: Vector2, half: float = PATH_HALF) -> bool:
 	for heading in PATHS:
 		var d := Vector2(cos(heading), sin(heading))
