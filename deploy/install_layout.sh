@@ -37,11 +37,20 @@ PROG="$(basename "$0")"
 : "${HPMMO_DB_UNIT:=hpmmo-db.service}"
 : "${HPMMO_STATUS_UNIT:=hpmmo-status.service}"
 : "${HPMMO_SYSTEMCTL:=systemctl}"
-: "${HPMMO_GODOT:=/root/hpmmo/bin/godot_server}"
+: "${HPMMO_GODOT:=/opt/hpmmo/bin/godot_server}"
 : "${HPMMO_STATUS_SCRIPT:=/opt/hpmmo/bin/hpmmo_status.py}"
 : "${HPMMO_FLUSH_SCRIPT:=/opt/hpmmo/bin/hpmmo_world_flush.sh}"
 : "${HPMMO_STATUS_PORT:=8083}"
-: "${HPMMO_RUN_USER:=root}"
+# The services run as an unprivileged system user (security audit 2026-11-09):
+# the world parses untrusted UDP and the API is internet-facing, and this host
+# also runs the release runners. Only hpmmo_deploy.sh acts as root.
+: "${HPMMO_RUN_USER:=hpmmo}"
+: "${HPMMO_RUN_HOME:=/var/lib/hpmmo}"
+: "${HPMMO_TLS_UNIT:=hpmmo-status-tls.service}"
+: "${HPMMO_TLS_DIR:=/etc/hpmmo/tls}"
+# Where a world that ran as root kept its user:// data (the GA list).
+: "${HPMMO_ROOT_USERDATA:=/root/.local/share/godot/app_userdata/Thousand Realms}"
+: "${HPMMO_LEGACY_GODOT:=/root/hpmmo/bin/godot_server}"
 
 ADOPT=""
 INSTALL_UNITS=1
@@ -84,7 +93,53 @@ render_unit() {  # template out
         -e "s|@STATUS_SCRIPT@|${HPMMO_STATUS_SCRIPT}|g" \
         -e "s|@STATUS_PORT@|${HPMMO_STATUS_PORT}|g" \
         -e "s|@FLUSH_SCRIPT@|${HPMMO_FLUSH_SCRIPT}|g" \
+        -e "s|@RUN_HOME@|${HPMMO_RUN_HOME}|g" \
         "$template" > "$out"
+}
+
+# The run user, its home (the world's user:// lives there), the Godot binary at
+# a path that user can execute, the world's user:// data carried over from a
+# root-run world, and the TLS key readable by the status listener.
+prepare_run_user() {
+    if [ "$HPMMO_RUN_USER" = "root" ]; then
+        HPMMO_RUN_HOME=/root
+        warn "running the services as root (--run-user root); prefer the default unprivileged user"
+        return
+    fi
+    if ! id "$HPMMO_RUN_USER" >/dev/null 2>&1; then
+        useradd --system --home-dir "$HPMMO_RUN_HOME" --create-home --shell /usr/sbin/nologin "$HPMMO_RUN_USER"
+        say "created system user $HPMMO_RUN_USER (home $HPMMO_RUN_HOME)"
+    fi
+    HPMMO_RUN_HOME="$(getent passwd "$HPMMO_RUN_USER" | cut -d: -f6)"
+    mkdir -p "$HPMMO_RUN_HOME"
+    chown "$HPMMO_RUN_USER:" "$HPMMO_RUN_HOME"
+    chmod 0750 "$HPMMO_RUN_HOME"
+    if [ ! -x "$HPMMO_GODOT" ] && [ -x "$HPMMO_LEGACY_GODOT" ]; then
+        mkdir -p "$(dirname "$HPMMO_GODOT")"
+        install -m 0755 "$HPMMO_LEGACY_GODOT" "$HPMMO_GODOT"
+        say "copied the Godot server binary to $HPMMO_GODOT"
+    fi
+    [ -x "$HPMMO_GODOT" ] || warn "no Godot server binary at $HPMMO_GODOT"
+    local data="$HPMMO_RUN_HOME/.local/share/godot/app_userdata/Thousand Realms"
+    if [ -d "$HPMMO_ROOT_USERDATA" ] && [ ! -e "$data/ga_characters.json" ]; then
+        mkdir -p "$data"
+        for f in ga_characters.json .migrated_from_hpmmo; do
+            [ -f "$HPMMO_ROOT_USERDATA/$f" ] && cp -p "$HPMMO_ROOT_USERDATA/$f" "$data/$f"
+        done
+        say "carried the world's user:// data (GA list) over to $data"
+    fi
+    mkdir -p "$HPMMO_RUN_HOME/.local/share/godot/app_userdata"
+    chown -R "$HPMMO_RUN_USER:" "$HPMMO_RUN_HOME/.local"
+    if [ -d "$HPMMO_TLS_DIR" ]; then
+        # The parent (/etc/hpmmo) must be traversable by the group too; the
+        # secrets in it (hpmmo.env, r2/lfs env) stay 0600 root.
+        chgrp "$HPMMO_RUN_USER" "$(dirname "$HPMMO_TLS_DIR")" && chmod 0750 "$(dirname "$HPMMO_TLS_DIR")"
+        chgrp "$HPMMO_RUN_USER" "$HPMMO_TLS_DIR" && chmod 0750 "$HPMMO_TLS_DIR"
+        for f in "$HPMMO_TLS_DIR"/*key*.pem; do
+            [ -f "$f" ] && chgrp "$HPMMO_RUN_USER" "$f" && chmod 0640 "$f"
+        done
+        say "TLS material in $HPMMO_TLS_DIR readable by group $HPMMO_RUN_USER"
+    fi
 }
 
 say "releases dir: ${HPMMO_RELEASES_DIR%/}"
@@ -97,15 +152,22 @@ say "installed the status endpoint at $HPMMO_STATUS_SCRIPT"
 # A stable controller path: the deploy job must not run the controller out of a
 # release directory whose `current` symlink it is about to move.
 install -m 0755 "$HERE/hpmmo_deploy.sh" "$STATUS_DIR/hpmmo_deploy.sh"
+say "installed the controller at $STATUS_DIR/hpmmo_deploy.sh"
 # ExecStop of the world unit: the stop save (outside any release dir, like the controller).
 install -m 0755 "$HERE/hpmmo_world_flush.sh" "$HPMMO_FLUSH_SCRIPT"
-say "installed the controller at $STATUS_DIR/hpmmo_deploy.sh"
+say "installed the stop save at $HPMMO_FLUSH_SCRIPT"
+prepare_run_user
 
 if [ "$INSTALL_UNITS" = "1" ]; then
     [ -d "$HPMMO_UNIT_DIR" ] || die "$HPMMO_UNIT_DIR does not exist"
     render_unit "$HERE/systemd/$HPMMO_DB_UNIT"     "$HPMMO_UNIT_DIR/$HPMMO_DB_UNIT"
     render_unit "$HERE/systemd/$HPMMO_WORLD_UNIT"  "$HPMMO_UNIT_DIR/$HPMMO_WORLD_UNIT"
     render_unit "$HERE/systemd/$HPMMO_STATUS_UNIT" "$HPMMO_UNIT_DIR/$HPMMO_STATUS_UNIT"
+    # The public TLS listener is installed by hand (it needs a certificate);
+    # once it is there it is kept in step with the others.
+    if [ -f "$HPMMO_UNIT_DIR/$HPMMO_TLS_UNIT" ] && [ -f "$HERE/systemd/$HPMMO_TLS_UNIT" ]; then
+        render_unit "$HERE/systemd/$HPMMO_TLS_UNIT" "$HPMMO_UNIT_DIR/$HPMMO_TLS_UNIT"
+    fi
     say "installed units in $HPMMO_UNIT_DIR"
     if command -v "$HPMMO_SYSTEMCTL" >/dev/null 2>&1; then
         "$HPMMO_SYSTEMCTL" daemon-reload

@@ -17,5 +17,17 @@ ExecStart=@RELEASES_DIR@/current/services/cpp/build/hpmmo_service serve
 Restart=always
 RestartSec=3
 
+# Unprivileged and sandboxed (security audit 2026-11-09): no privilege gain,
+# a read-only system, private /tmp, no kernel or cgroup tunables.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+
 [Install]
 WantedBy=multi-user.target
