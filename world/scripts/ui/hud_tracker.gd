@@ -143,12 +143,18 @@ func _process(delta: float) -> void:
 			glow = READY_GLOW
 		elif QuestManager.is_new(id):
 			glow = NEW_GLOW
-		row.self_modulate = Color.WHITE.lerp(glow, pulse) if glow != Color.WHITE else Color.WHITE
+		var glowing := glow != Color.WHITE
+		row.self_modulate = Color.WHITE.lerp(glow, pulse) if glowing else Color.WHITE
+		# A stylebox write re-themes and re-lays the row out: only a glowing row
+		# animates its border; a quiet one is written once, when it calms down.
+		if not glowing and row.get_meta("glowing", true) == false:
+			continue
+		row.set_meta("glowing", glowing)
 		var box := row.get_theme_stylebox("normal") as StyleBoxFlat
 		if box != null:
-			box.border_color = Color(glow, 0.35 + 0.65 * pulse) if glow != Color.WHITE \
+			box.border_color = Color(glow, 0.35 + 0.65 * pulse) if glowing \
 				else Color(HudKit.GOLD.r, HudKit.GOLD.g, HudKit.GOLD.b, 0.3)
-			box.set_border_width_all(2 if glow != Color.WHITE else 1)
+			box.set_border_width_all(2 if glowing else 1)
 
 func refresh() -> void:
 	if _rows.is_empty() or not has_node("/root/QuestManager"):

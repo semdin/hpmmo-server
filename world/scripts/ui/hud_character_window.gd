@@ -387,10 +387,19 @@ func open() -> void:
 	_shown = ""
 	_refresh()
 
+## The sheet formats ~26 numbers and compares their text: at most this often
+## while the window is open (it was every frame), like the other HUD parts.
+const REFRESH_EVERY := 0.1
+var _refresh_wait := 0.0
+
 func _process(delta: float) -> void:
 	if not visible:
+		_refresh_wait = 0.0   # opens current
 		return
-	_refresh()
+	_refresh_wait -= delta
+	if _refresh_wait <= 0.0:
+		_refresh_wait = REFRESH_EVERY
+		_refresh()
 	_hover_cards()
 	if player != null and is_instance_valid(player) and int(player.attribute_points) > 0:
 		_pulse += delta

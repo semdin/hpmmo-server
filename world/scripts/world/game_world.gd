@@ -188,7 +188,7 @@ func _process(delta: float) -> void:
 			continue
 		var ph := float(omni.get_meta("flicker_phase"))
 		var wobble := sin(_candle_t * 7.3 + ph) * 0.6 + sin(_candle_t * 12.7 + ph * 1.7) * 0.4
-		omni.light_energy = float(omni.get_meta("base_energy")) * (0.93 + 0.07 * wobble)
+		omni.light_energy = float(omni.get_meta("base_energy")) * DayNight.torch_scale * (0.93 + 0.07 * wobble)
 	for b in _banners:
 		if is_instance_valid(b):
 			b.rotation.y = sin(_candle_t * 1.6) * 0.12
@@ -667,6 +667,10 @@ func _queue_preloads() -> void:
 	for spell_id in preload("res://scripts/spells/skill_fx.gd").VFX.SPELLS.keys():
 		_preload_queue.append(["spell", String(spell_id)])
 	_preload_queue.append(["status", ""])
+	# The fight and boss music and the stingers (with their alternate takes):
+	# loaded from disk on the frame the first fight or death started them.
+	for key in ["music_combat", "music_boss", "stinger_boss", "stinger_death", "stinger_victory"]:
+		_preload_queue.append(["sound", key])
 
 func _preload_next(delta: float) -> void:
 	if _preload_queue.is_empty():
@@ -685,6 +689,8 @@ func _preload_next(delta: float) -> void:
 				_mob_scene_cache[next[1]] = scene
 	elif next[0] == "status":
 		StatusFX.warm_assets()
+	elif next[0] == "sound":
+		AudioManager.warm_sound(String(next[1]))
 	else:
 		preload("res://scripts/spells/skill_fx.gd").warm_spell(String(next[1]))
 
@@ -694,6 +700,12 @@ func _preload_next(delta: float) -> void:
 ## troll scene opened 120+ times in a session, each a frame hitch (and a ping
 ## spike, as the ping includes the client's frame) right as a fight began.
 var _mob_scene_cache: Dictionary = {}   # path -> PackedScene
+
+## ShaderWarmup hands over the creature scenes it loaded behind the loading
+## screen, so the preload queue finds them cached instead of reloading them.
+func cache_mob_scene(path: String, scene: PackedScene) -> void:
+	if scene != null and not _mob_scene_cache.has(path):
+		_mob_scene_cache[path] = scene
 
 func _mob_scene(variant: int) -> PackedScene:
 	var path := HPProtocol.mob_scene(variant)
@@ -712,7 +724,11 @@ func _on_entity_replicating(record: Dictionary) -> void:
 	if _is_own_uid(uid) or bool(record.get("local", false)):
 		return   # our own body is the predicted one, never a second puppet
 	if int(record.get("kind", 0)) == HPProtocol.Kind.PLAYER:
-		_create_view(record)
+		# First in line, but one hero body a frame (_drain_view_queue): each is
+		# 8-25 ms to build, and a group arriving together (a Floo, a party
+		# flying in) used to be built in the same frame.
+		_queued[uid] = true
+		_view_queue.push_front(uid)
 		return
 	# A creature that is already dead the first time we see it fell before we
 	# got here (a dungeon copy entered again, a corpse in range on arrival): a
@@ -725,16 +741,23 @@ func _on_entity_replicating(record: Dictionary) -> void:
 
 func _drain_view_queue() -> void:
 	var made := 0
+	var heroes := 0
 	var started := Time.get_ticks_usec()
 	while made < VIEWS_PER_FRAME and not _view_queue.is_empty() \
 			and (made == 0 or Time.get_ticks_usec() - started < VIEW_BUDGET_USEC):
-		var uid := int(_view_queue.pop_front())
-		_queued.erase(uid)
+		var uid := int(_view_queue.front())
 		var record: Dictionary = SimAuthority.entities.get(uid, {})
+		var hero := int(record.get("kind", 0)) == HPProtocol.Kind.PLAYER
+		if hero and heroes > 0:
+			break   # the next hero body waits for the next frame
+		_view_queue.pop_front()
+		_queued.erase(uid)
 		if record.is_empty() or _views.has(uid) or record.get("node") != null:
 			continue   # despawned (or claimed) while it waited
 		_create_view(record)
 		made += 1
+		if hero:
+			heroes += 1
 
 func _create_view(record: Dictionary) -> void:
 	var uid := int(record["uid"])

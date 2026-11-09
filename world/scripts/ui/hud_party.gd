@@ -33,10 +33,18 @@ func _on_party_state(uid: int, state: Dictionary) -> void:
 	if not _is_local(uid):
 		return
 	_state = state
+	_shown = _sorted_members()
 	_rebuild()
 
-## The members other than the local player, leader first.
+## The members other than the local player, leader first - worked out once per
+## party state (the target card asked for it 15 times a second, each time a
+## new array and a sort).
+var _shown: Array = []
+
 func shown_members() -> Array:
+	return _shown
+
+func _sorted_members() -> Array:
 	var out: Array = []
 	for m in _state.get("members", []):
 		if int((m as Dictionary).get("uid", 0)) != SimAuthority.local_uid:
@@ -44,13 +52,35 @@ func shown_members() -> Array:
 	out.sort_custom(func(a, b): return int(a["uid"]) == int(_state.get("leader", 0)) and int(b["uid"]) != int(_state.get("leader", 0)))
 	return out
 
+## Rows are rebuilt only when what they show in text changes (members, leader,
+## names, levels, away/dead); a health or mana change moves the bars in place.
+var _rows_key := ""
+var _row_bars: Dictionary = {}   # uid -> [hp bar, mana bar]
+
 func _rebuild() -> void:
+	var local_map := String(SimAuthority.local_map)
+	var key := ""
+	if int(_state.get("party_id", 0)) != 0:
+		key = str(_state.get("leader", 0))
+		for m in _shown:
+			key += "|%d:%s:%d:%s:%s" % [int(m["uid"]), String(m.get("name", "")), int(m.get("level", 1)),
+				str(bool(m.get("dead", false))), str(String(m.get("map_id", "")) != local_map)]
+	if key == _rows_key and key != "":
+		for m in _shown:
+			var bars: Array = _row_bars.get(int(m["uid"]), [])
+			if bars.size() == 2 and is_instance_valid(bars[0]) and is_instance_valid(bars[1]):
+				(bars[0] as ProgressBar).max_value = maxf(1.0, float(m.get("max_hp", 1)))
+				(bars[0] as ProgressBar).value = float(m.get("hp", 0))
+				(bars[1] as ProgressBar).max_value = maxf(1.0, float(m.get("max_mana", 1)))
+				(bars[1] as ProgressBar).value = float(m.get("mana", 0))
+		return
+	_rows_key = key
+	_row_bars.clear()
 	for child in _rows.get_children():
 		child.queue_free()
 	if int(_state.get("party_id", 0)) == 0:
 		return
-	var local_map := String(SimAuthority.local_map)
-	for m in shown_members():
+	for m in _shown:
 		_rows.add_child(_member_row(m, int(m["uid"]) == int(_state.get("leader", 0)), String(m.get("map_id", "")) != local_map))
 
 func _member_row(m: Dictionary, leader: bool, away: bool) -> Control:
@@ -79,6 +109,7 @@ func _member_row(m: Dictionary, leader: bool, away: bool) -> Control:
 	mana.value = float(m.get("mana", 0))
 	HudKit.style_gauge(mana, Color(0.18, 0.42, 0.92))
 	box.add_child(mana)
+	_row_bars[int(m.get("uid", 0))] = [bar, mana]
 	if bool(m.get("dead", false)) or away:
 		panel.modulate = Color(1, 1, 1, 0.45)
 	return panel

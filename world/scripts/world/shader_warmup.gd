@@ -140,6 +140,11 @@ func _add_body(path: String, puppet: bool) -> void:
 	var scene := load(path) as PackedScene
 	if scene == null:
 		return
+	# The world keeps the creature scenes it will spawn: freed with this warm-up,
+	# every one of them was read from disk again in the first seconds of play.
+	var world := get_parent()
+	if world != null and world.has_method("cache_mob_scene"):
+		world.call("cache_mob_scene", path, scene)
 	var body := scene.instantiate() as Node3D
 	if body == null:
 		return

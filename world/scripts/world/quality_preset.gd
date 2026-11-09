@@ -213,12 +213,28 @@ static func apply(world: Node3D) -> void:
 	if env_node is WorldEnvironment:
 		var env: Environment = (env_node as WorldEnvironment).environment
 		if env != null:
+			# Indoors the live environment is the castle's or caverns' (map
+			# controller), with the outdoor values saved aside. Writing the preset
+			# straight into it left SDFGI/SSIL/fog on after a switch to low, and
+			# the old preset's glow and AO came back outdoors. So: back to the
+			# outdoor values, apply the preset, then the indoor look again at the
+			# new quality.
+			var indoor_module = null
+			if env.has_meta("outdoor_ambient"):
+				indoor_module = env.get_meta("ambient_module", null)
+				if indoor_module != null:
+					indoor_module.restore(env, env.get_meta("outdoor_ambient"))
+				env.remove_meta("outdoor_ambient")
+				env.remove_meta("ambient_module")
 			env.glow_enabled = bool(preset["glow"])
 			env.ssao_enabled = bool(preset["ssao"])
 			env.ssr_enabled = bool(preset["ssr"])
 			env.tonemap_exposure = float(preset["tonemap_exposure"])
 			if env.fog_enabled:
 				env.fog_density = float(preset["fog_density"])
+			if indoor_module != null:
+				env.set_meta("outdoor_ambient", indoor_module.apply(env))
+				env.set_meta("ambient_module", indoor_module)
 	var sun := world.get_node_or_null("DirectionalLight3D") as DirectionalLight3D
 	if sun != null:
 		sun.shadow_enabled = bool(preset["sun_shadows"])

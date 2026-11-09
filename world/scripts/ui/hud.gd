@@ -638,17 +638,12 @@ func _process(delta: float) -> void:
 	elif not is_instance_valid(current_target) and target_panel.visible:
 		target_panel.hide()
 
-	# Update cooldown numbers on hotbar
+	# The cooldowns live on the action bar; the six old cells stay hidden for
+	# their node paths and are no longer recomputed every frame.
 	if is_instance_valid(player):
 		if not _galleons_from_authority and _last_galleons != player.galleons:
 			_last_galleons = player.galleons
 			_update_currency()
-		_update_slot_cd(slot_1, "stupefy", "1")
-		_update_slot_cd(slot_2, "incendio", "2")
-		_update_slot_cd(slot_3, "bombarda", "3")
-		_update_slot_cd(slot_4, "expelliarmus", "4")
-		_update_slot_cd(slot_q, "protego", "Q")
-		_update_slot_cd(slot_e, "ultimate", "E")
 
 ## A hotbar cell shows the spell's icon and its hotkey, and veils itself while
 ## the spell is on cooldown. The spell's name and numbers live in the tooltip.

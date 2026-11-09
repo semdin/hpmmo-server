@@ -329,8 +329,12 @@ func sound_count() -> int:
 
 ## Load `key`'s stream now (it stays cached), so its first play does not read
 ## the file on that frame.
+## Loads a sound and every variant it may be played as: a variant left cold
+## was read from disk on the frame it was first picked.
 func warm_sound(key: String) -> void:
 	_stream(key)
+	for other in library.get(key, {}).get("variants", []):
+		_stream(String(other))
 
 func _stream(key: String) -> AudioStream:
 	var entry: Dictionary = library.get(key, {})

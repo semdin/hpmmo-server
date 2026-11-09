@@ -129,6 +129,7 @@ func _draw_labels(canvas: CanvasItem) -> void:
 	for label in _labels.keys():
 		if not is_instance_valid(label):
 			_labels.erase(label)
+			_shaped.erase(label)
 			continue
 		var l := label as Label3D
 		if not l.is_visible_in_tree() or l.text == "":
@@ -161,24 +162,49 @@ func _px_for(l: Label3D, dist: float) -> int:
 	var k := clampf(REF_DISTANCE / maxf(dist, 0.01), MIN_SCALE, MAX_SCALE)
 	return maxi(9, int(round(float(_labels[l].px) * k)))
 
+## Shaped text per label, kept until its text, size or weight changes. Every
+## label used to be measured and drawn through draw_string four times a frame
+## (size, shadow, outline, fill) - each a lookup in the font's small shaped-text
+## cache, which a hunting ground's 50+ lines kept churning (~1 ms a frame).
+## label -> {"text", "px", "bold", "lines": Array[TextLine]}
+var _shaped: Dictionary = {}
+
+func _shaped_lines(l: Label3D, px: int, bold: bool, font: Font) -> Array:
+	var entry = _shaped.get(l)
+	if entry != null and entry.px == px and entry.bold == bold and entry.font == font and entry.text == l.text:
+		return entry.lines
+	var lines: Array = []
+	for line in l.text.split("\n"):
+		var shaped := TextLine.new()
+		shaped.add_string(line, font, px)
+		lines.append(shaped)
+	_shaped[l] = {"text": l.text, "px": px, "bold": bold, "font": font, "lines": lines}
+	return lines
+
 func _draw_one(canvas: CanvasItem, at: Vector3, l: Label3D) -> void:
 	var spec: Dictionary = _labels[l]
 	var px := _px_for(l, at.z)
-	var font: Font = HudKit.bold() if bool(spec.bold) else HudKit.body()
+	var bold := bool(spec.bold)
+	var font: Font = HudKit.bold() if bold else HudKit.body()
 	var colour := l.modulate
 	colour.a = 1.0
 	var outline := Color(0.02, 0.015, 0.01, 0.92)
-	var lines := l.text.split("\n")
+	var lines := _shaped_lines(l, px, bold, font)
 	var line_h := float(px) * 1.12
 	# Label3D is centred on its anchor, so the 2D copy is too.
 	var y := at.y - line_h * float(lines.size()) * 0.5 + float(px) * 0.82
 	var ow := maxi(3, int(round(float(px) * 0.26)))
-	for line in lines:
-		var w := font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
+	var rid := canvas.get_canvas_item()
+	for shaped in lines:
+		var line := shaped as TextLine
+		var w := line.get_size().x
+		# The baseline point draw_string took; a TextLine draws from its top
+		# (draw_string itself subtracts the ascent the same way).
 		var pos := Vector2(roundf(at.x - w * 0.5), roundf(y))
-		canvas.draw_string(font, pos + Vector2(0, 2), line, HORIZONTAL_ALIGNMENT_LEFT, -1, px, Color(0, 0, 0, 0.45))
-		canvas.draw_string_outline(font, pos, line, HORIZONTAL_ALIGNMENT_LEFT, -1, px, ow, outline)
-		canvas.draw_string(font, pos, line, HORIZONTAL_ALIGNMENT_LEFT, -1, px, colour)
+		var top := pos - Vector2(0.0, line.get_line_ascent())
+		line.draw(rid, top + Vector2(0, 2), Color(0, 0, 0, 0.45))
+		line.draw_outline(rid, top, ow, outline)
+		line.draw(rid, top, colour)
 		y += line_h
 
 

@@ -150,8 +150,16 @@ func _process(delta: float) -> void:
 		var spell_id := s.held_id
 		var spell: Dictionary = GameData.SPELLS.get(spell_id, {})
 		var cd: float = hud.cooldown_remaining(spell_id) if hud != null and hud.has_method("cooldown_remaining") else 0.0
-		var trained: int = player.skill_level(spell_id)
-		var total := maxf(0.01, HPRules.cooldown_for(spell_id, String(player.house), trained, player.derived_stats))
+		# Skill level and full cooldown change with a skill-up, the house or the
+		# derived stats - a few times a session: worked out at the slow rate (or
+		# when the slot's spell changes), not for every slot every frame.
+		if slow or not s.has_meta("cd_for") or String(s.get_meta("cd_for")) != spell_id:
+			var level: int = player.skill_level(spell_id)
+			s.set_meta("cd_for", spell_id)
+			s.set_meta("trained", level)
+			s.set_meta("total", maxf(0.01, HPRules.cooldown_for(spell_id, String(player.house), level, player.derived_stats)))
+		var trained: int = int(s.get_meta("trained"))
+		var total: float = float(s.get_meta("total"))
 		s.set_cooldown(cd, cd / total)
 		s.unusable = dead or int(player.current_mana) < int(spell.get("mana_cost", 0)) or trained <= 0
 		if slow:

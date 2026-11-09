@@ -253,6 +253,9 @@ static func _broom_landing(world: Node3D, visuals: bool) -> void:
 ## art/map/scripts/scatter.py into scatter/lamp.bin).
 static func _road_lamps(world: Node3D) -> void:
 	var data := GroundsScatter.instances("lamp")
+	if data.is_empty():
+		push_warning("GroundsBuilder: no road lamps (assets/terrain/grounds/scatter/lamp.bin is missing)")
+		return
 	var root := Node3D.new()
 	root.name = "RoadLamps"
 	world.add_child(root)

@@ -135,6 +135,9 @@ var managed_respawn := false
 var summoned := false
 ## Freed once its corpse has faded (dungeon creatures: they never respawn).
 var free_corpse := false
+## A client view's boss body, not built until the creature is a boss
+## (_apply_boss_visual): {"path", "xform"}.
+var _boss_body: Dictionary = {}
 var is_enraged := false
 var current_hp := 250
 var state: State = State.IDLE
@@ -336,6 +339,8 @@ func _ready() -> void:
 	_apply_boss_visual()
 	_apply_lod()
 	_attach_wings()
+	if sim_puppet and not NetworkManager.is_dedicated_server:
+		_watch_screen()
 	wander_timer = randf_range(1, 4)
 	_scan_timer = randf_range(0, 0.4)
 	_last_pos = global_position
@@ -369,6 +374,22 @@ func _fill_catalog_identity() -> void:
 func _apply_boss_visual() -> void:
 	var boss_node := visuals.get_node_or_null("BossVariant")
 	var normal := visuals.get_node_or_null("NormalVariant")
+	# A client's ordinary creature does not carry the boss body (a second full
+	# skinned GLB, hidden, built and moved with every view: ~1 ms a view). Its
+	# scene and place are kept, and it is built the moment the flag turns boss.
+	if sim_puppet and normal != null:
+		if boss_node != null and not is_boss and boss_node.scene_file_path != "":
+			_boss_body = {"path": boss_node.scene_file_path, "xform": (boss_node as Node3D).transform}
+			boss_node.free()
+			boss_node = null
+		elif boss_node == null and is_boss and not _boss_body.is_empty():
+			var scene := load(String(_boss_body["path"])) as PackedScene
+			if scene != null:
+				boss_node = scene.instantiate()
+				boss_node.name = "BossVariant"
+				(boss_node as Node3D).transform = _boss_body["xform"]
+				visuals.add_child(boss_node)
+				visuals.move_child(boss_node, normal.get_index() + 1)
 	if boss_node:
 		boss_node.visible = is_boss
 	if normal and boss_node:
@@ -620,8 +641,35 @@ func _tick_visual_lod(delta: float) -> void:
 		return
 	_visual_dormant = dormant
 	visuals.visible = not dormant
-	if is_instance_valid(anim_player):
-		anim_player.active = not dormant
+	_apply_anim_active()
+
+## A creature view animates only while it can be seen. The distance cut above
+## (120 m) is farther than the 70 m interest radius, so online it never fired,
+## and every creature in interest ran its skeleton, off screen too. A
+## VisibleOnScreenNotifier3D (box grown well past the body, so a shadow at the
+## screen edge does not freeze) pauses it; bosses always animate.
+var _off_screen := false
+
+func _watch_screen() -> void:
+	var notifier := VisibleOnScreenNotifier3D.new()
+	notifier.name = "ScreenWatch"
+	notifier.aabb = AABB(Vector3(-5.0, -1.0, -5.0), Vector3(10.0, 9.0, 10.0))
+	notifier.screen_entered.connect(func():
+		_off_screen = false
+		_apply_anim_active())
+	notifier.screen_exited.connect(func():
+		_off_screen = true
+		_apply_anim_active())
+	add_child(notifier)
+
+func _apply_anim_active() -> void:
+	if not is_instance_valid(anim_player) or NetworkManager.is_dedicated_server:
+		return
+	var want := not _visual_dormant and not _sleeping and (is_boss or (not _off_screen and not far_hidden))
+	if anim_player.active != want:
+		anim_player.active = want
+		if want:
+			anim_player.advance(0.0)   # back on screen: the pose of the clip's current time
 
 func _physics_process(delta: float) -> void:
 	# Timed for the world server's status line (HPProf; off elsewhere).
@@ -1481,8 +1529,7 @@ func _set_sleeping(sleep: bool) -> void:
 	_sleeping = sleep
 	process_mode = Node.PROCESS_MODE_DISABLED if sleep else Node.PROCESS_MODE_INHERIT
 	set_physics_process(not sleep)
-	if is_instance_valid(anim_player) and not NetworkManager.is_dedicated_server:
-		anim_player.active = not sleep
+	_apply_anim_active()
 	if sleep:
 		velocity = Vector3.ZERO
 

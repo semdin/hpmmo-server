@@ -879,6 +879,12 @@ func _update_puppet_view(delta: float) -> void:
 		global_position = global_position.lerp(sim_target_pos, minf(1.0, 12.0 * delta))
 		if visuals:
 			visuals.rotation.y = lerp_angle(visuals.rotation.y, sim_target_rot, minf(1.0, 12.0 * delta))
+	# A puppet never moves itself, so `velocity` stayed zero: other players'
+	# capes, broom trail and wake and the flight lean read it and never
+	# reacted to their speed. It follows the drawn motion, smoothed (a
+	# teleport above reset prev_pos, so it reads as standing).
+	var drawn_motion := (global_position - prev_pos) / maxf(delta, 0.001)
+	velocity = velocity.lerp(drawn_motion, 1.0 - exp(-12.0 * delta))
 	# Remote riders follow the replicated phase, not a local guess, so
 	# every client shows the same animation phase for the same body.
 	if is_mounted and sim_mount_phase > 0:

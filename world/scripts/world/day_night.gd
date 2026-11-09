@@ -124,6 +124,9 @@ var world: Node3D = null
 ## The look on screen now (eases towards the hour's look).
 var current: Dictionary = {}
 var night_amount := 0.0
+## How bright the torches burn at this hour (1.0 by day, ~1.5 at night;
+## indoors the last outdoor value holds). Read by GameWorld's torch flicker.
+static var torch_scale := 1.0
 ## 0..1, eased towards the server's weather.
 var rain_amount := 0.0
 var _timer := 0.0
@@ -254,12 +257,11 @@ func _apply() -> void:
 		var fade := smoothstep(0.0, 9.0, float(light.elevation))
 		sun.light_color = current.sun_color
 		sun.light_energy = float(current.sun_energy) * fade * (1.0 - wet * 0.55)
-	var torch := float(current.torch) * (1.0 + wet * 0.2)
-	for node in get_tree().get_nodes_in_group("torch_lights"):
-		if node is Light3D:
-			if not node.has_meta("day_energy"):
-				node.set_meta("day_energy", (node as Light3D).light_energy)
-			(node as Light3D).light_energy = float(node.get_meta("day_energy")) * torch
+	# The hour's torch brightness. GameWorld's flicker applies it to every
+	# torch's authored energy each frame: two writers (this at 4 Hz, the
+	# flicker every frame from a base taken at join) made torches pop at dusk
+	# and stay at the join hour's brightness.
+	torch_scale = float(current.torch) * (1.0 + wet * 0.2)
 
 func _update_sky(env: Environment, wet: float, grey: Color) -> void:
 	if env.sky == null:

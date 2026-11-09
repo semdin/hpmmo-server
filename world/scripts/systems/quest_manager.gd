@@ -58,7 +58,22 @@ func quests() -> Array:
 func open_quests() -> Array:
 	if not is_instance_valid(player_ref):
 		return []
-	return HPRules.quests_open(int(player_ref.level), player_ref.quest_done, player_ref.quest_ready)
+	# Which quests are open depends on the level and the done/ready lists only
+	# (progress never opens or closes one), and it was re-filtered from the
+	# 100-quest chain on every stats push, several times a second in a fight.
+	var level := int(player_ref.level)
+	if level == _open_level and player_ref.quest_done == _open_done and player_ref.quest_ready == _open_ready:
+		return _open_cache
+	_open_cache = HPRules.quests_open(level, player_ref.quest_done, player_ref.quest_ready)
+	_open_level = level
+	_open_done = (player_ref.quest_done as Array).duplicate()
+	_open_ready = (player_ref.quest_ready as Array).duplicate()
+	return _open_cache
+
+var _open_cache: Array = []
+var _open_level := -1
+var _open_done: Array = []
+var _open_ready: Array = []
 
 ## The log as the UI shows it: finished quests waiting for their reward first,
 ## then new (unread) ones, then the rest, each in chain order.

@@ -663,9 +663,15 @@ func _update_marker() -> void:
 		return
 	var visuals: Node3D = _player.get("visuals")
 	var yaw := visuals.rotation.y if visuals != null else 0.0
-	_marker.facing = Vector2(sin(yaw), cos(yaw))
+	var facing := Vector2(sin(yaw), cos(yaw))
 	var cam_yaw := deg_to_rad(float(_player.get("camera_rot_y")))
-	_marker.camera_dir = Vector2(-sin(cam_yaw), -cos(cam_yaw))
+	var camera_dir := Vector2(-sin(cam_yaw), -cos(cam_yaw))
+	# The view cone is tessellated in GDScript on every redraw: only when the
+	# facing or the camera turned (by more than ~0.3 degrees), not every frame.
+	if facing.dot(_marker.facing) > 0.99999 and camera_dir.dot(_marker.camera_dir) > 0.99999:
+		return
+	_marker.facing = facing
+	_marker.camera_dir = camera_dir
 	_marker.queue_redraw()
 
 func _update_minimap() -> void:
