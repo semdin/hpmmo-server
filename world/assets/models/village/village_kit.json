@@ -4,7 +4,6 @@
   "w": 8,
   "d": 6,
   "tris": 14102,
-  "far_tris": 1692,
   "colliders": {
    "boxes": [
     [
@@ -2443,7 +2442,6 @@
   "w": 6,
   "d": 8,
   "tris": 13897,
-  "far_tris": 1667,
   "colliders": {
    "boxes": [
     [
@@ -4726,7 +4724,6 @@
   "w": 10,
   "d": 6,
   "tris": 15728,
-  "far_tris": 1886,
   "colliders": {
    "boxes": [
     [
@@ -7313,7 +7310,6 @@
   "w": 8,
   "d": 6,
   "tris": 12879,
-  "far_tris": 1545,
   "colliders": {
    "boxes": [
     [
@@ -9512,7 +9508,6 @@
   "w": 6,
   "d": 6,
   "tris": 14508,
-  "far_tris": 1740,
   "colliders": {
    "boxes": [
     [
@@ -11867,7 +11862,6 @@
   "w": 6,
   "d": 8,
   "tris": 12923,
-  "far_tris": 1549,
   "colliders": {
    "boxes": [
     [
@@ -13889,7 +13883,6 @@
   "w": 4,
   "d": 4,
   "tris": 12696,
-  "far_tris": 1523,
   "colliders": {
    "boxes": [
     [
@@ -18788,7 +18781,6 @@
   "w": 6,
   "d": 4,
   "tris": 6776,
-  "far_tris": 813,
   "colliders": {
    "boxes": [
     [
@@ -20379,7 +20371,6 @@
   "w": 12,
   "d": 8,
   "tris": 27097,
-  "far_tris": 3251,
   "colliders": {
    "boxes": [
     [
@@ -24218,7 +24209,6 @@
   "w": 6,
   "d": 6,
   "tris": 10704,
-  "far_tris": 1284,
   "colliders": {
    "boxes": [
     [
@@ -26396,7 +26386,6 @@
   "w": 8,
   "d": 4,
   "tris": 8459,
-  "far_tris": 1015,
   "colliders": {
    "boxes": [
     [
@@ -28061,7 +28050,6 @@
   "w": 8,
   "d": 6,
   "tris": 8414,
-  "far_tris": 1007,
   "colliders": {
    "boxes": [
     [
@@ -30133,7 +30121,6 @@
   "w": 2.06,
   "d": 0.14,
   "tris": 40,
-  "far_tris": 0,
   "colliders": {
    "boxes": [
     [

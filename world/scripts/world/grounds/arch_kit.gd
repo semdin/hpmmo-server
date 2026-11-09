@@ -35,6 +35,8 @@ func _st(key: String) -> SurfaceTool:
 
 ## One triangle facing away from `inside`. Godot treats clockwise (seen from the
 ## front) as front-facing; for that order the outward normal is (c-a) x (b-a).
+## `smooth_axis`: null = flat (the face normal); a Vector3 = smooth round that
+## vertical axis (cylinders); a Callable(v) -> normal = smooth along any curve.
 func tri(key: String, a: Vector3, b: Vector3, c: Vector3, inside: Vector3, smooth_axis: Variant = null) -> void:
 	var n := (c - a).cross(b - a)
 	if n.dot((a + b + c) / 3.0 - inside) < 0.0:
@@ -47,7 +49,11 @@ func tri(key: String, a: Vector3, b: Vector3, c: Vector3, inside: Vector3, smoot
 	for v in [a, b, c]:
 		if vertex_color != null:
 			st.set_color(vertex_color)
-		if smooth_axis != null:
+		if smooth_axis is Callable:
+			# a curved surface's own normal at v (a torus tube, a dome)
+			var sn: Vector3 = (smooth_axis as Callable).call(v)
+			st.set_normal(sn if sn != Vector3.ZERO else n)
+		elif smooth_axis != null:
 			var ax: Vector3 = smooth_axis
 			var radial := Vector3(v.x - ax.x, 0, v.z - ax.z).normalized()
 			st.set_normal(radial if radial != Vector3.ZERO else n)
@@ -106,7 +112,13 @@ func cone(base: Vector3, radius: float, height: float, key: String, segments: in
 		var a1 := TAU * (i + 1) / segments
 		var b0 := base + Vector3(cos(a0) * r, 0, sin(a0) * r)
 		var b1 := base + Vector3(cos(a1) * r, 0, sin(a1) * r)
-		tri(key, b0, b1, apex, inside)
+		# smooth round the spire (each base vertex its slope normal, the apex
+		# its face's): 16 flat facets showed on every conical roof
+		tri(key, b0, b1, apex, inside, func(v: Vector3) -> Vector3:
+			var radial := Vector3(v.x - base.x, 0.0, v.z - base.z)
+			if radial.length() < 0.001:
+				return Vector3.ZERO
+			return (radial.normalized() * height + Vector3.UP * r).normalized())
 		tri(key, b0, b1, base, base + Vector3.UP)
 		hull.append(b0)
 	if collide:

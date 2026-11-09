@@ -25,10 +25,6 @@ const REMAP := {
 const PLASTERS := ["plaster", "plaster_cream", "plaster_ochre", "plaster_rose", "plaster_sage"]
 const ROOFS := ["roof", "roof", "roof_warm"]
 
-## Where a building's near model gives way to its far one (an eighth of the
-## triangles, <id>_far.glb), metres from the camera.
-const LOD_NEAR := 60.0
-
 static var _manifest := {}
 static var _loaded := false
 static var _scenes := {}
@@ -90,35 +86,20 @@ static func place(root: Node3D, placements: Array, mats: Dictionary) -> void:
 		var pick := absi(int(entry[1].x * 7.0) * 31 + int(entry[1].z * 7.0) * 17)
 		var plaster: String = PLASTERS[pick % PLASTERS.size()]
 		var roof: String = ROOFS[(pick / 7) % ROOFS.size()]
-		var far_path := DIR + id + "_far.glb"
-		if not _scenes.has(far_path):
-			_scenes[far_path] = load(far_path) if ResourceLoader.exists(far_path) else null
-		# The far model first: the near one hangs off it. Its single mesh is the
-		# near model's visibility parent, so the near model (every part of it)
-		# is drawn exactly while the far mesh is hidden for being nearer than
-		# LOD_NEAR, measured once, from the far mesh. The two used to swap on
-		# their own ranges - the near one cut at 60 +- 4 m, the far one dithering
-		# in from 56 m - so between 56 and 64 m a house drew twice (z-fighting,
-		# half see-through) or not at all while walking about (2026-11-09).
-		var far_mesh: MeshInstance3D = null
-		for model in [_scenes[far_path], scene]:
-			if model == null:
-				continue
-			var near: bool = model == scene
-			var house: Node3D = (model as PackedScene).instantiate()
-			house.name = id.to_pascal_case() + ("" if near else "Far")
-			root.add_child(house)
-			house.position = entry[1]
-			house.rotation.y = entry[2]
-			for mi in house.find_children("*", "MeshInstance3D", true, false):
-				_dress(mi as MeshInstance3D, mats, plaster, roof)
-				if not near:
-					# QualityPreset sets its range (begins at LOD_NEAR)
-					mi.set_meta("lod_far_begin", LOD_NEAR)
-					if far_mesh == null:
-						far_mesh = mi
-			if near and far_mesh != null:
-				house.visibility_parent = house.get_path_to(far_mesh)
+		# One model at every distance. Its meshes import with Godot's own LOD
+		# (generate_lods): the engine draws a coarser index set only while the
+		# difference stays under a pixel on screen. The hand-made far model
+		# (a 12 % collapse decimation, swapped in at 60 m) lost the eaves and
+		# roof overhangs, so a house visibly grew as you walked up to it
+		# (2026-11-09). Measured on the village without it: GPU time the same
+		# (8.1 vs 8.2 ms at 200 m and 450 m, Intel iGPU).
+		var house: Node3D = scene.instantiate()
+		house.name = id.to_pascal_case()
+		root.add_child(house)
+		house.position = entry[1]
+		house.rotation.y = entry[2]
+		for mi in house.find_children("*", "MeshInstance3D", true, false):
+			_dress(mi as MeshInstance3D, mats, plaster, roof)
 
 
 ## A garden fence piece at `at` (x, z) turned `yaw`, standing on the ground:

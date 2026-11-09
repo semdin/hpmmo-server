@@ -699,10 +699,17 @@ static func _pitch_ring(kit: ArchKit, c: Vector3, axis: Vector3, R: float, r: fl
 	var pt := func(i: int, j: int) -> Vector3:
 		var dir := u * cos(TAU * i / seg) + v * sin(TAU * i / seg)
 		return c + dir * (R + r * cos(TAU * j / tseg)) + axis * (r * sin(TAU * j / tseg))
+	# Smooth-shaded: each vertex takes the tube's own normal (from the nearest
+	# point on the core circle), as Blender's Shade Smooth would. With a face
+	# normal per quad the 28 x 8 facets showed as flat gold panels (2026-11-09).
+	var tube_normal := func(p: Vector3) -> Vector3:
+		var w := p - c
+		var in_plane := w - axis * w.dot(axis)
+		return (p - (c + in_plane.normalized() * R)).normalized()
 	for i in seg:
 		var core := c + (u * cos(TAU * (i + 0.5) / seg) + v * sin(TAU * (i + 0.5) / seg)) * R
 		for j in tseg:
-			kit.quad(key, pt.call(i, j), pt.call(i + 1, j), pt.call(i + 1, j + 1), pt.call(i, j + 1), core)
+			kit.quad(key, pt.call(i, j), pt.call(i + 1, j), pt.call(i + 1, j + 1), pt.call(i, j + 1), core, tube_normal)
 
 
 ## Stone terraces all round the oval in straight segments tangent to it, each
@@ -781,6 +788,10 @@ static func _pitch_lines(root: Node3D, q: Vector3) -> void:
 	decal.size = Vector3(size.x, 30.0, size.y)
 	decal.position = GroundsLayout.ground(q.x, q.z)
 	decal.normal_fade = 0.5    # the floor only, not the hoop pillars' sides
+	# The ground's render layer only: a decal paints everything inside its
+	# 30 m box, and the chalk lay white across every player and creature that
+	# walked over a line (2026-11-09).
+	decal.cull_mask = GroundsTerrain.RENDER_BIT
 	root.add_child(decal)
 
 
