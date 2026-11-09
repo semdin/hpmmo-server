@@ -133,6 +133,8 @@ var _boulder_tick := -1
 
 var managed_respawn := false
 var summoned := false
+## Freed once its corpse has faded (dungeon creatures: they never respawn).
+var free_corpse := false
 var is_enraged := false
 var current_hp := 250
 var state: State = State.IDLE
@@ -319,6 +321,8 @@ func _ready() -> void:
 	# `_process` only draws a replica: the authority's thousands of creatures
 	# must not each get a frame callback that does nothing.
 	set_process(sim_puppet or hover_height > 0.0)
+	_headless = NetworkManager.is_dedicated_server
+	_calm_phase = int(get_instance_id() % CALM_STRIDE)
 	add_to_group("mobs")
 	add_to_group("targetable")
 	current_hp = max_hp
@@ -396,6 +400,10 @@ func _apply_boss_visual() -> void:
 				boss_node.free()
 			for mesh in visuals.find_children("*", "MeshInstance3D", true, false):
 				mesh.free()
+			# ~4,700 skeletons sat in the idle process list (120 Hz) for a
+			# modifier pass on bodies that have no meshes and no animation.
+			for skeleton in visuals.find_children("*", "Skeleton3D", true, false):
+				(skeleton as Skeleton3D).modifier_callback_mode_process = Skeleton3D.MODIFIER_CALLBACK_MODE_PROCESS_MANUAL
 		# Its name label too (thousands of Label3D nodes nobody reads); the
 		# multipart bodies and webs toggle theirs, so they keep it.
 		if String(get_script().resource_path).ends_with("/mob_base.gd") and label != null:
@@ -437,7 +445,7 @@ func _set_collision_enabled(enabled: bool) -> void:
 ## body skates when it moves at the gameplay speed. Only the creature sets that
 ## publish `walk_speed` are scaled this way.
 func _update_anim_speed(slot: String = "walk") -> void:
-	if not is_instance_valid(anim_player):
+	if _headless or not is_instance_valid(anim_player):
 		return
 	# The ground speed the body really covers (_track_drawn_speed): a stroll,
 	# a chase, a replica's interpolated glide.
@@ -496,6 +504,8 @@ func _track_drawn_speed(speed: float, delta: float) -> void:
 ## reached, a crowd in front) stands instead of running on the spot, and a
 ## replica that strolls walks instead of gliding in its idle pose.
 func _play_locomotion(moving_slot: String) -> void:
+	if _headless:
+		return
 	_play_slot(_gait_for(moving_slot) if _drawn_moving else "idle")
 
 ## A chase slower than half the run cycle's ground speed plays the walk, sped
@@ -508,8 +518,14 @@ func _gait_for(slot: String) -> String:
 		return "walk"
 	return slot
 
+## The dedicated server draws nothing: every clip choice, speed scale and
+## play() on a mob was work for a picture nobody sees (~10 ms/s at 4 fighters),
+## and play() on an inactive player grew its blend list without end. The
+## player itself stays: corpse timing reads the death clip's length.
+var _headless := false   # set in _ready (the flag is not known at class load)
+
 func _play_slot(slot: String, blend: float = 0.18) -> void:
-	if not is_instance_valid(anim_player):
+	if _headless or not is_instance_valid(anim_player):
 		return
 	if slot in ["walk", "run"]:
 		_update_anim_speed(slot)
@@ -532,6 +548,8 @@ func _phase_speed(slot: String, clip: String) -> float:
 ## Slam_Anticipation / Slam_Attack, "Cast_Area" -> Cast_Area_Anticipation / ...),
 ## so the same code drives the spider matriarch and the dark wizard.
 func _play_attack_clip(plan: Dictionary, phase: String, blend: float = 0.08) -> void:
+	if _headless:
+		return
 	var base := String(plan.get("clip", ""))
 	if base == "":
 		_play_slot(phase, blend)
@@ -554,7 +572,7 @@ func _play_attack_clip(plan: Dictionary, phase: String, blend: float = 0.08) -> 
 		_play_slot(phase, blend)
 
 func _play_anim(name_hint: String, blend: float = 0.18) -> void:
-	if not is_instance_valid(anim_player):
+	if _headless or not is_instance_valid(anim_player):
 		return
 	var aliases := {"Walking_A": "Walk", "Running_A": "Run", "1H_Melee_Attack_Chop": "Punch",
 		"Spellcast_Shoot": "Weapon", "Spellcast_Raise": "Weapon", "Hit_A": "HitReact", "Death_A": "Death"}
@@ -608,8 +626,38 @@ func _tick_visual_lod(delta: float) -> void:
 func _physics_process(delta: float) -> void:
 	# Timed for the world server's status line (HPProf; off elsewhere).
 	var t := HPProf.start()
-	_physics_step(delta)
+	if _headless and _calm():
+		# Out of a fight on the dedicated server: one step every CALM_STRIDE
+		# physics frames (20 Hz, twice per 10 Hz snapshot so a stroll stays
+		# even), with the time it covers. Mobs are spread over the frames.
+		_calm_acc += delta
+		if (Engine.get_physics_frames() + _calm_phase) % CALM_STRIDE != 0:
+			HPProf.stop("mobs", t)
+			return
+		var step := _calm_acc
+		_calm_acc = 0.0
+		_slide_scale = step / delta
+		_physics_step(step)
+		_slide_scale = 1.0
+	else:
+		_calm_acc = 0.0
+		_physics_step(delta)
 	HPProf.stop("mobs", t)
+
+## Idle and wandering creatures (about half of the awake ones in a hunting
+## ground) ran their AI and move_and_slide 60 times a second for a stroll
+## clients see 10 times a second. Anything that matters - a target, an attack
+## phase, a launch, a shove, a detour around an obstacle, a boss - runs every
+## frame as before.
+const CALM_STRIDE := 3
+var _calm_acc := 0.0
+var _calm_phase := 0
+var _slide_scale := 1.0
+
+func _calm() -> bool:
+	return (state == State.IDLE or state == State.WANDER) and not is_boss and not sim_puppet \
+		and attack_phase == AttackPhase.NONE and not _airborne and _detour_time <= 0.0 \
+		and not is_instance_valid(target_player) and knockback_velocity.length_squared() < 0.01
 
 ## Client view of a server-owned mob: no AI, no damage, no physics authority -
 ## only interpolation towards the last replicated sample, presentation from
@@ -708,8 +756,18 @@ func _physics_step(delta: float) -> void:
 	var standing := state == State.IDLE and attack_phase == AttackPhase.NONE and is_on_floor() \
 		and velocity.x == 0.0 and velocity.z == 0.0 and knockback_velocity.length_squared() < 0.01
 	if not standing:
-		move_and_slide()
-	var real := get_real_velocity() if not standing else Vector3.ZERO
+		if _slide_scale != 1.0:
+			# A calm step covers several physics frames, but move_and_slide
+			# always moves by one frame's delta: scale the motion, not the speed.
+			var snap := floor_snap_length
+			floor_snap_length = maxf(snap, 0.3)
+			velocity *= _slide_scale
+			move_and_slide()
+			velocity /= _slide_scale
+			floor_snap_length = snap
+		else:
+			move_and_slide()
+	var real := get_real_velocity() / _slide_scale if not standing else Vector3.ZERO
 	_track_drawn_speed(Vector2(real.x, real.z).length(), delta)
 	if global_position.y < -10.0:
 		global_position = spawn_point
@@ -958,7 +1016,7 @@ func _tick_corpse(delta: float) -> void:
 		visuals.position.y = -minf(2.5, fade * 1.6)
 	if fade > 1.4:
 		_set_shown(false)
-		if summoned and not sim_puppet:
+		if (summoned or free_corpse) and not sim_puppet:
 			queue_free()
 	if not sim_puppet and not managed_respawn and not summoned and _corpse_time > _respawn_delay:
 		_respawn()
@@ -987,8 +1045,13 @@ func _idle_and_wander(delta: float) -> void:
 		# Ordinary mobs are reactive: only explicit aggressive encounters use
 		# the proximity trigger (prototype policy 3.3).
 		if aggro_mode == "aggressive":
+			# Distance first: can_damage (two safe-zone tests) for every player
+			# on the server, near or not, was the costly part of this scan.
+			var reach_sq := aggro_radius * aggro_radius
 			for player in get_tree().get_nodes_in_group("players"):
-				if Rules.can_damage(self, player) and global_position.distance_to(player.global_position) < aggro_radius 						and not _out_of_reach(player) and Rules.has_line_of_sight(self, player):
+				if global_position.distance_squared_to(player.global_position) < reach_sq \
+						and not _out_of_reach(player) and Rules.can_damage(self, player) \
+						and Rules.has_line_of_sight(self, player):
 					aggro_on(player)
 					return
 	if state == State.WANDER:
@@ -1143,7 +1206,7 @@ func _fight(delta: float) -> void:
 ## Between swings in reach: the finished swing hands over to the idle stance
 ## instead of freezing on its last frame until the next windup.
 func _idle_after_swing() -> void:
-	if is_instance_valid(anim_player) and not anim_player.is_playing():
+	if not _headless and is_instance_valid(anim_player) and not anim_player.is_playing():
 		_play_slot("idle", 0.2)
 
 ## At most `attack_slots` pack mates may attack one target at a time; ties are
@@ -1392,6 +1455,12 @@ static func wake_pass(tree: SceneTree) -> void:
 		if not is_instance_valid(mob) or mob.sim_puppet:
 			continue
 		var can_sleep: bool = mob.state == State.IDLE or mob.state == State.WANDER
+		# A pooled corpse that has faded out sleeps too, near a player or not:
+		# it only waits for the director's respawn (which wakes it). Corpses
+		# stayed awake at 60 Hz until their whole pack was wiped - for good when
+		# the pack was abandoned.
+		var faded_corpse: bool = mob.state == State.DEAD and mob.managed_respawn and not mob.summoned \
+			and mob._corpse_time > mob._corpse_lifetime + 1.5
 		var near := false
 		if can_sleep:
 			var at: Vector3 = (mob as Node3D).global_position
@@ -1399,24 +1468,27 @@ static func wake_pass(tree: SceneTree) -> void:
 				if (p as Vector3).distance_squared_to(at) < r2:
 					near = true
 					break
-		var sleep := can_sleep and not near
+		var sleep := (can_sleep and not near) or faded_corpse
 		if sleep != mob._sleeping:
-			mob._sleeping = sleep
-			# Disabled, not just paused: a disabled body leaves the physics space,
-			# and 1700 idle bodies sitting in it were most of a quiet server's frame.
-			mob.process_mode = Node.PROCESS_MODE_DISABLED if sleep else Node.PROCESS_MODE_INHERIT
-			# A sleeping creature is out of every player's sight: its pose can wait.
-			if is_instance_valid(mob.anim_player) and not NetworkManager.is_dedicated_server:
-				mob.anim_player.active = not sleep
-			if sleep:
-				mob.velocity = Vector3.ZERO
+			mob._set_sleeping(sleep)
+
+## Disabled, not just paused: a disabled body leaves the physics space, and
+## 1700 idle bodies sitting in it were most of a quiet server's frame. It also
+## leaves the physics process list (a disabled node was still visited there
+## every step). A sleeping creature is out of every player's sight: its pose
+## can wait.
+func _set_sleeping(sleep: bool) -> void:
+	_sleeping = sleep
+	process_mode = Node.PROCESS_MODE_DISABLED if sleep else Node.PROCESS_MODE_INHERIT
+	set_physics_process(not sleep)
+	if is_instance_valid(anim_player) and not NetworkManager.is_dedicated_server:
+		anim_player.active = not sleep
+	if sleep:
+		velocity = Vector3.ZERO
 
 func wake() -> void:
 	if _sleeping:
-		_sleeping = false
-		process_mode = Node.PROCESS_MODE_INHERIT
-		if is_instance_valid(anim_player) and not NetworkManager.is_dedicated_server:
-			anim_player.active = true
+		_set_sleeping(false)
 
 ## A creature only keeps its distance from its own pack (packs stand tens of
 ## metres apart), so separation is O(pack) instead of O(every creature).
@@ -1793,6 +1865,7 @@ func _drop_mob_loot() -> void:
 ## collision and group membership - a respawned (or pooled) body must not
 ## remember who it was fighting.
 func _respawn() -> void:
+	wake()   # a faded corpse sleeps until this (wake_pass)
 	if sim_puppet:
 		var rec := SimAuthority.record_for(self)
 		if not rec.is_empty():

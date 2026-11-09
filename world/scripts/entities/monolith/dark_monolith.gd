@@ -187,6 +187,7 @@ func _spawn_wave(wave_num: int, target_player: Node3D) -> void:
 			mob.pack_id = int(get_instance_id())
 			mob.spawn_point = spawn_pos
 			get_parent().add_child(mob)
+			_summons.append(weakref(mob))
 			SimAuthority.register_mob(mob, mob.pack_id, String(HPRules.zone_id_for(spawn_pos)))
 			# Immediate aggro onto attacking player (Metin2 pack aggro)
 			if is_instance_valid(target_player) and mob.has_method("aggro_on"):
@@ -245,9 +246,27 @@ func present_respawn() -> void:
 	# The new spot rides in the next snapshot: fall onto it a moment later.
 	fall_in(0.25)
 
+## The creatures this stone's waves called up. A survivor of a fight nobody
+## finished used to stay in the world for good (up to 21 a stone kill); when
+## the stone rises again, the ones idling out of combat go.
+var _summons: Array = []   # WeakRef to mob nodes
+
+func _clear_idle_summons() -> void:
+	var keep: Array = []
+	for ref in _summons:
+		var mob = (ref as WeakRef).get_ref()
+		if mob == null or not is_instance_valid(mob) or mob.is_queued_for_deletion():
+			continue
+		if int(mob.get("current_hp")) > 0 and not is_instance_valid(mob.get("target_player")):
+			mob.queue_free()
+		else:
+			keep.append(ref)
+	_summons = keep
+
 func _respawn() -> void:
 	if is_queued_for_deletion():
 		return
+	_clear_idle_summons()
 	if _respawn_timer:
 		_respawn_timer.queue_free()
 		_respawn_timer = null

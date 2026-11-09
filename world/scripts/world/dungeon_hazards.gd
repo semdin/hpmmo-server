@@ -19,6 +19,11 @@ var _live: Array = []   # [{fx, data}]
 
 func _ready() -> void:
 	name = "DungeonHazards"
+	if NetworkManager.is_dedicated_server:
+		# The director resolves hazards and SimNet forwards them to clients;
+		# the warning picture is for eyes only.
+		set_process(false)
+		return
 	SimAuthority.dungeon_hazard.connect(_on_hazard)
 
 func _local_map() -> String:

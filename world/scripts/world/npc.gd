@@ -84,9 +84,13 @@ func _build(robe: Color) -> void:
 		for clip in LOOPING_CLIPS:
 			if animation.has_animation(clip):
 				animation.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
-		if animation.has_animation("Idle"):
-			animation.play("Idle")
-		_anim = animation
+		if NetworkManager.is_dedicated_server:
+			# Nobody sees it: an idle loop at 120 fps cost the server 8-20 ms/s.
+			animation.active = false
+		else:
+			if animation.has_animation("Idle"):
+				animation.play("Idle")
+			_anim = animation
 
 	var label := Label3D.new()
 	label.name = "NpcLabel"

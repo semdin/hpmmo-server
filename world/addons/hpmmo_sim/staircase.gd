@@ -299,6 +299,15 @@ func half_width() -> float:
 func map_id() -> String:
 	return HPMaps.map_for_point(global_position)
 
+## map_id(), worked out once the flight stands where it belongs (a staircase
+## never moves between maps; map_for_point walks every map).
+var _map_cache := ""
+
+func _home_map() -> String:
+	if _map_cache == "" and is_inside_tree():
+		_map_cache = map_id()
+	return _map_cache
+
 func slope() -> float:
 	var r := run_length()
 	return 0.0 if is_zero_approx(r) else rise() / r
@@ -426,10 +435,18 @@ func nearest_landing(world_point: Vector3) -> Vector3:
 
 # ------------------------------------------------------------- authority sim
 
+## The flight's whole state is a function of the 20 Hz sim tick; physics runs
+## at 60 Hz, so two of every three steps repeated the last one (seven flights,
+## every connected player scanned, every gate rewritten).
+var _stepped_tick := -1
+
 func _physics_process(_delta: float) -> void:
 	if is_authority_runtime:
 		if SimAuthority.simulation_paused():
 			return
+		if SimAuthority.sim_tick == _stepped_tick:
+			return
+		_stepped_tick = SimAuthority.sim_tick
 		_authority_step(SimAuthority.sim_tick)
 	else:
 		_apply_pending_payloads()
@@ -501,10 +518,13 @@ func _arrive(tick: int) -> void:
 ## creatures x seven flights x every tick held the world server at half rate).
 func _collect_riders(tick: int) -> void:
 	_riders.clear()
+	var here := _home_map()
 	for uid in SimAuthority.players_by_peer.values():
 		var record: Dictionary = SimAuthority.entities.get(uid, {})
 		if int(record.get("kind", 0)) != HPProtocol.Kind.PLAYER:
 			continue
+		if String(record.get("map_id", "")) != here:
+			continue   # nobody on another map can be on this deck
 		if bool(record.get("dead", false)):
 			continue
 		var node = record.get("node")
@@ -518,9 +538,17 @@ func _collect_riders(tick: int) -> void:
 ## against the closed gate is told why too (the gate itself is solid, so this is
 ## presentation - but the plan asks for feedback, not just a wall).
 func _enforce_entry(tick: int) -> void:
+	if _last_notice_tick.size() > 64:
+		# One entry per session uid that ever pressed a gate: keep the live ones.
+		for uid in _last_notice_tick.keys():
+			if tick - int(_last_notice_tick[uid]) > NOTICE_INTERVAL_TICKS:
+				_last_notice_tick.erase(uid)
+	var here := _home_map()
 	for uid in SimAuthority.players_by_peer.values():
 		var record: Dictionary = SimAuthority.entities.get(uid, {})
 		if int(record.get("kind", 0)) != HPProtocol.Kind.PLAYER:
+			continue
+		if String(record.get("map_id", "")) != here:
 			continue
 		if bool(record.get("dead", false)) or _riders.has(int(uid)):
 			continue
@@ -717,11 +745,24 @@ func _apply_payload(incoming: Dictionary) -> void:
 		_replica_p2 = incoming["p2"]
 	replica_active = true
 
+## The deck's pose and the gates change only while it moves or on a phase
+## change; docked (14 of every 21.5 s) every write was identical - a transform
+## propagation through the flight and ~6 deferred shape writes, per flight.
+var _applied_xform := Transform3D()
+var _applied_once := false
+var _gates_key := ""
+
 func _apply_platform(xform: Transform3D) -> void:
 	if platform == null or not is_instance_valid(platform):
 		return
-	platform.transform = xform
-	_update_gates()
+	if not _applied_once or xform != _applied_xform:
+		platform.transform = xform
+		_applied_xform = xform
+		_applied_once = true
+	var key := "%s|%d" % [state, dock_index]
+	if key != _gates_key:
+		_gates_key = key
+		_update_gates()
 
 ## Gates follow the replicated state on every process, so a client and the
 ## server always agree about whether the deck is open for boarding.
@@ -757,6 +798,8 @@ func _material(color: Color) -> StandardMaterial3D:
 	return material
 
 func _box(parent: Node3D, size: Vector3, position: Vector3, color: Color, rotation_x: float = 0.0, name_hint: String = "Box") -> MeshInstance3D:
+	if NetworkManager.is_dedicated_server:
+		return null   # collision only: ~81 meshes a flight rode the deck for nobody
 	var mesh_instance := MeshInstance3D.new()
 	mesh_instance.name = name_hint
 	var mesh := BoxMesh.new()

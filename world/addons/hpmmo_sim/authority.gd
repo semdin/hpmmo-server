@@ -3004,6 +3004,9 @@ func _advance_effects() -> void:
 			_push_vitals(record)
 		if sim_tick - int(record.get("spawned_tick", sim_tick)) > int(LOOT_LIFETIME_MS / TICK_MS) \
 				and int(record.get("kind", 0)) == HPProtocol.Kind.LOOT:
+			var view = record.get("node")
+			if view != null and is_instance_valid(view):
+				by_node.erase((view as Node).get_instance_id())   # one entry leaked per expired chest
 			entities.erase(uid)
 			emit_signal("entity_despawned", uid)
 
@@ -3735,6 +3738,8 @@ func _tick_creature_auras() -> void:
 		var node = mob.get("node")
 		if node == null or not is_instance_valid(node):
 			continue
+		if not (node as Node).can_process():
+			continue   # asleep (out of every player's range): no fight, no aura
 		var aura = node.get("aura")
 		if not (aura is Dictionary) or (aura as Dictionary).is_empty():
 			continue
@@ -4002,6 +4007,7 @@ func quest_event(player: Dictionary, type: String, target: String, amount: int =
 	var progress: Dictionary = player.get("quest_progress", {})
 	var ready: Array = player.get("quest_ready", [])
 	var changed := false
+	var became_ready := false
 	for quest in open_quests(player):
 		if String(quest.get("type", "")) != type:
 			continue
@@ -4013,6 +4019,7 @@ func quest_event(player: Dictionary, type: String, target: String, amount: int =
 		var count := int(progress.get(id, 0)) + amount
 		changed = true
 		if count >= int(quest.get("count", 1)):
+			became_ready = true
 			progress.erase(id)
 			ready.append(id)
 			emit_signal("quest_ready", int(player["uid"]), id)
@@ -4025,7 +4032,10 @@ func quest_event(player: Dictionary, type: String, target: String, amount: int =
 	player["quest_ready"] = ready
 	_store_quest_state(player)
 	touch(player)
-	_push_stats(player)
+	if became_ready:
+		_push_stats(player)
+	else:
+		_push_quest_progress(player)
 	if persistence != null:
 		persistence.save_player(player)
 
@@ -4217,6 +4227,21 @@ func _push_vitals(record: Dictionary) -> void:
 	# A copy: listeners annotate the payload they receive (state_binder adds
 	# "source"), which must not alter the one kept for the comparison.
 	emit_signal("stats_changed", int(record["uid"]), vitals.duplicate())
+
+## A kill or a visit that only moved a quest counter: the owner gets its vitals
+## and quest state (~1-2 KB), not the whole sheet (bag, gear, derived stats,
+## skills: 5-20 KB on the reliable channel, and a full equipment re-apply on
+## the server's own body) on every counted kill. The vitals ride along because
+## the HUD reads a stats payload as a whole (missing hp would read as 0).
+## Viewers hear nothing new (the public part is unchanged).
+func _push_quest_progress(record: Dictionary) -> void:
+	var vitals := build_vitals(record)
+	record["__vitals_sent"] = vitals
+	var payload := vitals.duplicate()
+	payload["quests"] = {"progress": (record.get("quest_progress", {}) as Dictionary).duplicate(),
+		"ready": (record.get("quest_ready", []) as Array).duplicate(),
+		"done": (record.get("quest_done", []) as Array).duplicate()}
+	emit_signal("stats_changed", int(record["uid"]), payload)
 
 func build_vitals(record: Dictionary) -> Dictionary:
 	var result := {
@@ -5448,10 +5473,30 @@ func _party_changed(uids: Array) -> void:
 		emit_signal("party_state", int(uid), party_state_for(int(uid)))
 
 ## Once a second: invitations expire and every party sees its members' health.
+## The view is the same for every member: built once a party and sent only
+## when it changed, with a full resend every PARTY_RESEND_S as a safety net (a
+## member mid-transfer may miss one). Joins, leaves and kicks still go out at
+## once through _party_changed.
+const PARTY_RESEND_S := 5
+var _party_sent: Dictionary = {}   # party id -> [view hash, tick sent]
+
 func _tick_parties() -> void:
 	party.expire_invites(sim_tick)
+	for pid in _party_sent.keys():
+		if not party.parties.has(pid):
+			_party_sent.erase(pid)
 	for pid in party.parties.keys():
-		_party_changed((party.parties[pid]["members"] as Array).duplicate())
+		var members: Array = (party.parties[pid]["members"] as Array).duplicate()
+		if members.is_empty():
+			continue
+		var view := party_state_for(int(members[0]))
+		var digest := hash(view)
+		var last: Array = _party_sent.get(pid, [0, -1000000])
+		if digest == int(last[0]) and sim_tick - int(last[1]) < PARTY_RESEND_S * HPProtocol.SIM_HZ:
+			continue
+		_party_sent[pid] = [digest, sim_tick]
+		for uid in members:
+			emit_signal("party_state", int(uid), view)
 
 ## A `/command` typed into chat. Returns {"handled", "reply"} - the reply is
 ## a system line for the sender alone; "party_text" carries a /p line.

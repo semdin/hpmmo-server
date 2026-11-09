@@ -408,9 +408,12 @@ func _ready() -> void:
 		spring_arm.spring_length = camera_distance
 	if nameplate:
 		nameplate.position.y = NAMEPLATE_HEIGHT
-	_setup_sockets()
-	
+	if not NetworkManager.is_dedicated_server:
+		_setup_sockets()   # bone sockets carry the wand and broom pictures
+
 	_setup_character_model()
+	if NetworkManager.is_dedicated_server:
+		_strip_server_body()
 	if visuals != null and not NetworkManager.is_dedicated_server:
 		HeroAppearance.apply_look(visuals, look)
 	if is_local_player and camera:
@@ -464,6 +467,23 @@ func _strip_presentation() -> void:
 	spring_arm = null
 	camera = null
 	nameplate = null
+
+## Dedicated server: the hero's pictures go. The GLB's AnimationPlayer (195
+## tracks, 65 bones) still played Hit/Death/Idle, and ~31 hero meshes took
+## transform notifications on every move - several ms/s per 4 players for a
+## body nobody draws. The skeleton stays (the body's shape and facing do not
+## depend on it, but code that looks it up still finds it); the broom's own
+## parts stay with the broom rig.
+func _strip_server_body() -> void:
+	if is_instance_valid(anim_player):
+		anim_player.free()
+	anim_player = null
+	if visuals == null:
+		return
+	for mesh in visuals.find_children("*", "MeshInstance3D", true, false):
+		if broom_mesh != null and broom_mesh.is_ancestor_of(mesh):
+			continue
+		mesh.free()
 
 func _setup_character_model() -> void:
 	# Rig hero: the model, its animation graph and the broom rig. The
@@ -811,8 +831,11 @@ func _process(delta: float) -> void:
 	_expire_buffs()
 	if sim_puppet and not is_local_player and not NetworkManager.is_dedicated_server:
 		_update_puppet_view(delta)
-	_update_flight_pose(delta)
-	_apply_visual_offset(delta)
+	# Pictures only (the broom pose, the lift, two find_child walks a frame);
+	# facing is set in the physics step. Skipped on the dedicated server.
+	if not NetworkManager.is_dedicated_server:
+		_update_flight_pose(delta)
+		_apply_visual_offset(delta)
 	if hero_anim:
 		hero_anim.tick(delta)
 		# Keep a wand cast tracking its target: the aim point is the mouse (or the

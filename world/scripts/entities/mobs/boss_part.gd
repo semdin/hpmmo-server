@@ -43,6 +43,7 @@ func on_authoritative_death(_killer: Node3D) -> void:
 
 ## A wipe reset the body: the part stands again at full health (authority).
 func revive() -> void:
+	wake()   # a faded part may have been put to sleep with its corpse
 	current_hp = max_hp
 	_set_state(State.IDLE)
 	add_to_group("targetable")

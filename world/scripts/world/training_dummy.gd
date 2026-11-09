@@ -68,8 +68,12 @@ func take_damage(amount: int, spell: String, attacker: Node3D) -> void:
 ## Presentation after the engine applied damage. Dummies never die: at zero they
 ## reset, which the engine performs so every client sees the same full bar.
 func on_authoritative_damage(_spell: String, _attacker: Node3D, _stun_ms: int, _weaken_ms: int) -> void:
-	if current_hp <= 0:
+	var was_reset := current_hp <= 0
+	if was_reset:
 		SimAuthority.reset_dummy(self)
+	if NetworkManager.is_dedicated_server:
+		return   # the label, the floating text and the wobble are for eyes only
+	if was_reset:
 		_update_label()
 		var ft_scene = load("res://scenes/ui/floating_text.tscn")
 		if ft_scene:

@@ -48,8 +48,8 @@ func _ready() -> void:
 ## the hall (measured: deck albedo 0.42 under a dim interior ambient). The
 ## authority's geometry is untouched; this only dresses the boxes it built.
 func _polish_geometry() -> void:
-	if platform == null or not is_instance_valid(platform):
-		return
+	if platform == null or not is_instance_valid(platform) or NetworkManager.is_dedicated_server:
+		return   # the server builds the flight collision-only
 	var stone := PBR.surface("stone_ashlar_01", Color(0.88, 0.86, 0.82), {"metres": 3.0})
 	var wood := PBR.surface("dark_wooden_planks")
 	var rail := PBR.surface("dark_wooden_planks", Color(0.62, 0.56, 0.5))

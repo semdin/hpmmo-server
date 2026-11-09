@@ -1010,18 +1010,26 @@ static func spawn_buffer() -> float:
 	ensure_loaded()
 	return float(_zones.get("spawn_buffer", 8.0))
 
+## Geometry first, the map lookup only on a hit: map_for_point walks every map
+## and safe_zone_ids builds an array, and this runs for every fighting creature
+## every tick (can_damage) - almost always for a point inside no zone at all.
+## Same answer as testing the map first.
 static func is_protected_point(point: Vector3) -> bool:
-	var map_zones: Variant = _zones_for_point(point)
-	for zone in _zone_list():
-		if _point_in_zone_on(point, zone, 0.0, map_zones):
-			return true
-	return false
+	return _in_any_zone(point, 0.0)
 
 static func is_spawn_blocked(point: Vector3) -> bool:
-	var pad := spawn_buffer()
-	var map_zones: Variant = _zones_for_point(point)
+	return _in_any_zone(point, spawn_buffer())
+
+static func _in_any_zone(point: Vector3, pad: float) -> bool:
+	var map_zones: Variant = null
+	var looked_up := false
 	for zone in _zone_list():
-		if _point_in_zone_on(point, zone, pad, map_zones):
+		if not _point_in_zone_shape(point, zone, pad):
+			continue
+		if not looked_up:
+			map_zones = _zones_for_point(point)
+			looked_up = true
+		if _zone_applies_on(zone, map_zones):
 			return true
 	return false
 
@@ -1040,8 +1048,10 @@ static func _point_in_zone(point: Vector3, zone: Dictionary, pad: float) -> bool
 	return _point_in_zone_on(point, zone, pad, _zones_for_point(point))
 
 static func _point_in_zone_on(point: Vector3, zone: Dictionary, pad: float, map_zones: Variant) -> bool:
-	if not _zone_applies_on(zone, map_zones):
-		return false
+	return _zone_applies_on(zone, map_zones) and _point_in_zone_shape(point, zone, pad)
+
+## The zone's own volume (y band, then cylinder or box), map aside.
+static func _point_in_zone_shape(point: Vector3, zone: Dictionary, pad: float) -> bool:
 	var y_min := float(zone.get("y_min", -1000.0))
 	var y_max := float(zone.get("y_max", 1000.0))
 	if point.y < y_min or point.y > y_max:

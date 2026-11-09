@@ -1966,9 +1966,13 @@ func broadcast_stats(uid: int, stats: Dictionary) -> void:
 	if owner_peer != 0 and owner_peer != local_peer_id and peers.has(owner_peer):
 		sim_stats_event.rpc_id(owner_peer, uid, stats)
 	var public := SimAuthority.public_stats(stats)
-	if record.is_empty() or public == record.get("__public_sent"):
+	# Viewers hear a change of level, life or mount. Hit points already reach
+	# them in every snapshot and damage event: re-sending them on each regen
+	# tick and each hit was a reliable RPC per viewer per change (O(P^2)).
+	var change := {"level": public.get("level"), "dead": public.get("dead"), "mounted": public.get("mounted")}
+	if record.is_empty() or change == record.get("__public_sent"):
 		return
-	record["__public_sent"] = public
+	record["__public_sent"] = change
 	for peer_id in peers:
 		if peer_id != owner_peer and _peer_can_see(peer_id, uid):
 			sim_stats_event.rpc_id(peer_id, uid, public)

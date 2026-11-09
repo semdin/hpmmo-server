@@ -608,7 +608,11 @@ func _setup_replication() -> void:
 		SimAuthority.cast_released.connect(_on_cast_released)
 		SimAuthority.cast_landed.connect(_on_cast_landed)
 		SimAuthority.cast_impact.connect(_on_cast_impact)
-	SimAuthority.loot_spawned.connect(_on_loot_spawned)
+		# A chest is a record on the server (pos, items, owner): the pickup,
+		# expiry and replication never read a node. The view (GLB, light,
+		# label, an always-monitoring Area3D and a 120 fps glow) cost the
+		# dedicated server ~10 ms/s at 4 fighters and leaked a by_node entry.
+		SimAuthority.loot_spawned.connect(_on_loot_spawned)
 	SimAuthority.chat.connect(_on_chat)
 	SimAuthority.world_event.connect(_on_world_event)
 	SimAuthority.chat_line.connect(_on_chat_line)
@@ -1128,5 +1132,5 @@ func _on_chat_line(channel: String, uid: int, sender: String, house: String, tex
 		var node = record.get("node")
 		if node is Node3D and is_instance_valid(node):
 			speaker = node
-	if speaker != null:
+	if speaker != null and not NetworkManager.is_dedicated_server:
 		SpeechBubble.say(speaker, text, 2.62)

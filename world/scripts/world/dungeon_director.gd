@@ -794,6 +794,9 @@ func _spawn(map_id: String, entry: Dictionary, origin: Vector3, pack_id: int) ->
 	mob.pack_anchor = at
 	mob.pack_id = pack_id
 	mob.managed_respawn = true   # a dungeon creature stays dead
+	# ...and once its body has sunk it is gone: up to 165 corpses a copy kept a
+	# physics tick and filled the nearest snapshot slots until the copy closed.
+	mob.free_corpse = true
 	mob.encounter_id = "dng:%s:%d" % [map_id, pack_id]
 	# The run's level, not a fixed one: reference + difficulty + role (dungeons.json v2).
 	var params: Dictionary = (runs.get(map_id, {}) as Dictionary).get("params", {})
