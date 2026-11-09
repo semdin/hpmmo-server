@@ -193,6 +193,7 @@ func save_character(character_id: int, payload: Dictionary, delay_ms: int = SAVE
 	if character_id <= 0: return
 	if _reconciling.has(character_id): return
 	_pending_saves[character_id] = payload.duplicate(true)
+	_pending_saves[character_id]["save_id"] = _new_save_id(character_id)
 	var due := Time.get_ticks_msec() + maxi(0, delay_ms)
 	if not _due.has(character_id) or due < int(_due[character_id]):
 		_due[character_id] = due
@@ -219,27 +220,61 @@ func pending_count() -> int:
 	dirty.merge(_reconciling, true)
 	return dirty.size()
 
+## Every queued sheet gets its own id (the service keeps the last committed
+## one); a retry of the same sheet keeps it.
+var _save_seq := 0
+## character_id -> save_id of a write whose outcome is unknown (no answer, or
+## an answer that says it may or may not have applied). The next write names it
+## as `after_save_id`: if it did commit, the revision it bumped is ours, not a
+## competing writer's, and must not cause a 409 + rollback.
+var _uncertain: Dictionary = {}
+
+func _new_save_id(character_id: int) -> String:
+	_save_seq += 1
+	return "%d-%d-%d-%x" % [character_id, Time.get_unix_time_from_system(), _save_seq, randi()]
+
+## A refusal that a retry of the same sheet can never turn into a success: the
+## service validated the sheet and said no. Retrying it forever wedged the
+## character (every relog refused with save_pending until a server restart).
+static func _permanent_refusal(status: int) -> bool:
+	return status >= 400 and status < 500 and status != 408 and status != 409 and status != 429
+
 func _flush_character(character_id: int) -> void:
 	if _saving.has(character_id) or _reconciling.has(character_id) or not _pending_saves.has(character_id): return
 	var body: Dictionary = _pending_saves[character_id]
 	_pending_saves.erase(character_id)
 	_due.erase(character_id)
 	body["base_revision"] = int(revisions.get(character_id, -1))
+	if _uncertain.has(character_id) and String(_uncertain[character_id]) != String(body.get("save_id", "")):
+		body["after_save_id"] = String(_uncertain[character_id])
+	else:
+		body.erase("after_save_id")
 	_saving[character_id] = true
 	_post_async("/api/characters/save", body, func(response: Dictionary):
 		_saving.erase(character_id)
 		var status := int(response.get("_status", 0))
 		if status == 200:
 			_save_failures.erase(character_id)
+			_uncertain.erase(character_id)
 			revisions[character_id] = int(response.get("revision", 0))
 			# A sheet queued while this one was in flight goes out on its own
 			# due time (_process), not straight away: a fight would otherwise
 			# write back to back.
 		elif status == 409:
 			_save_failures.erase(character_id)
+			_uncertain.erase(character_id)
 			# A concurrent writer won. Adopt its inventory; never replay a stale full bag.
 			_reconcile_character(character_id, body)
+		elif _permanent_refusal(status):
+			# Dropped, loudly: the next change saves a fresh sheet. The live
+			# body keeps playing; nothing waits on this write any more.
+			last_error = "save_%d" % status
+			_save_failures.erase(character_id)
+			push_error("[Persistence] save of character %d refused (%d): %s - sheet dropped" % [
+				character_id, status, String(response.get("message", response.get("error", "")))])
 		else:
+			# No answer, or an answer that cannot say whether it applied.
+			_uncertain[character_id] = String(body.get("save_id", ""))
 			last_error = "save_%d" % status
 			var fails: int = int(_save_failures.get(character_id, 0)) + 1
 			_save_failures[character_id] = fails

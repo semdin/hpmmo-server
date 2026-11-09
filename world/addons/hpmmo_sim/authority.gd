@@ -470,10 +470,9 @@ func apply_character_binding(record: Dictionary, character: Dictionary) -> Strin
 	if character.get("pos") is Array and (character["pos"] as Array).size() == 3:
 		var saved: Array = character["pos"]
 		pos = Vector3(float(saved[0]), float(saved[1]), float(saved[2]))
-	var saved_map := String(character.get("map_id", ""))
-	var map_id := saved_map if HPMaps.map_exists(saved_map) else HPMaps.map_for_point(pos)
-	map_provider_ready(map_id)
-	pos = start_position(map_id, pos)
+	var wake := wake_place(String(character.get("map_id", "")), pos, int(character.get("id", 0)))
+	var map_id := String(wake["map"])
+	pos = wake["pos"]
 	# The body's identity is the CHARACTER's, not the account username the
 	# unbound body joined under: the nameplate, chat and roster all read these.
 	if character.get("name") is String and String(character["name"]) != "":
@@ -509,6 +508,7 @@ func apply_character_binding(record: Dictionary, character: Dictionary) -> Strin
 	record["house_rep"] = _node_house_rep(node)
 	_load_quest_state(record, node)
 	players_by_character[character_id] = int(record.get("uid", 0))
+	adopt_run_seat(record)
 	record.erase("awaiting_bind")
 	# Bound, but its client is still on the loading screen: other players see
 	# the body only once that client drives it (its first input, sent once the
@@ -865,8 +865,8 @@ func submit_input(peer_id: int, seq: int, move: Vector2, yaw: float, jump: bool,
 	if mutations_frozen():
 		return   # the save barrier owns the world from here on
 	var record := player_record(peer_id)
-	if record.is_empty():
-		return
+	if record.is_empty() or bool(record.get("awaiting_bind", false)):
+		return   # a session with no character yet has no body to drive
 	record.erase("awaiting_world")   # its client is in the world (apply_character_binding)
 	if bool(record.get("dead", false)):
 		return
@@ -1520,7 +1520,14 @@ func _fire_portkey(pk: Dictionary) -> void:
 		if body != null and is_instance_valid(body):
 			var bag: Array = body.inventory.duplicate(true)
 			HPEquipment.add(bag, String(pk.item), 0, 1)
-			_set_bag(owner, bag)
+			if HPEquipment.capacity_ok(bag):
+				_set_bag(owner, bag)
+			else:
+				# A full bag gets the boot back as the owner's chest at their
+				# feet: a 41st entry made every later save of the character
+				# invalid (the service caps the bag at 40).
+				_spawn_chest([{"id": String(pk.item), "amount": 1, "tier": 0}], (body as Node3D).global_position,
+					String(owner.get("map_id", "")), int(owner.get("uid", 0)))
 		_broadcast_portkey(pk, "gone")
 		print("[Authority] portkey %d fizzled (nobody holding); boot returned" % int(pk.id))
 		return
@@ -2545,9 +2552,12 @@ func _apply_damage(target: Dictionary, raw: int, spell_id: String, attacker: Dic
 	amount = _creature_damage_mods(target, attacker, amount, pierce)
 	if amount <= 0 and bool(target.get("immune", false)):
 		return 0
-	# Protego: projectiles are reflected (handled by the caller), everything else
-	# is reduced by the authored multiplier.
-	if int(target.get("ward_until_tick", 0)) > sim_tick and not _is_projectile_spell(spell_id):
+	# Protego: single-target projectiles are reflected (handled by the caller),
+	# everything else is reduced by the authored multiplier - creature melee,
+	# slams, cones, auras, DoTs and curses too. Their ids are not in spells.json,
+	# and delivery() defaults to "projectile", so they used to land in full.
+	if int(target.get("ward_until_tick", 0)) > sim_tick \
+			and (HPRules.spell(spell_id).is_empty() or HPRules.delivery(spell_id) != "projectile"):
 		amount = int(float(amount) * HPRules.ward_other_multiplier("protego"))
 
 	if not attacker.is_empty():
@@ -2706,6 +2716,16 @@ func _weapon_roll(record: Dictionary, spell_id: String) -> float:
 	if not (span is Array) or (span as Array).size() < 2:
 		return 0.0
 	return float(rng.randi_range(int(span[0]), maxi(int(span[0]), int(span[1]))))
+
+## A burn or bleed a PLAYER laid on a player whose caster has left the world:
+## with no attacker the damage skips the duel 1-HP rule, the faction gate and
+## the safe zones, so a duel foe who logged out made their Incendio a real kill.
+## Such an effect ends instead of ticking. Creature-sourced effects keep their
+## old behaviour.
+func _orphan_pvp_effect(record: Dictionary, source: Dictionary, effect: String) -> bool:
+	return source.is_empty() and int(record.get(effect + "_source_uid", 0)) != 0 \
+		and int(record.get(effect + "_source_kind", -1)) == HPProtocol.Kind.PLAYER \
+		and int(record.get("kind", -1)) == HPProtocol.Kind.PLAYER
 
 func _is_projectile_spell(spell_id: String) -> bool:
 	var delivery := HPRules.delivery(spell_id)
@@ -2870,6 +2890,7 @@ func _start_burn(target: Dictionary, burn: Dictionary, attacker: Dictionary) -> 
 	target["burn_next_tick"] = sim_tick + int(ceil(float(interval) / TICK_MS))
 	target["burn_damage"] = int(burn.get("damage", 0))
 	target["burn_source_uid"] = int(attacker.get("uid", 0)) if not attacker.is_empty() else 0
+	target["burn_source_kind"] = int(attacker.get("kind", -1)) if not attacker.is_empty() else -1
 	target["burn_kind"] = "burn"
 
 ## A bleed of `bleed` ({damage, ticks, interval_ms}) on `target`: its own clock
@@ -2884,6 +2905,7 @@ func _start_bleed(target: Dictionary, bleed: Dictionary, attacker: Dictionary) -
 	target["bleed_interval"] = interval
 	target["bleed_damage"] = int(bleed.get("damage", 0))
 	target["bleed_source_uid"] = int(attacker.get("uid", 0)) if not attacker.is_empty() else 0
+	target["bleed_source_kind"] = int(attacker.get("kind", -1)) if not attacker.is_empty() else -1
 	_ticking[int(target.get("uid", 0))] = true
 
 ## Every crowd-control and bleed field back to nothing (respawn, reset).
@@ -2961,7 +2983,10 @@ func _advance_effects() -> void:
 				# running, matching the core rule).
 				record["burn_next_tick"] = sim_tick + interval_ticks
 				var source: Dictionary = entities.get(int(record.get("burn_source_uid", 0)), {})
-				_apply_damage(record, int(record.get("burn_damage", 0)), String(record.get("burn_kind", "burn")), source)
+				if _orphan_pvp_effect(record, source, "burn"):
+					record["burn_until_tick"] = 0
+				else:
+					_apply_damage(record, int(record.get("burn_damage", 0)), String(record.get("burn_kind", "burn")), source)
 		var bleed_until := int(record.get("bleed_until_tick", 0))
 		if bleed_until > 0 and not bool(record.get("dead", false)):
 			if sim_tick > bleed_until:
@@ -2969,7 +2994,10 @@ func _advance_effects() -> void:
 			elif sim_tick >= int(record.get("bleed_next_tick", 0)):
 				record["bleed_next_tick"] = sim_tick + int(record.get("bleed_interval", interval_ticks))
 				var bleeder: Dictionary = entities.get(int(record.get("bleed_source_uid", 0)), {})
-				_apply_damage(record, int(record.get("bleed_damage", 0)), "bleed", bleeder)
+				if _orphan_pvp_effect(record, bleeder, "bleed"):
+					record["bleed_until_tick"] = 0
+				else:
+					_apply_damage(record, int(record.get("bleed_damage", 0)), "bleed", bleeder)
 		if int(record.get("ward_until_tick", 0)) != 0 and sim_tick >= int(record["ward_until_tick"]):
 			record["ward_until_tick"] = 0
 			touch(record)
@@ -3038,6 +3066,14 @@ func _grant_kill_rewards(target: Dictionary) -> void:
 	if target_node != null and is_instance_valid(target_node):
 		var kill_pos: Vector3 = (target_node as Node3D).global_position
 		var kill_map := String(target.get("map_id", HPProtocol.DEFAULT_MAP))
+		# A share needs a level near the fighters' (the dungeon party's
+		# max_level_spread) and a member out in the field: a level-1 alt parked
+		# in a safe camp beside a level-35 hunter took the full experience (x1.2
+		# for the gap) and the quest credit of every kill.
+		var top_level := 0
+		for uid in eligible:
+			top_level = maxi(top_level, _player_level(entities.get(uid, {})))
+		var spread := int(HPRules.dungeon_group().get("max_level_spread", 15))
 		for uid in eligible.duplicate():
 			for member_uid in party.members_of(int(uid)):
 				if eligible.has(member_uid):
@@ -3049,6 +3085,8 @@ func _grant_kill_rewards(target: Dictionary) -> void:
 				if String(member.get("map_id", HPProtocol.DEFAULT_MAP)) != kill_map:
 					continue
 				if (mnode as Node3D).global_position.distance_to(kill_pos) > PartyBook.SHARE_RADIUS:
+					continue
+				if top_level - _player_level(member) > spread or HPRules.is_protected_node(mnode):
 					continue
 				eligible.append(member_uid)
 	for uid in eligible:
@@ -4876,8 +4914,12 @@ func _launch_dungeon(check: Dictionary) -> void:
 	for old_id in abandoned:
 		close_instance(old_id)
 	var copies: Dictionary = instances.get(base, {})
+	var seats := {}
+	for record in checked["records"]:
+		if int((record as Dictionary).get("character_id", 0)) > 0:
+			seats[int(record["character_id"])] = int(record.get("uid", 0))
 	copies[slot] = {"owner": _instance_owner(leader), "opened_tick": sim_tick, "empty_since_tick": -1,
-		"params": params, "roster": (check["roster"] as Array).duplicate()}
+		"params": params, "roster": (check["roster"] as Array).duplicate(), "roster_chars": seats}
 	instances[base] = copies
 	var copy := HPMaps.instance_id(base, slot)
 	var spawn_id := String((gate["portal"] as Dictionary).get("to_spawn", "default"))
@@ -5265,6 +5307,76 @@ func _push_active_runs() -> void:
 		if refresh or not _active_told.has(member_uid):   # the moment they step out, then every 5 s
 			_active_told[member_uid] = true
 			emit_signal("dungeon_event", int(member_uid), {"kind": "active", "run": _active_run_view(int(member_uid))})
+
+## Where a character wakes: its saved map and position, the map's authored
+## respawn for a position that does not belong there - and never inside a
+## dungeon copy it holds no seat in. Copies live in memory only (every restart
+## closes them) and close after their empty TTL, so a sheet saved inside one
+## used to rebuild it as an orphan nobody tears down: gates shut, no exit, the
+## character stuck for good (or put into another party's copy of that slot).
+## Such a character wakes outside, where the dungeon's own exit leads.
+## Returns {"map", "pos"}; the map is built in this process before it returns.
+func wake_place(saved_map: String, pos: Vector3, character_id: int) -> Dictionary:
+	var map_id := saved_map if HPMaps.map_exists(saved_map) else HPMaps.map_for_point(pos)
+	if HPMaps.instance_slot(map_id) > 0 and not _holds_seat(map_id, character_id):
+		var outside := _dungeon_outside(map_id)
+		print("[Authority] character %d saved in %s holds no seat in a live copy; waking at %s" % [
+			character_id, map_id, String(outside["map"])])
+		map_id = String(outside["map"])
+		pos = outside["pos"]
+	map_provider_ready(map_id)
+	return {"map": map_id, "pos": start_position(map_id, pos)}
+
+## Whether `character_id` is on the roster of the live copy `map_id`.
+func _holds_seat(map_id: String, character_id: int) -> bool:
+	if character_id <= 0:
+		return false
+	var info: Dictionary = (instances.get(HPMaps.base_map(map_id), {}) as Dictionary).get(HPMaps.instance_slot(map_id), {})
+	return (info.get("roster_chars", {}) as Dictionary).has(character_id)
+
+## The far side of a dungeon's exit portal ({"map", "pos"}); the default map's
+## respawn when the dungeon has none.
+func _dungeon_outside(map_id: String) -> Dictionary:
+	var fallback := {}
+	for portal in HPMaps.portals_for_map(map_id):
+		var to_map := String((portal as Dictionary).get("to_map", ""))
+		if to_map == "" or HPMaps.base_map(to_map) == HPMaps.base_map(map_id) or not HPMaps.map_exists(to_map):
+			continue
+		var out := {"map": to_map, "pos": HPMaps.spawn_point(to_map, String(portal.get("to_spawn", "default")))}
+		if not String(portal.get("id", "")).contains("reward"):
+			return out
+		if fallback.is_empty():
+			fallback = out
+	if not fallback.is_empty():
+		return fallback
+	return {"map": HPProtocol.DEFAULT_MAP, "pos": HPMaps.respawn_point(HPProtocol.DEFAULT_MAP)}
+
+## A run member who comes back under a new session (a reconnect, a relog, a
+## crash) gets a new uid; the run's lists hold uids, so the member lost the
+## door back in, kill experience, clear credit and the final chest. The copy
+## keeps character id -> uid (`roster_chars`), and the new uid takes the old
+## one's place everywhere the run counts members.
+func adopt_run_seat(record: Dictionary) -> void:
+	var character_id := int(record.get("character_id", 0))
+	var uid := int(record.get("uid", 0))
+	if character_id <= 0 or uid <= 0:
+		return
+	for base in instances.keys():
+		for slot in (instances[base] as Dictionary).keys():
+			var info: Dictionary = instances[base][slot]
+			var seats: Dictionary = info.get("roster_chars", {})
+			if not seats.has(character_id) or int(seats[character_id]) == uid:
+				continue
+			var old_uid := int(seats[character_id])
+			seats[character_id] = uid
+			var params: Dictionary = info.get("params", {})
+			for list in [info.get("roster", []), params.get("roster", []), params.get("helpers", []), params.get("first_run", [])]:
+				var at := (list as Array).find(old_uid)
+				if at >= 0:
+					(list as Array)[at] = uid
+			_active_told.erase(old_uid)
+			print("[Authority] character %d takes its seat back in %s (uid %d -> %d)" % [
+				character_id, HPMaps.instance_id(String(base), int(slot)), old_uid, uid])
 
 func close_instance(map_id: String) -> void:
 	var copies: Dictionary = instances.get(HPMaps.base_map(map_id), {})
@@ -5687,6 +5799,13 @@ func is_ga(record: Dictionary) -> bool:
 		return true
 	if bool(record.get("replica", false)):
 		return bool(record.get("ga", false))
+	# A GA is a CHARACTER: a session that has not bound one carries the
+	# account's login name, and account names are a separate namespace (an
+	# account named like a GA's character was a GA). With persistence on, only
+	# a bound character counts; names are unique case-insensitively in the
+	# database (migration 0009), so the lowercased name is the character.
+	if persistence != null and int(record.get("character_id", 0)) <= 0:
+		return false
 	_ensure_ga()
 	return _ga_names.has(String(record.get("name", "")).strip_edges().to_lower())
 

@@ -33,6 +33,14 @@ var _samples: Array = []          # [{t: server ms, pos: Vector3, rot: float}], 
 var _interval_ms := 100.0         # smoothed time between this body's samples
 var snapped := false              # set by push() on a teleport; the caller clears it
 
+## A new world session (a join after a server restart starts its ticks again
+## from 0): the clock is learned afresh. Kept across a restart, every new tick
+## was "older" than the last one seen, the offset froze at the old epoch and
+## every remote body coasted and stepped until the client was restarted.
+static func reset_clock() -> void:
+	_clock_offset = NAN
+	_clock_tick = -1
+
 static func _note_tick(tick: int) -> void:
 	if tick <= _clock_tick:
 		return

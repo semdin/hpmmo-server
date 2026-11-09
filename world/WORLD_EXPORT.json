@@ -1,7 +1,7 @@
 {
  "generated": "2026-11-09",
  "source_repository": "hpmmo-client",
- "source_revision": "9b65595e5724b1092f7e00ed616cf10af92ee2c8",
+ "source_revision": "ad9265a7adb82c3e041807cbe7d4b06029cd3127",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/audio/sound_library.json": "c1d191056275c9a8d4657bf650376060444d8a0a1af7eaeca72cc30b632c60cc",
@@ -677,9 +677,9 @@
   "scripts/entities/mobs/wing_flap.gd": "f1c0ed4f1d22dfe9551490d60053557339e89e04e2f0e65c2e7353874fb6b0a9",
   "scripts/entities/monolith/dark_monolith.gd": "8b7f74188dd86380d138e31758dd92ec78722ac9b163bede3face2c6dbf1ff25",
   "scripts/entities/monolith/monolith_beacons.gd": "485baf88b2156532c6bac65d9b55261c068c5f020e894a79084e7a80df97d5fb",
-  "scripts/entities/player.gd": "20ff814f012e9089e4e20566aa0ab604be6b05a5f77477719c0f37af0889533a",
+  "scripts/entities/player.gd": "44ec8b13e767954953685cc57e96e3b22a4c0e1e5ef265666713fc8f5a779a1c",
   "scripts/entities/prediction_history.gd": "37fb7c2c999e7f823a7fbc6c55302f1b74191fe70944b0147e64e85b4e6963df",
-  "scripts/entities/replica_motion.gd": "475c2e08ebe8ecb0f28f564df03392966b0fee790efaa294dff84a0724d9f322",
+  "scripts/entities/replica_motion.gd": "b5905e1b672027d5ef44e1843af861fdc645384a2edb4a7d631580cd110dfd65",
   "scripts/entities/rig_follower.gd": "d514f42422830babf483b21eab4f801d163862f97a2e603f74318518a481615f",
   "scripts/entities/rig_ik.gd": "fca7bd28c5e91ef68c910928d8bb65efc7f876daf0c270b733a5ff7ce9d37a62",
   "scripts/entities/wand_grip_modifier.gd": "8c2ab32c5a7caada03b5a511e7dff0d90dc2cf1010ec94ebe06c0471f52528c4",

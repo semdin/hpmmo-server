@@ -475,6 +475,22 @@ func _handle_abort() -> Dictionary:
 			"previous_state": previous,
 			"players": SimAuthority.players_by_peer.size(),
 		}}
+	if state == State.FAILED:
+		# The hold froze a world whose save barrier did not confirm: nothing
+		# was released, the players are still connected and their unsaved
+		# sheets are still queued in the bridge. An operator's abort returns
+		# it to play (the saves keep retrying) instead of needing a restart,
+		# which would lose exactly those sheets.
+		_flush_active = false
+		_flush_settled = true
+		deadline_ms = 0
+		reason = ""
+		_set_state(State.ONLINE)
+		_broadcast(State.ONLINE, 0)
+		print("[AdminApi] FAILED hold released by abort; world is ONLINE, %d save(s) still queued" % (
+			int(SimAuthority.persistence.pending_count()) if SimAuthority.persistence != null else 0))
+		return {"status": 200, "body": {"ok": true, "state": state_name(), "previous_state": "FAILED",
+			"players": SimAuthority.players_by_peer.size()}}
 	if state == State.ONLINE:
 		return {"status": 409, "body": {
 			"ok": false, "error": "not_in_maintenance", "state": state_name(),

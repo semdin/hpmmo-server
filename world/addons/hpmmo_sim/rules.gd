@@ -636,6 +636,10 @@ static func clean_look(raw: Variant) -> Dictionary:
 			out[key] = clampi(int(src[key]), 0, int(key_size[1]) - 1)
 	for key in LOOK_SLIDERS:
 		if src.has(key) and (src[key] is int or src[key] is float):
+			# clampf lets NaN through (both comparisons are false): a NaN slider
+			# reached every observer as a NaN skeleton scale / blend shape.
+			if is_nan(float(src[key])):
+				continue
 			var span: Array = LOOK_SLIDERS[key]
 			# two decimals: a look travels in every player-info packet
 			out[key] = snappedf(clampf(float(src[key]), float(span[0]), float(span[1])), 0.01)

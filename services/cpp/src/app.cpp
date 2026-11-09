@@ -73,6 +73,29 @@ public:
         return true;
     }
 
+    // Whether `key` already has `limit` hits in `window` (records nothing).
+    bool full(const std::string& key, int limit, std::chrono::seconds window) {
+        const auto now = std::chrono::steady_clock::now();
+        std::lock_guard<std::mutex> lock(mu_);
+        auto it = hits_.find(key);
+        if (it == hits_.end()) return false;
+        auto& hits = it->second;
+        while (!hits.empty() && now - hits.front() > window) hits.pop_front();
+        return static_cast<int>(hits.size()) >= limit;
+    }
+
+    void hit(const std::string& key) {
+        const auto now = std::chrono::steady_clock::now();
+        std::lock_guard<std::mutex> lock(mu_);
+        hits_[key].push_back(now);
+        if (hits_.size() > 20000) prune(now);
+    }
+
+    void clear(const std::string& key) {
+        std::lock_guard<std::mutex> lock(mu_);
+        hits_.erase(key);
+    }
+
 private:
     void prune(std::chrono::steady_clock::time_point now) {
         for (auto it = hits_.begin(); it != hits_.end();) {
@@ -580,10 +603,18 @@ void handle_login(const httplib::Request& req, httplib::Response& res, const Con
     const std::string username = body->value("username", "");
     const std::string password = body->value("password", "");
     if (refuse_for_maintenance(res, cfg, username)) return;
-    // Per address (a flood) and per account (guessing one password).
-    if (!limiter().allow("login-ip:" + client_ip(req), 20, std::chrono::seconds(60)) ||
-        !limiter().allow("login-user:" + lowered(username), 10, std::chrono::seconds(300))) {
-        std::printf("[login] rate limited %s\n", client_ip(req).c_str());
+    // Per address: a flood. Per account, only FAILED attempts count, and per
+    // (account, address): counting every attempt against the bare username let
+    // anyone keep any account locked out with 10 requests every 5 minutes. A
+    // high per-account ceiling across all addresses still slows a distributed
+    // guess. A success clears its own (account, address) failures.
+    const std::string ip = client_ip(req);
+    const std::string user_key = "login-fail:" + lowered(username);
+    const std::string pair_key = user_key + "@" + ip;
+    if (!limiter().allow("login-ip:" + ip, 20, std::chrono::seconds(60)) ||
+        limiter().full(pair_key, 10, std::chrono::seconds(300)) ||
+        limiter().full(user_key, 200, std::chrono::seconds(900))) {
+        std::printf("[login] rate limited %s\n", ip.c_str());
         return send_too_many(res, 60);
     }
 
@@ -591,9 +622,17 @@ void handle_login(const httplib::Request& req, httplib::Response& res, const Con
     db::Result r = lease.exec(
         "SELECT id::text, password_hash FROM accounts WHERE lower(username) = lower($1)", {username});
     if (!r.ok) return send_db_error(res, r, "login");
-    if (r.rows.empty() || !auth::verify_password(password, r.rows[0][1].second.value_or(""))) {
+    // An unknown name runs the same argon2 verify as a known one, so the
+    // answer's timing does not tell which usernames exist.
+    static const std::string decoy = auth::hash_password("decoy-" + db::gen_hex(8), cfg);
+    const bool known = !r.rows.empty();
+    const bool verified = auth::verify_password(password, known ? r.rows[0][1].second.value_or("") : decoy);
+    if (!known || !verified) {
+        limiter().hit(pair_key);
+        limiter().hit(user_key);
         return send_error(res, 401, "Invalid username or password.");
     }
+    limiter().clear(pair_key);
     const long long account_id = std::stoll(r.rows[0][0].second.value_or("0"));
     const std::string token = db::gen_hex(24);
     const std::string token_hash = db::sha256_hex(token);
@@ -734,6 +773,62 @@ void handle_ticket_redeem(const httplib::Request& req, httplib::Response& res, c
                          {"expires_in_seconds", cfg.session_ttl_hours * 3600}});
 }
 
+// A character name is what players (and the GA list) know a character by, so
+// two names that read the same must not both exist: 2-20 characters of
+// letters (any script) and digits, with single spaces, hyphens or apostrophes
+// between words - no leading/trailing or doubled separators, no control,
+// invisible, bidi or other punctuation characters. Case-insensitive
+// uniqueness is the database's (characters_name_lower, migration 0009).
+// Returns "" when the name is fine, or the reason.
+std::string character_name_problem(const std::string& name) {
+    std::vector<uint32_t> cps;
+    for (size_t i = 0; i < name.size();) {
+        const unsigned char c = static_cast<unsigned char>(name[i]);
+        uint32_t cp = 0;
+        int extra = 0;
+        if (c < 0x80) { cp = c; }
+        else if ((c & 0xE0) == 0xC0) { cp = c & 0x1F; extra = 1; }
+        else if ((c & 0xF0) == 0xE0) { cp = c & 0x0F; extra = 2; }
+        else if ((c & 0xF8) == 0xF0) { cp = c & 0x07; extra = 3; }
+        else return "Name is not valid text.";
+        if (i + extra >= name.size()) {
+            if (extra > 0) return "Name is not valid text.";   // truncated sequence
+        }
+        for (int k = 1; k <= extra; ++k) {
+            const unsigned char cc = static_cast<unsigned char>(name[i + k]);
+            if ((cc & 0xC0) != 0x80) return "Name is not valid text.";
+            cp = (cp << 6) | (cc & 0x3F);
+        }
+        cps.push_back(cp);
+        i += 1 + extra;
+    }
+    if (cps.size() < 2 || cps.size() > 20) return "Name must be 2-20 characters.";
+    auto separator = [](uint32_t cp) { return cp == ' ' || cp == '-' || cp == '\''; };
+    auto letter_or_digit = [](uint32_t cp) {
+        if ((cp >= '0' && cp <= '9') || (cp >= 'A' && cp <= 'Z') || (cp >= 'a' && cp <= 'z')) return true;
+        if (cp < 0xC0 || cp == 0xD7 || cp == 0xF7) return false;          // Latin-1 punctuation, x, /
+        if (cp >= 0x2000 && cp <= 0x2BFF) return false;                    // punctuation, symbols, arrows
+        if (cp >= 0x3000 && cp <= 0x303F) return false;                    // CJK punctuation
+        if (cp >= 0xD800 && cp <= 0xF8FF) return false;                    // surrogates, private use
+        if (cp >= 0xFE00 && cp <= 0xFE0F) return false;                    // variation selectors
+        if (cp >= 0xFE30 && cp <= 0xFE6F) return false;                    // compatibility punctuation
+        if (cp >= 0xFF00 && cp <= 0xFF0F) return false;                    // fullwidth punctuation
+        if (cp == 0xFEFF || cp >= 0xFFF0) return false;
+        if (cp >= 0x0300 && cp <= 0x036F) return false;                    // combining marks
+        return true;
+    };
+    for (size_t i = 0; i < cps.size(); ++i) {
+        if (separator(cps[i])) {
+            if (i == 0 || i + 1 == cps.size() || separator(cps[i - 1])) {
+                return "Spaces, hyphens and apostrophes may only stand between letters.";
+            }
+        } else if (!letter_or_digit(cps[i])) {
+            return "Names may only use letters, digits, spaces, hyphens and apostrophes.";
+        }
+    }
+    return "";
+}
+
 void handle_character_create(const httplib::Request& req, httplib::Response& res, db::Pool& pool) {
     auto session = require_session(req, res, pool);
     if (!session) return;
@@ -741,20 +836,28 @@ void handle_character_create(const httplib::Request& req, httplib::Response& res
     if (!body) return;
     const std::string name = body->value("name", "");
     const std::string house = body->value("house", "Gryffindor");
-    if (name.size() < 2 || name.size() > 20) return send_error(res, 400, "Name must be 2-20 characters.");
+    const std::string problem = character_name_problem(name);
+    if (!problem.empty()) return send_error(res, 400, problem);
     static const char* houses[] = {"Gryffindor", "Slytherin", "Ravenclaw", "Hufflepuff"};
     if (std::find_if(std::begin(houses), std::end(houses),
                      [&](const char* h) { return house == h; }) == std::end(houses)) {
         return send_error(res, 400, "Unknown house.");
     }
     auto lease = pool.acquire();
+    if (!lease.begin()) return send_error(res, 503, "Service unavailable: database unreachable.");
+    // The cap is checked inside the transaction with the account row locked:
+    // checked before it, two parallel creates both saw one character and both
+    // inserted.
+    db::Result lock = lease.exec("SELECT id FROM accounts WHERE id = $1 FOR UPDATE",
+                                 {std::to_string(session->account_id)});
+    if (!lock.ok) { lease.rollback(); return send_db_error(res, lock, "character count"); }
     db::Result count = lease.exec("SELECT COUNT(*)::text FROM characters WHERE account_id = $1",
                                    {std::to_string(session->account_id)});
-    if (!count.ok) return send_db_error(res, count, "character count");
+    if (!count.ok) { lease.rollback(); return send_db_error(res, count, "character count"); }
     if (std::stoi(count.rows[0][0].second.value_or("0")) >= 2) {
+        lease.rollback();
         return send_error(res, 400, "Maximum 2 characters per account.");
     }
-    if (!lease.begin()) return send_error(res, 503, "Service unavailable: database unreachable.");
     // The basic wand only: cloak, accessories and the broom are quest rewards.
     const char* starter = R"([{"id":"wand_ashwood","amount":1,"tier":0},)"
                           R"({"id":"potion_health","amount":5,"tier":0},)"
@@ -943,6 +1046,25 @@ void handle_character_save(const httplib::Request& req, httplib::Response& res, 
     if (!int_field("base_revision", kAbsent, -1, 1'000'000'000, base_revision)) {
         return send_error(res, 400, "Invalid base_revision.");
     }
+    // Save identity (migration 0010). `save_id` names this write; a retry of a
+    // write that committed but whose answer was lost carries the same id and
+    // is answered "already applied" instead of 409. `after_save_id` is the
+    // writer's last write of unknown outcome: when that is the stored write,
+    // the revision it bumped is the writer's own, not a competitor's.
+    auto id_field = [&](const char* key, std::string& out) -> bool {
+        if (!body->contains(key)) return true;
+        if (!(*body)[key].is_string()) return false;
+        out = (*body)[key].get<std::string>();
+        if (out.size() > 64) return false;
+        for (char c : out) {
+            if (!std::isalnum(static_cast<unsigned char>(c)) && c != '-' && c != '_') return false;
+        }
+        return true;
+    };
+    std::string save_id, after_save_id;
+    if (!id_field("save_id", save_id) || !id_field("after_save_id", after_save_id)) {
+        return send_error(res, 400, "Invalid save id.");
+    }
     std::optional<double> pos_x, pos_y, pos_z, rot_y;
     if (body->contains("pos")) {
         if (!(*body)["pos"].is_array() || (*body)["pos"].size() != 3) return send_error(res, 400, "Invalid pos.");
@@ -1013,7 +1135,7 @@ void handle_character_save(const httplib::Request& req, httplib::Response& res, 
     db::Result cur = lease.exec(
         "SELECT revision::text, level::text, exp::text, max_hp::text, current_hp::text, max_mana::text, "
         "current_mana::text, galleons::text, wand_tier::text, pos_x::text, pos_y::text, pos_z::text, "
-        "rot_y::text, map_id, quests::text FROM characters WHERE id=$1" + lock_scope + " FOR UPDATE",
+        "rot_y::text, map_id, quests::text, COALESCE(last_save_id, '') FROM characters WHERE id=$1" + lock_scope + " FOR UPDATE",
         lock_params);
     if (!cur.ok) {
         lease.rollback();
@@ -1026,7 +1148,16 @@ void handle_character_save(const httplib::Request& req, httplib::Response& res, 
     auto cur_i = [&](size_t i) { return std::stoll(cur.rows[0][i].second.value_or("0")); };
     auto cur_d = [&](size_t i) { return std::stod(cur.rows[0][i].second.value_or("0")); };
     const long long revision = cur_i(0);
-    if (base_revision && *base_revision >= 0 && *base_revision != revision) {
+    const std::string last_save_id = cur.rows[0][15].second.value_or("");
+    if (!save_id.empty() && save_id == last_save_id) {
+        // This exact write already committed (its answer was lost): done.
+        lease.rollback();
+        send_json(res, 200, {{"success", true}, {"message", "Already saved."}, {"revision", revision},
+                             {"replayed", true}});
+        return;
+    }
+    const bool own_last_write = !after_save_id.empty() && after_save_id == last_save_id;
+    if (base_revision && *base_revision >= 0 && *base_revision != revision && !own_last_write) {
         lease.rollback();
         send_json(res, 409, {{"success", false}, {"message", "Stale revision."}, {"revision", revision}});
         return;
@@ -1051,12 +1182,13 @@ void handle_character_save(const httplib::Request& req, httplib::Response& res, 
     db::Result upd = lease.exec(
         "UPDATE characters SET level=$2, exp=$3, max_hp=$4, current_hp=$5, max_mana=$6, "
         "current_mana=$7, galleons=$8, wand_tier=$9, pos_x=$10, pos_y=$11, pos_z=$12, rot_y=$13, "
-        "map_id=$14, quests=$15::jsonb, revision=revision+1, updated_at=now() WHERE id=$1",
+        "map_id=$14, quests=$15::jsonb, last_save_id=NULLIF($16, ''), revision=revision+1, "
+        "updated_at=now() WHERE id=$1",
         {std::to_string(char_id), std::to_string(r_level), std::to_string(r_exp),
          std::to_string(r_max_hp), std::to_string(r_cur_hp), std::to_string(r_max_mana),
          std::to_string(r_cur_mana), std::to_string(r_galleons), std::to_string(r_wand_tier),
          std::to_string(r_px), std::to_string(r_py), std::to_string(r_pz),
-         std::to_string(r_rot), r_map, r_quests});
+         std::to_string(r_rot), r_map, r_quests, save_id});
     if (!upd.ok) {
         lease.rollback();
         return send_db_error(res, upd, "character save");

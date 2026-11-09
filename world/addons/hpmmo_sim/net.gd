@@ -343,13 +343,68 @@ func _avoid_spawn_overlap(node: Node3D) -> void:
 				node.global_position = candidate
 				return
 
+## Connections that never become a player are closed: ENet answers keep-alives
+## on its own, so without this an idle or scripted connection held one of the
+## MAX_PLAYERS slots forever, and MAX_PLAYERS of them locked every player out.
+## A connection must join (sim_join answered with a body) within
+## JOIN_DEADLINE_MS, a body must bind its character within BIND_DEADLINE_MS
+## (character select, creation included), and one address may hold at most
+## MAX_PENDING_PER_ADDRESS connections that have not joined yet.
+const JOIN_DEADLINE_MS := 20000
+const BIND_DEADLINE_MS := 15 * 60 * 1000
+const MAX_PENDING_PER_ADDRESS := 4
+const PEER_SWEEP_MS := 1000
+var _connected_ms: Dictionary = {}   # server: peer_id -> ticks_msec of the connect
+var _last_peer_sweep_ms := 0
+
 func _on_peer_connected(peer_id: int) -> void:
 	print("[SimNet] peer %d connected" % peer_id)
 	if not is_client and multiplayer.multiplayer_peer is ENetMultiplayerPeer:
-		_relax_timeout((multiplayer.multiplayer_peer as ENetMultiplayerPeer).get_peer(peer_id))
+		var packet_peer := (multiplayer.multiplayer_peer as ENetMultiplayerPeer).get_peer(peer_id)
+		_relax_timeout(packet_peer)
+		_connected_ms[peer_id] = Time.get_ticks_msec()
+		if packet_peer != null and _pending_from(packet_peer.get_remote_address()) > MAX_PENDING_PER_ADDRESS:
+			print("[SimNet] peer %d refused: too many pending connections from one address" % peer_id)
+			packet_peer.peer_disconnect_later()
+
+## Connections from `address` that have not joined the world yet.
+func _pending_from(address: String) -> int:
+	var count := 0
+	for peer_id in _connected_ms.keys():
+		if SimAuthority.players_by_peer.has(peer_id):
+			continue
+		var packet_peer := _peer_object(int(peer_id))
+		if packet_peer != null and packet_peer.get_remote_address() == address:
+			count += 1
+	return count
+
+## Server, once a second: close connections past their join or bind deadline.
+func _sweep_idle_peers() -> void:
+	var now := Time.get_ticks_msec()
+	if now - _last_peer_sweep_ms < PEER_SWEEP_MS:
+		return
+	_last_peer_sweep_ms = now
+	for key in _connected_ms.keys():
+		var peer_id := int(key)
+		var age := now - int(_connected_ms[key])
+		var reason := ""
+		if not SimAuthority.players_by_peer.has(peer_id):
+			if age > JOIN_DEADLINE_MS and not _joining.has(peer_id):
+				reason = "no join"
+		elif bool(SimAuthority.player_record(peer_id).get("awaiting_bind", false)) and age > BIND_DEADLINE_MS:
+			reason = "no character bind"
+		if reason == "":
+			continue
+		var packet_peer := _peer_object(peer_id)
+		_connected_ms.erase(key)
+		if packet_peer != null:
+			print("[SimNet] peer %d closed after %d s: %s" % [peer_id, age / 1000, reason])
+			packet_peer.peer_disconnect_later()
 
 func _on_peer_disconnected(peer_id: int) -> void:
 	print("[SimNet] peer %d disconnected" % peer_id)
+	_connected_ms.erase(peer_id)
+	_last_chat_ms.erase(peer_id)
 	_known_by_peer.erase(peer_id)
 	_peer_map.erase(peer_id)
 	_replaced_peers.erase(peer_id)
@@ -509,7 +564,8 @@ func _join_still_wanted(peer_id: int) -> bool:
 ## burst. Far above what the game client sends; a client flooding the
 ## reliable channel is cut off here, before its requests reach the simulation
 ## (only chat had a limit before).
-const INTENT_RATES := {"cast": 12.0, "equipment": 10.0, "world": 8.0}
+const INTENT_RATES := {"cast": 12.0, "equipment": 10.0, "world": 8.0,
+	"input": float(HPProtocol.SIM_HZ) * 2.0}
 var _buckets: Dictionary = {}   # peer_id -> {kind: [tokens, last_ms]}
 
 func _allow(peer_id: int, kind: String) -> bool:
@@ -580,17 +636,13 @@ func sim_spawn_player(peer_id: int, identity: Dictionary) -> void:
 		# map is authoritative, and a saved position that does not belong to it
 		# (an interrupted transfer, an edited save) is replaced by that map's
 		# authored respawn instead of stranding the body between maps.
-		var saved_map := String(character.get("map_id", ""))
-		if HPMaps.map_exists(saved_map):
-			# The map must be resident in THIS process before the body rests on
-			# it - the provider builds an indoor map's collision here (inert on
-			# clients); without it the body free-falls on the fall rescue.
-			SimAuthority.map_provider_ready(saved_map)
-			node.global_position = SimAuthority.start_position(saved_map, node.global_position)
-		else:
-			var best_map := HPMaps.map_for_point(node.global_position)
-			SimAuthority.map_provider_ready(best_map)
-			node.global_position = SimAuthority.start_position(best_map, node.global_position)
+		# The map must be resident in THIS process before the body rests on it -
+		# the provider builds an indoor map's collision here (inert on clients);
+		# without it the body free-falls on the fall rescue. A dungeon copy the
+		# character holds no seat in is never rebuilt (wake_place).
+		var wake: Dictionary = SimAuthority.wake_place(String(character.get("map_id", "")),
+			node.global_position, int(identity.get("character_id", 0)))
+		node.global_position = wake["pos"]
 	elif identity.has("spawn") or bool(identity.get("spawn_near_pack", false)):
 		var at := _dev_pack_spawn(int(identity.get("spawn_pack_id", 0))) if bool(identity.get("spawn_near_pack", false)) else Vector3.INF
 		if at == Vector3.INF and identity.has("spawn"):
@@ -616,6 +668,7 @@ func sim_spawn_player(peer_id: int, identity: Dictionary) -> void:
 			HPEquipment.add(node.inventory, parts[0], 0, int(parts[1]) if parts.size() > 1 else 1)
 	var uid := SimAuthority.register_player(node, int(identity.get("character_id", 0)), peer_id,
 		int(identity.get("account_id", 0)))
+	SimAuthority.adopt_run_seat(SimAuthority.entities[uid])
 	if character.is_empty() and SimAuthority.persistence != null:
 		# A plain login waits at the grounds spawn for its character bind; other
 		# players must not see that placeholder body pop up there and then jump
@@ -709,6 +762,10 @@ func sim_input(seq: int, move: Vector2, yaw: float, jump: bool, descend: bool, p
 		return
 	inputs_received += 1
 	var sender := multiplayer.get_remote_sender_id()
+	# Clients send SIM_HZ inputs a second (only the latest after a stall); each
+	# one runs claim_position's ray casts, so a flood is dropped here.
+	if not _allow(sender, "input"):
+		return
 	if _loading_peers.has(sender):
 		_loading_peers.erase(sender)
 		_set_loading_timeout(_peer_object(sender), false)
@@ -945,8 +1002,8 @@ func sim_chat_request(text: String) -> void:
 		return
 	var peer_id := multiplayer.get_remote_sender_id()
 	var record := SimAuthority.player_record(peer_id)
-	if record.is_empty():
-		return
+	if record.is_empty() or bool(record.get("awaiting_bind", false)):
+		return   # no character yet: the session's name is the account's login name
 	var now := Time.get_ticks_msec()
 	if now - int(_last_chat_ms.get(peer_id, 0)) < CHAT_MIN_INTERVAL_MS:
 		return   # one line per interval: chat shares the reliable channel
@@ -958,7 +1015,7 @@ func sim_chat_request(text: String) -> void:
 ## HPProtocol.CHAT_LOCAL_RADIUS (the speaker included). Runs on the authority
 ## only; offline and hosting players route their own lines through it too.
 func route_chat(record: Dictionary, text: String) -> void:
-	var clean := text.strip_edges().substr(0, HPProtocol.CHAT_MAX_LENGTH)
+	var clean := clean_chat_text(text)
 	var channel := "local"
 	# `/commands` (party management, /p party chat) are answered here.
 	if clean.begins_with("/"):
@@ -997,6 +1054,22 @@ func route_chat(record: Dictionary, text: String) -> void:
 		if channel == "local" and not _hears(listener, record):
 			continue
 		sim_chat_line.rpc_id(peer_id, channel, uid, sender, house, clean)
+
+## One chat line as the server relays it: control characters (newlines,
+## carriage returns, tabs), Unicode line/paragraph separators and bidi
+## overrides become spaces, so a line can neither wipe the chat box with blank
+## lines nor fake a second line under another speaker's name; then trimmed and
+## capped at CHAT_MAX_LENGTH.
+static func clean_chat_text(text: String) -> String:
+	var out := PackedStringArray()
+	for i in text.length():
+		var c := text.unicode_at(i)
+		if c < 32 or c == 127 or (c >= 0x80 and c < 0xA0) or c == 0x2028 or c == 0x2029 \
+				or (c >= 0x202A and c <= 0x202E) or (c >= 0x2066 and c <= 0x2069):
+			out.append(" ")
+		else:
+			out.append(String.chr(c))
+	return "".join(out).strip_edges().substr(0, HPProtocol.CHAT_MAX_LENGTH)
 
 ## A system line for one player only (command answers).
 func _tell(record: Dictionary, text: String) -> void:
@@ -1201,6 +1274,9 @@ func sim_join_result(ok: bool, reason: String, uid: int, character: Dictionary, 
 		# replicas must not survive into this one (SimAuthority.forget_replicas).
 		if not is_instance_valid(SimAuthority.world):
 			SimAuthority.forget_replicas()
+		# The server's ticks restart at 0 after a restart: replica interpolation
+		# learns the new clock instead of waiting for the old epoch.
+		ReplicaMotion.reset_clock()
 		SimAuthority.sim_tick = tick
 		SimAuthority.seed_value = world_seed
 		local_uid = uid
@@ -1408,6 +1484,8 @@ func _process(_delta: float) -> void:
 ## instead of flooding stale inputs or losing time on every ordinary frame.
 func _advance_send_timers(elapsed: float) -> void:
 	if SimAuthority.is_authority():
+		if not is_client and multiplayer.multiplayer_peer is ENetMultiplayerPeer:
+			_sweep_idle_peers()
 		# Each peer still gets SNAPSHOT_HZ, but the peers take turns over
 		# SNAPSHOT_SLOTS evenly spaced frames: building every peer's snapshot in
 		# one frame stalled the whole server for that frame in a crowd.
@@ -1788,7 +1866,9 @@ func _broadcast_snapshots(slot := -1) -> void:
 				sim_despawn.rpc_id(peer_id, int(uid), SimAuthority.sim_tick)
 		_known_by_peer[peer_id] = current
 
-		var chunk_size := 900
+		# Whole entities per chunk: each chunk is applied on its own, and a cut
+		# through an entity (900 bytes = 29 entities + 1 byte) lost the 30th.
+		var chunk_size := HPSnapshots.ENTITY_BYTES * 29
 		var chunks := maxi(1, int(ceil(float(bytes.size()) / float(chunk_size))))
 		# v33: the newest input this body runs on and how long it has (-1: none yet).
 		var intent: Dictionary = record.get("input", {})

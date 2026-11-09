@@ -2604,6 +2604,49 @@ var claims_refused: Dictionary = {}
 func _refuse_claim(reason: String) -> void:
 	claims_refused[reason] = int(claims_refused.get(reason, 0)) + 1
 
+## Airtime on foot. Every claim used to be measured against the previous claim
+## only, so a client could hover at a constant height (or climb 5 cm a claim)
+## over open air, over walls, gates and wards, on maps where brooms are banned.
+## Now an on-foot claim may not be higher than a jump from the last time the
+## body stood on something (the anchor): highest_rise(t) of a launch at
+## max(CLAIM_JUMP_SPEED, the body's own upward speed then), under this body's
+## gravity, plus CLAIM_AIR_SLACK. Packets arrive up to CLAIM_AIR_JITTER_S late,
+## so past the apex the limit is taken that much earlier. The anchor follows the
+## authority's own body (on a floor, mounted, swimming, placed, or thrown by a
+## CC - claims are refused then and the server simulates it) and any claim with
+## ground within CLAIM_GROUND_NEAR under it.
+const CLAIM_JUMP_SPEED := 8.0
+const CLAIM_AIR_SLACK := 0.6
+const CLAIM_AIR_JITTER_S := 0.25
+const CLAIM_FALL_MAX := 60.0
+const CLAIM_GROUND_NEAR := 0.4
+var _air_y := NAN
+var _air_ms := 0
+var _air_vy := CLAIM_JUMP_SPEED
+
+func _anchor_air(y: float, vy: float, now: int) -> void:
+	_air_y = y
+	_air_ms = now
+	_air_vy = maxf(CLAIM_JUMP_SPEED, vy)
+
+## Height reached `t` seconds after leaving the ground at `v0` (up), falling no
+## faster than CLAIM_FALL_MAX.
+func _air_rise(v0: float, t: float) -> float:
+	var g := maxf(gravity, 0.1)
+	var t_cap := (v0 + CLAIM_FALL_MAX) / g
+	if t <= t_cap:
+		return v0 * t - 0.5 * g * t * t
+	return v0 * t_cap - 0.5 * g * t_cap * t_cap - CLAIM_FALL_MAX * (t - t_cap)
+
+## The highest an on-foot claim may be at `now`.
+func _air_limit(now: int) -> float:
+	var t := float(now - _air_ms) / 1000.0
+	var apex := _air_vy / maxf(gravity, 0.1)
+	var at := t
+	if t > apex:
+		at = apex if t - CLAIM_AIR_JITTER_S <= apex else t - CLAIM_AIR_JITTER_S
+	return _air_y + _air_rise(_air_vy, at) + CLAIM_AIR_SLACK
+
 ## Moved since its last physics step by something other than its own motion
 ## or a claim: the server placed it.
 func _note_placement() -> void:
@@ -2626,7 +2669,12 @@ func claim_position(pos: Vector3, vel: Vector3, stall_ms: int) -> void:
 	_note_placement()
 	var from := _claim_from if _claim_from.is_finite() else global_position
 	_claim_from = global_position
-	if now - _claim_placed_ms < CLAIM_PLACED_HOLD_MS:
+	# The authority's own body is the truth here: standing, riding, swimming,
+	# just placed, or thrown (a CC refuses claims, so the server flies it).
+	var placed := now - _claim_placed_ms < CLAIM_PLACED_HOLD_MS
+	if is_nan(_air_y) or placed or is_on_floor() or is_mounted or is_swimming or cc_locked():
+		_anchor_air(global_position.y, velocity.y, now)
+	if placed:
 		_refuse_claim("placed")
 		return
 	if cc_locked():
@@ -2661,6 +2709,15 @@ func claim_position(pos: Vector3, vel: Vector3, stall_ms: int) -> void:
 		if space.intersect_ray(down).is_empty():
 			_refuse_claim("air")
 			return
+	if not is_mounted and not is_swimming and pos.y > _air_limit(now):
+		# Higher than any jump from the anchor: only fine if it stands on
+		# something (a rising staircase, a ledge the body stepped onto).
+		var near := PhysicsRayQueryParameters3D.create(pos + Vector3.UP * 0.1, pos + Vector3.DOWN * CLAIM_GROUND_NEAR, 1)
+		near.exclude = [get_rid()]
+		if space.intersect_ray(near).is_empty():
+			_refuse_claim("airtime")
+			return
+		_anchor_air(pos.y, 0.0, now)
 	claims_taken += 1
 	_claim_credit -= maxf(need, 0.0)
 	global_position = pos

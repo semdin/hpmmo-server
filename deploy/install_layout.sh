@@ -39,6 +39,7 @@ PROG="$(basename "$0")"
 : "${HPMMO_SYSTEMCTL:=systemctl}"
 : "${HPMMO_GODOT:=/root/hpmmo/bin/godot_server}"
 : "${HPMMO_STATUS_SCRIPT:=/opt/hpmmo/bin/hpmmo_status.py}"
+: "${HPMMO_FLUSH_SCRIPT:=/opt/hpmmo/bin/hpmmo_world_flush.sh}"
 : "${HPMMO_STATUS_PORT:=8083}"
 : "${HPMMO_RUN_USER:=root}"
 
@@ -82,6 +83,7 @@ render_unit() {  # template out
         -e "s|@PYTHON@|${PYTHON}|g" \
         -e "s|@STATUS_SCRIPT@|${HPMMO_STATUS_SCRIPT}|g" \
         -e "s|@STATUS_PORT@|${HPMMO_STATUS_PORT}|g" \
+        -e "s|@FLUSH_SCRIPT@|${HPMMO_FLUSH_SCRIPT}|g" \
         "$template" > "$out"
 }
 
@@ -95,6 +97,8 @@ say "installed the status endpoint at $HPMMO_STATUS_SCRIPT"
 # A stable controller path: the deploy job must not run the controller out of a
 # release directory whose `current` symlink it is about to move.
 install -m 0755 "$HERE/hpmmo_deploy.sh" "$STATUS_DIR/hpmmo_deploy.sh"
+# ExecStop of the world unit: the stop save (outside any release dir, like the controller).
+install -m 0755 "$HERE/hpmmo_world_flush.sh" "$HPMMO_FLUSH_SCRIPT"
 say "installed the controller at $STATUS_DIR/hpmmo_deploy.sh"
 
 if [ "$INSTALL_UNITS" = "1" ]; then
