@@ -506,15 +506,21 @@ func tick(delta: float) -> void:
 	_cast_weight = move_toward(_cast_weight, cast_target,
 		delta / (_cast_blend_in if cast_target > 0.0 else 0.18))
 	_set_weight("os_blend", _os_weight)
-	_set_weight("cast_blend", 0.0)
 	if cast_layer:
 		cast_layer.weight = _cast_weight
 	if skeleton:
 		_scan_footsteps(delta)
 
+## `parameters/<node>/blend_amount` as a StringName, built once per node.
+static var _blend_params := {}
+
 func _set_weight(node_name: String, value: float) -> void:
 	if tree:
-		tree.set("parameters/%s/blend_amount" % node_name, clampf(value, 0.0, 1.0))
+		var param: StringName = _blend_params.get(node_name, &"")
+		if param == &"":
+			param = StringName("parameters/%s/blend_amount" % node_name)
+			_blend_params[node_name] = param
+		tree.set(param, clampf(value, 0.0, 1.0))
 
 func oneshot_weight() -> float:
 	return _os_weight

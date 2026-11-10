@@ -34,6 +34,11 @@ var _duration := 0.0
 var _release_phase := 0.6
 ## Bone name -> tracks that belong to it (index into the Animation).
 var upper_tracks: Array[int] = []
+## The bone each of upper_tracks drives (parsed once in configure), and its
+## index in the skeleton they were last resolved against.
+var _upper_bones := PackedStringArray()
+var _upper_indices := PackedInt32Array()
+var _indices_for := 0
 
 ## The casting hand's bone chain. The upper arm is the shoulder joint: the
 ## clavicle (RightShoulder) is left to the clip so the aim never dislocates it.
@@ -83,6 +88,8 @@ func _bone_of(path: NodePath) -> String:
 func configure(clip: Animation) -> void:
 	animation = clip
 	upper_tracks.clear()
+	_upper_bones.clear()
+	_indices_for = 0
 	if clip == null:
 		return
 	for i in range(clip.get_track_count()):
@@ -92,6 +99,7 @@ func configure(clip: Animation) -> void:
 		if bone == "" or _is_lower(bone):
 			continue
 		upper_tracks.append(i)
+		_upper_bones.append(bone)
 
 func _is_lower(bone: String) -> bool:
 	return HeroBones.is_lower_body(bone)
@@ -163,13 +171,17 @@ func _apply() -> void:
 	# discarded the entire upper-body layer in a single frame.
 	if animation != null and weight > 0.001:
 		var clamped := clampf(time, 0.0, maxf(0.0, animation.length))
-		for track in upper_tracks:
-			var bone := _bone_of(animation.track_get_path(track))
-			if bone == "":
-				continue
-			var index := _bone_index(skeleton, bone)
+		if _indices_for != skeleton.get_instance_id():
+			_indices_for = skeleton.get_instance_id()
+			_upper_indices.resize(_upper_bones.size())
+			for i in _upper_bones.size():
+				_upper_indices[i] = _bone_index(skeleton, _upper_bones[i])
+		for i in upper_tracks.size():
+			var index := _upper_indices[i]
 			if index < 0:
 				continue
+			var track := upper_tracks[i]
+			var bone := _upper_bones[i]
 			var cast_pose: Quaternion = animation.rotation_track_interpolate(track, clamped)
 			_clip_rotations[bone] = cast_pose
 			if weight >= 0.999:

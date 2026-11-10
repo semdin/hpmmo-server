@@ -20,6 +20,13 @@ class_name RigIK
 ## Writes are followed by `force_update_all_bone_transforms()`, because the
 ## global-pose cache the next step reads is only refreshed by the skeleton itself
 ## otherwise - reading straight after a write would return the previous pose.
+##
+## The hand helpers (palm_normal, grip_frame, close_hand) depend only on the
+## rig's rest pose, so each is solved once per skeleton and kept in its
+## metadata (`_rig_cache`): every wand hero ran the full ~18-bone solve with
+## four skeleton updates every frame for a pose that never changes.
+
+const _CACHE_META := &"rig_ik_cache"
 
 
 ## The bone index for `bone` (see HeroBones), also accepting an importer-sanitised
@@ -159,6 +166,13 @@ static func distance_to_line(point: Vector3, a: Vector3, direction: Vector3) -> 
 ## palm side of the skin, in the hand bone's frame: x across the palm (little ->
 ## index), y along the hand toward the fingers.
 static func grip_frame(skeleton: Skeleton3D, side: String, palm_depth := 0.026) -> Transform3D:
+	var per_side: Dictionary = _rig_cache(skeleton, "grip").get_or_add(side, {})
+	if not per_side.has(palm_depth):
+		per_side[palm_depth] = _solve_grip_frame(skeleton, side, palm_depth)
+	return per_side[palm_depth]
+
+
+static func _solve_grip_frame(skeleton: Skeleton3D, side: String, palm_depth: float) -> Transform3D:
 	var wrist := bone_index(skeleton, HeroBones.hand(side))
 	var to_wrist := skeleton.get_bone_global_rest(wrist).affine_inverse()
 	var knuckles: Array[Vector3] = []
@@ -181,6 +195,13 @@ static func grip_frame(skeleton: Skeleton3D, side: String, palm_depth := 0.026) 
 ## the left (left hand: mirrored). Geometry, not a measured constant, so a
 ## re-rolled rig cannot flip it.
 static func palm_normal(skeleton: Skeleton3D, side: String) -> Vector3:
+	var cache := _rig_cache(skeleton, "palm")
+	if not cache.has(side):
+		cache[side] = _solve_palm_normal(skeleton, side)
+	return cache[side]
+
+
+static func _solve_palm_normal(skeleton: Skeleton3D, side: String) -> Vector3:
 	var wrist := bone_index(skeleton, HeroBones.hand(side))
 	var to_wrist := skeleton.get_bone_global_rest(wrist).affine_inverse()
 	var index := (to_wrist * skeleton.get_bone_global_rest(
@@ -207,7 +228,73 @@ static func _curl(skeleton: Skeleton3D, bone: int, palm_world: Vector3, degrees:
 	return Quaternion((global.inverse() * axis).normalized(), deg_to_rad(degrees))
 
 
+## Close `side`'s hand around a handle `palm_depth` thick, blended by `weight`
+## over the pose the animation wrote. The closed pose is solved once per
+## skeleton (`_solve_hand`): every bone it writes is the hand's or a finger's
+## own local pose, and the thumb targets are fixed in the wrist frame, so the
+## result does not depend on the animated arm. Per frame this is 18 writes and
+## no skeleton update (nothing after it reads the fingers' global poses).
 static func close_hand(skeleton: Skeleton3D, side: String, weight: float, palm_depth := 0.026) -> void:
+	var per_side: Dictionary = _rig_cache(skeleton, "hand").get_or_add(side, {})
+	if not per_side.has(palm_depth):
+		per_side[palm_depth] = _solve_hand(skeleton, side, palm_depth)
+	var solved: Array = per_side[palm_depth]
+	var bones: PackedInt32Array = solved[0]
+	var rotations: Array = solved[1]
+	var positions: PackedVector3Array = solved[2]
+	if weight >= 0.999:
+		for i in bones.size():
+			skeleton.set_bone_pose_position(bones[i], positions[i])
+			skeleton.set_bone_pose_rotation(bones[i], rotations[i])
+		return
+	for i in bones.size():
+		var bone := bones[i]
+		skeleton.set_bone_pose_position(bone, skeleton.get_bone_pose_position(bone).lerp(positions[i], weight))
+		skeleton.set_bone_pose_rotation(bone, skeleton.get_bone_pose_rotation(bone).slerp(rotations[i], weight))
+
+
+## This skeleton's cache section `section` (created empty). Cleared when the
+## bone count changes (a different rig on the same node).
+static func _rig_cache(skeleton: Skeleton3D, section: String) -> Dictionary:
+	var cache: Dictionary = skeleton.get_meta(_CACHE_META, {})
+	if cache.is_empty() or int(cache.get("bones", -1)) != skeleton.get_bone_count():
+		cache = {"bones": skeleton.get_bone_count()}
+		skeleton.set_meta(_CACHE_META, cache)
+	return cache.get_or_add(section, {})
+
+
+## The closed hand as [bone indices, local rotations, local positions]: the
+## full solve (`_close_hand_solve`) run once at weight 1, read back, and the
+## pose put back as it was.
+static func _solve_hand(skeleton: Skeleton3D, side: String, palm_depth: float) -> Array:
+	var bones := PackedInt32Array()
+	for finger in HeroBones.FINGERS:
+		for k in 3:
+			bones.append(bone_index(skeleton, HeroBones.finger(side, finger, k)))
+	for k in 3:
+		bones.append(bone_index(skeleton, HeroBones.thumb(side, k)))
+	var kept := PackedInt32Array()
+	for bone in bones:
+		if bone >= 0:
+			kept.append(bone)
+	var saved := []
+	for bone in kept:
+		saved.append([skeleton.get_bone_pose_rotation(bone), skeleton.get_bone_pose_position(bone)])
+	_close_hand_solve(skeleton, side, palm_depth)
+	var rotations := []
+	var positions := PackedVector3Array()
+	for i in kept.size():
+		rotations.append(skeleton.get_bone_pose_rotation(kept[i]))
+		positions.append(skeleton.get_bone_pose_position(kept[i]))
+		skeleton.set_bone_pose_rotation(kept[i], saved[i][0])
+		skeleton.set_bone_pose_position(kept[i], saved[i][1])
+	skeleton.force_update_all_bone_transforms()
+	return [kept, rotations, positions]
+
+
+## The closed hand at full weight, solved on the live skeleton.
+static func _close_hand_solve(skeleton: Skeleton3D, side: String, palm_depth: float) -> void:
+	var weight := 1.0
 	# Proximal, intermediate, distal flexion in degrees; a deeper palm (a thicker
 	# handle) opens the fist a little.
 	var finger_angles := [65.0, 85.0, 45.0]
