@@ -66,6 +66,8 @@ func build() -> void:
 	structure.name = "InteriorStructure"
 	structure.position.y = MAP_Y
 	add_child(structure)
+	# The hero props block bodies on both sides (layout space, see PROPS).
+	Decor.add_prop_colliders(structure, 0.0)
 	if collision_only:
 		Blockout.strip_visuals(structure)
 		return

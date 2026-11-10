@@ -10,7 +10,10 @@ extends RefCounted
 ##   * moonlight through the windows (a shadowed directional light the
 ##     volumetric fog turns into beams on medium and high);
 ##   * the laid Great Hall and kitchen tables (castle_feast.gd).
-## Client only - the dedicated server never builds it.
+## Client only - the dedicated server never builds it. The one exception is
+## `add_prop_colliders`: the hero props block bodies, so both processes add
+## the same boxes from PROPS (castle_interior.gd calls it before its
+## collision-only return) and client and server collide identically.
 
 const QualityPreset = preload("res://scripts/world/quality_preset.gd")
 const StaticMerge = preload("res://scripts/world/static_merge.gd")
@@ -21,6 +24,17 @@ const FLAME_SHADER := preload("res://assets/shaders/castle/candle_flame.gdshader
 ## Great Hall candle volume (layout space): above the four house tables.
 const HALL_CANDLES := {"x": [-92.0, -24.0], "z": [44.0, 68.0], "y": [10.5, 16.5]}
 const HALL_CANDLE_COUNT := {"low": 140, "medium": 260, "high": 420}
+
+## Hero props (fal image-to-3D, assets/castle/props/), layout space: the golden
+## owl lectern at the front of the dais, two suits of armour guarding the Great
+## Hall doors. `height` scales the model; `block` is the collider footprint
+## (x, z before the yaw), 80 % of the scaled model's - measured from the glbs,
+## kept here so the server needs neither the models nor their import.
+const PROPS := [
+	{"name": "owl_lectern", "at": Vector3(-96.2, 1.0, 56.0), "yaw": 90.0, "height": 1.75, "block": Vector2(0.86, 0.60)},
+	{"name": "armour", "at": Vector3(-17.15, 0.0, 49.6), "yaw": 90.0, "height": 2.45, "block": Vector2(0.83, 0.77)},
+	{"name": "armour", "at": Vector3(-17.15, 0.0, 62.4), "yaw": 90.0, "height": 2.45, "block": Vector2(0.83, 0.77)},
+]
 
 
 static func build(parent: Node3D, map_y: float, quality: String = "") -> Node3D:
@@ -43,11 +57,8 @@ static func build(parent: Node3D, map_y: float, quality: String = "") -> Node3D:
 	# Room light sources authored in the glb as FX_<kind>_<n> empties
 	# (art/castle/scripts/castle_rooms.py).
 	_build_fx(parent, root, quality)
-	# Hero props (fal image-to-3D, assets/castle/props/): the golden owl lectern
-	# at the front of the dais, two suits of armour guarding the Great Hall doors.
-	_prop(root, "owl_lectern", Vector3(-96.2, map_y + 1.0, 56.0), 90.0, 1.75)
-	for z in [49.6, 62.4]:
-		_prop(root, "armour", Vector3(-17.15, map_y, z), 90.0, 2.45)
+	for p in PROPS:
+		_prop(root, String(p.name), p.at + Vector3(0.0, map_y, 0.0), float(p.yaw), float(p.height))
 	CastleFeast.build(root, map_y, quality)
 	_batch(root)
 	return root
@@ -71,8 +82,26 @@ static func _batch(root: Node3D) -> void:
 	StaticMerge.merge(root, pieces, "DecorBatch", 16.0)
 
 
+## The PROPS box colliders (layer 1), on the client and the server alike.
+static func add_prop_colliders(parent: Node3D, map_y: float) -> void:
+	for i in PROPS.size():
+		var p: Dictionary = PROPS[i]
+		var body := StaticBody3D.new()
+		body.name = "Prop%d_%s" % [i, p.name]
+		var cs := CollisionShape3D.new()
+		var shape := BoxShape3D.new()
+		var block: Vector2 = p.block
+		shape.size = Vector3(block.x, float(p.height), block.y)
+		cs.shape = shape
+		cs.position = Vector3(0, float(p.height) * 0.5, 0)
+		body.add_child(cs)
+		body.position = p.at + Vector3(0.0, map_y, 0.0)
+		body.rotation_degrees.y = float(p.yaw)
+		parent.add_child(body)
+
+
 ## Place a prop glb scaled to `height` metres, standing on `at`, turned `yaw_deg`
-## (0 = the model's front faces +z). A box collider keeps bodies out of it.
+## (0 = the model's front faces +z). Its collider is add_prop_colliders'.
 static func _prop(root: Node3D, prop_name: String, at: Vector3, yaw_deg: float, height: float) -> void:
 	var path := "res://assets/castle/props/%s.glb" % prop_name
 	if not ResourceLoader.exists(path):
@@ -90,14 +119,6 @@ static func _prop(root: Node3D, prop_name: String, at: Vector3, yaw_deg: float, 
 	scene.position = -Vector3(box.get_center().x, box.position.y, box.get_center().z) * s
 	holder.position = at
 	holder.rotation_degrees.y = yaw_deg
-	var body := StaticBody3D.new()
-	var cs := CollisionShape3D.new()
-	var shape := BoxShape3D.new()
-	shape.size = Vector3(box.size.x * s * 0.8, height, box.size.z * s * 0.8)
-	cs.shape = shape
-	cs.position = Vector3(0, height * 0.5, 0)
-	body.add_child(cs)
-	holder.add_child(body)
 
 
 static func _visual_aabb(node: Node3D) -> AABB:
