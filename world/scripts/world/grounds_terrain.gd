@@ -37,6 +37,8 @@ const SERVER_ASSETS := "res://assets/terrain/grounds_server_assets.tres"
 static var _active: GroundsTerrain
 ## Foliage density the instances were added with (-1: none added yet).
 var _vegetation_density := -1.0
+## The trees' far band (null until the vegetation is planted, or headless).
+var _impostors: GroundsImpostors
 
 
 func _init() -> void:
@@ -107,6 +109,11 @@ func _add_vegetation(density: float = -1.0, only: Array = []) -> void:
 		if not xforms.is_empty():
 			instancer.add_transforms(i, xforms, PackedColorArray(), true)
 	_vegetation_density = density
+	if _impostors == null:
+		_impostors = GroundsImpostors.build(RENDER_BIT)
+		if _impostors != null:
+			add_child(_impostors)
+			_impostors.set_ranges(assets, preset_settings())
 
 
 ## Quality preset (QualityPreset.apply): terrain clipmap size, how far every
@@ -140,6 +147,8 @@ func apply_quality(preset: Dictionary) -> void:
 	for i in _set_assets(assets, plan):
 		if not thinned.has(i):
 			instancer.update_mmis(i)
+	if _impostors != null:
+		_impostors.set_ranges(assets, preset)
 	if not thinned.is_empty():
 		_add_vegetation(density, thinned)
 
@@ -168,9 +177,12 @@ static func _asset_plan(list: Terrain3DAssets, preset: Dictionary) -> Array:
 				base.append(asset.get_lod_range(l))
 			asset.set_meta("base_ranges", base)
 		var base_ranges: Array = asset.get_meta("base_ranges")
+		# A tree's far band is GroundsImpostors' (it scales its own far range):
+		# its Terrain3D LOD1 is the last LOD but keeps the near-LOD scale.
+		var banded: bool = GroundsImpostors.has_variant(asset.name)
 		var ranges: Array = []
 		for l in base_ranges.size():
-			ranges.append(float(base_ranges[l]) * (far_scale if l == asset.last_lod else lod_scale))
+			ranges.append(float(base_ranges[l]) * (far_scale if l == asset.last_lod and not banded else lod_scale))
 		# One shadow mesh at every distance: LOD0 cast its own detailed shadow and
 		# LOD1 a different one, so a tree's shadow changed shape (or appeared and
 		# vanished on low) as the camera came near. The shadow impostor draws the

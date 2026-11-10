@@ -1,7 +1,7 @@
 {
  "generated": "2026-11-10",
  "source_repository": "hpmmo-client",
- "source_revision": "f56fdce9d3dce916bcb8a1d34ab1d22fa86f5795",
+ "source_revision": "c35442f847f47c63d1e99df0036fe47c03187016",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/audio/sound_library.json": "c1d191056275c9a8d4657bf650376060444d8a0a1af7eaeca72cc30b632c60cc",
@@ -783,6 +783,7 @@
   "scripts/world/grounds/grounds_builder.gd": "d5d62baa8e3cd519c370c81acfe1004d86f1d4245c1e84329c5c59a5a7981ab9",
   "scripts/world/grounds/grounds_courtyard.gd": "29cd463407f5cc073fcd349e9907f8cf9eee9645331de69f8dd604d7a78a0812",
   "scripts/world/grounds/grounds_horizon.gd": "3a0c962e0a3c8b31d7bcb385e2a743cd9609443c508bc6baa5f23d3fd5329880",
+  "scripts/world/grounds/grounds_impostors.gd": "f13c6ce145f031b4c26ec94a2fd6e4350aff18ebb34517f388a0a052f6661f82",
   "scripts/world/grounds/grounds_lake.gd": "58114b125580331762ee364ae33aba2357b822fba904e296aea4b56a0e070228",
   "scripts/world/grounds/grounds_layout.gd": "24b2763b338660961cc34543cc07722989327c55e2865ad2d9c25795f5b0b08b",
   "scripts/world/grounds/grounds_precinct.gd": "c51036dc84476b4007b13739719288c8a776f851c1d0bd50dee0c05274ff1700",
@@ -790,7 +791,7 @@
   "scripts/world/grounds/grounds_sites.gd": "624fb21d29f414dbb23dd5b88f5f96219fcb93d466d292d9965b617783e78cdb",
   "scripts/world/grounds/pumpkin_mesh.gd": "30c628b44239fbf5aa124554bf00e6f5abdb6ed93c097317dcec5f1acf8ee272",
   "scripts/world/grounds/village_kit.gd": "79577374ab1264ffdc4d9b526e2c7f60a194b5b5027aeb109c1e4184ccc5710a",
-  "scripts/world/grounds_terrain.gd": "cd85598bbae69d71de5d4758950fda88d1636b853f11dbc7ece273f75916b5be",
+  "scripts/world/grounds_terrain.gd": "e43344051d74d845222ad0b62bc7099ba81d76c02d94167e2705a6cdf4090874",
   "scripts/world/map_controller.gd": "cf97c3d8d6cf4a93aacffe95c78ea58c3b22ba5776e2045f07b7d02bba9e5e0a",
   "scripts/world/npc.gd": "11aca7940c35a8124c6cb8909584b4d401c89f199e39cbe11cfb78071e4e3f2a",
   "scripts/world/portkey_views.gd": "25b5e76aa5e47606435f6934aec3320958643ee3ca3fc02d971ddb908c3c1748",
