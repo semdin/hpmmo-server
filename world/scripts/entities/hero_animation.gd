@@ -103,6 +103,8 @@ var _foot_low := {}
 var _foot_high := {}
 var _last_clip_played := ""
 var enabled := true
+## False while this body is off screen (a remote hero, player.gd): see set_posing.
+var _posing := true
 
 func setup(animation_player: AnimationPlayer, skeleton_node: Skeleton3D, host: Node = null) -> void:
 	anim_player = animation_player
@@ -485,6 +487,37 @@ func align_cast(release_seconds_from_now: float, release_fraction := 0.45) -> fl
 
 ## ---------------------------------------------------------------- per-frame
 
+## A remote hero's body poses only while it can be seen. Off screen the mixer
+## and the procedural pose layers (cast aim, wand and broom grips) stop and the
+## skeleton is left alone; the timers and blend weights in tick() keep running
+## and every request made meanwhile is held by the tree, so the body comes back
+## in the state it would have reached. The cloak's springs cull themselves
+## (CloakDeformer._update_lod).
+func set_posing(on: bool) -> void:
+	if on == _posing or tree == null:
+		return
+	_posing = on
+	tree.active = on
+	if skeleton != null:
+		if not on and not skeleton.child_entered_tree.is_connected(_on_skeleton_child):
+			skeleton.child_entered_tree.connect(_on_skeleton_child)
+		for child in skeleton.get_children():
+			_set_layer_active(child, on)
+	if on:
+		tree.advance(0.0)   # back on screen: the pose of the current state now
+
+func posing() -> bool:
+	return _posing
+
+## A pose layer added while the body is off screen (a wand equipped) starts paused.
+func _on_skeleton_child(child: Node) -> void:
+	if not _posing:
+		_set_layer_active(child, false)
+
+static func _set_layer_active(node: Node, on: bool) -> void:
+	if node is CastLayerModifier or node is WandGripModifier or node is BroomGripModifier:
+		(node as SkeletonModifier3D).active = on
+
 func tick(delta: float) -> void:
 	if not enabled:
 		return
@@ -508,7 +541,7 @@ func tick(delta: float) -> void:
 	_set_weight("os_blend", _os_weight)
 	if cast_layer:
 		cast_layer.weight = _cast_weight
-	if skeleton:
+	if skeleton and _posing:
 		_scan_footsteps(delta)
 
 ## `parameters/<node>/blend_amount` as a StringName, built once per node.

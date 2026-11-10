@@ -495,7 +495,34 @@ func _setup_character_model() -> void:
 		visuals.add_child(hero_anim)
 		hero_anim.setup(anim_player, skeleton, visuals)
 		hero_anim.event_fired.connect(_on_animation_event)
+		if not is_local_player and sim_puppet:
+			_watch_screen()
 	_setup_broom()
+
+## Another player's body poses only while it is on screen (HeroAnimation
+## .set_posing): every remote hero ran its animation tree and pose layers
+## behind the camera too. The box is grown well past the body (a rider on the
+## broom, the cloak, a shadow at the screen edge), as for creatures.
+func _watch_screen() -> void:
+	var notifier := VisibleOnScreenNotifier3D.new()
+	notifier.name = "ScreenWatch"
+	notifier.aabb = AABB(Vector3(-4.0, -1.0, -4.0), Vector3(8.0, 8.0, 8.0))
+	notifier.screen_entered.connect(func():
+		if hero_anim:
+			hero_anim.set_posing(true))
+	notifier.screen_exited.connect(func():
+		if hero_anim:
+			hero_anim.set_posing(false))
+	add_child(notifier)
+	# The signals only report changes: a body that arrives off screen never
+	# "exits", so its first state is read once it has been drawn (or not).
+	_settle_screen_state.call_deferred(notifier)
+
+func _settle_screen_state(notifier: VisibleOnScreenNotifier3D) -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if is_instance_valid(notifier) and hero_anim and not notifier.is_on_screen():
+		hero_anim.set_posing(false)
 
 ## Wizards walk through each other and through the NPCs. Bodies that block
 ## each other read as lag on a crowded courtyard, and a low broom flight could

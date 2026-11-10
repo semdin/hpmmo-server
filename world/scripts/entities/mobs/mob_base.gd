@@ -555,7 +555,7 @@ func _play_slot(slot: String, blend: float = 0.18) -> void:
 		_set_anim_speed(1.0)
 	var clip := _clip_for(slot)
 	if anim_player.has_animation(clip) and (anim_player.current_animation != clip or not anim_player.is_playing()):
-		anim_player.play(clip, blend, _phase_speed(slot, clip))
+		anim_player.play(clip, _blend_of(blend), _phase_speed(slot, clip))
 
 ## Time-stretch for an attack phase clip so it spans the authored phase
 ## (attack_anticipation / attack_recovery); 1.0 for everything else.
@@ -588,7 +588,7 @@ func _play_attack_clip(plan: Dictionary, phase: String, blend: float = 0.08) -> 
 				speed = clampf(anim_player.get_animation(clip).length / span, 0.5, 3.0)
 				if phase != "anticipation":
 					speed = maxf(1.0, speed)   # a follow-through only ever speeds up
-			anim_player.play(clip, blend, speed)
+			anim_player.play(clip, _blend_of(blend), speed)
 	else:
 		_play_slot(phase, blend)
 
@@ -599,7 +599,7 @@ func _play_anim(name_hint: String, blend: float = 0.18) -> void:
 		"Spellcast_Shoot": "Weapon", "Spellcast_Raise": "Weapon", "Hit_A": "HitReact", "Death_A": "Death"}
 	var clip: String = name_hint if anim_player.has_animation(name_hint) else aliases.get(name_hint, "Idle")
 	if anim_player.has_animation(clip) and (anim_player.current_animation != clip or not anim_player.is_playing()):
-		anim_player.play(clip, blend)
+		anim_player.play(clip, _blend_of(blend))
 
 func _update_label() -> void:
 	if NetworkManager.is_dedicated_server:
@@ -661,6 +661,24 @@ func _watch_screen() -> void:
 		_off_screen = true
 		_apply_anim_active())
 	add_child(notifier)
+	# The signals only report changes: a creature that arrives off screen never
+	# "exits", so its first state is read once it has been drawn (or not).
+	_settle_screen_state.call_deferred(notifier)
+
+func _settle_screen_state(notifier: VisibleOnScreenNotifier3D) -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if is_instance_valid(notifier) and not notifier.is_on_screen():
+		_off_screen = true
+		_apply_anim_active()
+
+## The crossfade for a clip change. While the player is paused (off screen,
+## far, dormant) nobody sees it, and a paused AnimationPlayer keeps every
+## crossfade it is asked for in a list it only drains while playing: one entry
+## per clip change for as long as the body stayed hidden, worked off in the
+## frame it came back.
+func _blend_of(blend: float) -> float:
+	return blend if anim_player.active else 0.0
 
 func _apply_anim_active() -> void:
 	if not is_instance_valid(anim_player) or NetworkManager.is_dedicated_server:
