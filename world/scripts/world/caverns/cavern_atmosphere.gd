@@ -52,7 +52,8 @@ static func apply(env: Environment, quality: String = "") -> Dictionary:
 	env.fog_aerial_perspective = 0.0
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
 	env.tonemap_exposure = 1.15
-	env.glow_enabled = true
+	# Glow follows the preset like outdoors (off on low).
+	env.glow_enabled = bool(QualityPreset.PRESETS.get(quality, {}).get("glow", true))
 	env.glow_intensity = 0.7
 	env.glow_bloom = 0.06
 	env.glow_hdr_threshold = 0.9

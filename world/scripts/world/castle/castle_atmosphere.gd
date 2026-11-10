@@ -7,7 +7,7 @@ extends RefCounted
 ## ambient (candles and moonlight do the lighting), screen-space AO and
 ## indirect light, volumetric fog for the moonbeams through the windows, glow
 ## for the flames, and SDFGI on high. Every feature follows the quality preset:
-## low keeps the plain dim ambient only.
+## low keeps the plain dim ambient only (no glow either, as outdoors).
 
 const QualityPreset = preload("res://scripts/world/quality_preset.gd")
 
@@ -38,7 +38,9 @@ static func apply(env: Environment, quality: String = "") -> Dictionary:
 	env.fog_enabled = false
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
 	env.tonemap_exposure = 1.05
-	env.glow_enabled = true
+	# Glow follows the preset like outdoors (off on low: the flames read without
+	# it, and its blur passes cost the iGPU ~0.1-0.25 ms a frame indoors).
+	env.glow_enabled = bool(QualityPreset.PRESETS.get(quality, {}).get("glow", true))
 	env.glow_intensity = 0.55
 	env.glow_bloom = 0.04
 	env.glow_hdr_threshold = 1.1
