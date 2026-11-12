@@ -1,60 +1,69 @@
 extends Node3D
 
-## Spell effects boss warning: a layered ground effect whose timing is the
-## authoritative telegraph's, never a client guess.
+## The boss warning's effect: what burns on the telegraph's ground disc, with
+## timing that is the authoritative telegraph's, never a client guess.
 ##
 ## The shape and the countdown come straight from the replicated telegraph
 ## (`MSG_TELEGRAPH` / the entity record's `telegraph` dict): `start_tick`,
 ## `release_tick`, `kind` and the hit area's `radius`/`range`/`half_angle`. The
 ## effect is only the presentation of that data - it cannot move the release
-## tick, and `set_progress()` is driven by the same `sim_tick` the authority
+## tick, and `set_progress()` is driven by the same sim clock the authority
 ## scheduled the damage on, so what the player sees is what the server will do.
 ##
-## Layers (12.3 last row): the ground mask matching the hit area, an
-## edge ring, a countdown ring that fills to the release tick, rim motes so it
-## stays readable in a crowd, a pulse light and the charge/release audio.
+## It is the ground that burns, built from the game's own fire and not from
+## drawn shapes:
+##   * the ground - one disc with ground_telegraph.gdshader: the exact hit area
+##     charred and seamed with fire, a line of fire on its boundary, a ragged
+##     front crawling out to the boundary as the countdown. A creature's
+##     warning brings its own disc (this effect is its child and drives its
+##     material); a dungeon hazard has none, so the effect makes one;
+##   * embers lifting off the boundary (RisingMotes: the sparks every spell
+##     throws), and a burst of them when it goes off;
+##   * a flickering light, the charge/release audio and the release blast.
+## A lasting patch (a venom pool, sticky ground) is the ground alone.
+## No flames stand on it: a ring of flame cards round this ground was tried
+## and the user threw it out, as they did a red swirl of energy and, before
+## either, ruled lines with a flat fill. The burning ground is what they kept.
 
-const VFX = preload("res://scripts/spells/vfx_library.gd")
-const SHADER_ADD := "res://assets/shaders/spell_layer_add.gdshader"
-const SHADER_ALPHA := "res://assets/shaders/spell_layer.gdshader"
+const MobBase = preload("res://scripts/entities/mobs/mob_base.gd")
 const QualityPreset = preload("res://scripts/world/quality_preset.gd")
+const APPEAR_S := 0.16
+const BLAST_S := 0.34
+## How long the embers already in the air are left to burn out after a release.
+const AFTERGLOW_S := 0.8
 
 var kind := "area"
 var radius := 5.5
 var range_length := 8.0
 var half_angle := 0.6
-var colour := Color(1.0, 0.25, 0.08)
+var colour := MobBase.WARNING_TINT
 var progress := 0.0
 var _layers := {}
 var _released := false
+var _held := false
 var _audio: Node = null
-
-## The shaders, textures and one material of each kind this effect uses, kept
-## for the whole process. A telegraph lives a second or two; once the last one
-## was freed Godot dropped these shaders, and the next telegraph compiled the
-## same pipelines again in the middle of a fight.
-static var _kept: Dictionary = {}
-
-static func _resource(path: String) -> Resource:
-	if not _kept.has(path):
-		_kept[path] = load(path)
-	return _kept[path]
-
-static func _keep_one(kind: String, material: Material) -> void:
-	if not _kept.has(kind):
-		_kept[kind] = material
+## The disc this effect burns on: the parent creature's, or its own.
+var _disc: MeshInstance3D = null
+var _own_disc := false
+var _embers: GPUParticles3D = null
+var _light: OmniLight3D = null
+var _appear := 0.0
 
 const CHARGE_SOUND := "boss_slam_cast"
 const RELEASE_SOUND := "boss_slam_release"
 
 
-## `data` is the telegraph dictionary exactly as replicated.
+## `data` is the telegraph dictionary exactly as replicated. Without a
+## `release_tick` it is a lasting patch (a venom pool, sticky ground): the
+## ground is held, with no countdown and no flames.
 func setup(data: Dictionary) -> void:
 	kind = String(data.get("kind", "area"))
 	radius = float(data.get("radius", 5.5))
 	range_length = float(data.get("range", 8.0))
 	half_angle = float(data.get("half_angle", 0.6))
+	_held = not data.has("release_tick")
 	_build()
+	_param("held", 1.0 if _held else 0.0)
 	if data.has("start_tick") and data.has("release_tick"):
 		# One charge cue at the start of the anticipation, one release cue at the
 		# authoritative release tick - both scheduled on the telegraph's ticks.
@@ -72,151 +81,149 @@ func _sim_hz() -> float:
 		return float(sim.get("SIM_HZ"))
 	return 20.0
 
-func _build() -> void:
-	var quality := QualityPreset.current()
-	var light_allowed := quality != "low"
-	# The hit-area mask itself stays the parent mob's own mesh: it carries the
-	# authoritative radius (the multiplayer probe reads `mesh.top_radius` from
-	# it), so this effect layers ON it rather than duplicating it.
-	var shape_size := radius * 2.0 if kind != "directional" else range_length * 2.0
-	# 2) edge ring (the boundary the player must leave)
-	var edge := _make_quad(SHADER_ADD, "vfx_rune_masks", 0, shape_size * 1.04, 0.09)
-	edge.name = "EdgeRing"
-	edge.set_meta("base_scale", Vector3.ONE)
-	_layers["edge"] = edge
-	# 3) countdown ring: fills from the start tick to the release tick
-	var countdown := _make_quad(SHADER_ADD, "vfx_rune_masks", 1, shape_size * 0.86, 0.11)
-	countdown.name = "CountdownRing"
-	_layers["countdown"] = countdown
-	# 4) a scorched ground mark so the area is visible even with glow disabled
-	var mark := _make_quad(SHADER_ALPHA, "vfx_ground_marks", 3, shape_size * 1.02, 0.05)
-	mark.name = "GroundMark"
-	_layers["mark"] = mark
-	# 5) rim motes: readable in a crowd, never in the middle where they would
-	#    hide the player's own feet
-	if quality != "low":
-		var motes := GPUParticles3D.new()
-		motes.name = "RimMotes"
-		motes.amount = 12
-		motes.lifetime = 0.8
-		motes.local_coords = false
-		motes.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		var quad := QuadMesh.new()
-		quad.size = Vector2(0.09, 0.09)
-		var pmat := StandardMaterial3D.new()
-		pmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		pmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		pmat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-		pmat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-		pmat.albedo_texture = _resource(VFX.asset_path("vfx_spark_static"))
-		pmat.albedo_color = colour
-		_keep_one("motes_material", pmat)
-		quad.material = pmat
-		motes.draw_pass_1 = quad
-		var process := ParticleProcessMaterial.new()
-		process.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_RING
-		process.emission_ring_radius = maxf(0.4, radius * 0.92)
-		process.emission_ring_inner_radius = maxf(0.3, radius * 0.80)
-		process.emission_ring_axis = Vector3.UP
-		process.direction = Vector3.UP
-		process.spread = 20.0
-		process.initial_velocity_min = 0.3
-		process.initial_velocity_max = 0.9
-		process.gravity = Vector3(0, 0.3, 0)
-		process.color = colour
-		_keep_one("motes_process", process)
-		motes.process_material = process
-		add_child(motes)
-		motes.emitting = true
-		_layers["motes"] = motes
-	# 6) a restrained pulse light, off on the reduced preset
-	if light_allowed:
-		var light := OmniLight3D.new()
-		light.name = "WarningLight"
-		light.light_color = colour
-		light.light_energy = 1.4
-		light.omni_range = maxf(4.0, radius * 1.6)
-		light.shadow_enabled = false
-		add_child(light)
-		light.position = Vector3(0, 0.6, 0)
-		_layers["light"] = light
+func _reach() -> float:
+	return range_length if kind == "directional" else radius
 
-func _make_quad(shader_path: String, asset_id: String, frame: int, size: float, lift: float) -> MeshInstance3D:
-	var quad := QuadMesh.new()
-	quad.size = Vector2(size, size)
-	var material := ShaderMaterial.new()
-	material.shader = _resource(shader_path)
-	material.set_shader_parameter("atlas", _resource(VFX.asset_path(asset_id)))
-	material.set_shader_parameter("grid", VFX.asset(asset_id).get("grid", Vector2.ONE))
-	material.set_shader_parameter("frame", float(frame))
-	material.set_shader_parameter("billboard", false)
-	material.set_shader_parameter("tint", colour)
-	material.set_shader_parameter("opacity", 0.0)
-	material.set_shader_parameter("soft_fade", 0.0)
-	quad.material = material
-	var node := MeshInstance3D.new()
-	node.mesh = quad
-	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	node.rotation = Vector3(-PI * 0.5, 0.0, 0.0)
-	node.position = Vector3(0, lift, 0)
-	add_child(node)
-	return node
+func _sector() -> float:
+	return half_angle if kind == "directional" else 4.0
+
+func _ready() -> void:
+	set_process(false)
+	set_physics_process(false)
+
+func _build() -> void:
+	var low := QualityPreset.current() == "low"
+	# 1) the ground: the creature's own disc (it carries the authoritative
+	#    radius - the multiplayer probe reads `mesh.top_radius` from it), or one
+	#    made here for a hazard that has no creature
+	var host := get_parent() as MeshInstance3D
+	if host != null and host.mesh is CylinderMesh and (host.mesh as CylinderMesh).material is ShaderMaterial:
+		_disc = host
+	else:
+		_disc = MobBase.warning_disc(_reach(), half_angle if kind == "directional" else 0.0)
+		_disc.name = "Area"
+		_disc.position = Vector3(0, 0.08, 0)
+		add_child(_disc)
+		_own_disc = true
+	_param("tint", colour)
+	if _held:
+		_appear = 1.0
+		_param("fade", 1.0)
+		return
+	_param("fade", 0.0)
+	# 2) embers lifting off the boundary
+	_embers = RisingMotes.make(_reach(), _sector(), colour, 16 if low else 36, 1.5, Vector2(0.4, 1.7), Vector2(0.011, 0.026))
+	RisingMotes.set_rate(_embers, 0.3)
+	add_child(_embers)
+	_embers.emitting = true
+	_layers["embers"] = _embers
+	# 3) a flickering light, off on the reduced preset
+	if not low:
+		_light = OmniLight3D.new()
+		_light.name = "WarningLight"
+		_light.light_color = colour.lerp(Color(1.0, 0.75, 0.45), 0.3)
+		_light.light_energy = 0.0
+		_light.omni_range = maxf(4.5, _reach() * 1.5)
+		_light.omni_attenuation = 1.4
+		_light.shadow_enabled = false
+		add_child(_light)
+		_light.position = Vector3(0, 1.1, _reach() * 0.5 if kind == "directional" else 0.0)
+		_layers["light"] = _light
+	set_process(true)
+
+## The warning burns in over APPEAR_S instead of popping on.
+func _process(delta: float) -> void:
+	if _released:
+		return
+	if _appear < 1.0:
+		_appear = minf(1.0, _appear + delta / APPEAR_S)
+		_param("fade", _appear)
+	if _light != null and is_instance_valid(_light):
+		var t := Time.get_ticks_msec() * 0.001
+		_light.light_energy = (0.5 + 2.4 * progress) * _appear * (0.86 + 0.14 * sin(t * 17.0) * sin(t * 7.3))
+
+func _material() -> ShaderMaterial:
+	if _disc == null or not is_instance_valid(_disc) or not (_disc.mesh is CylinderMesh):
+		return null
+	return (_disc.mesh as CylinderMesh).material as ShaderMaterial
+
+func _param(parameter: String, value: Variant) -> void:
+	var material := _material()
+	if material != null:
+		material.set_shader_parameter(parameter, value)
 
 ## Driven by the replicated telegraph each frame: `progress` goes 0 -> 1 across
-## start_tick -> release_tick, so the fill is exactly the authority's countdown.
+## start_tick -> release_tick, so the fire's reach is exactly the authority's
+## countdown. The embers thicken with it.
 func set_progress(p: float) -> void:
-	progress = clampf(p, 0.0, 1.0)
-	if _layers.has("edge"):
-		_set_opacity(_layers["edge"], 0.25 + 0.60 * progress)
-		# the edge pulses faster as the release approaches - a read the player
-		# gets even at the lowest quality or with the screen small
-		var pulse := 1.0 + 0.035 * sin(Time.get_ticks_msec() * 0.001 * (2.0 + 9.0 * progress))
-		_layers["edge"].scale = Vector3(pulse, pulse, 1.0) * (_layers["edge"].get_meta("base_scale", Vector3.ONE))
-	if _layers.has("countdown"):
-		# the countdown ring "wraps": completed notches read as an arc
-		_set_opacity(_layers["countdown"], 0.15 + 0.85 * progress)
-	if _layers.has("mark"):
-		_set_opacity(_layers["mark"], 0.35)
-	if _layers.has("light"):
-		_layers["light"].light_energy = 0.8 + 3.0 * progress
-
-func _set_opacity(node: Node3D, value: float) -> void:
-	if not (node is MeshInstance3D):
+	if _released:
 		return
-	var material := (node as MeshInstance3D).mesh.surface_get_material(0) as ShaderMaterial
-	if material != null:
-		material.set_shader_parameter("opacity", clampf(value, 0.0, 1.0))
+	progress = clampf(p, 0.0, 1.0)
+	_param("progress", progress)
+	RisingMotes.set_rate(_embers, 0.3 + 0.7 * progress)
 
-## The attack fired: flash the shape and clear it immediately.
+## The attack fired: the fire flashes, a blast runs out to the boundary, embers
+## are thrown up, and it is gone. The disc goes with it, whichever made it (a
+## creature hands its disc over on release).
 func release() -> void:
+	if _released:
+		return
 	_released = true
-	for key in ["mask", "edge", "countdown"]:
-		if _layers.has(key):
-			_set_opacity(_layers[key], 0.9)
+	_param("progress", 1.0)
+	_param("flash", 1.0)
+	_param("fade", 1.0)
+	if _embers != null and is_instance_valid(_embers):
+		_embers.emitting = false
+	if not _held and QualityPreset.current() != "low":
+		var burst := RisingMotes.make(_reach(), _sector(), colour, 46, 0.95, Vector2(1.6, 4.6), Vector2(0.012, 0.034), true)
+		add_child(burst)
+		burst.emitting = true
+		_layers["burst"] = burst
 	var tween := create_tween()
-	tween.tween_interval(0.12)
-	tween.tween_callback(clear)
+	tween.set_parallel(true)
+	var material := _material()
+	if material != null:
+		tween.tween_property(material, "shader_parameter/shock", 1.0, BLAST_S).from(0.001).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+		tween.tween_property(material, "shader_parameter/flash", 0.0, BLAST_S).set_ease(Tween.EASE_OUT)
+		tween.tween_property(material, "shader_parameter/fade", 0.0, BLAST_S).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	if _light != null and is_instance_valid(_light):
+		_light.light_energy = 5.0
+		tween.tween_property(_light, "light_energy", 0.0, BLAST_S)
+	tween.tween_interval(BLAST_S)
+	tween.set_parallel(false)
+	tween.tween_interval(AFTERGLOW_S)
+	tween.tween_callback(_end)
 
+func _end() -> void:
+	clear()
+	if not _own_disc and _disc != null and is_instance_valid(_disc):
+		_disc.queue_free()   # frees this effect with it
+
+## Remove the picture (a held patch that ran out); the node itself is freed by
+## whoever made it.
 func clear() -> void:
 	for key in _layers:
 		var node = _layers[key]
 		if is_instance_valid(node):
 			node.queue_free()
 	_layers.clear()
+	_embers = null
+	_light = null
+	if _own_disc and _disc != null and is_instance_valid(_disc):
+		_disc.queue_free()
+		_disc = null
 	_stop_cues()
 
 func set_colour(c: Color) -> void:
 	colour = c
-	for key in _layers:
-		var node = _layers[key]
-		if node is MeshInstance3D:
-			var material := (node as MeshInstance3D).mesh.surface_get_material(0) as ShaderMaterial
-			if material != null:
-				material.set_shader_parameter("tint", c)
+	_param("tint", c)
+	if _light != null and is_instance_valid(_light):
+		_light.light_color = c
+	RisingMotes.set_colour(_embers, c)
 
-func _play_cue(sound_id: String, delay: float) -> void:
+func _play_cue(sound_id: String, _delay: float) -> void:
 	var manager := get_node_or_null("/root/AudioManager")
-	if manager == null:
+	if manager == null or not is_inside_tree():
 		return
 	if _audio == null:
 		_audio = manager.call("play_sound_at", sound_id, global_position, self)
@@ -234,4 +241,4 @@ func _exit_tree() -> void:
 ## Presentation description used by the checks.
 func describe() -> Dictionary:
 	return {"kind": kind, "radius": radius, "range": range_length,
-		"layers": _layers.size(), "progress": progress, "colour": colour}
+		"layers": _layers.size() + (1 if _disc != null else 0), "progress": progress, "colour": colour}

@@ -7,6 +7,8 @@ extends StaticBody3D
 signal monolith_damaged(current_hp: int, max_hp: int)
 signal monolith_destroyed
 
+const MobBase = preload("res://scripts/entities/mobs/mob_base.gd")
+
 ## spawn_tables.json monolith_types key: "dark" (the grounds' Dark Monolith)
 ## or "spider" (the Webbound Seal Stone of the Blackweb Caverns). The type
 ## decides name, level, health, reward, waves, loot and respawn.
@@ -169,7 +171,7 @@ func _spawn_wave(wave_num: int, target_player: Node3D) -> void:
 	var dist_min := float(config.get("spawn_distance_min", 4.0))
 	var dist_max := float(config.get("spawn_distance_max", 9.0))
 	for group in wave_entry.get("spawns", []):
-		var scene_res: PackedScene = load(String(scenes.get(String(group.get("mob", "")), "")))
+		var scene_res: PackedScene = MobBase.body_scene(String(scenes.get(String(group.get("mob", "")), "")))
 		if scene_res == null:
 			continue
 		for _i in range(int(group.get("count", 0))):

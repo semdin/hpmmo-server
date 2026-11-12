@@ -50,6 +50,7 @@ func _ready() -> void:
 	body.add_theme_constant_override("separation", 10)
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	get_viewport().size_changed.connect(_layout)
+	card._content_margin.minimum_size_changed.connect(_content_changed)
 	_layout()
 
 func set_title(text: String) -> void:
@@ -57,14 +58,30 @@ func set_title(text: String) -> void:
 	if _title != null:
 		_title.text = I18n.upper(tr(text))
 
-## Clamp the card to the screen; centre it the first time (afterwards it stays
-## where the player dragged it).
+## The content came to need more (or less) room: a longer translation, a chip
+## that wrapped, another page. One layout for however many changes a frame makes.
+var _layout_queued := false
+
+func _content_changed() -> void:
+	if _layout_queued or not visible:
+		return   # a hidden window is laid out when it opens
+	_layout_queued = true
+	_layout.call_deferred()
+
+## Size the card and clamp it to the screen; centre it the first time
+## (afterwards it stays where the player dragged it). The card is the size its
+## window asked for, or what its content needs when that is more: a frame
+## smaller than its content does not clip it, the content is drawn past the
+## frame (the dungeon gate's button hung below the window in Turkish, its seal
+## shop page ran 78 px out of the right edge).
 func _layout() -> void:
+	_layout_queued = false
 	if card == null:
 		return
 	var canvas := get_viewport().get_visible_rect().size
+	var need := card._content_margin.get_combined_minimum_size()
 	# Keep clear of the action bar at the bottom (about 100 px).
-	var s := Vector2(minf(_wanted.x, canvas.x - 32.0), minf(_wanted.y, canvas.y - 140.0))
+	var s := Vector2(minf(maxf(_wanted.x, need.x), canvas.x - 32.0), minf(maxf(_wanted.y, need.y), canvas.y - 140.0))
 	var at := Vector2(card.offset_left, card.offset_top)
 	if not _placed:
 		at = ((canvas - s) * 0.5).floor() - Vector2(0, 30)

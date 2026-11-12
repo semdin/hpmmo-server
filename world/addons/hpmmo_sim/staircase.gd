@@ -358,23 +358,25 @@ func p2() -> Transform3D:
 ## The one function both the authority and every replica use. It is a pure
 ## function of the published (state, transforms, ticks), so two clients that
 ## received the same message compute the same transform on the same tick.
-func platform_transform_at(tick: int) -> Transform3D:
+## `tick` may be fractional: the pose a screen draws lies between two ticks
+## (`pose_tick`).
+func platform_transform_at(tick: float) -> Transform3D:
 	var pivot: Variant = spec.get("pivot")
 	if (state == STATE_MOVING or state == STATE_DOCKING) and pivot is Array and (pivot as Array).size() == 2:
 		# A swinging flight: one eased sweep from dock to dock over the whole
 		# move + dock window (gentle start, gentle arrival) instead of a linear
 		# swing that brakes hard at the docking point.
 		var whole := maxi(1, arrive_tick - move_start_tick)
-		var u := clampf(float(tick - move_start_tick) / float(whole), 0.0, 1.0)
+		var u := clampf((tick - float(move_start_tick)) / float(whole), 0.0, 1.0)
 		return _between(p0(), p2(), u * u * u * (u * (u * 6.0 - 15.0) + 10.0))
 	match state:
 		STATE_MOVING:
 			var span := maxi(1, dock_start_tick - move_start_tick)
-			var t := clampf(float(tick - move_start_tick) / float(span), 0.0, 1.0)
+			var t := clampf((tick - float(move_start_tick)) / float(span), 0.0, 1.0)
 			return _between(p0(), p1(), t)
 		STATE_DOCKING:
 			var span := maxi(1, arrive_tick - dock_start_tick)
-			var t := clampf(float(tick - dock_start_tick) / float(span), 0.0, 1.0)
+			var t := clampf((tick - float(dock_start_tick)) / float(span), 0.0, 1.0)
 			return _between(p1(), p2(), t)
 		_:
 			return p0()
@@ -393,12 +395,12 @@ func _between(a: Transform3D, b: Transform3D, t: float) -> Transform3D:
 	return Transform3D(a.basis.slerp(b.basis, t), axis + Vector3(0.0, height, 0.0)) * inner
 
 ## The world-space transform of the deck right now.
-func platform_world_transform(tick: int) -> Transform3D:
+func platform_world_transform(tick: float) -> Transform3D:
 	return global_transform * platform_transform_at(tick)
 
 ## Local coordinates of a world point on the deck, in "flight space": x across
 ## the deck, y above the deck surface, z along the run.
-func to_deck_space(world_point: Vector3, tick: int) -> Vector3:
+func to_deck_space(world_point: Vector3, tick: float) -> Vector3:
 	return platform_world_transform(tick).affine_inverse() * world_point
 
 ## The deck surface height at a local z.
@@ -410,7 +412,7 @@ func deck_surface_y(local_z: float) -> float:
 ## against a transform a snapshot or two old passes a generous `above`; a caller
 ## that decides whether a body standing near a raised deck belongs on it leaves
 ## `below` tight, so a body on the ground under the flight is not swept up.
-func on_deck(world_point: Vector3, tick: int, above: float = 2.6, below: float = 0.8) -> bool:
+func on_deck(world_point: Vector3, tick: float, above: float = 2.6, below: float = 0.8) -> bool:
 	var local := to_deck_space(world_point, tick)
 	if absf(local.x) > half_width() + 0.35:
 		return false
@@ -444,13 +446,26 @@ func _physics_process(_delta: float) -> void:
 	if is_authority_runtime:
 		if SimAuthority.simulation_paused():
 			return
-		if SimAuthority.sim_tick == _stepped_tick:
-			return
-		_stepped_tick = SimAuthority.sim_tick
-		_authority_step(SimAuthority.sim_tick)
+		if SimAuthority.sim_tick != _stepped_tick:
+			_stepped_tick = SimAuthority.sim_tick
+			_authority_step(SimAuthority.sim_tick)
+		if _headless:
+			return   # nobody watches the dedicated server's deck between ticks
 	else:
 		_apply_pending_payloads()
-		_apply_platform(platform_transform_at(SimAuthority.sim_tick))
+	_apply_platform(platform_transform_at(pose_tick()))
+
+# ------------------------------------------------------- presentation clock
+
+## A process that draws the deck poses it on the continuous sim clock
+## (HPSimClock): posed on the integer tick it moved in jerks, ten visible steps
+## a second on a client. A process without a screen (the dedicated server, the
+## headless test clients) keeps the exact integer tick. Also the tick a rider
+## is clamped on.
+static var _headless := DisplayServer.get_name() == "headless"
+
+static func pose_tick() -> float:
+	return float(SimAuthority.sim_tick) if _headless else HPSimClock.now()
 
 func _authority_step(tick: int) -> void:
 	match state:

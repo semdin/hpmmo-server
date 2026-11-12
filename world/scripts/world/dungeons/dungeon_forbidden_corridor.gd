@@ -66,8 +66,7 @@ func _build() -> void:
 			child.queue_free()
 	if collision_only:
 		return
-	_portal_ring(Vector3(0, f + 0.05, 11))
-	_portal_ring(Vector3(0, f + 0.05, -230))
+	_portal_sigils()
 	_dress_corridor(f)
 	_dress_gallery(f)
 	_dress_cellar(f)

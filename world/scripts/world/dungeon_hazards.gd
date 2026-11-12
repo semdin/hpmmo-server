@@ -2,7 +2,7 @@ extends Node3D
 
 ## The weekly curses' ground hazards in the local player's dungeon copy
 ## (SimAuthority.dungeon_hazard, protocol v30), drawn with the boss warning
-## effect: a ring that fills to its release tick and bursts (Bursting Dead,
+## effect: an area that fills to its release tick and bursts (Bursting Dead,
 ## Storm Rain), or a held patch until it fades (Sticky Ground, the Queen's
 ## venom pools). Presentation only - the dungeon director resolves every
 ## hazard on the authority's clock.
@@ -52,7 +52,8 @@ func _process(_delta: float) -> void:
 		if data.has("release_tick"):
 			var start := int(data.get("start_tick", now))
 			var release := int(data["release_tick"])
-			fx.set_progress(float(now - start) / float(maxi(1, release - start)))
+			# on the continuous sim clock: the integer tick filled in notches
+			fx.set_progress((HPSimClock.now() - float(start)) / float(maxi(1, release - start)))
 			if now >= release:
 				fx.release()
 				_free_later(fx)

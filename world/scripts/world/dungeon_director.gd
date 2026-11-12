@@ -38,6 +38,8 @@ extends Node
 ## after `boss_enrage_s`, and per-entry `harp_scale` / `marks` (Fluffy's harp,
 ## the Queen's venom). Every run prints its step splits for balancing.
 
+const MobBase = preload("res://scripts/entities/mobs/mob_base.gd")
+
 const TICK := 0.25
 ## Longest wait for the roster in the entry hall before the countdown starts.
 const GATHER_S := 45.0
@@ -56,6 +58,34 @@ func start(world: Node3D, encounter_director: Node) -> void:
 	if not SimAuthority.instance_opened.is_connected(open_run):
 		SimAuthority.instance_opened.connect(open_run)
 		SimAuthority.instance_closed.connect(close_run)
+	if NetworkManager.is_dedicated_server:
+		_warm_scenes()
+
+## Every creature a dungeon can field - its hatchlings, cocoons and a multipart
+## boss's parts too - loaded before the first run. The dedicated server only:
+## the first Sealed Wing after a boot read five bodies cold (90-270 ms each)
+## while the party stood inside, and a client that hosts its own world loads a
+## body when it first meets one.
+func _warm_scenes() -> void:
+	var started := Time.get_ticks_usec()
+	var species: Dictionary = {}
+	for def in HPMaps.dungeons().values():
+		for step in (def as Dictionary).get("steps", []):
+			for entry in (step as Dictionary).get("spawn", []):
+				species[String((entry as Dictionary).get("mob", ""))] = true
+				for hatchling in ((entry as Dictionary).get("hatch", {}) as Dictionary).get("into", []):
+					species[String((hatchling as Dictionary).get("mob", ""))] = true
+			if (step as Dictionary).has("cocoon"):
+				species[String(((step as Dictionary)["cocoon"] as Dictionary).get("mob", "web_cocoon"))] = true
+	for id in species.keys():
+		var part := String((HPRules.mob_def(String(id)).get("parts", {}) as Dictionary).get("species", ""))
+		if part != "":
+			species[part] = true
+	var loaded := 0
+	for id in species:
+		if MobBase.body_scene(HPRules.mob_scene_path(String(id))) != null:
+			loaded += 1
+	print("[Dungeon] %d creature scenes warmed in %.0f ms" % [loaded, float(Time.get_ticks_usec() - started) / 1000.0])
 
 func open_run(map_id: String) -> void:
 	var def := HPMaps.dungeon_for_map(map_id)
@@ -784,11 +814,11 @@ func _grant_title(map_id: String, run: Dictionary) -> void:
 
 func _spawn(map_id: String, entry: Dictionary, origin: Vector3, pack_id: int) -> Node3D:
 	var species := String(entry.get("mob", ""))
-	var path := HPRules.mob_scene_path(species)
-	if path == "" or not ResourceLoader.exists(path):
+	var scene := MobBase.body_scene(HPRules.mob_scene_path(species))
+	if scene == null:
 		push_error("[Dungeon] %s: no scene for '%s'" % [map_id, species])
 		return null
-	var mob = (load(path) as PackedScene).instantiate()
+	var mob = scene.instantiate()
 	var at: Vector3 = origin + _vec(entry.get("at", []))
 	mob.position = at
 	mob.pack_anchor = at

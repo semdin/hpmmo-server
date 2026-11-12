@@ -1493,6 +1493,23 @@ var _sleeping := false
 ## every player. Sized by time, not frames: the very first pass (every
 ## creature awake after boot, frames slow) still covers everyone at once.
 const WAKE_PERIOD_MS := 500.0
+
+## Creature scenes by path, held for the session. A PackedScene nobody holds
+## leaves the resource cache (its instances do not keep it), so a `load()`
+## before every spawn read the whole body - the .tscn and its GLB - from disk
+## again, 20-30 ms a creature: the Sealed Wing's first step (45 creatures in
+## one frame) froze the live server for 0.95 s, and every later wave of pixies
+## or armour for 90-170 ms. Every runtime spawner takes its scene from here.
+static var _scene_cache: Dictionary = {}
+
+static func body_scene(path: String) -> PackedScene:
+	var scene: PackedScene = _scene_cache.get(path)
+	if scene == null and path != "" and ResourceLoader.exists(path):
+		scene = load(path) as PackedScene
+		if scene != null:
+			_scene_cache[path] = scene
+	return scene
+
 static var _wake_mobs: Array = []
 static var _wake_cursor := 0
 static var _wake_list_ms := -100000
@@ -1606,15 +1623,17 @@ func _face_direction(direction: Vector3, delta: float) -> void:
 
 # ------------------------------------------------------------------ warning
 
-## Server-side telegraph mesh (also the shape the client puppet draws). Built
-## from the attack plan: a disc for an area attack, a stretched lune for a
-## directional one. `_warning_fill` is the event horizon: it fills over the
-## anticipation and is exactly full at the authoritative release tick.
-## spell-effect hook: the layered boss-warning effect scene (spells/boss_warning.gd)
-## is attached to the ground mask. The mask itself must stay a MeshInstance3D
-## with a CylinderMesh: the multiplayer probe reads its `top_radius` to prove the
+## The boss warning on the ground, drawn from the attack plan: a disc whose
+## shader (ground_telegraph.gdshader) draws the hit area itself - the circle of
+## an area attack, the cone of a directional one - with a fill that grows from
+## the centre and meets the boundary on the authoritative release tick.
+## spell-effect hook: the boss-warning effect scene (spells/boss_warning.gd)
+## is attached to the disc (rim sparks, pulse light, charge/release cues, the
+## release flash). The disc itself must stay a MeshInstance3D with a
+## CylinderMesh: the multiplayer probe reads its `top_radius` to prove the
 ## replicated warning matches the authoritative hit area.
 var _warning_effect: Node3D
+var _warning_progress := 0.0
 var _voice_timer := 0.0
 
 
@@ -1646,25 +1665,51 @@ func _voice_key(kind: String, variant: int = 0) -> String:
 ## material died with it every telegraph recompiled the same pipelines
 ## (110-150 ms hitches every few seconds in dungeon and cavern fights, Intel
 ## iGPU); this one keeps the shader alive.
-static var _warning_material: StandardMaterial3D = null
+const WARNING_SHADER := preload("res://assets/shaders/ground_telegraph.gdshader")
+const WARNING_TINT := Color(1.0, 0.38, 0.08)
+## The cloud map the warning's fire is cut from (the spell effects' erosion
+## map). Loaded at run time on a screen only.
+const WARNING_NOISE := "res://assets/vfx/tex/noise_erosion_512.png"
+static var _warning_material: ShaderMaterial = null
 ## The layered warning effect, kept loaded with its script (and so its kept
 ## shaders) instead of loaded and dropped with every telegraph.
 static var _warning_scene: PackedScene = null
 
-static func warning_material() -> StandardMaterial3D:
+static func warning_material() -> ShaderMaterial:
 	if _warning_material == null:
-		var mat := StandardMaterial3D.new()
-		mat.albedo_color = Color(1, 0.15, 0.06, 0.36)
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		# The hit-area mask carries the rune/ground-mark texture so the
-		# area itself reads as magic rather than as a flat red disc.
-		mat.albedo_texture = load("res://assets/vfx/atlases/rune_masks_2x2_1k.png")
-		# cell 0 of the 2x2 rune atlas (the telegraph circle)
-		mat.uv1_scale = Vector3(0.5, 0.5, 1.0)
-		mat.uv1_offset = Vector3(0.0, 0.0, 0.0)
+		var mat := ShaderMaterial.new()
+		mat.shader = WARNING_SHADER
+		mat.set_shader_parameter("tint", WARNING_TINT)
+		if DisplayServer.get_name() != "headless" and ResourceLoader.exists(WARNING_NOISE):
+			mat.set_shader_parameter("noise", load(WARNING_NOISE))
 		_warning_material = mat
 	return _warning_material
+
+## The disc a warning is drawn in: `reach` metres across the hit area (a
+## cone's range), `half_angle` 0 for a circle. The shader projects the mark on
+## the ground it finds inside the disc, so the disc is a low drum round the
+## centre (taller for a wide area: a slope climbs further across it) rather
+## than a flat plate that a hillside would cut through. Shared with the
+## dungeon hazards (boss_warning.gd), which draw the same warning without a
+## creature.
+static func warning_disc(reach: float, half_angle: float = 0.0) -> MeshInstance3D:
+	var half_height := clampf(reach * 0.25, 0.6, 1.4)
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = reach
+	mesh.bottom_radius = reach
+	mesh.height = half_height * 2.0
+	mesh.radial_segments = 24
+	mesh.rings = 1
+	# a copy: the fill follows this telegraph's own progress
+	var mat := warning_material().duplicate() as ShaderMaterial
+	mat.set_shader_parameter("radius", reach)
+	mat.set_shader_parameter("half_height", half_height)
+	mat.set_shader_parameter("sector", half_angle if half_angle > 0.0 else 4.0)
+	mesh.material = mat
+	var disc := MeshInstance3D.new()
+	disc.mesh = mesh
+	disc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return disc
 
 func _show_warning(plan: Dictionary = {}) -> void:
 	if is_instance_valid(_warning):
@@ -1672,26 +1717,21 @@ func _show_warning(plan: Dictionary = {}) -> void:
 	var kind := String(plan.get("kind", "slam" if _attack_kind == "slam" else _attack_kind))
 	var radius := float(plan.get("radius", 5.5))
 	var length := float(plan.get("range", 8.0))
-	var width := maxf(2.0, 2.0 * length * sin(float(plan.get("half_angle", 0.6))))
-	var mesh := CylinderMesh.new()
-	if kind == "directional":
-		mesh.top_radius = length
-		mesh.bottom_radius = length
-		mesh.height = 0.03
-	else:
-		mesh.top_radius = radius
-		mesh.bottom_radius = radius
-		mesh.height = 0.03
-	# a copy: the fill colour follows this telegraph's own progress
-	mesh.material = warning_material().duplicate()
-	_warning = MeshInstance3D.new()
-	_warning.mesh = mesh
-	if kind == "directional":
-		_warning.scale = Vector3(1.0, 1.0, width / maxf(0.01, length))
+	var half_angle := float(plan.get("half_angle", 0.6))
+	var width := maxf(2.0, 2.0 * length * sin(half_angle))
+	var cone := kind == "directional"
+	# A directional attack is a cone from the body (SimAuthority.mob_cone_attack:
+	# within `range`, within `half_angle` of the direction), and is drawn as that
+	# cone. It used to be a disc squashed into an ellipse around the body - and on
+	# a client it pointed along this replica's own `_attack_dir`, which only the
+	# authority sets: the telegraph's `dir` is the direction.
+	_warning = warning_disc(length if cone else radius, half_angle if cone else 0.0)
 	get_parent().add_child(_warning)
 	_warning.global_position = _attack_center + Vector3.UP * 0.08
-	if kind == "directional":
-		_warning.rotation.y = atan2(_attack_dir.x, _attack_dir.z)
+	if cone:
+		var dir: Vector3 = plan.get("dir", _attack_dir)
+		_warning.rotation.y = atan2(dir.x, dir.z)
+	_warning_progress = 0.0
 	_attach_warning_effect(plan, kind, radius, length, width)
 
 
@@ -1721,9 +1761,14 @@ func _attach_warning_effect(plan: Dictionary, kind: String, radius: float, lengt
 	effect.call("setup", data)
 
 
-func _cancel_warning() -> void:
+## `landed`: the attack went off - the warning flashes and is gone (the effect
+## frees the disc when its flash ends); otherwise it is simply removed.
+func _cancel_warning(landed: bool = false) -> void:
 	if is_instance_valid(_warning):
-		_warning.queue_free()
+		if landed and is_instance_valid(_warning_effect) and _warning_effect.has_method("release"):
+			_warning_effect.call("release")
+		else:
+			_warning.queue_free()
 	_warning = null
 	_warning_fill = null
 	_warning_effect = null
@@ -2129,7 +2174,8 @@ func _draw_telegraph(record: Dictionary) -> void:
 	var data: Dictionary = record.get("telegraph", {})
 	if data.is_empty():
 		if is_instance_valid(_warning):
-			_cancel_warning()
+			# Gone on (or just short of) its release tick: it landed.
+			_cancel_warning(_warning_progress > 0.85)
 		return
 	var release_tick := int(data.get("release_tick", 0))
 	var start_tick := int(data.get("start_tick", release_tick))
@@ -2144,13 +2190,16 @@ func _draw_telegraph(record: Dictionary) -> void:
 	if not is_instance_valid(_warning):
 		return
 	_warning.global_position = (data.get("center", global_position) as Vector3) + Vector3.UP * 0.08
+	# The fill is the authority's countdown, start tick to release tick, read on
+	# the continuous sim clock: on the integer tick a client's fill grew in ten
+	# notches a second.
 	var span := maxf(1.0, float(release_tick - start_tick))
-	var progress := clampf(float(SimAuthority.sim_tick - start_tick) / span, 0.0, 1.0)
-	var mat := (_warning.mesh as CylinderMesh).material as StandardMaterial3D
+	var progress := clampf((HPSimClock.now() - float(start_tick)) / span, 0.0, 1.0)
+	_warning_progress = progress
+	var mat := (_warning.mesh as CylinderMesh).material as ShaderMaterial
 	if mat:
-		mat.albedo_color = Color(1.0, 0.15 + 0.35 * progress, 0.06, 0.22 + 0.3 * progress)
-	# spell-effect hook: the layered effect's countdown fill is driven by the same
-	# authority ticks this fill is - never by a client-side guess.
+		mat.set_shader_parameter("progress", progress)
+	# spell-effect hook: the effect's light and sparks follow the same countdown.
 	if is_instance_valid(_warning_effect) and _warning_effect.has_method("set_progress"):
 		_warning_effect.call("set_progress", progress)
 

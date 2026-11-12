@@ -56,8 +56,7 @@ func _build() -> void:
 	_gate("gate_c", Vector3(0, f + 3.0, -212), Vector3(8, 6, 0.8))
 	if collision_only:
 		return
-	_portal_ring(Vector3(0, f + 0.05, 8.5))
-	_portal_ring(Vector3(0, f + 0.05, -224))
+	_portal_sigils()
 	_dress(f)
 
 func _dress(f: float) -> void:

@@ -75,15 +75,15 @@ func _spawn_parts() -> void:
 	_parts_spawned = true
 	var def := _part_def()
 	var part_species := String(def.get("species", ""))
-	var path := HPRules.mob_scene_path(part_species)
-	if path == "" or not ResourceLoader.exists(path):
+	var part_scene := body_scene(HPRules.mob_scene_path(part_species))
+	if part_scene == null:
 		push_error("[Boss] %s: no part scene for '%s'" % [species, part_species])
 		return
 	var part_def := HPRules.mob_def(part_species)
 	var hp := maxi(1, int(float(_boss_data().get("part_hp", (part_def.get("base", {}) as Dictionary).get("max_hp", 1000))) * part_hp_scale))
 	var bones: Dictionary = def.get("bones", {})
 	for key in bones.keys():
-		var part = (load(path) as PackedScene).instantiate()
+		var part = part_scene.instantiate()
 		part.owner_body = self
 		part.part_key = String(key)
 		part.bone_name = String(bones[key])

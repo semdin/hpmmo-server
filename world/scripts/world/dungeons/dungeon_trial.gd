@@ -44,8 +44,7 @@ func _build() -> void:
 	_gate("gate_h", Vector3(0, f + 3.0, -36), Vector3(8, 6, 0.8))
 	_gate("gate_a", Vector3(0, f + 3.0, -100), Vector3(8, 6, 0.8))
 	_gate("gate_x", Vector3(0, f + 3.0, -152), Vector3(8, 6, 0.8))
-	_portal_ring(Vector3(0, f + 0.05, 11))
-	_portal_ring(Vector3(0, f + 0.05, -161))
+	_portal_sigils()
 	for z in [8.0, -8.0]:
 		for x in [-10.0, 10.0]:
 			_torch(Vector3(x, f + 3.5, z))

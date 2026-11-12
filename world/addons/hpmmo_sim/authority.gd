@@ -3197,7 +3197,7 @@ func _drop_loot(target: Dictionary, eligible: Array = []) -> void:
 	if HPMaps.instance_slot(map_id) > 0 and not eligible.is_empty():
 		for uid in eligible:
 			var own := _roll_drops(target)
-			_grant_galleons(entities.get(int(uid), {}), _take_galleons(own))
+			_grant_galleons(entities.get(int(uid), {}), _take_galleons(own), int(target.get("uid", 0)))
 			_spawn_chest(own, origin, map_id, int(uid))
 		return
 	var drops := _roll_drops(target)
@@ -3205,7 +3205,7 @@ func _drop_loot(target: Dictionary, eligible: Array = []) -> void:
 	var killer: Dictionary = entities.get(killer_uid_of(target), {})
 	if killer.is_empty() and not eligible.is_empty():
 		killer = entities.get(int(eligible[0]), {})
-	_grant_galleons(killer, galleons)
+	_grant_galleons(killer, galleons, int(target.get("uid", 0)))
 	_spawn_chest(drops, origin, map_id)
 
 ## Remove the galleon rows from `drops`; returns their sum.
@@ -3219,7 +3219,11 @@ static func _take_galleons(drops: Array) -> int:
 
 ## Galleons from a kill, straight into the player's purse (with their
 ## galleon_bonus enchantment); `reward_granted` carries the "+N" feedback.
-func _grant_galleons(player: Dictionary, amount: int) -> void:
+## Its op id names the player ENTITY and the creature it came from (`source`,
+## 0 for a chest table): it was "loot:galleons:<character>:<tick>", which two
+## unbound sessions shared (character 0) and one player repeated for two
+## creatures that fell on the same tick.
+func _grant_galleons(player: Dictionary, amount: int, source: int = 0) -> void:
 	if amount <= 0 or player.is_empty() or int(player.get("kind", 0)) != HPProtocol.Kind.PLAYER:
 		return
 	var pnode = player.get("node")
@@ -3235,7 +3239,8 @@ func _grant_galleons(player: Dictionary, amount: int) -> void:
 	touch(player)
 	_push_vitals(player)
 	var character_id := int(player.get("character_id", 0))
-	emit_signal("reward_granted", int(player.get("uid", 0)), character_id, 0, amount, [], "loot:galleons:%d:%d" % [character_id, sim_tick])
+	emit_signal("reward_granted", int(player.get("uid", 0)), character_id, 0, amount, [],
+		"loot:galleons:%d:%d:%d" % [int(player.get("uid", 0)), source, sim_tick])
 
 func _roll_drops(target: Dictionary) -> Array:
 	var is_boss := bool(target.get("is_boss", false))

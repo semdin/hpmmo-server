@@ -258,9 +258,12 @@ func _carry_local_prediction() -> void:
 	# Generous above / tight below: the local body can be a snapshot ahead of the
 	# transform this client is showing, while a body standing on the ground under a
 	# raised flight is metres below the ramp surface and must not be swept up.
-	if not on_deck(player.global_position, SimAuthority.sim_tick, 3.2, 0.9):
+	# The same continuous tick the deck is posed on: clamped on the integer
+	# tick, the rider was pulled against a deck that had already moved on.
+	var tick := pose_tick()
+	if not on_deck(player.global_position, tick, 3.2, 0.9):
 		return
-	var xform := platform_world_transform(SimAuthority.sim_tick)
+	var xform := platform_world_transform(tick)
 	var local := xform.affine_inverse() * player.global_position
 	local.x = clampf(local.x, -half_width() + 0.35, half_width() - 0.35)
 	local.z = clampf(local.z, 0.3, run_length() - 0.3)

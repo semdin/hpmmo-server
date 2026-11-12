@@ -49,6 +49,7 @@ var _buy_id := -1
 var _cards: Dictionary = {}   # difficulty -> DifficultyCard
 var _detail: PanelContainer
 var _chips: GridContainer
+var _facts_key := ""
 var _curses: HFlowContainer
 var _members: VBoxContainer
 var _verdict: Label
@@ -60,7 +61,9 @@ var _confirm: HBoxContainer
 var _run_at_ms := 0
 
 func _init() -> void:
-	super._init("Dungeon Gate", Vector2(600, 706))
+	# Wide enough for the seal shop's two columns to carry whole item names in
+	# Turkish ("Mühürlü Kanat Anahtarı") beside the price and the button.
+	super._init("Dungeon Gate", Vector2(680, 720))
 	name = "DungeonGate"
 
 func _ready() -> void:
@@ -213,10 +216,15 @@ func _build_shop() -> VBoxContainer:
 	var words := VBoxContainer.new()
 	words.add_theme_constant_override("separation", 0)
 	words.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	words.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	line.add_child(words)
 	_seals = HudKit.label("", 22, HudKit.GOLD_HI, HudKit.title(), 3)
 	words.add_child(_seals)
-	words.add_child(HudKit.label(tr("Dungeon Seals  ·  Normal and harder clears pay seals; a gold medal adds one"), 12, HudKit.TEXT_DIM, HudKit.body(), 0))
+	# Wrapped: on one line it set the whole window's width (678 of 600 in Turkish).
+	var hint := HudKit.label(tr("Dungeon Seals  ·  Normal and harder clears pay seals; a gold medal adds one"), 12, HudKit.TEXT_DIM, HudKit.body(), 0)
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.custom_minimum_size.x = 200
+	words.add_child(hint)
 	_shop_grid = GridContainer.new()
 	_shop_grid.columns = 2
 	_shop_grid.add_theme_constant_override("h_separation", 6)
@@ -240,6 +248,9 @@ func _build_shop() -> VBoxContainer:
 		var amount := int(entry.get("amount", 1))
 		var name_text := I18n.t(String(HPEquipment.item(item_id).get("name", item_id)))
 		var label := HudKit.label(name_text if amount == 1 else "%s ×%d" % [name_text, amount], 14, HudKit.PARCHMENT, HudKit.body(), 0)
+		# A longer name takes a second line before it is cut.
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		label.max_lines_visible = 2
 		label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		label.custom_minimum_size.x = 60
 		col.add_child(label)
@@ -482,37 +493,45 @@ func _refresh() -> void:
 		card.selected = id == difficulty
 		card.locked = not me.is_empty() and not (me.get("unlocked", []) as Array).has(id)
 
-	for child in _chips.get_children():
-		_chips.remove_child(child)
-		child.queue_free()
-	_chip(tr("Creatures"), tr("Lv %d–%d") % [low, high])
-	_chip(tr("Health · damage"), "×%.2f · ×%.2f" % [float(trash["hp"]), float(rules.get("damage", 1.0))])
-	_chip(tr("Needs"), tr("%d+ players · Lv %d+") % [int(rules.get("min_party", 1)), need],
-		BAD if members.size() > 0 and members.size() < int(rules.get("min_party", 1)) else HudKit.PARCHMENT)
-	_chip(tr("Gold medal"), tr("full clear within %s") % _clock(par * float(medals.get("gold", 1.0))))
+	var facts: Array = []
+	facts.append([tr("Creatures"), tr("Lv %d–%d") % [low, high], HudKit.PARCHMENT])
+	facts.append([tr("Health · damage"), "×%.2f · ×%.2f" % [float(trash["hp"]), float(rules.get("damage", 1.0))], HudKit.PARCHMENT])
+	facts.append([tr("Needs"), tr("%d+ players · Lv %d+") % [int(rules.get("min_party", 1)), need],
+		BAD if members.size() > 0 and members.size() < int(rules.get("min_party", 1)) else HudKit.PARCHMENT])
+	facts.append([tr("Gold medal"), tr("full clear within %s") % _clock(par * float(medals.get("gold", 1.0))), HudKit.PARCHMENT])
 	var left := int((me.get("rights", {}) as Dictionary).get(difficulty, -1))
-	_chip(tr("Final chest"), tr("unlimited") if left < 0 else (tr("%d left today") % left if left > 0 else tr("none left - helper")),
-		BAD if left == 0 else HudKit.PARCHMENT)
+	facts.append([tr("Final chest"), tr("unlimited") if left < 0 else (tr("%d left today") % left if left > 0 else tr("none left - helper")),
+		BAD if left == 0 else HudKit.PARCHMENT])
 	var keys := int(rules.get("keys", 0))
 	if keys > 0:
 		var have := _key_count(String(dungeon.get("key", "")))
-		_chip(tr("Key"), tr("%d needed · you have %d") % [keys, have], GOOD if have >= keys else BAD)
+		facts.append([tr("Key"), tr("%d needed · you have %d") % [keys, have], GOOD if have >= keys else BAD])
 	else:
 		var best: Dictionary = me.get("best", {})
-		_chip(tr("Your best"), _clock(float(best[difficulty])) if best.has(difficulty) else "—")
-
-	for child in _curses.get_children():
-		_curses.remove_child(child)
-		child.queue_free()
+		facts.append([tr("Your best"), _clock(float(best[difficulty])) if best.has(difficulty) else "—", HudKit.PARCHMENT])
 	# This week's curses on the chosen difficulty (the run keeps the ones it starts with).
 	var curses := HPRules.dungeon_week_affixes(int(rules.get("affixes", 0)))
-	if curses.is_empty():
-		_curses.add_child(HudKit.label(tr("No curses on this difficulty."), 12, FAINT, HudKit.body(), 0))
-	else:
-		_curses.add_child(HudKit.label(tr("This week's curses:"), 12, HudKit.TEXT_DIM, HudKit.body(), 0))
-		for id in curses:
-			var curse := HPRules.dungeon_affix(String(id))
-			_curses.add_child(_curse(I18n.t(String(curse.get("display", id))), I18n.t(String(curse.get("desc", "")))))
+	# Rebuilt only when a fact changed: the gate asks again every REFRESH_S, and
+	# new chips lay their wrapped values out afresh - the rows below them
+	# twitched with every answer.
+	var facts_key := str(facts) + str(curses)
+	if facts_key != _facts_key:
+		_facts_key = facts_key
+		for child in _chips.get_children():
+			_chips.remove_child(child)
+			child.queue_free()
+		for fact in facts:
+			_chip(String(fact[0]), String(fact[1]), fact[2])
+		for child in _curses.get_children():
+			_curses.remove_child(child)
+			child.queue_free()
+		if curses.is_empty():
+			_curses.add_child(HudKit.label(tr("No curses on this difficulty."), 12, FAINT, HudKit.body(), 0))
+		else:
+			_curses.add_child(HudKit.label(tr("This week's curses:"), 12, HudKit.TEXT_DIM, HudKit.body(), 0))
+			for id in curses:
+				var curse := HPRules.dungeon_affix(String(id))
+				_curses.add_child(_curse(I18n.t(String(curse.get("display", id))), I18n.t(String(curse.get("desc", "")))))
 	_set_accent(accent)
 	_fill_members(members, need, int(group.get("max_party", 5)))
 	_judge(members, levels, rules, need)

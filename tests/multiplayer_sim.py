@@ -296,12 +296,17 @@ def test_agreement(out_dir, profile):
                 for r in f.get("rewards", []) if str(r.get("op_id", "")).startswith("kill:")}
     kills_a, kills_b = kill_ticks(fa), kill_ticks(fb)
     cutoff = min(int(fa.get("final_tick", 0)), int(fb.get("final_tick", 0))) - KILL_CREDIT_TRAVEL_TICKS
-    # Only the mobs BOTH clients fought: a bolt that strays into a pack mate
-    # crossing in front of the shared target kills it for that client alone,
-    # and the other was rightly never credited.
-    def targets(records):
-        return {str(r.get("uid")) for r in records if r.get("event") == "target_acquired"}
-    shared = targets(alpha) & targets(beta)
+    # Only the mobs BOTH clients struck. The authority credits a kill to whoever
+    # damaged that creature, and a pack mate standing in the line of fire can
+    # take every bolt one client sends at the shared target: that client is
+    # rightly never credited for the target (and kills the pack mate alone).
+    # Aiming at a mob is not striking it - each hit is in the transcript with
+    # its caster (`by`).
+    def struck(records, uid):
+        return {str(on[0]) for r in records
+                if r.get("event") == "landed" and int(r.get("by", 0)) == uid
+                for on in r.get("on", [])}
+    shared = struck(alpha, int(fa.get("uid", 0))) & struck(beta, int(fb.get("uid", 0)))
     early_a = {k for k, t in kills_a.items() if t <= cutoff and k.split(":")[0] in shared}
     early_b = {k for k, t in kills_b.items() if t <= cutoff and k.split(":")[0] in shared}
     check(early_a and early_a <= set(kills_b) and early_b <= set(kills_a),

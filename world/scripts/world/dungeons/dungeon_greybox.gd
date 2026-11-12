@@ -13,6 +13,7 @@ const GROUP := "dungeon_instance"
 ## The castle's world-space PBR kit (triplanar, no UVs): a dungeon reads as
 ## part of the same castle, not a grey box.
 const Kit = preload("res://scripts/world/castle/castle_blockout.gd")
+const QualityPreset = preload("res://scripts/world/quality_preset.gd")
 
 ## Set by the loader before the node enters the tree.
 var map_id := ""
@@ -219,21 +220,73 @@ func _gate(id: String, center: Vector3, size: Vector3) -> void:
 		strap.position = Vector3(0, y, 0)
 		body.add_child(strap)
 
-func _portal_ring(at: Vector3) -> void:
+## Where a way out of the copy stands: a pool of light turning on the floor
+## (portal_pool.gdshader), the Portkey's aura standing over it and lights
+## lifting off it - the game's own travel effects, visible from across the
+## hall. One for every portal the map data gives this map, at the portal's own
+## trigger and nearly as wide, so the mark is where the travel key works. (It
+## was a glowing tube lying on the floor at hand-typed spots, a metre from the
+## end wall and cut off by it.)
+const PORTAL_POOL := preload("res://assets/shaders/portal_pool.gdshader")
+const PORTAL_NOISE := "res://assets/vfx/tex/noise_erosion_512.png"
+const PORTAL_RIPPLE := "res://assets/vfx/atlases/ripple_blue_8x8_1k.png"
+const PORTAL_AURA := "res://assets/vfx/atlases/portkey_aura_8x8_1k.png"
+const PORTAL_TINT := Color(0.42, 0.72, 1.0)
+
+func _portal_sigils() -> void:
 	if collision_only:
 		return
-	var ring := MeshInstance3D.new()
-	var torus := TorusMesh.new()
-	torus.inner_radius = 1.8
-	torus.outer_radius = 2.2
-	ring.mesh = torus
-	var glow := _mat(Color(0.45, 0.75, 1.0), 0.5)
-	glow.emission_enabled = true
-	glow.emission = glow.albedo_color
-	glow.emission_energy_multiplier = 2.5
-	ring.material_override = glow
-	ring.position = at
-	add_child(ring)
+	for portal in HPMaps.portals_for_map(map_id):
+		var trigger: Dictionary = (portal as Dictionary).get("trigger", {})
+		var center: Array = trigger.get("center", [])
+		if center.size() != 3:
+			continue
+		_portal_ring(Vector3(float(center[0]), floor_y + 0.05, float(center[2])), float(trigger.get("radius", 2.5)) * 0.92)
+
+func _portal_ring(at: Vector3, radius: float) -> void:
+	if collision_only:
+		return
+	var root := Node3D.new()
+	root.name = "Portal"
+	root.position = at
+	add_child(root)
+	# the pool on the floor
+	var pool_mat := ShaderMaterial.new()
+	pool_mat.shader = PORTAL_POOL
+	pool_mat.set_shader_parameter("tint", PORTAL_TINT)
+	if ResourceLoader.exists(PORTAL_NOISE):
+		pool_mat.set_shader_parameter("noise", load(PORTAL_NOISE))
+	if ResourceLoader.exists(PORTAL_RIPPLE):
+		pool_mat.set_shader_parameter("ripple", load(PORTAL_RIPPLE))
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(radius, radius) * 2.0
+	plane.material = pool_mat
+	var pool := MeshInstance3D.new()
+	pool.name = "Pool"
+	pool.mesh = plane
+	pool.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(pool)
+	# the light standing over it: one tall column and two lesser beside it
+	var spots := PackedVector3Array([Vector3.ZERO, Vector3(radius * 0.42, 0, radius * 0.18), Vector3(-radius * 0.36, 0, -radius * 0.3)])
+	var aura := StandingCards.make(PORTAL_AURA, spots, Vector2(radius * 1.1, radius * 1.45), Vector2(2.2, 3.0), 18.0)
+	if aura != null:
+		aura.name = "Aura"
+		(aura.material_override as ShaderMaterial).set_shader_parameter("lick", 0.06)
+		# faint enough to stand in: whoever is on the pool stays visible
+		(aura.material_override as ShaderMaterial).set_shader_parameter("intensity", 0.42)
+		root.add_child(aura)
+	# lights lifting off the pool
+	var motes := RisingMotes.make(radius * 0.86, 4.0, PORTAL_TINT, 26, 2.4, Vector2(0.25, 1.0), Vector2(0.008, 0.02))
+	root.add_child(motes)
+	motes.emitting = true
+	if QualityPreset.current() != "low":
+		var light := OmniLight3D.new()
+		light.light_color = PORTAL_TINT
+		light.light_energy = 1.3
+		light.omni_range = radius * 2.6
+		light.shadow_enabled = false
+		light.position = Vector3(0, 1.2, 0)
+		root.add_child(light)
 
 func _torch(at: Vector3, color: Color = Color(1.0, 0.68, 0.35), energy: float = 1.6, reach: float = 11.0) -> void:
 	if collision_only:

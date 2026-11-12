@@ -69,6 +69,11 @@ const SENT_MS_KEEP := 200
 var _sent_ms: Dictionary = {}
 var ack_input_seq := -1
 var ack_input_age_ms := -1
+## Client: the round trip measured from those acks (see `_sample_ping`), -1
+## until the first one; and when this process last serviced the socket.
+var _ping_ms := -1.0
+var _last_poll_ms := 0
+var _poll_gap_avg := 16.0
 ## Diagnostics for the multiplayer tests.
 var input_frames_sent: int = 0
 var inputs_received: int = 0
@@ -88,6 +93,7 @@ class _EndOfFramePoll extends Node:
 				and api.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
 			var t := HPProf.start()
 			api.poll()
+			get_parent()._note_poll()
 			HPProf.stop("net", t)
 
 func _ready() -> void:
@@ -129,8 +135,6 @@ const PEER_TIMEOUT_LIMIT := 64
 const PEER_TIMEOUT_MIN_MS := 20000
 const PEER_TIMEOUT_MAX_MS := 40000
 
-## Client: smoothed round-trip time to the world server in ms (ENet's own
-## estimate), or -1 when this process is not connected as a client.
 ## The moment (this client's ticks_msec) the server's body in the latest
 ## snapshot stands for: when the input it last took left here plus how long it
 ## has run on it. `stale` when the server has been waiting for inputs longer
@@ -143,17 +147,76 @@ func ack_reference() -> Dictionary:
 	return {"t_ms": int(_sent_ms[ack_input_seq]) + ack_input_age_ms,
 		"stale": ack_input_age_ms > HPProtocol.INPUT_BUFFER_MS}
 
+## Client: round trip to the world server in ms as the player is shown it
+## (`_sample_ping`; ENet's own estimate until the first input is acknowledged),
+## or -1 when this process is not connected as a client.
 func ping_ms() -> int:
 	if not is_client or not (multiplayer.multiplayer_peer is ENetMultiplayerPeer):
 		return -1
-	var server := (multiplayer.multiplayer_peer as ENetMultiplayerPeer).get_peer(1)
-	if server == null:
-		return -1
-	return int(server.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME))
+	if _ping_ms >= 0.0:
+		return int(round(_ping_ms))
+	return peer_rtt_ms(1)
 
+## The ping a player is shown was ENet's own smoothed round trip. ENet measures
+## it when THIS process services the socket, so an ack that sat there while a
+## frame ran long (a map loading, the GPU driver compiling pipelines) counted
+## the whole frame as network time: a 23 s world load read as an 11 s round
+## trip on both ends, ENet moves its estimate an eighth per sample, and with
+## snapshots flowing it sends hardly any pings of its own - "ping 1000-2400"
+## for half a minute after the loading screen on a 23 ms route, and again
+## after every long frame (live, 2026-11-12; the server's frames were 11 ms
+## throughout).
+##
+## Every snapshot names the input the server last took and how long it has run
+## on it (v33), so `now - sent - age` is a round trip per snapshot. A sample is
+## dropped when this process had not serviced the socket for PING_STALE_GAP_MS
+## before it (or, on a client that never reaches 10 fps, twice its usual gap):
+## that one says how long the frame was, not how far the server is.
+const PING_STALE_GAP_MS := 100.0
+const PING_SMOOTH := 0.15
+
+func _sample_ping(ack_seq: int, ack_age_ms: int) -> void:
+	if not _sent_ms.has(ack_seq) or _last_poll_ms == 0:
+		return
+	var now := Time.get_ticks_msec()
+	if float(now - _last_poll_ms) > maxf(PING_STALE_GAP_MS, _poll_gap_avg * 2.0):
+		return
+	var sample := maxf(0.0, float(now - int(_sent_ms[ack_seq]) - ack_age_ms))
+	_ping_ms = sample if _ping_ms < 0.0 else lerpf(_ping_ms, sample, PING_SMOOTH)
+
+## The socket is serviced at the start of a frame (the engine, just before the
+## frame's first `_process`) and at its end (_EndOfFramePoll): both move the
+## mark, so a snapshot's sample knows how long it may have waited to be read.
+func _note_poll() -> void:
+	var now := Time.get_ticks_msec()
+	if _last_poll_ms != 0:
+		_poll_gap_avg = lerpf(_poll_gap_avg, minf(float(now - _last_poll_ms), 1000.0), 0.05)
+	_last_poll_ms = now
+
+## ENet's estimate still sets its own resend timers (round trip + 4 x the
+## variance): after a stall both ends would wait seconds before resending a
+## lost reliable packet. A ping is acknowledged at once and each ack is a
+## sample, so while the estimate stands above RTT_RECOVER_MS the peer is pinged
+## at the send cadence and the estimate is back in a second or two.
+const RTT_RECOVER_MS := 150
+
+func _recover_rtt(peer_id: int) -> void:
+	if not (multiplayer.multiplayer_peer is ENetMultiplayerPeer):
+		return
+	var packet_peer := (multiplayer.multiplayer_peer as ENetMultiplayerPeer).get_peer(peer_id)
+	if packet_peer != null and packet_peer.get_state() == ENetPacketPeer.STATE_CONNECTED \
+			and packet_peer.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME) > RTT_RECOVER_MS:
+		packet_peer.ping()
+
+## ENet also sheds unreliable packets (inputs, snapshots) while the round trip
+## it measures runs above its mean - after a stalled frame, exactly when the
+## client needs the next snapshot most. Our unreliable traffic is small and
+## latest-state: nothing is gained by dropping it, so the throttle never
+## decelerates (interval and acceleration are ENet's defaults).
 static func _relax_timeout(packet_peer: ENetPacketPeer) -> void:
 	if packet_peer != null:
 		packet_peer.set_timeout(PEER_TIMEOUT_LIMIT, PEER_TIMEOUT_MIN_MS, PEER_TIMEOUT_MAX_MS)
+		packet_peer.throttle_configure(5000, 2, 0)
 
 ## Entering the world after a fresh install can block the client's main thread
 ## for minutes (a Mac compiling every Metal pipeline for the first time): no
@@ -252,6 +315,7 @@ func leave() -> void:
 
 func _on_connected_to_server() -> void:
 	local_peer_id = multiplayer.get_unique_id()
+	_ping_ms = -1.0
 	if multiplayer.multiplayer_peer is ENetMultiplayerPeer:
 		_relax_timeout((multiplayer.multiplayer_peer as ENetMultiplayerPeer).get_peer(1))
 	sim_join.rpc_id(1, join_token, HPProtocol.PROTOCOL_VERSION, CLIENT_VERSION)
@@ -973,7 +1037,8 @@ func sim_client_perf(report: Dictionary) -> void:
 		int(record.get("uid", 0)), String(record.get("name", "")).left(24), String(record.get("map_id", "")),
 		preset, peer_rtt_ms(peer_id), " ".join(values)])
 
-## Server: ENet's smoothed round trip to `peer_id` in ms (-1 when unknown).
+## ENet's own smoothed round trip to `peer_id` in ms (-1 when unknown): the
+## server's view of a client, or a client's of the server (peer 1).
 func peer_rtt_ms(peer_id: int) -> int:
 	if not (multiplayer.multiplayer_peer is ENetMultiplayerPeer):
 		return -1
@@ -1421,6 +1486,8 @@ func sim_snapshot(tick: int, chunk: int, chunks: int, data: PackedByteArray, ack
 	if ack_seq >= 0:
 		ack_input_seq = ack_seq
 		ack_input_age_ms = ack_age_ms
+		if chunk == 0:
+			_sample_ping(ack_seq, ack_age_ms)
 	HPSnapshots.apply(data, SimAuthority)
 
 @rpc("authority", "call_remote", "reliable", HPProtocol.CH_SNAPSHOT)
@@ -1471,6 +1538,8 @@ func _reset_send_clock() -> void:
 	_input_accumulator = 0.0
 
 func _process(_delta: float) -> void:
+	# The engine serviced the socket just before this frame's first _process.
+	_note_poll()
 	_flush_delayed()
 	var now := Time.get_ticks_usec()
 	if _send_clock_usec == 0:
@@ -1502,6 +1571,7 @@ func _advance_send_timers(elapsed: float) -> void:
 	if _input_accumulator >= HPProtocol.SIM_DT:
 		_input_accumulator = fmod(_input_accumulator, HPProtocol.SIM_DT)
 		_send_local_input()
+		_recover_rtt(1)
 
 func _send_local_input() -> void:
 	# A client without a world scene (the headless smoke check) has no local
@@ -1804,6 +1874,7 @@ func _broadcast_snapshots(slot := -1) -> void:
 		var record := SimAuthority.player_record(peer_id)
 		if record.is_empty():
 			continue
+		_recover_rtt(peer_id)
 		var center: Vector3 = record["node"].global_position
 		var known: Dictionary = _known_by_peer.get(peer_id, {})
 		var map_now := String(record.get("map_id", HPProtocol.DEFAULT_MAP))

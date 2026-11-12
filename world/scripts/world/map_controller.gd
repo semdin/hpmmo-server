@@ -580,11 +580,12 @@ func _start_transfer(map_id: String, spawn_id: String, token: int, forced_pos: V
 	if not _commit_seen:
 		var target: Vector3 = forced_pos if forced_pos is Vector3 else _spawn_point(map_id, spawn_id)
 		_place_player(target)
-	# A few frames rendered behind the screen: the new map's first draw (shader
-	# and pipeline compilation) is the hitch, and it happens here, unseen.
+	# Frames rendered behind the screen: the new map's first draws (shader and
+	# pipeline compilation) are the hitch, and they happen here, unseen.
 	_loading_screen.set_progress(95.0, tr("Almost there…"))
-	for _i in range(4):
-		await get_tree().process_frame
+	t = Time.get_ticks_usec()
+	await _settle_pipelines()
+	_stage_ms["settle"] = (Time.get_ticks_usec() - t) / 1000.0
 	if spawn_id.begins_with("portkey:") and is_instance_valid(local_player) and local_player.has_method("portkey_hide"):
 		local_player.call("portkey_hide")   # the arrival boot lets the body out
 	await _loading_screen.close()
@@ -612,6 +613,38 @@ func _start_transfer(map_id: String, spawn_id: String, token: int, forced_pos: V
 		var back: Dictionary = _expired_return
 		_expired_return = {}
 		_start_transfer(String(back["map_id"]), "default", 0, back["pos"])
+
+## The loading screen stays until the new map has stopped compiling pipelines:
+## no compilation for SETTLE_QUIET_MS (at least SETTLE_MIN_FRAMES frames, at
+## most SETTLE_MAX_MS). It used to be four frames flat - enough with a warm
+## driver cache, but a first visit (a fresh install, a new GPU driver, which
+## throws the cache away) went on compiling after the screen had lifted: 1 s
+## frames in the castle hall, and with the client stalled its ping read in the
+## hundreds. Nothing is drawn in a headless run, so it keeps the four frames.
+const SETTLE_MIN_FRAMES := 4
+const SETTLE_QUIET_MS := 350
+const SETTLE_MAX_MS := 10000
+
+func _settle_pipelines() -> void:
+	var headless := DisplayServer.get_name() == "headless"
+	var started := Time.get_ticks_msec()
+	var quiet_since := started
+	var count := ShaderWarmup.pipeline_count()
+	var frames := 0
+	while true:
+		await get_tree().process_frame
+		frames += 1
+		if frames < SETTLE_MIN_FRAMES:
+			continue
+		if headless:
+			return
+		var now := Time.get_ticks_msec()
+		var compiled := ShaderWarmup.pipeline_count()
+		if compiled != count:
+			count = compiled
+			quiet_since = now
+		if now - quiet_since >= SETTLE_QUIET_MS or now - started >= SETTLE_MAX_MS:
+			return
 
 func _await_commit(timeout: float) -> void:
 	var waited := 0.0
