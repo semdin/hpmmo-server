@@ -1569,8 +1569,72 @@ func toggle_broom_mount() -> void:
 	_mount_lock = 0.3
 	# Predicted locally for responsiveness (the clearance tests above are the
 	# part a client can check for itself); the authority validates the same
-	# request and its state wins on the next snapshot/stat event.
-	SimNet.submit_mount(self, is_mounted)
+	# request and its word wins: a refusal undoes the prediction
+	# (`_on_mount_refused`), and so does a snapshot that goes on disagreeing
+	# (`_reconcile_mount`).
+	_mount_asked = is_mounted
+	_mount_asked_ms = Time.get_ticks_msec()
+	if not SimAuthority.notice.is_connected(_on_sim_notice):
+		SimAuthority.notice.connect(_on_sim_notice)
+	var answer := SimNet.submit_mount(self, is_mounted)
+	# Where the authority is this process (solo, host) the answer is here already.
+	if not bool(answer.get("ok", false)):
+		_on_mount_refused(String(answer.get("reason", "")))
+
+## The mount is predicted like the position, and has to be reconciled like it.
+## It was not: a request the authority did not take left this client flying alone -
+## the server's body stayed on foot, every claim above a jump's height was
+## refused as airtime, and the rider was thrown back and shaken until they
+## dismounted and mounted again (live, 2026-11-12, right after a castle exit).
+const MOUNT_RECONCILE_MS := 600
+var _mount_asked := false
+var _mount_asked_ms := -100000
+var _mount_differs_ms := 0
+## The authority's reasons for refusing a mount request, in the words the
+## local checks above use for the same rules.
+const MOUNT_REFUSALS := {
+	"not_grounded": "Take off from the ground!",
+	"casting": "Finish casting first.",
+	"no_landing": "Descend near level ground first (Ctrl)",
+	"transfer_pending": "The map is still loading!",
+	"no_flight": "Flight is not allowed on this map!",
+	"no_broom": "You have no mount - equip a broom first.",
+	"dead": "You are defeated!",
+}
+
+func _on_sim_notice(text: String, _colour: Color) -> void:
+	if is_local_player and text.begins_with("cannot_mount:"):
+		_on_mount_refused(text.get_slice(":", 1))
+
+## The authority turned the last mount (or dismount) request down: the body
+## goes back to the state it was in, and says why.
+func _on_mount_refused(reason: String) -> void:
+	if is_mounted == _mount_asked:
+		_apply_mount_state(not _mount_asked)
+	_mount_lock = 0.3
+	show_notice(tr(String(MOUNT_REFUSALS.get(reason, "You cannot mount right now."))))  # i18n
+
+## The safety net under the refusal notice. The authority's own word on the
+## mount rides in every snapshot (FLAG_MOUNTED on this body's record): when it
+## has disagreed with this body for longer than a request takes to be answered,
+## the authority is right, whatever was lost on the way.
+func _reconcile_mount() -> void:
+	if SimAuthority.is_authority():
+		return
+	var record := SimAuthority.record_for(self)
+	if record.is_empty() or not record.has("mounted") or bool(record["mounted"]) == is_mounted:
+		_mount_differs_ms = 0
+		return
+	var now := Time.get_ticks_msec()
+	if _mount_differs_ms == 0:
+		_mount_differs_ms = now
+	var grace := MOUNT_RECONCILE_MS + 2 * maxi(0, SimNet.ping_ms())
+	if now - _mount_differs_ms < grace or now - _mount_asked_ms < grace:
+		return
+	_mount_differs_ms = 0
+	_apply_mount_state(bool(record["mounted"]))
+	if not is_mounted:
+		show_notice(tr("You cannot mount right now."))
 
 ## Why a mount request is refused, in player-facing words. Empty means allowed.
 ## Every rule here is mirrored by `SimAuthority.submit_mount`, which is the
@@ -2797,6 +2861,7 @@ var reconcile_stats := {"snaps": 0, "snap_m": 0.0, "pulls": 0, "pull_m": 0.0}
 func apply_authoritative_position(pos: Vector3, rot_y: float) -> void:
 	if not is_local_player:
 		return
+	_reconcile_mount()
 	var before := global_position
 	_reconcile(pos, rot_y)
 	var moved := global_position.distance_to(before)

@@ -1125,31 +1125,66 @@ func submit_mount(peer_id: int, mounted: bool) -> Dictionary:
 	if record.is_empty():
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
 	if bool(record.get("dead", false)):
-		return HPProtocol.reject(HPProtocol.REJECT_DEAD)
+		return _mount_refused(record, mounted, HPProtocol.REJECT_DEAD)
 	if int(record.get("pending_transfer", 0)) != 0:
-		return HPProtocol.reject(HPProtocol.REJECT_TRANSFER_PENDING)
+		return _mount_refused(record, mounted, HPProtocol.REJECT_TRANSFER_PENDING)
 	if int(record.get("cast_id", 0)) != 0:
-		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+		return _mount_refused(record, mounted, MOUNT_CASTING)
 	var node: Node3D = record.get("node")
 	if node == null or not is_instance_valid(node):
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
 	if mounted and not node.equipment.has("broom"):
-		return HPProtocol.reject("no_broom")
+		return _mount_refused(record, mounted, "no_broom")
 	if mounted:
 		# Broom flight is prohibited inside the castle slice.
 		# The authority decides it from the map catalog: a client's own check is
 		# presentation, never the rule.
 		if not HPMaps.flight_allowed(String(record.get("map_id", HPProtocol.DEFAULT_MAP))):
-			return HPProtocol.reject(HPProtocol.REJECT_NO_FLIGHT)
+			return _mount_refused(record, mounted, HPProtocol.REJECT_NO_FLIGHT)
 		# Only from the ground: the flight rule is a rule, not a client courtesy.
-		if node.has_method("is_on_floor") and not node.is_on_floor():
-			return HPProtocol.reject(HPProtocol.REJECT_STATE)
+		if not _grounded_for_mount(node):
+			return _mount_refused(record, mounted, MOUNT_NOT_GROUNDED)
 	elif node.has_method("can_dismount_safely") and not node.can_dismount_safely():
-		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+		return _mount_refused(record, mounted, MOUNT_NO_LANDING)
 	record["mounted"] = mounted
 	touch(record)
 	_push_vitals(record)
 	return HPProtocol.accept()
+
+## Why a mount request was turned down, in words the client can explain (they
+## were all `invalid_state`, and the client showed nothing).
+const MOUNT_CASTING := "casting"
+const MOUNT_NOT_GROUNDED := "not_grounded"
+const MOUNT_NO_LANDING := "no_landing"
+## A broom is mounted from the ground: the floor under the body, or within a
+## step below it and not while falling. The authority's body is not on the
+## floor at every moment its client's is - it is set down half a metre up after
+## a map transfer and steps off every stair - and a strict is_on_floor() there
+## can refuse a player standing on the ground.
+const MOUNT_GROUND_BELOW_M := 1.2
+const MOUNT_MAX_FALL_SPEED := 4.0
+
+func _grounded_for_mount(node: Node3D) -> bool:
+	if not node.has_method("is_on_floor") or node.is_on_floor():
+		return true
+	var falling := 0.0
+	if node is CharacterBody3D:
+		falling = -(node as CharacterBody3D).velocity.y
+	if falling > MOUNT_MAX_FALL_SPEED or not node.has_method("_ground_below"):
+		return false
+	var ground: Dictionary = node.call("_ground_below", MOUNT_GROUND_BELOW_M)
+	return not ground.is_empty() and (ground.get("normal", Vector3.ZERO) as Vector3).dot(Vector3.UP) > 0.7
+
+## A refused request is logged with its cause: a client that predicted the
+## mount flies alone until it hears otherwise, and "why did the server say no"
+## could not be read from anything (live, 2026-11-12: 88 claims refused as
+## `airtime` in 15 s after a castle exit, the body unmounted on the server).
+func _mount_refused(record: Dictionary, wanted: bool, reason: String) -> Dictionary:
+	var node = record.get("node")
+	var at: Vector3 = (node as Node3D).global_position if node is Node3D and is_instance_valid(node) else Vector3.ZERO
+	print("[Authority] mount refused: uid=%d wanted=%s reason=%s map=%s at (%.1f, %.1f, %.1f)" % [int(record.get("uid", 0)),
+		"mount" if wanted else "dismount", reason, String(record.get("map_id", "")), at.x, at.y, at.z])
+	return HPProtocol.reject(reason)
 
 ## The dead player's choice: RESPAWN_TOWN (the map's respawn point, full
 ## health) or RESPAWN_HERE (where the body fell, part health and a short ward).

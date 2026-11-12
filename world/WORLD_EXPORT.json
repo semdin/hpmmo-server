@@ -1,7 +1,7 @@
 {
- "generated": "2026-11-12",
+ "generated": "2026-11-13",
  "source_repository": "hpmmo-client",
- "source_revision": "d04e35300acdd4de5e42b32bee882a6cdfeaf3e6",
+ "source_revision": "533a1c389bc26f3f3d481f4de86ead4e374688e7",
  "note": "Exported world snapshot consumed by the server repo. Regenerate with dev.ps1 sync-world; hashes pinned in workspace.lock.json.",
  "files": {
   "assets/audio/sound_library.json": "c1d191056275c9a8d4657bf650376060444d8a0a1af7eaeca72cc30b632c60cc",
@@ -600,7 +600,7 @@
   "assets/vfx/tex/star_flare_256.png": "40b5d340358c94bcba22fbae37e53c406a4cc83fa5736ad326e6244551b33345",
   "data/json/houses.json": "b9d8c092f539e1c29017992fea65bac882aba166b7cc4507b720d8ea763cbf6a",
   "data/json/quests.json": "ea0ca8e9ee2fba324fc21c3e20156a811892a065db9772d2764754c54988f1cd",
-  "locale/tr.po": "5e037def50508616219b9ef6c2e5156d424fa20fc38095122a104fd3d7248162",
+  "locale/tr.po": "77f8c83232d994c566569e9a05064672948be9f08bd39f2a1af0bf23a5de6c07",
   "project.godot": "f42a5f1e04b1c6b5e6e991addc290f7263ebc96a57cbacef70bf373cd5a9d7b2",
   "scenes/entities/loot/loot_drop.tscn": "9d5e9c3b0e5ee3c2a58b27ad86e42b54423619aa1039d75b47a93937c7594f45",
   "scenes/entities/mobs/mob_acromantula.tscn": "986f66775a00945bbf5da1d750c99ed5c4dace080e8c75139ba3419c952fdb54",
@@ -681,7 +681,7 @@
   "scripts/entities/mobs/wing_flap.gd": "f1c0ed4f1d22dfe9551490d60053557339e89e04e2f0e65c2e7353874fb6b0a9",
   "scripts/entities/monolith/dark_monolith.gd": "0d26eec03efd7e23be1bbd22626786aaa0068d2eb33be29de5a5cec46215b8bc",
   "scripts/entities/monolith/monolith_beacons.gd": "485baf88b2156532c6bac65d9b55261c068c5f020e894a79084e7a80df97d5fb",
-  "scripts/entities/player.gd": "0595733209f47f49dc5d55c47f4ac3e9964530f9d141787b8bae567c280d9dcd",
+  "scripts/entities/player.gd": "41c407f31a28ea0bd549a1409df37394f34459cb20d7acb819d556bfb25a251a",
   "scripts/entities/prediction_history.gd": "37fb7c2c999e7f823a7fbc6c55302f1b74191fe70944b0147e64e85b4e6963df",
   "scripts/entities/replica_motion.gd": "b5905e1b672027d5ef44e1843af861fdc645384a2edb4a7d631580cd110dfd65",
   "scripts/entities/rig_follower.gd": "d514f42422830babf483b21eab4f801d163862f97a2e603f74318518a481615f",

@@ -316,6 +316,10 @@ msgid "The Ancient Ward saved you!"
 msgstr "Kadim Koruma Kalkanı Seni Kurtardı!"
 
 #: scripts/entities/player.gd
+msgid "You cannot mount right now."
+msgstr "Şu an süpürgeye binemezsin."
+
+#: scripts/entities/player.gd
 msgid "You are defeated!"
 msgstr "Yenildin!"
 
