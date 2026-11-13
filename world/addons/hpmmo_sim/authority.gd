@@ -609,6 +609,13 @@ func set_mob_immune(node: Node, immune: bool) -> void:
 	record["immune"] = immune
 	touch(record)
 
+func set_mob_enraged(node: Node, enraged: bool) -> void:
+	var record := record_for(node)
+	if record.is_empty():
+		return
+	record["is_enraged"] = enraged
+	touch(record)
+
 ## Damage taken x `mult` until `seconds` from now (Fluffy asleep under the harp).
 func set_mob_vulnerable(node: Node, mult: float, seconds: float) -> void:
 	var record := record_for(node)
@@ -768,6 +775,9 @@ func reset_encounter(pack_id: int, reason: String, from_node: Node = null) -> vo
 		record["weak_until_tick"] = 0
 		_clear_cc(record)
 		record["is_enraged"] = false
+		var member = record.get("node")
+		if member != null and is_instance_valid(member) and member.has_method("clear_enrage"):
+			member.clear_enrage()   # its stats too, not only the flag
 		record.erase("telegraph")
 		touch(record)
 		affected.append(uid)
@@ -803,7 +813,8 @@ func remove_player(peer_id: int) -> void:
 	var record: Dictionary = entities.get(uid, {})
 	players_by_peer.erase(peer_id)
 	if not record.is_empty():
-		if record.has("character_id"):
+		# Only this body's own mapping: never unmap a character another body holds.
+		if record.has("character_id") and int(players_by_character.get(int(record["character_id"]), -1)) == uid:
 			players_by_character.erase(int(record["character_id"]))
 		if int(record.get("pending_transfer", 0)) != 0:
 			# A disconnect during a transfer: drop the reservation and put the
@@ -885,8 +896,13 @@ func submit_input(peer_id: int, seq: int, move: Vector2, yaw: float, jump: bool,
 	record["input_ms"] = Time.get_ticks_msec()
 	touch(record)
 	var node = record.get("node")
-	if pos.is_finite() and node != null and is_instance_valid(node) and node.has_method("claim_position"):
-		node.claim_position(pos, vel if vel.is_finite() else Vector3.ZERO, stall_ms)
+	if node == null or not is_instance_valid(node) or not node.has_method("claim_position"):
+		return
+	# Every frame counts toward claim credit, with or without a claim, so a
+	# client cannot bank credit by holding claims back (player.gd CLAIM_CARRY_S).
+	node.note_input_frame(stall_ms)
+	if pos.is_finite():
+		node.claim_position(pos, vel if vel.is_finite() else Vector3.ZERO)
 
 ## Cast request. Returns {ok, reason, cast_id}. Rejections are explicit so the
 ## client can drop its predicted feedback.
@@ -1653,6 +1669,14 @@ func _broadcast_portkey(pk: Dictionary, phase: String) -> void:
 				viewers.append(int(uid))
 	for uid in viewers:
 		emit_signal("portkey_state", int(uid), state)
+	# Someone who left the party since the last word about this boot hears it
+	# is gone for them: nothing else would ever remove their view of it.
+	var gone := state.duplicate()
+	gone["phase"] = "gone"
+	for uid in pk.get("viewers", []):
+		if not viewers.has(int(uid)):
+			emit_signal("portkey_state", int(uid), gone)
+	pk["viewers"] = viewers
 
 ## Where a travel node stands: the grounds' authored points are x/z on the
 ## terrain (y 0); every other map gives its floor height.
@@ -4644,14 +4668,15 @@ func _dungeon_rewards_left(record: Dictionary, dungeon_id: String, difficulty: S
 		return -1
 	return int(node.call("dungeon_rewards_left", dungeon_id, difficulty, _dungeon_day()))
 
-## How many of `item_id` the body carries.
-static func _bag_count(record: Dictionary, item_id: String) -> int:
+## How many of `item_id` at `tier` the body carries: the count the launch's
+## HPEquipment.take(bag, item_id, tier, ...) can actually spend.
+static func _bag_count(record: Dictionary, item_id: String, tier: int = 0) -> int:
 	var node = record.get("node")
 	if node == null or not is_instance_valid(node):
 		return 0
 	var n := 0
 	for entry in node.inventory:
-		if String((entry as Dictionary).get("id", "")) == item_id:
+		if String((entry as Dictionary).get("id", "")) == item_id and int((entry as Dictionary).get("tier", 0)) == tier:
 			n += int((entry as Dictionary).get("amount", 1))
 	return n
 
@@ -4856,6 +4881,11 @@ func answer_dungeon_ready(peer_id: int, check_id: int, yes: bool) -> Dictionary:
 	var uid := int(record.get("uid", 0))
 	if record.is_empty() or check.is_empty() or not (check["roster"] as Array).has(uid):
 		return HPProtocol.reject(HPProtocol.REJECT_STATE)
+	if mutations_frozen():
+		# A check opened before the save barrier must not launch behind it
+		# (spending keys and moving players after their final save).
+		_end_dungeon_check(check, HPProtocol.REJECT_STATE)
+		return HPProtocol.reject(HPProtocol.REJECT_STATE)
 	if not yes:
 		_end_dungeon_check(check, HPProtocol.REJECT_DECLINED, String(record.get("name", "")))
 		return HPProtocol.accept()
@@ -4960,7 +4990,11 @@ func _launch_dungeon(check: Dictionary) -> void:
 	if keys > 0:
 		var leader_node = leader.get("node")
 		var bag: Array = leader_node.inventory.duplicate(true)
-		HPEquipment.take(bag, String(dungeon.get("key", "")), 0, keys)
+		if not HPEquipment.take(bag, String(dungeon.get("key", "")), 0, keys):
+			# Never open a run the keys were not paid for.
+			dungeon_checks[int(check["id"])] = check
+			_end_dungeon_check(check, HPProtocol.REJECT_NO_KEY, String(leader.get("name", "")))
+			return
 		_set_bag(leader, bag)
 	# A member's earlier run (finished, or left with nobody inside - the gate
 	# asked them first) no longer takes them back; a copy that loses its whole

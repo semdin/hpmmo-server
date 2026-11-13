@@ -170,6 +170,20 @@ std::optional<json> parse_body(const httplib::Request& req, httplib::Response& r
     }
 }
 
+// A string field of a request body: missing -> `def`; any other type (null,
+// number, array...) -> 400, written to `res`. json::value() threw a type_error
+// on those, which httplib turned into a bare 500.
+std::optional<std::string> str_field(const json& body, const char* key, const std::string& def,
+                                     httplib::Response& res) {
+    const auto it = body.find(key);
+    if (it == body.end()) return def;
+    if (!it->is_string()) {
+        send_error(res, 400, std::string("Invalid ") + key + ": expected a string.");
+        return std::nullopt;
+    }
+    return it->get<std::string>();
+}
+
 std::string bearer_token(const httplib::Request& req) {
     const std::string h = req.get_header_value("Authorization");
     if (h.rfind("Bearer ", 0) == 0) return h.substr(7);
@@ -334,12 +348,35 @@ json items_from_rows(const db::Rows& rows) {
     return arr;
 }
 
-// Occupied bag slots: one per stack row and one per item instance.
-int distinct_item_kinds(db::Conn& conn, long long character_id) {
+// Occupied bag slots: one per stack row and one per item instance - the same
+// count a save's inventory has entries (each entry is one row), so the rule
+// save enforces (kMaxInventoryKinds) holds for every writer. nullopt on error.
+std::optional<int> bag_slots_used(db::Conn& conn, long long character_id) {
     db::Result r = conn.exec("SELECT COUNT(*)::text FROM character_items WHERE character_id = $1",
                              {std::to_string(character_id)});
-    if (!r.ok || r.rows.empty()) return 0;
+    if (!r.ok || r.rows.empty()) return std::nullopt;
     return std::stoi(r.rows[0][0].second.value_or("0"));
+}
+
+// A fresh instance uid in the world's range (HPEquipment.new_uid): random,
+// 1..2^53, so it survives JSON doubles and never needs a counter.
+long long fresh_item_uid() {
+    unsigned char raw[8];
+    db::secure_random_bytes(raw, sizeof(raw));
+    uint64_t v = 0;
+    for (unsigned char b : raw) v = (v << 8) | b;
+    return static_cast<long long>(v & ((1ULL << 53) - 1)) + 1;
+}
+
+// Whether `uid` already names one of the character's items, in the bag or
+// worn (the world keeps uids unique across both); nullopt on error.
+std::optional<bool> uid_taken(db::Conn& conn, long long character_id, long long uid) {
+    db::Result r = conn.exec(
+        "SELECT 1 FROM character_items WHERE character_id=$1 AND uid=$2 "
+        "UNION ALL SELECT 1 FROM character_equipment WHERE character_id=$1 AND uid=$2 LIMIT 1",
+        {std::to_string(character_id), std::to_string(uid)});
+    if (!r.ok) return std::nullopt;
+    return !r.rows.empty();
 }
 
 // Grant items to a character inside an existing transaction.
@@ -347,12 +384,28 @@ bool grant_items(db::Conn& conn, long long character_id, const std::vector<ItemL
                  std::string& error) {
     for (const auto& line : items) {
         if (line.uid > 0) {
-            // An instance is inserted as itself (its uid is unique per character).
+            // An instance keeps its uid unless the receiver already holds that
+            // uid (uids are unique per character only, migration 0006); then
+            // it gets a fresh one rather than failing the whole transfer.
+            long long uid = line.uid;
+            for (int attempt = 0;; ++attempt) {
+                const auto taken = uid_taken(conn, character_id, uid);
+                if (!taken) {
+                    error = "instance uid lookup failed";
+                    return false;
+                }
+                if (!*taken) break;
+                if (attempt >= 8) {
+                    error = "could not allocate an instance uid";
+                    return false;
+                }
+                uid = fresh_item_uid();
+            }
             db::Result ins = conn.exec(
                 "INSERT INTO character_items (character_id, item_id, amount, tier, uid, bonuses) "
                 "VALUES ($1,$2,1,$3,$4,$5::jsonb)",
                 {std::to_string(character_id), line.item_id, std::to_string(line.tier),
-                 std::to_string(line.uid), line.bonuses});
+                 std::to_string(uid), line.bonuses});
             if (!ins.ok) {
                 error = ins.error;
                 return false;
@@ -388,51 +441,56 @@ bool grant_items(db::Conn& conn, long long character_id, const std::vector<ItemL
 }
 
 // Debit items from a character if fully owned; false with reason otherwise.
+// A line with a uid takes exactly that instance; a line without one takes
+// from the (item, tier) stack only - never from some other instance that
+// happens to share the item id. `debited` receives what was actually
+// removed (an instance with its STORED bonuses), which is what the
+// counterparty must receive.
 bool debit_items(db::Conn& conn, long long character_id, const std::vector<ItemLine>& items,
-                 std::string& reason) {
+                 std::string& reason, std::vector<ItemLine>& debited) {
     for (const auto& line : items) {
+        if (line.uid > 0) {
+            db::Result del = conn.exec(
+                "DELETE FROM character_items WHERE character_id=$1 AND uid=$2 AND item_id=$3 AND tier=$4 "
+                "RETURNING bonuses::text",
+                {std::to_string(character_id), std::to_string(line.uid), line.item_id, std::to_string(line.tier)});
+            if (!del.ok) {
+                reason = del.error;
+                return false;
+            }
+            if (del.rows.empty()) {
+                reason = "does not own item instance " + std::to_string(line.uid) + " (" + line.item_id + ")";
+                return false;
+            }
+            ItemLine moved = line;
+            moved.bonuses = del.rows[0][0].second.value_or("[]");
+            debited.push_back(moved);
+            continue;
+        }
+        // One stack row per (item, tier) (character_items_stack_uidx).
         db::Result have = conn.exec(
-            "SELECT COALESCE(SUM(amount),0)::text FROM character_items WHERE character_id=$1 AND item_id=$2 AND tier=$3",
+            "SELECT id::text, amount::text FROM character_items "
+            "WHERE character_id=$1 AND item_id=$2 AND tier=$3 AND uid IS NULL FOR UPDATE",
             {std::to_string(character_id), line.item_id, std::to_string(line.tier)});
         if (!have.ok) {
             reason = have.error;
             return false;
         }
-        const long long held = std::stoll(have.rows[0][0].second.value_or("0"));
+        const long long held = have.rows.empty() ? 0 : std::stoll(have.rows[0][1].second.value_or("0"));
         if (held < line.amount) {
-            reason = "sender does not own enough of " + line.item_id;
+            reason = "does not own enough of " + line.item_id;
             return false;
         }
-        long long to_remove = line.amount;
-        while (to_remove > 0) {
-            db::Result pick = conn.exec(
-                "SELECT ctid::text, amount::text FROM character_items "
-                "WHERE character_id=$1 AND item_id=$2 AND tier=$3 AND amount > 0 ORDER BY amount ASC LIMIT 1",
-                {std::to_string(character_id), line.item_id, std::to_string(line.tier)});
-            if (!pick.ok || pick.rows.empty()) {
-                reason = "inventory state changed during transfer";
-                return false;
-            }
-            const std::string ctid = pick.rows[0][0].second.value_or("");
-            const long long row_amount = std::stoll(pick.rows[0][1].second.value_or("0"));
-            if (row_amount <= to_remove) {
-                db::Result del = conn.exec("DELETE FROM character_items WHERE ctid = $1::tid", {ctid});
-                if (!del.ok) {
-                    reason = del.error;
-                    return false;
-                }
-                to_remove -= row_amount;
-            } else {
-                db::Result dec = conn.exec(
-                    "UPDATE character_items SET amount = amount - $1 WHERE ctid = $2::tid",
-                    {std::to_string(to_remove), ctid});
-                if (!dec.ok) {
-                    reason = dec.error;
-                    return false;
-                }
-                to_remove = 0;
-            }
+        const std::string row_id = have.rows[0][0].second.value_or("");
+        db::Result change = held == line.amount
+            ? conn.exec("DELETE FROM character_items WHERE id = $1", {row_id})
+            : conn.exec("UPDATE character_items SET amount = amount - $2 WHERE id = $1",
+                        {row_id, std::to_string(line.amount)});
+        if (!change.ok) {
+            reason = change.error;
+            return false;
         }
+        debited.push_back(line);
     }
     return true;
 }
@@ -562,8 +620,12 @@ void handle_register(const httplib::Request& req, httplib::Response& res, const 
     }
     auto body = parse_body(req, res);
     if (!body) return;
-    const std::string username = body->value("username", "");
-    const std::string password = body->value("password", "");
+    const auto username_field = str_field(*body, "username", "", res);
+    if (!username_field) return;
+    const auto password_field = str_field(*body, "password", "", res);
+    if (!password_field) return;
+    const std::string& username = *username_field;
+    const std::string& password = *password_field;
     // Rejections are logged (never the password) so a player's "it said error"
     // can be matched to a reason afterwards.
     const auto user_check = auth::check_username_policy(username);
@@ -600,8 +662,12 @@ void handle_login(const httplib::Request& req, httplib::Response& res, const Con
                   db::Pool& pool) {
     auto body = parse_body(req, res);
     if (!body) return;
-    const std::string username = body->value("username", "");
-    const std::string password = body->value("password", "");
+    const auto username_field = str_field(*body, "username", "", res);
+    if (!username_field) return;
+    const auto password_field = str_field(*body, "password", "", res);
+    if (!password_field) return;
+    const std::string& username = *username_field;
+    const std::string& password = *password_field;
     if (refuse_for_maintenance(res, cfg, username)) return;
     // Per address: a flood. Per account, only FAILED attempts count, and per
     // (account, address): counting every attempt against the bare username let
@@ -618,9 +684,15 @@ void handle_login(const httplib::Request& req, httplib::Response& res, const Con
         return send_too_many(res, 60);
     }
 
-    auto lease = pool.acquire();
-    db::Result r = lease.exec(
-        "SELECT id::text, password_hash FROM accounts WHERE lower(username) = lower($1)", {username});
+    // The lease is dropped before the argon2 verify (64 MiB, t=3): held across
+    // it, a burst of logins pinned every pool connection and stalled the
+    // world server's saves behind password hashing.
+    db::Result r;
+    {
+        auto lease = pool.acquire();
+        r = lease.exec("SELECT id::text, password_hash FROM accounts WHERE lower(username) = lower($1)",
+                       {username});
+    }
     if (!r.ok) return send_db_error(res, r, "login");
     // An unknown name runs the same argon2 verify as a known one, so the
     // answer's timing does not tell which usernames exist.
@@ -648,6 +720,7 @@ void handle_login(const httplib::Request& req, httplib::Response& res, const Con
             std::to_string(account_id) + ", '" + token_hash + "', now() + interval '" +
             std::to_string(cfg.session_ttl_hours) + " hours')",
     };
+    auto lease = pool.acquire();
     db::Result tx = lease.exec_tx(stmts);
     if (!tx.ok) return send_db_error(res, tx, "login session");
     send_json(res, 200, {{"success", true}, {"message", "Login successful."},
@@ -731,7 +804,9 @@ void handle_ticket_redeem(const httplib::Request& req, httplib::Response& res, c
                           db::Pool& pool) {
     auto body = parse_body(req, res);
     if (!body) return;
-    const std::string ticket = body->value("ticket", "");
+    const auto ticket_field = str_field(*body, "ticket", "", res);
+    if (!ticket_field) return;
+    const std::string& ticket = *ticket_field;
     if (ticket.empty()) return send_error(res, 400, "Missing ticket.");
     auto lease = pool.acquire();
     // Claim + session issue are one transaction: a failure after the claim
@@ -775,9 +850,10 @@ void handle_ticket_redeem(const httplib::Request& req, httplib::Response& res, c
 
 // A character name is what players (and the GA list) know a character by, so
 // two names that read the same must not both exist: 2-20 characters of
-// letters (any script) and digits, with single spaces, hyphens or apostrophes
-// between words - no leading/trailing or doubled separators, no control,
-// invisible, bidi or other punctuation characters. Case-insensitive
+// letters (any script) and digits, at least one of them a letter, with single
+// spaces, hyphens or apostrophes between words - no leading/trailing or
+// doubled separators, no control, invisible, bidi or other punctuation
+// characters, and strictly valid UTF-8. Case-insensitive
 // uniqueness is the database's (characters_name_lower, migration 0009).
 // Returns "" when the name is fine, or the reason.
 std::string character_name_problem(const std::string& name) {
@@ -799,24 +875,46 @@ std::string character_name_problem(const std::string& name) {
             if ((cc & 0xC0) != 0x80) return "Name is not valid text.";
             cp = (cp << 6) | (cc & 0x3F);
         }
+        // Overlong forms and UTF-16 surrogates are not UTF-8: they would let
+        // two byte strings spell the same name past the unique index.
+        static const uint32_t min_for_extra[4] = {0, 0x80, 0x800, 0x10000};
+        if (cp < min_for_extra[extra] || cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF))
+            return "Name is not valid text.";
         cps.push_back(cp);
         i += 1 + extra;
     }
     if (cps.size() < 2 || cps.size() > 20) return "Name must be 2-20 characters.";
     auto separator = [](uint32_t cp) { return cp == ' ' || cp == '-' || cp == '\''; };
+    // Combining marks draw nothing on their own: allowed after a letter, but
+    // they never count as the name's visible letter.
+    auto combining = [](uint32_t cp) {
+        return (cp >= 0x0300 && cp <= 0x036F) || (cp >= 0x0483 && cp <= 0x0489) ||
+               (cp >= 0x0591 && cp <= 0x05C7) || (cp >= 0x0610 && cp <= 0x061A) ||
+               (cp >= 0x064B && cp <= 0x065F) || cp == 0x0670 || (cp >= 0x06D6 && cp <= 0x06ED) ||
+               (cp >= 0x1AB0 && cp <= 0x1AFF) || (cp >= 0x1DC0 && cp <= 0x1DFF) ||
+               (cp >= 0xFE20 && cp <= 0xFE2F);
+    };
     auto letter_or_digit = [](uint32_t cp) {
         if ((cp >= '0' && cp <= '9') || (cp >= 'A' && cp <= 'Z') || (cp >= 'a' && cp <= 'z')) return true;
         if (cp < 0xC0 || cp == 0xD7 || cp == 0xF7) return false;          // Latin-1 punctuation, x, /
-        if (cp >= 0x2000 && cp <= 0x2BFF) return false;                    // punctuation, symbols, arrows
-        if (cp >= 0x3000 && cp <= 0x303F) return false;                    // CJK punctuation
+        if (cp >= 0x2000 && cp <= 0x2BFF) return false;                    // punctuation, symbols, arrows, ZW*/bidi/invisible operators
+        if (cp >= 0x3000 && cp <= 0x303F) return false;                    // CJK punctuation, ideographic space
         if (cp >= 0xD800 && cp <= 0xF8FF) return false;                    // surrogates, private use
         if (cp >= 0xFE00 && cp <= 0xFE0F) return false;                    // variation selectors
         if (cp >= 0xFE30 && cp <= 0xFE6F) return false;                    // compatibility punctuation
         if (cp >= 0xFF00 && cp <= 0xFF0F) return false;                    // fullwidth punctuation
         if (cp == 0xFEFF || cp >= 0xFFF0) return false;
         if (cp >= 0x0300 && cp <= 0x036F) return false;                    // combining marks
+        // Blank or default-ignorable code points outside the ranges above:
+        // Hangul fillers, Arabic letter mark, Ogham space, Khmer inherent
+        // vowels, Mongolian selectors/vowel separator. A name of only these
+        // reads as empty.
+        if (cp == 0x115F || cp == 0x1160 || cp == 0x3164 || cp == 0xFFA0) return false;
+        if (cp == 0x061C || cp == 0x1680 || cp == 0x17B4 || cp == 0x17B5) return false;
+        if (cp >= 0x180B && cp <= 0x180F) return false;
         return true;
     };
+    bool visible = false;
     for (size_t i = 0; i < cps.size(); ++i) {
         if (separator(cps[i])) {
             if (i == 0 || i + 1 == cps.size() || separator(cps[i - 1])) {
@@ -824,8 +922,11 @@ std::string character_name_problem(const std::string& name) {
             }
         } else if (!letter_or_digit(cps[i])) {
             return "Names may only use letters, digits, spaces, hyphens and apostrophes.";
+        } else if (!combining(cps[i]) && !(cps[i] >= '0' && cps[i] <= '9')) {
+            visible = true;
         }
     }
+    if (!visible) return "Names need at least one letter.";
     return "";
 }
 
@@ -834,8 +935,12 @@ void handle_character_create(const httplib::Request& req, httplib::Response& res
     if (!session) return;
     auto body = parse_body(req, res);
     if (!body) return;
-    const std::string name = body->value("name", "");
-    const std::string house = body->value("house", "Gryffindor");
+    const auto name_field = str_field(*body, "name", "", res);
+    if (!name_field) return;
+    const auto house_field = str_field(*body, "house", "Gryffindor", res);
+    if (!house_field) return;
+    const std::string& name = *name_field;
+    const std::string& house = *house_field;
     const std::string problem = character_name_problem(name);
     if (!problem.empty()) return send_error(res, 400, problem);
     static const char* houses[] = {"Gryffindor", "Slytherin", "Ravenclaw", "Hufflepuff"};
@@ -1135,7 +1240,8 @@ void handle_character_save(const httplib::Request& req, httplib::Response& res, 
     db::Result cur = lease.exec(
         "SELECT revision::text, level::text, exp::text, max_hp::text, current_hp::text, max_mana::text, "
         "current_mana::text, galleons::text, wand_tier::text, pos_x::text, pos_y::text, pos_z::text, "
-        "rot_y::text, map_id, quests::text, COALESCE(last_save_id, '') FROM characters WHERE id=$1" + lock_scope + " FOR UPDATE",
+        "rot_y::text, map_id, quests::text, COALESCE(last_save_id, ''), COALESCE(last_save_revision, 0)::text "
+        "FROM characters WHERE id=$1" + lock_scope + " FOR UPDATE",
         lock_params);
     if (!cur.ok) {
         lease.rollback();
@@ -1148,7 +1254,11 @@ void handle_character_save(const httplib::Request& req, httplib::Response& res, 
     auto cur_i = [&](size_t i) { return std::stoll(cur.rows[0][i].second.value_or("0")); };
     auto cur_d = [&](size_t i) { return std::stod(cur.rows[0][i].second.value_or("0")); };
     const long long revision = cur_i(0);
-    const std::string last_save_id = cur.rows[0][15].second.value_or("");
+    // The stored write is a save's own only while nothing has bumped the
+    // revision since (migration 0011): reward and trade clear both columns,
+    // and any other writer leaves last_save_revision behind.
+    const std::string last_save_id =
+        cur_i(16) == revision ? cur.rows[0][15].second.value_or("") : std::string();
     if (!save_id.empty() && save_id == last_save_id) {
         // This exact write already committed (its answer was lost): done.
         lease.rollback();
@@ -1182,7 +1292,8 @@ void handle_character_save(const httplib::Request& req, httplib::Response& res, 
     db::Result upd = lease.exec(
         "UPDATE characters SET level=$2, exp=$3, max_hp=$4, current_hp=$5, max_mana=$6, "
         "current_mana=$7, galleons=$8, wand_tier=$9, pos_x=$10, pos_y=$11, pos_z=$12, rot_y=$13, "
-        "map_id=$14, quests=$15::jsonb, last_save_id=NULLIF($16, ''), revision=revision+1, "
+        "map_id=$14, quests=$15::jsonb, last_save_id=NULLIF($16, ''), "
+        "last_save_revision=CASE WHEN $16 = '' THEN NULL ELSE revision+1 END, revision=revision+1, "
         "updated_at=now() WHERE id=$1",
         {std::to_string(char_id), std::to_string(r_level), std::to_string(r_exp),
          std::to_string(r_max_hp), std::to_string(r_cur_hp), std::to_string(r_max_mana),
@@ -1275,7 +1386,9 @@ void handle_reward(const httplib::Request& req, httplib::Response& res, const Co
     if (!require_service_token(req, res, cfg)) return;
     auto body = parse_body(req, res);
     if (!body) return;
-    const std::string op_id = body->value("op_id", "");
+    const auto op_field = str_field(*body, "op_id", "", res);
+    if (!op_field) return;
+    const std::string& op_id = *op_field;
     if (op_id.empty() || op_id.size() > 64) return send_error(res, 400, "Invalid op_id.");
     if (!body->contains("character_id") || !(*body)["character_id"].is_number_integer()) {
         return send_error(res, 400, "Missing character_id.");
@@ -1317,9 +1430,11 @@ void handle_reward(const httplib::Request& req, httplib::Response& res, const Co
         send_json(res, 200, {{"success", true}, {"replayed", true}, {"result", op.stored_result}});
         return;
     }
+    // Clearing the save identity: a world save retry naming its earlier write
+    // as after_save_id must now meet the stale check, not wipe these items.
     db::Result upd = lease.exec(
         "UPDATE characters SET exp = exp + $2, galleons = LEAST(galleons + $3, $4), revision = revision + 1, "
-        "updated_at = now() WHERE id = $1 RETURNING revision::text",
+        "last_save_id = NULL, last_save_revision = NULL, updated_at = now() WHERE id = $1 RETURNING revision::text",
         {std::to_string(char_id), std::to_string(exp_grant), std::to_string(gold_grant),
          std::to_string(kMaxGalleons)});
     if (!upd.ok || upd.rows.empty()) {
@@ -1331,6 +1446,20 @@ void handle_reward(const httplib::Request& req, httplib::Response& res, const Co
     if (!grant_items(*lease.conn(), char_id, items, err)) {
         lease.rollback();
         return send_error(res, 409, "Reward failed: " + err);
+    }
+    // Counted after granting (a stack merge takes no new slot): the bag may
+    // never hold more lines than a save of it would be accepted with.
+    if (!items.empty()) {
+        const auto used = bag_slots_used(*lease.conn(), char_id);
+        if (!used) {
+            lease.rollback();
+            return send_error(res, 503, "Service unavailable: database unreachable.");
+        }
+        if (*used > kMaxInventoryKinds) {
+            lease.rollback();
+            return send_json(res, 409, {{"success", false}, {"code", "bag_full"},
+                                        {"message", "Reward failed: the bag is full."}});
+        }
     }
     const json result = {{"character_id", char_id}, {"exp", exp_grant}, {"galleons", gold_grant},
                          {"items", items.size()}};
@@ -1356,7 +1485,9 @@ void handle_trade(const httplib::Request& req, httplib::Response& res, const Con
     if (!require_service_token(req, res, cfg)) return;
     auto body = parse_body(req, res);
     if (!body) return;
-    const std::string op_id = body->value("op_id", "");
+    const auto op_field = str_field(*body, "op_id", "", res);
+    if (!op_field) return;
+    const std::string& op_id = *op_field;
     if (op_id.empty() || op_id.size() > 64) return send_error(res, 400, "Invalid op_id.");
     if (!body->contains("from_id") || !body->contains("to_id") ||
         !(*body)["from_id"].is_number_integer() || !(*body)["to_id"].is_number_integer()) {
@@ -1424,44 +1555,44 @@ void handle_trade(const httplib::Request& req, httplib::Response& res, const Con
         lease.rollback();
         return send_error(res, 400, "Insufficient galleons.");
     }
-    // Destination capacity: distinct item kinds after the swap.
-    struct Target {
-        long long receiver;
-        const std::vector<ItemLine>* incoming;
-    };
-    const Target targets[2] = {{to_id, &offer_items}, {from_id, &request_items}};
-    for (const auto& target : targets) {
-        int kinds = distinct_item_kinds(*lease.conn(), target.receiver);
-        for (const auto& line : *target.incoming) {
-            db::Result exists = lease.exec(
-                "SELECT 1 FROM character_items WHERE character_id=$1 AND item_id=$2 LIMIT 1",
-                {std::to_string(target.receiver), line.item_id});
-            if (exists.ok && exists.rows.empty()) kinds += 1;
-        }
-        if (kinds > kMaxInventoryKinds) {
-            lease.rollback();
-            return send_error(res, 400, "Destination inventory is full.");
-        }
-    }
     std::string err;
-    if (!debit_items(*lease.conn(), from_id, offer_items, err)) {
+    std::vector<ItemLine> moved_offer, moved_request;
+    if (!debit_items(*lease.conn(), from_id, offer_items, err, moved_offer)) {
         lease.rollback();
         return send_error(res, 400, "Sender cannot cover the offer: " + err);
     }
-    if (!debit_items(*lease.conn(), to_id, request_items, err)) {
+    if (!debit_items(*lease.conn(), to_id, request_items, err, moved_request)) {
         lease.rollback();
         return send_error(res, 400, "Receiver cannot cover the request: " + err);
     }
-    if (!grant_items(*lease.conn(), to_id, offer_items, err) || !grant_items(*lease.conn(), from_id, request_items, err)) {
+    // Each side receives what was actually debited (an instance carries its
+    // stored bonuses), never the caller's description of it.
+    if (!grant_items(*lease.conn(), to_id, moved_offer, err) || !grant_items(*lease.conn(), from_id, moved_request, err)) {
         lease.rollback();
         return send_error(res, 500, "Grant failed: " + err);
     }
+    // Destination capacity, counted on the final rows (the same count a save
+    // is held to): a stack merge takes no slot, a new stack or instance one.
+    for (const auto& [receiver, incoming] : {std::pair{to_id, &moved_offer}, std::pair{from_id, &moved_request}}) {
+        if (incoming->empty()) continue;
+        const auto used = bag_slots_used(*lease.conn(), receiver);
+        if (!used) {
+            lease.rollback();
+            return send_error(res, 503, "Service unavailable: database unreachable.");
+        }
+        if (*used > kMaxInventoryKinds) {
+            lease.rollback();
+            return send_json(res, 400, {{"success", false}, {"code", "bag_full"},
+                                        {"message", "Destination inventory is full."}});
+        }
+    }
     {
+        // Clearing the save identity: see handle_reward.
         db::Result g1 = lease.exec("UPDATE characters SET galleons = galleons - $2 + $3, revision = revision + 1, "
-                                    "updated_at = now() WHERE id = $1",
+                                    "last_save_id = NULL, last_save_revision = NULL, updated_at = now() WHERE id = $1",
                                     {std::to_string(from_id), std::to_string(offer_gold), std::to_string(request_gold)});
         db::Result g2 = lease.exec("UPDATE characters SET galleons = galleons - $2 + $3, revision = revision + 1, "
-                                    "updated_at = now() WHERE id = $1",
+                                    "last_save_id = NULL, last_save_revision = NULL, updated_at = now() WHERE id = $1",
                                     {std::to_string(to_id), std::to_string(request_gold), std::to_string(offer_gold)});
         if (!g1.ok || !g2.ok) {
             lease.rollback();
@@ -1557,11 +1688,26 @@ json board_rows(const db::Rows& rows) {
     return list;
 }
 
-bool board_key_ok(const json& body) {
-    const std::string dungeon = body.value("dungeon", "");
-    const std::string difficulty = body.value("difficulty", "");
-    return !dungeon.empty() && dungeon.size() <= 48 && !difficulty.empty() && difficulty.size() <= 16 &&
-           body.contains("week") && body["week"].is_number_integer();
+// The (dungeon, difficulty, week) a run or board names; nullopt after a 400.
+// `week` binds to an int4 column: out of range it must be a 400 here, not a
+// Postgres numeric_value_out_of_range (22003) surfacing as a 500.
+struct BoardKey {
+    std::string dungeon, difficulty, week;
+};
+
+std::optional<BoardKey> board_key(const json& body, httplib::Response& res) {
+    const auto dungeon = str_field(body, "dungeon", "", res);
+    if (!dungeon) return std::nullopt;
+    const auto difficulty = str_field(body, "difficulty", "", res);
+    if (!difficulty) return std::nullopt;
+    const auto week = body.contains("week") ? integral(body["week"], std::numeric_limits<int32_t>::min(),
+                                                       std::numeric_limits<int32_t>::max())
+                                            : std::nullopt;
+    if (dungeon->empty() || dungeon->size() > 48 || difficulty->empty() || difficulty->size() > 16 || !week) {
+        send_error(res, 400, "Invalid dungeon key.");
+        return std::nullopt;
+    }
+    return BoardKey{*dungeon, *difficulty, std::to_string(*week)};
 }
 
 void handle_dungeon_run(const httplib::Request& req, httplib::Response& res, const Config& cfg,
@@ -1569,23 +1715,34 @@ void handle_dungeon_run(const httplib::Request& req, httplib::Response& res, con
     if (!require_service_token(req, res, cfg)) return;
     auto body = parse_body(req, res);
     if (!body) return;
-    const std::string op_id = body->value("op_id", "");
+    const auto op_field = str_field(*body, "op_id", "", res);
+    if (!op_field) return;
+    const std::string& op_id = *op_field;
     if (op_id.empty() || op_id.size() > 96) return send_error(res, 400, "Invalid op_id.");
-    if (!board_key_ok(*body)) return send_error(res, 400, "Invalid dungeon key.");
+    const auto key = board_key(*body, res);
+    if (!key) return;
     if (!body->contains("seconds") || !(*body)["seconds"].is_number()) return send_error(res, 400, "Invalid seconds.");
     const double seconds = (*body)["seconds"].get<double>();
     if (seconds < 0.0 || seconds > 86400.0) return send_error(res, 400, "Invalid seconds.");
     const json party = body->value("party", json::array());
     if (!party.is_array() || party.size() > 5) return send_error(res, 400, "Invalid party.");
-    const std::string dungeon = (*body)["dungeon"].get<std::string>();
-    const std::string difficulty = (*body)["difficulty"].get<std::string>();
-    const std::string week = std::to_string((*body)["week"].get<long long>());
+    const auto medal = str_field(*body, "medal", "", res);
+    if (!medal) return;
+    long long deaths = 0;
+    if (body->contains("deaths")) {
+        const auto d = integral((*body)["deaths"], 0, std::numeric_limits<int32_t>::max());
+        if (!d) return send_error(res, 400, "Invalid deaths.");
+        deaths = *d;
+    }
+    const std::string& dungeon = key->dungeon;
+    const std::string& difficulty = key->difficulty;
+    const std::string& week = key->week;
     auto lease = pool.acquire();
     db::Result ins = lease.exec(
         "INSERT INTO dungeon_runs (op_id, dungeon, difficulty, week, seconds, medal, deaths, party) "
         "VALUES ($1, $2, $3, $4::integer, $5::double precision, $6, $7::integer, $8::jsonb) ON CONFLICT (op_id) DO NOTHING",
-        {op_id, dungeon, difficulty, week, std::to_string(seconds), body->value("medal", std::string()),
-         std::to_string(body->value("deaths", 0)), party.dump()});
+        {op_id, dungeon, difficulty, week, std::to_string(seconds), *medal,
+         std::to_string(deaths), party.dump()});
     if (!ins.ok) return send_db_error(res, ins, "dungeon run");
     // The run's place this week: one more than the runs strictly faster.
     db::Result rank = lease.exec(
@@ -1601,14 +1758,21 @@ void handle_dungeon_board(const httplib::Request& req, httplib::Response& res, c
     if (!require_service_token(req, res, cfg)) return;
     auto body = parse_body(req, res);
     if (!body) return;
-    if (!board_key_ok(*body)) return send_error(res, 400, "Invalid dungeon key.");
-    const int limit = std::clamp(body->value("limit", 10), 1, 50);
+    const auto key = board_key(*body, res);
+    if (!key) return;
+    long long limit = 10;
+    if (body->contains("limit")) {
+        // Out-of-range limits clamp (documented); only a non-integer is refused.
+        const auto l = integral((*body)["limit"], std::numeric_limits<int32_t>::min(),
+                                std::numeric_limits<int32_t>::max());
+        if (!l) return send_error(res, 400, "Invalid limit.");
+        limit = std::clamp(*l, 1LL, 50LL);
+    }
     auto lease = pool.acquire();
     db::Result r = lease.exec(
         "SELECT seconds::text, medal, deaths::text, finished_at::text, party::text FROM dungeon_runs "
         "WHERE dungeon = $1 AND difficulty = $2 AND week = $3::integer ORDER BY seconds, finished_at LIMIT $4::integer",
-        {(*body)["dungeon"].get<std::string>(), (*body)["difficulty"].get<std::string>(),
-         std::to_string((*body)["week"].get<long long>()), std::to_string(limit)});
+        {key->dungeon, key->difficulty, key->week, std::to_string(limit)});
     if (!r.ok) return send_db_error(res, r, "dungeon board");
     send_json(res, 200, {{"success", true}, {"runs", board_rows(r.rows)}});
 }

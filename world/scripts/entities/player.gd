@@ -2165,9 +2165,17 @@ func floo_walk(from_world: Vector3, to_world: Vector3, seconds: float, end_at_bo
 	)
 
 func floo_walk_reset() -> void:
+	var cut_short := _floo_tween != null and _floo_tween.is_valid() and _floo_tween.is_running()
 	if _floo_tween != null and _floo_tween.is_valid():
 		_floo_tween.kill()
 	_floo_tween = null
+	if cut_short:
+		# A Portkey emerge stopped part way (a new transfer began) would leave
+		# the body shrunk and floating; its own end (portkey_emerge_reset) never
+		# runs now. A deliberate portkey_hide has no tween and stays hidden.
+		_emerge_lift = 0.0
+		if visuals != null:
+			visuals.scale = Vector3.ONE
 	_visual_base.x = 0.0
 	_visual_base.z = 0.0
 	if pose_override == "floo":
@@ -2186,6 +2194,10 @@ var _emerge_lift := 0.0
 func portkey_hide() -> void:
 	if visuals == null:
 		return
+	if _floo_tween != null and _floo_tween.is_valid():
+		_floo_tween.kill()   # an earlier emerge still running would regrow the body
+	_floo_tween = null
+	_emerge_lift = 0.0
 	pose_override = "floo"
 	visuals.scale = Vector3.ONE * 0.01
 	var generation := _pose_generation
@@ -2701,7 +2713,12 @@ func on_authoritative_damage(spell_type: String, attacker: Node3D, _stun_ms: int
 ## the client is corrected by the snapshot.
 ## Two seconds, matching the client's path history: after an uplink stall the
 ## halted body must take the claim the client sends from where it flew on to.
+## Credit is wall time with no input from the client at all (a stall), plus at
+## most CLAIM_CARRY_S left over from earlier frames (packets arriving bunched):
+## a client that keeps sending frames while standing still banks nothing, so it
+## can no longer save up two seconds and spend them on one blink.
 const CLAIM_CREDIT_S := 2.0
+const CLAIM_CARRY_S := 0.25
 const CLAIM_SPEED_SLACK := 1.25
 ## Upward travel: a jump leaves at 8 m/s, the broom climbs at 7.
 const CLAIM_RISE_SPEED := 9.0
@@ -2711,6 +2728,12 @@ const CLAIM_GROUND_BELOW := 2.2
 const CLAIM_PLACED_HOLD_MS := 1000
 const CLAIM_KNEE := 0.5
 const CLAIM_CHEST := 1.1
+## The swept body for the wall test: the player capsule's width (a little
+## under, so grazing a wall is not a hit) from knee to above the head, so no
+## gap narrower than the body passes, as two thin rays let it.
+const CLAIM_SWEEP_RADIUS := 0.3
+const CLAIM_SWEEP_TOP := 1.85
+var _claim_sweep_shape: CapsuleShape3D = null
 var _claim_from := Vector3.INF
 var _claim_ms := 0
 var _claim_credit := 0.0
@@ -2775,17 +2798,24 @@ func _note_placement() -> void:
 		_claim_from = global_position
 	_claim_step_end = global_position
 
-## Authority: the owning client says its body is at `pos` moving at `vel`.
+## Authority: an input frame of the owning client arrived (with or without a
+## claim). The time since the previous one is claim credit; see CLAIM_CARRY_S.
 ## `stall_ms` is the authority's running total of stalled wall time.
-func claim_position(pos: Vector3, vel: Vector3, stall_ms: int) -> void:
-	if not sim_server_controlled or is_dead:
-		return
+func note_input_frame(stall_ms: int) -> void:
 	var now := Time.get_ticks_msec()
 	if _claim_ms > 0:
 		var lost := float(stall_ms - _claim_stall_ms) / 1000.0
-		_claim_credit = minf(_claim_credit + float(now - _claim_ms) / 1000.0, CLAIM_CREDIT_S + lost)
+		var gap := float(now - _claim_ms) / 1000.0
+		_claim_credit = minf(minf(_claim_credit, CLAIM_CARRY_S) + gap, CLAIM_CREDIT_S + lost)
 	_claim_ms = now
 	_claim_stall_ms = stall_ms
+
+## Authority: the owning client says its body is at `pos` moving at `vel`.
+## Its input frame has been counted (note_input_frame) first.
+func claim_position(pos: Vector3, vel: Vector3) -> void:
+	if not sim_server_controlled or is_dead:
+		return
+	var now := Time.get_ticks_msec()
 	_note_placement()
 	var from := _claim_from if _claim_from.is_finite() else global_position
 	_claim_from = global_position
@@ -2803,6 +2833,9 @@ func claim_position(pos: Vector3, vel: Vector3, stall_ms: int) -> void:
 	var top := maxf(_active_speed(), STEEP_SLIDE_MAX) * CLAIM_SPEED_SLACK
 	var need := Vector2(pos.x - from.x, pos.z - from.z).length() / top
 	need = maxf(need, (pos.y - from.y) / CLAIM_RISE_SPEED)
+	# Down costs time too: no faster than terminal fall (a broom sinks slower
+	# still), so a drop through open air is never instant.
+	need = maxf(need, (from.y - pos.y) / CLAIM_FALL_MAX)
 	if need > _claim_credit:
 		_refuse_claim("speed")
 		return
@@ -2810,12 +2843,9 @@ func claim_position(pos: Vector3, vel: Vector3, stall_ms: int) -> void:
 		_refuse_claim("ceiling")
 		return
 	var space := get_world_3d().direct_space_state
-	for lift in [CLAIM_KNEE, CLAIM_CHEST]:
-		var ray := PhysicsRayQueryParameters3D.create(from + Vector3.UP * lift, pos + Vector3.UP * lift, 1)
-		ray.exclude = [get_rid()]
-		if not space.intersect_ray(ray).is_empty():
-			_refuse_claim("wall")
-			return
+	if _claim_swept_into_wall(space, from, pos):
+		_refuse_claim("wall")
+		return
 	# Feet under a floor (sunk into the ground or below a deck): a surface
 	# between the chest and the ankles.
 	var sunk := PhysicsRayQueryParameters3D.create(pos + Vector3.UP * CLAIM_CHEST, pos + Vector3.UP * 0.15, 1)
@@ -2845,6 +2875,27 @@ func claim_position(pos: Vector3, vel: Vector3, stall_ms: int) -> void:
 	velocity = Vector3(planar.x, clampf(vel.y, -60.0, CLAIM_RISE_SPEED), planar.y)
 	_claim_from = pos
 	_claim_step_end = pos
+
+## Anything solid between `from` and `to` for a body-wide capsule from knee
+## height to the top of the head (CLAIM_SWEEP_*).
+func _claim_swept_into_wall(space: PhysicsDirectSpaceState3D, from: Vector3, to: Vector3) -> bool:
+	if _claim_sweep_shape == null:
+		_claim_sweep_shape = CapsuleShape3D.new()
+		_claim_sweep_shape.radius = CLAIM_SWEEP_RADIUS
+		_claim_sweep_shape.height = CLAIM_SWEEP_TOP - CLAIM_KNEE
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = _claim_sweep_shape
+	query.collision_mask = 1
+	query.exclude = [get_rid()]
+	var centre := Vector3.UP * (CLAIM_KNEE + _claim_sweep_shape.height * 0.5)
+	query.transform = Transform3D(Basis.IDENTITY, from + centre)
+	query.motion = to - from
+	var hit := space.cast_motion(query)
+	# [1.0, 1.0]: the whole motion is free. A shape that starts inside
+	# something reports [0, 0]; the step taken before was checked the same way,
+	# so that only happens when the server placed the body, which refuses
+	# claims for CLAIM_PLACED_HOLD_MS anyway.
+	return hit.size() == 2 and float(hit[0]) < 1.0
 
 ## Reconciliation. Absorbs network propagation delay: server snapshots reflect
 ## where the client was RTT/2 in the past. We compare against recent trajectory

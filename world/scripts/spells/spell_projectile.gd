@@ -233,9 +233,29 @@ func _reflect_projectile(owner_node: Node3D) -> void:
 	direction = -direction
 	caster = owner_node
 	_curve_amp = 0.0   # a reflected bolt flies straight back
+	# As the authority's bolt (target_uid = 0): no homing after a reflection.
+	# A kept target steered the bolt straight back into the warden's chest.
+	target_node = null
+	_end_point = Vector3.INF
+	lifetime = 0.0   # the return flight gets its own range
 	global_position = _path_pos
 	_reflection_grace = 0.12
 	speed *= 1.1
+
+## The authority says this bolt was reflected by `warden` (cast_landed with
+## `reflected`): the view turns there too and keeps flying, so the return
+## flight is drawn; the cast's next cast_landed ends it. A view that already
+## turned off this ward on its own does nothing.
+func reflect_off(warden: Node3D) -> void:
+	if warden == null or not is_instance_valid(warden) or caster == warden:
+		return
+	if spent:
+		if _held_on == null:
+			return   # already burst or burnt out
+		spent = false   # it was waiting on the warden as a victim
+		_held_on = null
+	_reflection_grace = 0.0
+	_reflect_projectile(warden)
 
 ## The projectile is a VIEW. Damage is decided by the authority: this call is a
 ## report that the bolt reached something, and the engine answers with the

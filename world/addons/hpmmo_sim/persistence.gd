@@ -172,6 +172,9 @@ func resolve_character(character_id: int, account_id: int) -> Dictionary:
 var _pending_saves: Dictionary = {}
 var _saving: Dictionary = {}
 var _reconciling: Dictionary = {}
+## character_id -> the last sheet of a session that ended while its character
+## was being reconciled; written once the reconcile has adopted the database.
+var _departing: Dictionary = {}
 var _save_failures: Dictionary = {}
 var _retry_elapsed := 0.0
 
@@ -300,6 +303,16 @@ func _reconcile_character(character_id: int, rejected: Dictionary) -> void:
 		_due.erase(character_id)
 		_reconciling.erase(character_id)
 		var node = record.get("node")
+		var departing: Dictionary = _departing.get(character_id, {})
+		_departing.erase(character_id)
+		if not is_instance_valid(node) and not departing.is_empty():
+			# The session ended during the reconcile. The database sheet stays the
+			# durable truth; only what the session alone knew is written on top.
+			var session_part := {"character_id": character_id}
+			for key in ["pos", "rot_y", "map_id", "current_hp", "current_mana"]:
+				if departing.has(key):
+					session_part[key] = departing[key]
+			save_character(character_id, session_part, 0)
 		if is_instance_valid(node):
 			# Keep live location/combat HP; reconcile durable ownership and base progression.
 			sheet["inventory_revision"] = maxi(int(sheet.get("inventory_revision", 0)), node.inventory_revision + 1)
@@ -386,6 +399,10 @@ func save_player_now(record: Dictionary) -> void:
 	if character_id <= 0 or node == null or not is_instance_valid(node):
 		return
 	if _reconciling.has(character_id):
+		# Never dropped: the reconcile in flight replaces the durable part
+		# (bag, gold, progression) from the database, and this sheet's session
+		# part (where and how the character left) is written right after it.
+		_departing[character_id] = character_payload(node, record)
 		return
 	save_character(character_id, character_payload(node, record), 0)
 

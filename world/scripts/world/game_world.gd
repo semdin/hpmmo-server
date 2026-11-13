@@ -1074,11 +1074,20 @@ func _on_cast_landed(cast_id: int, caster_uid: int, spell_id: String, hits: Arra
 	elif HPRules.delivery(spell_id) != "projectile_aoe" and live_view and view.has_method("end_on_landed"):
 		var first_hit: Dictionary = hits[0]
 		var first = SimAuthority.record_by_uid(int(first_hit.get("uid", 0))).get("node")
-		var first_body: Node3D = null
-		if first is Node3D and is_instance_valid(first) and not bool(first_hit.get("reflected", false)):
-			first_body = first
-		if view.end_on_landed(first_body):
-			view_struck = first_body
+		if bool(first_hit.get("reflected", false)):
+			# The bolt flies on from the ward: the view keeps flying with it
+			# and stays registered for the cast's final landing.
+			if first is Node3D and is_instance_valid(first) and view.has_method("reflect_off"):
+				view.reflect_off(first)
+				_bolt_views[cast_id] = view
+			else:
+				view.end_on_landed(null)
+		else:
+			var first_body: Node3D = null
+			if first is Node3D and is_instance_valid(first):
+				first_body = first
+			if view.end_on_landed(first_body):
+				view_struck = first_body
 	if _bolt_views.size() > 64:
 		for key in _bolt_views.keys():
 			if not is_instance_valid(_bolt_views[key]):

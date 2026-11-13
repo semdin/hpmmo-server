@@ -168,16 +168,18 @@ func reset_parts() -> void:
 		if is_instance_valid(part) and (part.state == State.DEAD or part.current_hp < part.max_hp):
 			part.revive()
 			touched = true
-	if not touched and parts_down.is_empty():
-		return
-	parts_down.clear()
-	SimAuthority.clear_parts_down(self)
-	_apply_droop()
-	immune = true
-	SimAuthority.set_mob_immune(self, true)
-	if hp_is_sum and not parts.is_empty():
-		SimAuthority.set_mob_hp(self, max_hp, max_hp)
+	if touched or not parts_down.is_empty():
+		parts_down.clear()
+		SimAuthority.clear_parts_down(self)
+		_apply_droop()
+		immune = true
+		SimAuthority.set_mob_immune(self, true)
+		if hp_is_sum and not parts.is_empty():
+			SimAuthority.set_mob_hp(self, max_hp, max_hp)
+	# Always: a wipe that never scratched a part still ran the fight clock,
+	# the enrage and the harp cooldown, and the next attempt starts clean.
 	_on_reset()
+	_update_label()
 
 ## Subclass hooks.
 func _on_reset() -> void:

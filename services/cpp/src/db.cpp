@@ -208,6 +208,24 @@ void Conn::rollback() {
     }
 }
 
+void Conn::reset_for_reuse() {
+    if (!conn_) return;
+    if (PQstatus(conn_) == CONNECTION_OK) {
+        const PGTransactionStatusType ts = PQtransactionStatus(conn_);
+        if (ts == PQTRANS_IDLE) return;
+        if (ts == PQTRANS_INTRANS || ts == PQTRANS_INERROR) {
+            PGresult* res = PQexec(conn_, "ROLLBACK");
+            const bool rolled_back = res && PQresultStatus(res) == PGRES_COMMAND_OK;
+            if (res) PQclear(res);
+            if (rolled_back && PQtransactionStatus(conn_) == PQTRANS_IDLE) return;
+        }
+    }
+    // A bad connection, a command still in flight, or a failed ROLLBACK: the
+    // session state is unknown, so drop it; ensure_ok() reconnects on next use.
+    PQfinish(conn_);
+    conn_ = nullptr;
+}
+
 Pool::Pool(const std::string& dsn, int size) {
     for (int i = 0; i < (std::max)(1, size); ++i) {
         conns_.push_back(std::make_unique<Conn>(dsn));
@@ -216,9 +234,17 @@ Pool::Pool(const std::string& dsn, int size) {
 }
 
 Pool::Lease Pool::acquire() {
-    const size_t idx = next_.fetch_add(1) % conns_.size();
-    locks_[idx]->lock();
-    return Lease(conns_[idx].get(), locks_[idx].get());
+    // Any free connection first (starting at the round-robin slot so load
+    // spreads); blocking on one fixed slot queued callers behind a slow
+    // request while other connections sat idle.
+    const size_t n = conns_.size();
+    const size_t start = next_.fetch_add(1) % n;
+    for (size_t k = 0; k < n; ++k) {
+        const size_t idx = (start + k) % n;
+        if (locks_[idx]->try_lock()) return Lease(conns_[idx].get(), locks_[idx].get());
+    }
+    locks_[start]->lock();
+    return Lease(conns_[start].get(), locks_[start].get());
 }
 
 std::string now_iso8601() {
@@ -404,6 +430,12 @@ MigrationStatus migrate(Conn& conn, const std::string& migrations_dir) {
         st.error = "could not take migration lock: " + lock.error;
         return st;
     }
+    // Every exit releases the lock: it is session-level, so an early error
+    // return used to leave it held and block the next migrate on this session.
+    struct Unlock {
+        Conn& conn;
+        ~Unlock() { conn.exec("SELECT pg_advisory_unlock(1213222221)"); }
+    } unlock{conn};
     Result init = conn.exec(
         "CREATE TABLE IF NOT EXISTS schema_migrations (version integer PRIMARY KEY, "
         "name text NOT NULL, applied_at timestamptz NOT NULL DEFAULT now())");
@@ -456,8 +488,6 @@ MigrationStatus migrate(Conn& conn, const std::string& migrations_dir) {
         }
         std::printf("[migrate] applied %s\n", path.filename().string().c_str());
     }
-    Result rel = conn.exec("SELECT pg_advisory_unlock(1213222221)");
-    (void)rel;
     MigrationStatus after = migration_status(conn, migrations_dir);
     return after;
 }

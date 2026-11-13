@@ -762,7 +762,9 @@
       "hound": "vs_beast",
       "pixie": "vs_beast",
       "armour": "vs_construct",
-      "snare": "vs_construct"
+      "snare": "vs_construct",
+      "spider": "vs_beast",
+      "goblin": "vs_dark_creature"
     }
   },
   "critical": {

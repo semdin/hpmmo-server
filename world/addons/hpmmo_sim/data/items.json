@@ -167,7 +167,7 @@
     "id": "robe_apprentice",
     "name": "Apprentice Robe",
     "type": "armor",
-    "desc": "Sturdy woolen school robes tailored with silk house linings. +50 Max HP.",
+    "desc": "Sturdy woolen school robes tailored with silk house linings.",
     "rarity": "common",
     "stat_tier": 1,
     "armor": 18,
@@ -181,7 +181,7 @@
     "id": "robe_auror",
     "name": "Warden's Battle Cloak",
     "type": "armor",
-    "desc": "Enchanted heavy dragonhide battle cloak. +150 Max HP and 15% Magic Armor.",
+    "desc": "Enchanted heavy dragonhide battle cloak.",
     "rarity": "epic",
     "stat_tier": 4,
     "armor": 78,
@@ -287,7 +287,7 @@
     "id": "broom_firebolt",
     "name": "Skysplitter",
     "type": "mount",
-    "desc": "Ash handle with aerodynamic ash finish and goblin-forged ironwork. Supreme 22.0 speed.",
+    "desc": "Ash handle with aerodynamic ash finish and goblin-forged ironwork. Supreme speed.",
     "rarity": "legendary",
     "mount_speed": 18.0,
     "icon": "broom",
@@ -455,7 +455,7 @@
     "required_level": 1,
     "bonus_mana": 20,
     "armor": 6,
-    "desc": "Enchanted apprentice gear. +0 maximum HP, +20 maximum mana."
+    "desc": "Enchanted apprentice gear."
   },
   "gloves_apprentice": {
     "id": "gloves_apprentice",
@@ -469,7 +469,7 @@
     "required_level": 1,
     "armor": 5,
     "attack_speed": 3,
-    "desc": "Enchanted apprentice gear. +0 maximum HP, +15 maximum mana."
+    "desc": "Enchanted apprentice gear."
   },
   "boots_apprentice": {
     "id": "boots_apprentice",
@@ -483,7 +483,7 @@
     "required_level": 1,
     "armor": 5,
     "move_speed": 4,
-    "desc": "Enchanted apprentice gear. +25 maximum HP, +0 maximum mana."
+    "desc": "Enchanted apprentice gear."
   },
   "focus_apprentice": {
     "id": "focus_apprentice",
@@ -497,7 +497,7 @@
     "required_level": 1,
     "bonus_mana": 25,
     "spell_power": 3,
-    "desc": "Enchanted apprentice gear. +0 maximum HP, +25 maximum mana."
+    "desc": "Enchanted apprentice gear."
   },
   "pendant_apprentice": {
     "id": "pendant_apprentice",
@@ -511,7 +511,7 @@
     "required_level": 1,
     "bonus_hp": 25,
     "hp_regen": 1,
-    "desc": "Enchanted apprentice gear. +25 maximum HP, +0 maximum mana."
+    "desc": "Enchanted apprentice gear."
   },
   "ring_apprentice": {
     "id": "ring_apprentice",
@@ -526,7 +526,7 @@
     "required_level": 1,
     "bonus_mana": 10,
     "mana_regen": 1,
-    "desc": "Enchanted apprentice gear. +0 maximum HP, +10 maximum mana."
+    "desc": "Enchanted apprentice gear."
   },
   "ring_adept": {
     "id": "ring_adept",
@@ -540,7 +540,7 @@
     "stat_tier": 2,
     "bonus_mana": 20,
     "mana_regen": 1,
-    "desc": "Enchanted apprentice gear. +0 maximum HP, +20 maximum mana."
+    "desc": "Enchanted adept gear."
   },
   "hat_runebound": {
     "id": "hat_runebound",

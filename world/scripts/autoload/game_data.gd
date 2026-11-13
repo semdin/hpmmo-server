@@ -140,8 +140,6 @@ const WAND_AURAS := [Color(0.7,0.7,0.7,0),Color(0.7,0.7,0.7,0),Color(0.7,0.7,0.7
 var UPGRADE_TABLE: Dictionary = {}
 var ITEMS: Dictionary = {}
 
-var QUESTS: Dictionary = {}
-
 ## Protected volumes (Prototype) loaded from res://data/json/safe_zones.json.
 ## Consumed by scripts/world/safe_zone.gd.
 var SAFE_ZONES: Dictionary = {}
@@ -254,15 +252,13 @@ func _load_json_data() -> void:
 				h["secondary_color"] = Color.from_string(h["secondary_color"], Color.WHITE)
 			HOUSES[k] = h
 
-	var quests_json = _read_json_file("res://data/json/quests.json")
-	if quests_json is Dictionary and not quests_json.is_empty():
-		QUESTS = quests_json
-
 	var zones_json = _read_json_file(SIM_DATA_DIR + "safe_zones.json")
 	if zones_json is Dictionary and not zones_json.is_empty():
 		SAFE_ZONES = zones_json
-	print("[GameData] Static JSON configs loaded into RAM: %d Spells, %d Items, %d Houses, %d Quests, %d Safe Zones" % [
-		SPELLS.size(), ITEMS.size(), HOUSES.size(), QUESTS.size(), (SAFE_ZONES.get("zones", []) as Array).size()
+	# Quests are not here: the quest system reads the simulation's catalogue
+	# (addons/hpmmo_sim/data/quests.json through HPRules).
+	print("[GameData] Static JSON configs loaded into RAM: %d Spells, %d Items, %d Houses, %d Safe Zones" % [
+		SPELLS.size(), ITEMS.size(), HOUSES.size(), (SAFE_ZONES.get("zones", []) as Array).size()
 	])
 
 func _read_json_file(path: String) -> Variant:

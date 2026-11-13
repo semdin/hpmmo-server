@@ -209,8 +209,10 @@ func save_offline_character(char_data: Dictionary) -> void:
 		file.store_string(JSON.stringify(char_data, "\t"))
 
 func load_offline_character() -> Dictionary:
-	var path_to_load = LOCAL_SAVE_PATH
-	if not FileAccess.file_exists(path_to_load) and FileAccess.file_exists(LEGACY_SAVE_PATH):
+	# The same file save_offline_character writes: loading the real offline
+	# save here put the real character into a `--test-char` session.
+	var path_to_load = offline_save_path
+	if path_to_load == LOCAL_SAVE_PATH and not FileAccess.file_exists(path_to_load) and FileAccess.file_exists(LEGACY_SAVE_PATH):
 		path_to_load = LEGACY_SAVE_PATH
 	if not FileAccess.file_exists(path_to_load):
 		return {}

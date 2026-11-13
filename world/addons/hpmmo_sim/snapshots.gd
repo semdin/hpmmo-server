@@ -3,17 +3,22 @@ class_name HPSnapshots
 
 ## Compact entity snapshots (channel 0, unreliable).
 ##
-## 31 bytes per entity so a full interest set fits in one datagram and never
+## 35 bytes per entity, sent in chunks of ENTITIES_PER_CHUNK so no datagram
 ## fragments (an unreliable packet larger than the MTU is simply lost):
 ##   u32 uid | u8 kind | u8 variant | u8 flags | u8 state | u8 status |
-##   u16 pack_id | 3 x f32 position | f32 rot_y | u16 hp | u16 max_hp
-## (`status` = HPProtocol.STATUS_* crowd control on the body, v25).
+##   u16 pack_id | 3 x f32 position | f32 rot_y | u32 hp | u32 max_hp
+## (`status` = HPProtocol.STATUS_* crowd control on the body, v25; hp as u32
+## since v34: a scaled dungeon boss passes 65 535, and a u16 bar kept jumping
+## between the true value and the clamp).
 ##
 ## Loot is not carried here: it does not move, so it is replicated as reliable
 ## spawn/despawn events instead. NPCs are client-side scenery and are never
 ## replicated.
 
-const ENTITY_BYTES := 31
+const ENTITY_BYTES := 35
+## Whole entities per snapshot chunk: 875 bytes, under the ~900-byte budget the
+## 31-byte layout used (29 entities) once each entity grew to 35 bytes.
+const ENTITIES_PER_CHUNK := 25
 
 
 static func _encode_entity(buffer: StreamPeerBuffer, record: Dictionary, node: Node3D, authority) -> void:
@@ -29,13 +34,13 @@ static func _encode_entity(buffer: StreamPeerBuffer, record: Dictionary, node: N
 	buffer.put_float(pos.y)
 	buffer.put_float(pos.z)
 	buffer.put_float(_rotation_y(node))
-	buffer.put_u16(clampi(int(record.get("hp", 0)), 0, 65535))
-	buffer.put_u16(clampi(int(record.get("max_hp", 0)), 0, 65535))
+	buffer.put_u32(clampi(int(record.get("hp", 0)), 0, 0x7fffffff))
+	buffer.put_u32(clampi(int(record.get("max_hp", 0)), 0, 0x7fffffff))
 
 
 ## Per-broadcast caches. Every peer near a crowd sees the same bodies, and the
 ## same body used to be measured and encoded once per peer: positions and the
-## 31-byte encodings are now taken once per broadcast (`begin_broadcast`) and
+## 35-byte encodings are now taken once per broadcast (`begin_broadcast`) and
 ## reused for every peer it reaches. Only valid inside one broadcast - the
 ## authority's own lookups (`nearby`) read live positions.
 static var _pos_cache: Dictionary = {}
@@ -443,6 +448,6 @@ static func apply(bytes: PackedByteArray, authority) -> void:
 		var pack_id := buffer.get_u16()
 		var pos := Vector3(buffer.get_float(), buffer.get_float(), buffer.get_float())
 		var rot_y := buffer.get_float()
-		var hp := buffer.get_u16()
-		var max_hp := buffer.get_u16()
+		var hp := buffer.get_u32()
+		var max_hp := buffer.get_u32()
 		authority.upsert_replica(uid, kind, pos, rot_y, hp, max_hp, flags, state, variant, pack_id, status)

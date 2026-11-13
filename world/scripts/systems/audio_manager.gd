@@ -823,7 +823,9 @@ func _autodetect_zone() -> void:
 			wanted = "interior"
 	elif map_id.begins_with("dng_forbidden"):
 		wanted = "corridor"
-	elif map_id.begins_with("dng_"):
+	elif map_id.begins_with("dng_") or map_id == "spider_caverns":
+		# The Blackweb Caverns are underground: drips and the deep, never the
+		# grounds' birds and meadow music (it fell through to "grounds").
 		wanted = "dungeon"
 	elif _altitude > 25.0 and _is_outdoors():
 		# High above the grounds the region under the rider does not own the

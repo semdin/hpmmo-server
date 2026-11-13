@@ -35,8 +35,7 @@ fi
 # 1. Update and install prerequisites
 echo "[1/5] Updating packages and installing prerequisites..."
 sudo apt-get update -y
-sudo apt-get install -y wget unzip tar curl ufw python3 python3-pip postgresql postgresql-contrib build-essential cmake ninja-build libpq-dev
-pip3 install psycopg2-binary || pip install psycopg2-binary --break-system-packages || true
+sudo apt-get install -y wget unzip tar curl ufw python3 postgresql postgresql-contrib build-essential cmake ninja-build libpq-dev
 
 # 2. Setup Godot 4.7.2 Linux Headless Engine
 echo "[2/5] Setting up Godot 4.7.2 Linux Server Engine..."
@@ -66,27 +65,37 @@ if [ -f "$BIN_DIR/godot_server" ] && [ -d "$GAME_DIR/world" ]; then
     "$BIN_DIR/godot_server" --headless --path "$GAME_DIR/world" --editor --import --quit 2>&1 || true
 fi
 
-# Configure PostgreSQL (hpmmo_db and hpmmo user) using the env password
-if command -v psql &> /dev/null; then
-    echo "Configuring PostgreSQL user and database (hpmmo_db)..."
-    sudo systemctl start postgresql || true
-    sudo -u postgres psql -c "CREATE USER hpmmo WITH PASSWORD '$HPMMO_DB_PASSWORD';" 2>/dev/null || \
-        sudo -u postgres psql -c "ALTER USER hpmmo WITH PASSWORD '$HPMMO_DB_PASSWORD';"
-    sudo -u postgres psql -c "CREATE DATABASE hpmmo_db OWNER hpmmo;" 2>/dev/null || true
-    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE hpmmo_db TO hpmmo;" 2>/dev/null || true
-
-    if [ -f "$GAME_DIR/deploy/apply_migrations.sh" ]; then
-        echo "Applying database migrations..."
-        bash "$GAME_DIR/deploy/apply_migrations.sh" || true
-    fi
-fi
-
-# Compile C++ persistence microservice (Server integration)
+# Compile C++ persistence microservice (Server integration). Built before the
+# database is configured: its `migrate` command is what applies the schema.
 if [ -d "$GAME_DIR/services/cpp" ]; then
     echo "Building C++ persistence service (hpmmo_service)..."
     rm -rf "$GAME_DIR/services/cpp/build"
     cmake -S "$GAME_DIR/services/cpp" -B "$GAME_DIR/services/cpp/build" -G Ninja -DCMAKE_BUILD_TYPE=Release
     ninja -C "$GAME_DIR/services/cpp/build"
+fi
+
+# Configure PostgreSQL (hpmmo_db and hpmmo user) using the env password.
+# The password reaches psql as a variable (:'pw' quotes it as a literal), never
+# spliced into the SQL text: a quote in it would otherwise break or rewrite a
+# statement that runs as the postgres superuser.
+if command -v psql &> /dev/null; then
+    echo "Configuring PostgreSQL user and database (hpmmo_db)..."
+    sudo systemctl start postgresql || true
+    if sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='hpmmo'" | grep -q 1; then
+        echo "ALTER USER hpmmo WITH PASSWORD :'pw';"             | sudo -u postgres psql -v ON_ERROR_STOP=1 -v pw="$HPMMO_DB_PASSWORD"
+    else
+        echo "CREATE USER hpmmo WITH PASSWORD :'pw';"             | sudo -u postgres psql -v ON_ERROR_STOP=1 -v pw="$HPMMO_DB_PASSWORD"
+    fi
+    sudo -u postgres psql -c "CREATE DATABASE hpmmo_db OWNER hpmmo;" 2>/dev/null || true
+    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE hpmmo_db TO hpmmo;" 2>/dev/null || true
+
+    # The service's own migrator: it records every version in
+    # schema_migrations, which /api/ready checks (plain `psql -f` did not, so a
+    # fresh install answered 503 until the first controller deployment).
+    if [ -x "$GAME_DIR/services/cpp/build/hpmmo_service" ]; then
+        echo "Applying database migrations..."
+        ( cd "$GAME_DIR" && DATABASE_URL="$DATABASE_URL" HPMMO_MIGRATIONS_DIR="$GAME_DIR/db/migrations"             "./services/cpp/build/hpmmo_service" migrate )
+    fi
 fi
 
 # 4. Firewall (SSH, 7777 UDP game, 80/443 TCP for the TLS proxy in front of the

@@ -7,18 +7,17 @@ Server-side repository for HPMMO
 | Path | Purpose |
 | --- | --- |
 | `world/` | Authoritative Godot world project (exported, hash-pinned snapshot of the client project until the authority inverts ownership - see `world/WORLD_EXPORT.json`) |
-| `services/` | Python account/persistence service (`db_service.py`) - replaced by the C++ service in the server integration |
+| `services/` | Account/persistence service (`services/cpp/`, C++) and the `version.json` it serves |
 | `db/migrations/` | SQL schema migrations (PostgreSQL target) |
 | `contracts/` | Protocol + gameplay schema contracts owned by the server; pinned in `workspace.lock.json` |
 | `deploy/` | Provisioning, deployment, and packaging scripts; environment template |
-| `tests/` | `smoke_service.py` - boots the service against temp SQLite and pins the current API behavior |
+| `tests/` | `multiplayer_sim.py` (multiplayer gate) and `deploy_rehearsal.py` (deploy/rollback rehearsal) |
 
 ## Services
 
 | Service | Status | Notes |
 | --- | --- | --- |
 | `services/cpp/` | **Primary (Server integration/5)** | C++17 service: argon2id, sessions (carrying the ticket-bound character), ownership checks, one-time game tickets, idempotent rewards/trades, service-token session introspection and character access for the authority world server, numbered PostgreSQL migrations, readiness that verifies the schema level. Vendored deps are hash-pinned in `services/cpp/vendor/PROVENANCE.md`; API contract in `contracts/api.md`. |
-| `services/db_service.py` | Legacy fallback | The original stdlib-Python service (unauthenticated; trade disabled). Kept for reference while the client adopts the new API; do not expose publicly. |
 
 ### Building the C++ service (Windows, from a fresh checkout)
 
@@ -92,8 +91,6 @@ godot --headless --path world res://server/world_server.tscn
 - The **service token** is infrastructure-only (`X-Service-Token`): it unlocks session
   introspection and unscoped character load/save for the trusted world server. It must never
   reach a client (launcher/game build) or a log; a holder can read and write every character.
-- The **legacy Python service** (`services/db_service.py`) still exists for reference and has
-  **none of these protections** - it must not be deployed alongside the new service.
 - The **world server** (Authority) is the only holder of the service token; the game client only
   redeems a one-time ticket and never sees a database credential. Clients send intents that the
   server validates; clients cannot address each other

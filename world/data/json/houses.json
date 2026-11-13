@@ -3,32 +3,28 @@
     "name": "Velkar",
     "primary_color": "#d9661c",
     "secondary_color": "#211c19",
-    "trait": "Bravery: +15% Fire Spell Damage & +10% Critical Strike Chance",
-    "motto": "From my ashes I rise again.",
-    "starting_bonus": {"bonus_fire_dmg": 0.15, "crit_rate": 0.10}
+    "trait": "Bravery: +15% Flame Wave damage",
+    "motto": "From my ashes I rise again."
   },
   "Slytherin": {
     "name": "Nisera",
     "primary_color": "#7a3db0",
     "secondary_color": "#dbb04d",
-    "trait": "Ambition: +20% Dark Magic Damage & 10% Life Leech on Hit",
-    "motto": "Knowledge runs deeper than venom.",
-    "starting_bonus": {"bonus_dark_dmg": 0.20, "life_leech": 0.10}
+    "trait": "Ambition: +20% Stella Ruina and Disarm damage",
+    "motto": "Knowledge runs deeper than venom."
   },
   "Ravenclaw": {
     "name": "Ilvane",
     "primary_color": "#3d8fd1",
     "secondary_color": "#edf2f7",
     "trait": "Wisdom: -20% Spell Cooldowns & +25% Max Mana Pool",
-    "motto": "We arrive before the wind.",
-    "starting_bonus": {"cooldown_reduction": 0.20, "max_mana_mult": 1.25}
+    "motto": "We arrive before the wind."
   },
   "Hufflepuff": {
     "name": "Torvan",
     "primary_color": "#8b8f96",
     "secondary_color": "#b22e24",
-    "trait": "Loyalty: +25% Max Health & +15% Damage Reduction",
-    "motto": "Together we hold.",
-    "starting_bonus": {"max_hp_mult": 1.25, "damage_reduction": 0.15}
+    "trait": "Loyalty: +25% Max Health",
+    "motto": "Together we hold."
   }
 }

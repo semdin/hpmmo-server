@@ -4451,7 +4451,7 @@ msgstr "Grubun canları tükendi - bu zindanda madalya yok."
 msgid "Elite Bodyguard"
 msgstr "Elit Koruma"
 
-#: scripts/world/game_world.gd addons/hpmmo_sim/data/quests.json data/json/quests.json
+#: scripts/world/game_world.gd addons/hpmmo_sim/data/quests.json
 msgid "Master Teral Venn"
 msgstr "Üstat Teral Venn"
 
@@ -4495,7 +4495,7 @@ msgstr "Orvell'e hoş geldin, canım! Burada dinlen - köy meydanı güvenlidir.
 msgid "Buy Healing Draughts before heading to the Raven Woods. Trust me."
 msgstr "Kuzgun Ormanı'na gitmeden önce Şifa İksiri al. Bana güven."
 
-#: scripts/world/game_world.gd addons/hpmmo_sim/data/quests.json data/json/quests.json
+#: scripts/world/game_world.gd addons/hpmmo_sim/data/quests.json
 msgid "Borin"
 msgstr "Borin"
 
@@ -4948,16 +4948,16 @@ msgid "Apprentice Robe"
 msgstr "Çırak Cüppesi"
 
 #: addons/hpmmo_sim/data/items.json
-msgid "Sturdy woolen school robes tailored with silk house linings. +50 Max HP."
-msgstr "İpek bina astarlı sağlam yün okul cüppesi. +50 Maks. Can."
+msgid "Sturdy woolen school robes tailored with silk house linings."
+msgstr "İpek bina astarlı sağlam yün okul cüppesi."
 
 #: addons/hpmmo_sim/data/items.json
 msgid "Warden's Battle Cloak"
 msgstr "Muhafız Savaş Cübbesi"
 
 #: addons/hpmmo_sim/data/items.json
-msgid "Enchanted heavy dragonhide battle cloak. +150 Max HP and 15% Magic Armor."
-msgstr "Büyülü ağır ejderha derisi savaş pelerini. +150 Maks. Can ve %15 Büyü Zırhı."
+msgid "Enchanted heavy dragonhide battle cloak."
+msgstr "Büyülü ağır ejderha derisi savaş pelerini."
 
 #: addons/hpmmo_sim/data/items.json
 msgid "Woolen Traveller's Cloak"
@@ -5012,8 +5012,8 @@ msgid "Skysplitter"
 msgstr "Gökyaran"
 
 #: addons/hpmmo_sim/data/items.json
-msgid "Ash handle with aerodynamic ash finish and goblin-forged ironwork. Supreme 22.0 speed."
-msgstr "Aerodinamik dişbudak cilalı dişbudak sap ve cin dövmesi demir işçiliği. Üstün 22.0 hız."
+msgid "Ash handle with aerodynamic ash finish and goblin-forged ironwork. Supreme speed."
+msgstr "Aerodinamik dişbudak cilalı dişbudak sap ve cin dövmesi demir işçiliği. Üstün hız."
 
 #: addons/hpmmo_sim/data/items.json
 msgid "Ashwood Sweeper"
@@ -5124,32 +5124,20 @@ msgid "Apprentice Hat"
 msgstr "Çırak Şapkası"
 
 #: addons/hpmmo_sim/data/items.json
-msgid "Enchanted apprentice gear. +0 maximum HP, +20 maximum mana."
-msgstr "Büyülü çırak ekipmanı. +0 maksimum can, +20 maksimum mana."
+msgid "Enchanted apprentice gear."
+msgstr "Büyülü çırak ekipmanı."
 
 #: addons/hpmmo_sim/data/items.json
 msgid "Apprentice Gloves"
 msgstr "Çırak Eldivenleri"
 
 #: addons/hpmmo_sim/data/items.json
-msgid "Enchanted apprentice gear. +0 maximum HP, +15 maximum mana."
-msgstr "Büyülü çırak ekipmanı. +0 maksimum can, +15 maksimum mana."
-
-#: addons/hpmmo_sim/data/items.json
 msgid "Apprentice Boots"
 msgstr "Çırak Çizmeleri"
 
 #: addons/hpmmo_sim/data/items.json
-msgid "Enchanted apprentice gear. +25 maximum HP, +0 maximum mana."
-msgstr "Büyülü çırak ekipmanı. +25 maksimum can, +0 maksimum mana."
-
-#: addons/hpmmo_sim/data/items.json
 msgid "Apprentice Focus"
 msgstr "Çırak Odağı"
-
-#: addons/hpmmo_sim/data/items.json
-msgid "Enchanted apprentice gear. +0 maximum HP, +25 maximum mana."
-msgstr "Büyülü çırak ekipmanı. +0 maksimum can, +25 maksimum mana."
 
 #: addons/hpmmo_sim/data/items.json
 msgid "Apprentice Pendant"
@@ -5160,12 +5148,12 @@ msgid "Apprentice Ring"
 msgstr "Çırak Yüzüğü"
 
 #: addons/hpmmo_sim/data/items.json
-msgid "Enchanted apprentice gear. +0 maximum HP, +10 maximum mana."
-msgstr "Büyülü çırak ekipmanı. +0 maksimum can, +10 maksimum mana."
-
-#: addons/hpmmo_sim/data/items.json
 msgid "Adept Ring"
 msgstr "Usta Yüzüğü"
+
+#: addons/hpmmo_sim/data/items.json
+msgid "Enchanted adept gear."
+msgstr "Büyülü kalfa ekipmanı."
 
 #: addons/hpmmo_sim/data/items.json
 msgid "Runebound Hat"
@@ -7312,16 +7300,16 @@ msgid "Legend"
 msgstr "Efsane"
 
 #: data/json/houses.json
-msgid "Bravery: +15% Fire Spell Damage & +10% Critical Strike Chance"
-msgstr "Cesaret: +%15 Ateş Büyüsü Hasarı ve +%10 Kritik Vuruş Şansı"
+msgid "Bravery: +15% Flame Wave damage"
+msgstr "Cesaret: +%15 Alev Dalgası hasarı"
 
 #: data/json/houses.json
 msgid "From my ashes I rise again."
 msgstr "Küllerimden yine doğarım."
 
 #: data/json/houses.json
-msgid "Ambition: +20% Dark Magic Damage & 10% Life Leech on Hit"
-msgstr "Hırs: +%20 Kara Büyü Hasarı ve vuruşta %10 Can Emme"
+msgid "Ambition: +20% Stella Ruina and Disarm damage"
+msgstr "Hırs: +%20 Stella Ruina ve Silahsızlandırma hasarı"
 
 #: data/json/houses.json
 msgid "Knowledge runs deeper than venom."
@@ -7336,8 +7324,8 @@ msgid "We arrive before the wind."
 msgstr "Rüzgârdan önce varırız."
 
 #: data/json/houses.json
-msgid "Loyalty: +25% Max Health & +15% Damage Reduction"
-msgstr "Sadakat: +%25 Maks. Can ve +%15 Hasar Azaltma"
+msgid "Loyalty: +25% Max Health"
+msgstr "Sadakat: +%25 Maks. Can"
 
 #: data/json/houses.json
 msgid "Together we hold."
@@ -7435,30 +7423,6 @@ msgstr "Mutfaklar"
 msgid "Torvan House"
 msgstr "Torvan Hanesi"
 
-#: data/json/quests.json
-msgid "Wand Awakening"
-msgstr "Asanın Uyanışı"
-
-#: data/json/quests.json
-msgid "Speak with Kestrin in the courtyard and practice casting your Basic Cast and Stun Bolt on the Training Dummies."
-msgstr "Avluda Kestrin ile konuş ve Eğitim Kuklaları üzerinde Temel Büyü ile Şok Oku çalış."
-
-#: data/json/quests.json
-msgid "The Whispering Woods"
-msgstr "Fısıldayan Koru"
-
-#: data/json/quests.json
-msgid "The Raven Woods is crawling with venomous Black Weavers. Defeat 5 Black Weavers to protect the castle grounds."
-msgstr "Kuzgun Ormanı zehirli Kara Ağcılarla kaynıyor. Şato arazisini korumak için 5 Kara Ağcı alt et."
-
-#: data/json/quests.json
-msgid "Shatter the Dark Shard"
-msgstr "Kara Kırığı Parçala"
-
-#: data/json/quests.json
-msgid "A corrupted Dark Shard has emerged near Lake Lunra. Gather other wizards, shatter its obsidian core, and collect the ancient drops."
-msgstr "Lunra Gölü'nün yakınında bozulmuş bir Kara Kırık belirdi. Diğer büyücüleri topla, obsidyen çekirdeğini parçala ve kadim ganimetleri topla."
-
 #~ msgid "  (failure: +%d)"
 #~ msgstr "  (başarısızlık: +%d)"
 
@@ -7534,6 +7498,9 @@ msgstr "Lunra Gölü'nün yakınında bozulmuş bir Kara Kırık belirdi. Diğer
 #~ msgid "A corrupted Dark Monolith has emerged near the Black Lake. Gather other wizards, shatter its obsidian core, and collect the ancient drops."
 #~ msgstr "Kara Göl'ün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. Diğer büyücüleri topla, obsidyen çekirdeğini parçala ve kadim ganimetleri topla."
 
+#~ msgid "A corrupted Dark Shard has emerged near Lake Lunra. Gather other wizards, shatter its obsidian core, and collect the ancient drops."
+#~ msgstr "Lunra Gölü'nün yakınında bozulmuş bir Kara Kırık belirdi. Diğer büyücüleri topla, obsidyen çekirdeğini parçala ve kadim ganimetleri topla."
+
 #~ msgid "A corrupted Dark Shard has emerged near the Lake Lunra. Gather other wizards, shatter its obsidian core, and collect the ancient drops."
 #~ msgstr "Lunra Gölü'nün yakınında bozulmuş bir Karanlık Metin Taşı belirdi. Diğer büyücüleri topla, obsidyen çekirdeğini parçala ve kadim ganimetleri topla."
 
@@ -7597,8 +7564,14 @@ msgstr "Lunra Gölü'nün yakınında bozulmuş bir Kara Kırık belirdi. Diğer
 #~ msgid "Always night"
 #~ msgstr "Hep gece"
 
+#~ msgid "Ambition: +20% Dark Magic Damage & 10% Life Leech on Hit"
+#~ msgstr "Hırs: +%20 Kara Büyü Hasarı ve vuruşta %10 Can Emme"
+
 #~ msgid "Ancient Monolith"
 #~ msgstr "Kadim Metin Taşı"
+
+#~ msgid "Ash handle with aerodynamic ash finish and goblin-forged ironwork. Supreme 22.0 speed."
+#~ msgstr "Aerodinamik dişbudak cilalı dişbudak sap ve cin dövmesi demir işçiliği. Üstün 22.0 hız."
 
 #~ msgid "At least 8 characters, letters and digits"
 #~ msgstr "En az 8 karakter, harf ve rakam"
@@ -7629,6 +7602,9 @@ msgstr "Lunra Gölü'nün yakınında bozulmuş bir Kara Kırık belirdi. Diğer
 
 #~ msgid "Borin's three-headed dog, guarding the trapdoor. Music sends it to sleep."
 #~ msgstr "Borin'in kapağı koruyan üç başlı köpeği. Müzik onu uyutur."
+
+#~ msgid "Bravery: +15% Fire Spell Damage & +10% Critical Strike Chance"
+#~ msgstr "Cesaret: +%15 Ateş Büyüsü Hasarı ve +%10 Kritik Vuruş Şansı"
 
 #~ msgid "Break a Dark Monolith (follow the purple beams), refine your wand (O), then fly to the Quidditch Pitch (Shift to mount)."
 #~ msgstr "Bir Karanlık Metin Taşı kır (mor ışınları izle), asanı yükselt (O), sonra Quidditch Sahası'na uç (binmek için Shift)."
@@ -7930,6 +7906,24 @@ msgstr "Lunra Gölü'nün yakınında bozulmuş bir Kara Kırık belirdi. Diğer
 #~ msgid "Enchant an item at Ollivander"
 #~ msgstr "Ollivander'da bir eşyaya efsun bas"
 
+#~ msgid "Enchanted apprentice gear. +0 maximum HP, +10 maximum mana."
+#~ msgstr "Büyülü çırak ekipmanı. +0 maksimum can, +10 maksimum mana."
+
+#~ msgid "Enchanted apprentice gear. +0 maximum HP, +15 maximum mana."
+#~ msgstr "Büyülü çırak ekipmanı. +0 maksimum can, +15 maksimum mana."
+
+#~ msgid "Enchanted apprentice gear. +0 maximum HP, +20 maximum mana."
+#~ msgstr "Büyülü çırak ekipmanı. +0 maksimum can, +20 maksimum mana."
+
+#~ msgid "Enchanted apprentice gear. +0 maximum HP, +25 maximum mana."
+#~ msgstr "Büyülü çırak ekipmanı. +0 maksimum can, +25 maksimum mana."
+
+#~ msgid "Enchanted apprentice gear. +25 maximum HP, +0 maximum mana."
+#~ msgstr "Büyülü çırak ekipmanı. +25 maksimum can, +0 maksimum mana."
+
+#~ msgid "Enchanted heavy dragonhide battle cloak. +150 Max HP and 15% Magic Armor."
+#~ msgstr "Büyülü ağır ejderha derisi savaş pelerini. +150 Maks. Can ve %15 Büyü Zırhı."
+
 #~ msgid "Enter Hogwarts Castle"
 #~ msgstr "Hogwarts Şatosu'na gir"
 
@@ -8227,6 +8221,9 @@ msgstr "Lunra Gölü'nün yakınında bozulmuş bir Kara Kırık belirdi. Diğer
 #~ msgid "Landlady of the Three Broomsticks"
 #~ msgstr "Üç Süpürge'nin Sahibi"
 
+#~ msgid "Loyalty: +25% Max Health & +15% Damage Reduction"
+#~ msgstr "Sadakat: +%25 Maks. Can ve +%15 Hasar Azaltma"
+
 #~ msgid "Madam Pince"
 #~ msgstr "Madam Pince"
 
@@ -8473,6 +8470,9 @@ msgstr "Lunra Gölü'nün yakınında bozulmuş bir Kara Kırık belirdi. Diğer
 #~ msgid "Shatter the Dark Monolith"
 #~ msgstr "Karanlık Metin Taşını Parçala"
 
+#~ msgid "Shatter the Dark Shard"
+#~ msgstr "Kara Kırığı Parçala"
+
 #~ msgid "Side Fringe"
 #~ msgstr "Yan Perçem"
 
@@ -8508,6 +8508,9 @@ msgstr "Lunra Gölü'nün yakınında bozulmuş bir Kara Kırık belirdi. Diğer
 
 #~ msgid "Soul-sucking guards of Azkaban. Their cold drains your will; only a Patronus truly drives them off."
 #~ msgstr "Azkaban'ın ruh emen gardiyanları. Soğukları iradeni tüketir; onları gerçekten ancak bir Patronus kovar."
+
+#~ msgid "Speak with Kestrin in the courtyard and practice casting your Basic Cast and Stun Bolt on the Training Dummies."
+#~ msgstr "Avluda Kestrin ile konuş ve Eğitim Kuklaları üzerinde Temel Büyü ile Şok Oku çalış."
 
 #~ msgid "Speak with Madam Pince"
 #~ msgstr "Madam Pince ile konuş"
@@ -8550,6 +8553,9 @@ msgstr "Lunra Gölü'nün yakınında bozulmuş bir Kara Kırık belirdi. Diğer
 
 #~ msgid "Stupefy"
 #~ msgstr "Stupefy"
+
+#~ msgid "Sturdy woolen school robes tailored with silk house linings. +50 Max HP."
+#~ msgstr "İpek bina astarlı sağlam yün okul cüppesi. +50 Maks. Can."
 
 #~ msgid "Suits of armour enchanted to defend the forbidden third floor."
 #~ msgstr "Yasak üçüncü katı korumak için büyülenmiş zırhlar."
@@ -8611,6 +8617,9 @@ msgstr "Lunra Gölü'nün yakınında bozulmuş bir Kara Kırık belirdi. Diğer
 #~ msgid "The Queen's Lair"
 #~ msgstr "Kraliçe'nin Yuvası"
 
+#~ msgid "The Raven Woods is crawling with venomous Black Weavers. Defeat 5 Black Weavers to protect the castle grounds."
+#~ msgstr "Kuzgun Ormanı zehirli Kara Ağcılarla kaynıyor. Şato arazisini korumak için 5 Kara Ağcı alt et."
+
 #~ msgid "The Snatcher Captain"
 #~ msgstr "Kapkaççı Kaptanı"
 
@@ -8622,6 +8631,9 @@ msgstr "Lunra Gölü'nün yakınında bozulmuş bir Kara Kırık belirdi. Diğer
 
 #~ msgid "The Trial Hall portal is the glowing arch on the courtyard lawn, beside the lake walk. Step into it and press F, clear the corridor, then defeat the Trial Warden. Up to five can go in together."
 #~ msgstr "Sınav Salonu geçidi, avlunun çimenliğinde göl yolunun yanındaki parlayan kemerdir. İçine gir ve F'ye bas, koridoru temizle, sonra Sınav Muhafızı'nı alt et. En fazla beş kişi birlikte girebilir."
+
+#~ msgid "The Whispering Woods"
+#~ msgstr "Fısıldayan Koru"
 
 #~ msgid "The corridor is silent. The trapdoor swings open - claim your reward."
 #~ msgstr "Koridor sessizleşti. Kapak açılıyor - ödülünü al."
@@ -8727,6 +8739,9 @@ msgstr "Lunra Gölü'nün yakınında bozulmuş bir Kara Kırık belirdi. Diğer
 
 #~ msgid "WASD move · right-drag camera · wheel zoom\nLMB attack · 1–4 / Q / E skills · Tab target\nShift mount · Space rise · Ctrl descend · F talk\nZ loot · I bag · O Ollivander · J guide · F1 settings"
 #~ msgstr "WASD hareket · sağ sürükle kamera · tekerlek yakınlaştır\nSol tık saldır · 1–4 / Q / E beceriler · Tab hedef\nShift bin · Boşluk yüksel · Ctrl alçal · F konuş\nZ ganimet · I çanta · O Ollivander · J rehber · F1 ayarlar"
+
+#~ msgid "Wand Awakening"
+#~ msgstr "Asanın Uyanışı"
 
 #~ msgid "Wands choose the wizard... but Galleons refine them!"
 #~ msgstr "Asalar büyücüsünü seçer... ama onları Galleon'lar yükseltir!"

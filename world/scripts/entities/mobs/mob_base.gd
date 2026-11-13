@@ -1854,6 +1854,20 @@ func trigger_enrage() -> void:
 	attack_power = int(_base_attack * 1.3)
 	move_speed = _base_speed * 1.25
 	attack_cooldown = _base_cooldown * 0.8
+	# The record drives FLAG_ENRAGED in snapshots: without it online clients
+	# never saw a creature enraged (label or HUD).
+	SimAuthority.set_mob_enraged(self, true)
+	_update_label()
+
+## Back to base stats (a reset encounter, a boss home after a wipe).
+func clear_enrage() -> void:
+	if not is_enraged:
+		return
+	is_enraged = false
+	attack_power = _base_attack
+	move_speed = _base_speed
+	attack_cooldown = _base_cooldown
+	SimAuthority.set_mob_enraged(self, false)
 	_update_label()
 
 ## Damage requests are decided by the authority; this node never subtracts HP on
@@ -2110,6 +2124,12 @@ func _update_puppet(delta: float) -> void:
 	if not is_boss and (int(record.get("flags", 0)) & HPProtocol.FLAG_BOSS) != 0:
 		is_boss = true
 		_apply_boss_visual()
+	# The authority's enrage reaches a replica only as this flag (label and the
+	# target frame read is_enraged).
+	var enraged := (int(record.get("flags", 0)) & HPProtocol.FLAG_ENRAGED) != 0
+	if enraged != is_enraged:
+		is_enraged = enraged
+		_update_label()
 	var dead := bool(record.get("dead", false))
 	if dead:
 		if state != State.DEAD:

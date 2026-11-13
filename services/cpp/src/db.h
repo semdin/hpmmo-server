@@ -55,6 +55,9 @@ public:
     bool begin();
     bool commit_checked(Result& out);  // distinguishes uncertain commit (connection lost during COMMIT)
     void rollback();
+    // Back to a clean session between checkouts: rolls back a transaction a
+    // handler left open, drops a connection that cannot be rolled back.
+    void reset_for_reuse();
 
     const std::string& last_error() const { return last_error_; }
 
@@ -70,10 +73,16 @@ public:
 
     // Checked-out connection; unlocks its pool slot on destruction. Movable,
     // not copyable. Forwarding methods so callers use `lease.exec(...)`.
+    // An early return between begin() and commit must not hand the next
+    // caller an open transaction (and its row locks), so release cleans up.
     class Lease {
     public:
         Lease(Conn* c, std::mutex* m) : conn_(c), mutex_(m) {}
-        ~Lease() { if (mutex_) mutex_->unlock(); }
+        ~Lease() {
+            if (!mutex_) return;
+            conn_->reset_for_reuse();
+            mutex_->unlock();
+        }
         Lease(const Lease&) = delete;
         Lease& operator=(const Lease&) = delete;
         Lease(Lease&& other) noexcept : conn_(other.conn_), mutex_(other.mutex_) { other.mutex_ = nullptr; }

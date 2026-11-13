@@ -19,7 +19,7 @@ api.agsilvery.com {
 		X-Content-Type-Options "nosniff"
 		-Server
 	}
-	@world_only path /api/session/introspect /api/characters/save /api/reward /api/trade
+	@world_only path /api/session/introspect /api/characters/save /api/reward /api/trade /api/dungeon/run /api/dungeon/board
 	respond @world_only 404
 	# Caddy sets X-Forwarded-For; the service trusts it from loopback only
 	# (app.cpp client_ip) for its login/register rate limits.

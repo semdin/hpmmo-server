@@ -69,11 +69,7 @@ func _on_reset() -> void:
 	_harp_uid = 0
 	_harp_progress = 0.0
 	_harp_ready_at = 0.0
-	if is_enraged:
-		is_enraged = false
-		attack_power = _base_attack
-		move_speed = _base_speed
-		attack_cooldown = _base_cooldown
+	clear_enrage()
 
 func _on_part_down(key: String) -> void:
 	var side: String = {"L": "left", "M": "middle", "R": "right"}.get(key, key)

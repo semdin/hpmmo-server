@@ -103,7 +103,7 @@ class_name HPProtocol
 ##     packs). A v23 client would draw it as the variant-1 Inferius.
 ## v25: snapshots carry a status byte (STATUS_* crowd control and damage over
 ##     time on the body: stun, freeze, slow, bleed, burn, poison, knocked,
-##     disarmed), 31 bytes per entity, so every client draws the same effects.
+##     disarmed), 31 bytes per entity at the time (35 since v34), so every client draws the same effects.
 ## v26: GA (game admin) - `ga` in player info and the owner's stats (the
 ##     emblem over the name), `/ga` chat commands, and the world's weather
 ##     (`sim_weather` {rain}) sent on change and on joining.
@@ -141,7 +141,10 @@ class_name HPProtocol
 ##     last took and how long ago (`ack_seq`, `ack_age_ms`), so the client
 ##     compares the server's body with where it itself was at that very moment
 ##     instead of with the nearest point of its recent path.
-const PROTOCOL_VERSION := 33
+## v34: snapshot entities carry hp / max_hp as u32 (35 bytes per entity, 25 per
+##     chunk): scaled dungeon bosses pass 65 535 HP. A join with the same
+##     session token on two connections is resolved to the newest one.
+const PROTOCOL_VERSION := 34
 
 ## Death choice (v18 `sim_respawn_request`).
 const RESPAWN_TOWN := 0

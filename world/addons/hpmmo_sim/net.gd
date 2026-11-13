@@ -473,7 +473,7 @@ func _on_peer_disconnected(peer_id: int) -> void:
 	_peer_map.erase(peer_id)
 	_replaced_peers.erase(peer_id)
 	_loading_peers.erase(peer_id)
-	_joining.erase(peer_id)
+	_end_join(peer_id)
 	_binding.erase(peer_id)
 	_buckets.erase(peer_id)
 	_last_perf_ms.erase(peer_id)
@@ -525,16 +525,24 @@ func sim_join(token: String, protocol_version: int, client_version: String) -> v
 		if not _join_still_wanted(peer_id):
 			return
 		if not bool(resolved.get("ok", false)):
-			_joining.erase(peer_id)
+			_end_join(peer_id)
 			sim_join_result.rpc_id(peer_id, false, String(resolved.get("reason", "auth_failed")), 0, {}, SimAuthority.sim_tick, 0)
 			return
 		identity = resolved
+		var account_id := int(identity.get("account_id", 0))
+		# The newest login of an account owns its pending join too: an older join
+		# of the same account still waiting on the character load below is
+		# refused when it resumes (_join_superseded), so two connections carrying
+		# one session can never both spawn the character.
+		if account_id > 0:
+			_joining[peer_id] = account_id
+			_joining_accounts[account_id] = peer_id
 		# One live session per account: the newest login wins. A crashed or
 		# frozen client keeps its peer alive until ENet times it out (up to
 		# PEER_TIMEOUT_MAX_MS), which used to refuse the player's own relog
 		# with "character in session" for most of a minute. Retired first, so
 		# its last save is the sheet the character load below waits for.
-		_take_over_account(int(identity.get("account_id", 0)), peer_id)
+		_take_over_account(account_id, peer_id)
 		# A session may carry a character (a ticket redeemed with one). The server
 		# proves that binding itself through the service - load the sheet and
 		# compare account_id - instead of trusting the token, and refuses the join
@@ -546,17 +554,28 @@ func sim_join(token: String, protocol_version: int, client_version: String) -> v
 				bound_id, int(identity.get("account_id", 0)))
 			if not _join_still_wanted(peer_id):
 				return
+			if _join_superseded(peer_id, account_id):
+				return
 			if not bool(checked.get("ok", false)):
-				_joining.erase(peer_id)
+				_end_join(peer_id)
 				sim_join_result.rpc_id(peer_id, false,
 					String(checked.get("reason", HPProtocol.BIND_NOT_FOUND)), 0, {}, SimAuthority.sim_tick, 0)
 				return
 			identity["character"] = checked["character"]
-		_joining.erase(peer_id)
+		_end_join(peer_id)
 		if SimAuthority.players_by_peer.has(peer_id):
 			return
 		if not SimAuthority.joins_allowed():
 			sim_join_result.rpc_id(peer_id, false, "maintenance", 0, {}, SimAuthority.sim_tick, 0)
+			return
+		# Again after the last await: a session of this account that finished
+		# joining while this one waited on the service is retired now, in the
+		# same frame as the spawn below.
+		_take_over_account(account_id, peer_id)
+		if bound_id > 0 and SimAuthority.players_by_character.has(bound_id):
+			# Only a different account could still hold it, which ownership
+			# rules out; never put one character into the world twice.
+			sim_join_result.rpc_id(peer_id, false, HPProtocol.BIND_IN_SESSION, 0, {}, SimAuthority.sim_tick, 0)
 			return
 	elif OS.get_environment("HPMMO_ALLOW_DEV_JOIN") == "1":
 		# Development/testing only: with no auth backend configured the join token
@@ -612,14 +631,38 @@ func sim_join(token: String, protocol_version: int, client_version: String) -> v
 ## actually closes. Nothing they send is acted on.
 var _replaced_peers: Dictionary = {}
 ## Peers whose join (or character bind) is waiting on the account service.
+## _joining maps peer -> account id once the session is resolved (true before).
 var _joining: Dictionary = {}
 var _binding: Dictionary = {}
+## account id -> the peer of that account's newest pending join.
+var _joining_accounts: Dictionary = {}
+
+func _end_join(peer_id: int) -> void:
+	var account = _joining.get(peer_id, null)
+	_joining.erase(peer_id)
+	if account is int and int(_joining_accounts.get(account, 0)) == peer_id:
+		_joining_accounts.erase(account)
+
+## A newer login of the same account started after this join's session
+## resolved: this connection is retired the way _take_over_account retires a
+## live one, and its join goes no further.
+func _join_superseded(peer_id: int, account_id: int) -> bool:
+	if account_id <= 0 or int(_joining_accounts.get(account_id, peer_id)) == peer_id:
+		return false
+	print("[SimNet] account %d logged in again; dropping peer %d's pending join" % [account_id, peer_id])
+	_end_join(peer_id)
+	_replaced_peers[peer_id] = true
+	sim_notice.rpc_id(peer_id, HPProtocol.NOTICE_SESSION, HPProtocol.SESSION_REPLACED)
+	var packet_peer := _peer_object(peer_id)
+	if packet_peer != null:
+		packet_peer.peer_disconnect_later()
+	return true
 
 ## After an awaited service call: is this connection still there to answer?
 ## A peer that dropped (or was retired by a newer login) meanwhile is let go.
 func _join_still_wanted(peer_id: int) -> bool:
 	if _replaced_peers.has(peer_id) or not multiplayer.get_peers().has(peer_id):
-		_joining.erase(peer_id)
+		_end_join(peer_id)
 		_binding.erase(peer_id)
 		return false
 	return true
@@ -1939,7 +1982,7 @@ func _broadcast_snapshots(slot := -1) -> void:
 
 		# Whole entities per chunk: each chunk is applied on its own, and a cut
 		# through an entity (900 bytes = 29 entities + 1 byte) lost the 30th.
-		var chunk_size := HPSnapshots.ENTITY_BYTES * 29
+		var chunk_size := HPSnapshots.ENTITY_BYTES * HPSnapshots.ENTITIES_PER_CHUNK
 		var chunks := maxi(1, int(ceil(float(bytes.size()) / float(chunk_size))))
 		# v33: the newest input this body runs on and how long it has (-1: none yet).
 		var intent: Dictionary = record.get("input", {})
@@ -2220,7 +2263,13 @@ func sim_equipment_request(request_id: int, revision: int, operation: String, sl
 	if not _allow(peer_id, "equipment"):
 		sim_equipment_result.rpc_id(peer_id, {"ok": false, "reason": "rate_limited", "request_id": request_id})
 		return
-	if request_id < 0 or operation.length() > 16 or slot.length() > 20 or item_id.length() > 64 or tier < 0 or tier > 9 or uid < 0: return
+	# `tier` is a refine tier (0..9), except for "buy", where it carries the
+	# quantity (1..20, request_equipment clamps it): one bound for both refused
+	# every purchase of 10 or more without an answer.
+	var tier_max := 20 if operation == "buy" else 9
+	if request_id < 0 or operation.length() > 16 or slot.length() > 20 or item_id.length() > 64 or tier < 0 or tier > tier_max or uid < 0:
+		sim_equipment_result.rpc_id(peer_id, {"ok": false, "reason": HPProtocol.REJECT_STATE, "request_id": maxi(request_id, -1)})
+		return
 	var answer := SimAuthority.request_equipment(peer_id, request_id, revision, operation, slot, item_id, tier, uid)
 	sim_equipment_result.rpc_id(peer_id, answer)
 

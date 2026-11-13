@@ -139,13 +139,29 @@ func _build(state: Dictionary) -> Dictionary:
 	root.add_child(label)
 	return {"root": root, "label": label, "aura": aura, "state": state, "holders": []}
 
+## A boot whose end the authority's word never reached (the message was for a
+## session this client no longer had) goes this long after its countdown.
+const STALE_AFTER_TICKS := HPProtocol.SIM_HZ * 3
+
 func _process(_delta: float) -> void:
 	var me := _local()
+	var body = get_parent().get("local_player") if get_parent() != null else null
+	var here := ""
+	if body is Node3D and is_instance_valid(body):
+		here = HPMaps.base_map(HPMaps.map_for_point((body as Node3D).global_position))
+	var stale: Array = []
 	for id in _views:
 		var view: Dictionary = _views[id]
 		var state: Dictionary = view.state
 		if not is_instance_valid(view.root):
 			continue
+		if int(SimAuthority.sim_tick) > int(state.get("ends_tick", 0)) + STALE_AFTER_TICKS:
+			stale.append(id)
+			continue
+		# A party member's boot on another map is kept (it is there when this
+		# player arrives) but not drawn: maps share one 3D space, and the label
+		# draws through everything.
+		(view.root as Node3D).visible = here == "" or HPMaps.base_map(String(state.get("map", ""))) == here
 		var left := maxf(0.0, float(int(state.get("ends_tick", 0)) - int(SimAuthority.sim_tick)) * HPProtocol.SIM_DT)
 		var holders: Array = state.get("holders", [])
 		(view.label as Label3D).text = tr("Waylink to %s\n%d") % [I18n.t(String(state.get("label", ""))), ceili(left)]
@@ -157,6 +173,10 @@ func _process(_delta: float) -> void:
 				if Vector2(v.x, v.z).length() > 1.2:
 					_letting_go = true
 					SimNet.portkey_grab(player, int(id), false)
+	for id in stale:
+		var view: Dictionary = _views[id]
+		_sync_holders(view, [], view.state.get("pos", Vector3.ZERO))
+		_drop(id)
 
 ## The Portkey the local body could hold (or is holding) on `map_id`:
 ## {id, holding, label} or {}.

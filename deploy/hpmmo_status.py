@@ -57,6 +57,7 @@ import signal
 import socket
 import ssl
 import sys
+import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 STATE_DIR = os.environ.get("HPMMO_STATE_DIR", "/opt/hpmmo/state")
@@ -157,6 +158,27 @@ def release_file(relpath: str) -> str | None:
     if not os.path.isfile(candidate):
         return None
     return candidate
+
+
+_SPKI_CACHE_LOCK = threading.Lock()
+_SPKI_CACHE: dict = {}
+
+
+def cached_spki_sha256(cert_path: str) -> str:
+    """The pin of cert_path, recomputed only when the file changes (renewal).
+
+    /tls/spki is public and the server is threaded: computing the pin per
+    request forked two openssl processes for every hit, a cheap way to burn
+    the host's CPU and process table."""
+    st = os.stat(cert_path)
+    key = (cert_path, st.st_mtime_ns, st.st_size)
+    with _SPKI_CACHE_LOCK:
+        if _SPKI_CACHE.get("key") == key:
+            return _SPKI_CACHE["pin"]
+        pin = spki_sha256_of_certificate(cert_path)
+        _SPKI_CACHE["key"] = key
+        _SPKI_CACHE["pin"] = pin
+        return pin
 
 
 def spki_sha256_of_certificate(cert_path: str) -> str:
@@ -260,7 +282,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(404, {"status": "no tls certificate configured"})
             else:
                 try:
-                    self._json(200, {"spki_sha256": spki_sha256_of_certificate(TLS_CERT),
+                    self._json(200, {"spki_sha256": cached_spki_sha256(TLS_CERT),
                                      "cert": os.path.basename(TLS_CERT)})
                 except (OSError, ValueError) as exc:
                     self._json(500, {"status": "cannot read the certificate", "error": str(exc)})
